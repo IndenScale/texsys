@@ -59,7 +59,7 @@ Net 是由一组 Port 和 Connection 构成的类型化网络，表示连接关�
 
 Net 可以表示电源、传热、水循环、控制信号、巡检动线、疏散动线等不同网络。核心模型不预设所有 Net 都具有相同方向、连通或状态语义，具体规则由网络类型及其评估器定义。
 
-Connection 决定局部连接事实，Net 保存网络身份和整体语义。Net 的显式声明、匿名推导及成员一致性规则尚待定义。
+Connection 决定局部连接事实，Net 保存网络身份和整体语义。Net 的显式声明、匿名推导及成员一致性规则尚未定义，登记为 [OQ-3](../../docs/open-questions.md)。
 
 在复合 Component 内，Netlist 可以连接内部实例端口和 Component 自身端口。Netlist 与 Layout 必须引用同一组内部实例，不得各自创建部件副本。
 
