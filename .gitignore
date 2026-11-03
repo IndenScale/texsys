@@ -1,0 +1,17 @@
+# macOS
+.DS_Store
+
+# 代理/编辑器临时附件
+.kimi-attachments/
+.idea/
+.vscode/
+*.swp
+
+# 构建与本地环境（后续实现代码时生效）
+build/
+dist/
+node_modules/
+.venv/
+__pycache__/
+*.pyc
+.uv/
