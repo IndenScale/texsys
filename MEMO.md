@@ -12,7 +12,7 @@
 
 ## 当前范围
 
-首个验证场景为**暖通（HVAC）冷启动**：原理图、调度、粗粒度布置位置，以及散热／通风／结露的近似环境条件；元件数量少，几何与环境误差容忍度较高。
+首个验证场景为**暖通（HVAC）冷启动**：系统原理图与粗粒度布置，以及散热／通风／结露的近似环境条件；元件数量少，几何与环境误差容忍度较高。调度属运营侧，不在本期设计模型内。
 
 完整边界、精度假设与验收口径见 [当前范围](docs/scope.md)。范围外内容不得借"通用性"之名回流。
 
@@ -21,6 +21,8 @@
 | 决策 | 状态 | 位置 |
 |---|---|---|
 | 采用 OpenUSD 与 USD BRep 作为原生场景和几何技术栈 | 提议（待 spike） | [ADR-0001](docs/adr/0001-openusd-native-scene-geometry.md) |
+| 调度属运营侧，不进入 SDL 设计模型 | 已接受 | [ADR-0002](docs/adr/0002-design-time-vs-operation-time.md) |
+| 原理图（及设备表、计算书）是 Netlist／Layout 的投影，不是核心对象 | 已定 | [SDL 核心模型](spec/sdl/01-core-model.md#原理图) |
 | Component 采用递归组合模型，不另设 System／Assembly | 已定 | [SDL 核心模型](spec/sdl/01-core-model.md) |
 | Port 随实例自动派生，不引入 PortInstance／Endpoint | 已定 | [SDL 核心模型](spec/sdl/01-core-model.md) |
 | Placement 统一用 Frame 表达位姿，并区分定位约束与验证约束 | 已定 | [SDL 核心模型](spec/sdl/01-core-model.md) |

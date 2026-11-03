@@ -29,3 +29,4 @@ adr/NNNN-short-title.md
 | 编号 | 决策 | 状态 |
 |---|---|---|
 | [0001](0001-openusd-native-scene-geometry.md) | 采用 OpenUSD 与 USD BRep 作为原生场景和几何技术栈 | 提议（待 spike 门禁） |
+| [0002](0002-design-time-vs-operation-time.md) | 调度属于运行期，不进入 SDL 设计模型 | 已接受 |
