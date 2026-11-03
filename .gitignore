@@ -1,6 +1,9 @@
 # macOS
 .DS_Store
 
+# 本地参考资料：原始图纸与客户文档不入库，来源与校验和见 docs/references.md
+refs/
+
 # 代理/编辑器临时附件
 .kimi-attachments/
 .idea/
@@ -15,3 +18,8 @@ node_modules/
 __pycache__/
 *.pyc
 .uv/
+
+# 原始资料常见格式（即使误放也不入库）
+*.rar
+*.zip
+*.dwg

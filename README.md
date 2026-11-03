@@ -11,6 +11,7 @@ texsys 来自 **textual system**，是 **SDL** 的参考实现、工具链与生
 | 语法 / 校验器 | 无 |
 | 参考实现 / 代码 | 无 |
 | conformance 测试 | 无 |
+| 暖通领域插件 | 脚手架，无实现 |
 | 首个验证场景 | 暖通（HVAC），见 [当前范围](docs/scope.md) |
 
 项目当前处于**规范成形期**：概念已对齐，可执行部分为零。任何声称"能用"的判断都还没有依据。
@@ -23,6 +24,8 @@ texsys 来自 **textual system**，是 **SDL** 的参考实现、工具链与生
 | [docs/scope.md](docs/scope.md) | 当前范围与验收口径（暖通冷启动） | **权威**：判断某件事是否在范围内 |
 | [docs/adr/](docs/adr/README.md) | 架构决策记录 | **权威**：为什么这样决定 |
 | [docs/open-questions.md](docs/open-questions.md) | 未决议题、阻塞影响与触发条件 | **权威**：什么还没定、何时必须定 |
+| [docs/references.md](docs/references.md) | 外部资料边界、来源与校验和 | **权威**：某份资料能否被引用、是否入库 |
+| [plugins/hvac/](plugins/hvac/README.md) | 暖通领域插件：设备模型、静态规则、输出格式、简易求解器 | 领域扩展，不含核心语义 |
 | [spec/sdl/](spec/sdl/00-overview.md) | SDL 规范 | **权威**：语义怎么定义 |
 | [设计自动化原理/](设计自动化原理/00-前言与导读.md) | 方法论书 | 背景论证，**不构成约束** |
 
@@ -33,6 +36,7 @@ texsys 来自 **textual system**，是 **SDL** 的参考实现、工具链与生
 1. **想理解为什么**：`设计自动化原理/00` → `01` → `02`。
 2. **想判断范围**：本文件 → `docs/scope.md` → `docs/adr/0001`。
 3. **想动手实现**：`spec/sdl/00` → `spec/sdl/01` → `docs/open-questions.md`（先解决阻塞项）。
+4. **想做暖通切片**：`plugins/hvac/` → `examples/` → `docs/references.md`（资料只在本地）。
 
 ## 下一步（按优先级）
 
@@ -45,3 +49,4 @@ texsys 来自 **textual system**，是 **SDL** 的参考实现、工具链与生
 - ADR 只增不改；改变已接受决策时新增后继 ADR。
 - 待定项必须进入 `docs/open-questions.md`，带触发条件，不允许散落在正文里。
 - 文档中"已知/假设/待定/缺失/不适用/失败"六态必须区分，不得用空值或默认值代替。
+- 原始图纸与客户资料**不入库**：本地 `refs/`，已被忽略；入库的只有提取后的模型与结论。
