@@ -8,13 +8,13 @@
 
 四件套分工：
 
-| 目录 | 职责 | 对应 SDL 概念 |
-|---|---|---|
-| [models/](models/README.md) | 设备类型库：参数、端口、能力、适用条件 | Component 定义 |
-| [linter/](linter/README.md) | 静态规则：连接一致性、介质匹配、参数完整性 | Netlist／Net 校验 |
-| [formatter/](formatter/README.md) | 输出约定：原理图投影、设备表、编号与单位 | Netlist + Layout 的投影 |
-| [solver/](solver/README.md) | 简易求解器：环路流量、机房温升、结露判据 | 评估器（近似） |
-| [examples/](examples/README.md) | 第一个切片：三层冷站 + 四层冷却塔 | 端到端闭环 |
+| 目录                              | 职责                                       | 对应 SDL 概念           |
+| --------------------------------- | ------------------------------------------ | ----------------------- |
+| [models/](models/README.md)       | 设备类型库：参数、端口、能力、适用条件     | Component 定义          |
+| [linter/](linter/README.md)       | 静态规则：连接一致性、介质匹配、参数完整性 | Netlist／Net 校验       |
+| [formatter/](formatter/README.md) | 输出约定：原理图投影、设备表、编号与单位   | Netlist + Layout 的投影 |
+| [solver/](solver/README.md)       | 简易求解器：环路流量、机房温升、结露判据   | 评估器（近似）          |
+| [examples/](examples/README.md)   | 第一个切片：三层冷站 + 四层冷却塔          | 端到端闭环              |
 
 ## 明确不做
 

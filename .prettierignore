@@ -1,0 +1,29 @@
+# Package & lock files
+node_modules/
+package-lock.json
+
+# Build outputs
+build/
+dist/
+
+# Python & virtual environments
+.venv/
+__pycache__/
+*.pyc
+.uv/
+
+# Local references and sensitive/external assets
+refs/
+.kimi-attachments/
+
+# Editor & OS files
+.DS_Store
+.idea/
+*.swp
+
+# Binary & archive formats
+*.pdf
+*.zip
+*.rar
+*.dwg
+

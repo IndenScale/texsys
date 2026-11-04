@@ -1,0 +1,15 @@
+{
+  "name": "texsys",
+  "version": "0.1.0",
+  "private": true,
+  "description": "texsys: reference implementation, toolchain and ecosystem for SDL",
+  "type": "module",
+  "scripts": {
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
+  },
+  "devDependencies": {
+    "prettier": "^3.5.2"
+  }
+}
+
