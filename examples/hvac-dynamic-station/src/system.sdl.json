@@ -1,0 +1,623 @@
+{
+  "components": {
+    "ChilledPipe": {
+      "behavior": {
+        "parameters": {
+          "diameter_m": {
+            "source": "可重跑概念工况，用于软件与物理守恒验证；未按厂商曲线校准。",
+            "state": "assumed",
+            "unit": "m",
+            "value": 0.065
+          },
+          "elevation_change_m": {
+            "source": "可重跑概念工况，用于软件与物理守恒验证；未按厂商曲线校准。",
+            "state": "assumed",
+            "unit": "m",
+            "value": 0
+          },
+          "heat_loss_ua_w_k": {
+            "source": "可重跑概念工况，用于软件与物理守恒验证；未按厂商曲线校准。",
+            "state": "assumed",
+            "unit": "W/K",
+            "value": 15
+          },
+          "length_m": {
+            "source": "可重跑概念工况，用于软件与物理守恒验证；未按厂商曲线校准。",
+            "state": "assumed",
+            "unit": "m",
+            "value": 75
+          },
+          "minor_loss_coefficient": {
+            "source": "可重跑概念工况，用于软件与物理守恒验证；未按厂商曲线校准。",
+            "state": "assumed",
+            "unit": "1",
+            "value": 4
+          },
+          "roughness_m": {
+            "source": "可重跑概念工况，用于软件与物理守恒验证；未按厂商曲线校准。",
+            "state": "assumed",
+            "unit": "m",
+            "value": 4.5e-05
+          },
+          "segments": {
+            "source": "可重跑概念工况，用于软件与物理守恒验证；未按厂商曲线校准。",
+            "state": "assumed",
+            "unit": "1",
+            "value": 3
+          },
+          "wall_capacity_j_k": {
+            "source": "可重跑概念工况，用于软件与物理守恒验证；未按厂商曲线校准。",
+            "state": "assumed",
+            "unit": "J/K",
+            "value": 30000
+          }
+        },
+        "reference": "assets/physics/pipe.physics.json",
+        "source": "版本化集总水系统本构模型 v1；参数采用概念假设。",
+        "state": "assumed"
+      },
+      "ports": {
+        "inlet": {
+          "direction": "inout",
+          "kind": "chilled-water"
+        },
+        "outlet": {
+          "direction": "inout",
+          "kind": "chilled-water"
+        }
+      }
+    },
+    "ChilledWaterPump": {
+      "behavior": {
+        "parameters": {
+          "check_valve": {
+            "source": "可重跑概念工况，用于软件与物理守恒验证；未按厂商曲线校准。",
+            "state": "assumed",
+            "unit": "1",
+            "value": 1
+          },
+          "curve_m_per_m6_s2": {
+            "source": "可重跑概念工况，用于软件与物理守恒验证；未按厂商曲线校准。",
+            "state": "assumed",
+            "unit": "s2/m5",
+            "value": 300000
+          },
+          "efficiency": {
+            "source": "可重跑概念工况，用于软件与物理守恒验证；未按厂商曲线校准。",
+            "state": "assumed",
+            "unit": "1",
+            "value": 0.72
+          },
+          "elevation_change_m": {
+            "source": "可重跑概念工况，用于软件与物理守恒验证；未按厂商曲线校准。",
+            "state": "assumed",
+            "unit": "m",
+            "value": 0
+          },
+          "nominal_flow_m3_s": {
+            "source": "可重跑概念工况，用于软件与物理守恒验证；未按厂商曲线校准。",
+            "state": "assumed",
+            "unit": "m3/s",
+            "value": 0.005
+          },
+          "nominal_pressure_drop_pa": {
+            "source": "可重跑概念工况，用于软件与物理守恒验证；未按厂商曲线校准。",
+            "state": "assumed",
+            "unit": "Pa",
+            "value": 1000
+          },
+          "shutoff_head_m": {
+            "source": "可重跑概念工况，用于软件与物理守恒验证；未按厂商曲线校准。",
+            "state": "assumed",
+            "unit": "m",
+            "value": 22
+          },
+          "volume_m3": {
+            "source": "可重跑概念工况，用于软件与物理守恒验证；未按厂商曲线校准。",
+            "state": "assumed",
+            "unit": "m3",
+            "value": 0.03
+          },
+          "water_heat_fraction": {
+            "source": "可重跑概念工况，用于软件与物理守恒验证；未按厂商曲线校准。",
+            "state": "assumed",
+            "unit": "1",
+            "value": 1
+          }
+        },
+        "reference": "assets/physics/pump.physics.json",
+        "source": "版本化集总水系统本构模型 v1；参数采用概念假设。",
+        "state": "assumed"
+      },
+      "ports": {
+        "inlet": {
+          "direction": "inout",
+          "kind": "chilled-water"
+        },
+        "outlet": {
+          "direction": "inout",
+          "kind": "chilled-water"
+        }
+      }
+    },
+    "Chiller": {
+      "behavior": {
+        "parameters": {
+          "capacity_kw": {
+            "source": "可重跑概念工况，用于软件与物理守恒验证；未按厂商曲线校准。",
+            "state": "assumed",
+            "unit": "kW",
+            "value": 120
+          },
+          "chilled_nominal_flow_m3_s": {
+            "source": "可重跑概念工况，用于软件与物理守恒验证；未按厂商曲线校准。",
+            "state": "assumed",
+            "unit": "m3/s",
+            "value": 0.005
+          },
+          "chilled_nominal_pressure_drop_pa": {
+            "source": "可重跑概念工况，用于软件与物理守恒验证；未按厂商曲线校准。",
+            "state": "assumed",
+            "unit": "Pa",
+            "value": 20000
+          },
+          "chilled_volume_m3": {
+            "source": "可重跑概念工况，用于软件与物理守恒验证；未按厂商曲线校准。",
+            "state": "assumed",
+            "unit": "m3",
+            "value": 0.18
+          },
+          "cooling_nominal_flow_m3_s": {
+            "source": "可重跑概念工况，用于软件与物理守恒验证；未按厂商曲线校准。",
+            "state": "assumed",
+            "unit": "m3/s",
+            "value": 0.006
+          },
+          "cooling_nominal_pressure_drop_pa": {
+            "source": "可重跑概念工况，用于软件与物理守恒验证；未按厂商曲线校准。",
+            "state": "assumed",
+            "unit": "Pa",
+            "value": 25000
+          },
+          "cooling_volume_m3": {
+            "source": "可重跑概念工况，用于软件与物理守恒验证；未按厂商曲线校准。",
+            "state": "assumed",
+            "unit": "m3",
+            "value": 0.25
+          },
+          "elevation_change_m": {
+            "source": "可重跑概念工况，用于软件与物理守恒验证；未按厂商曲线校准。",
+            "state": "assumed",
+            "unit": "m",
+            "value": 0
+          },
+          "minimum_flow_m3_s": {
+            "source": "可重跑概念工况，用于软件与物理守恒验证；未按厂商曲线校准。",
+            "state": "assumed",
+            "unit": "m3/s",
+            "value": 0.0001
+          },
+          "nominal_cop": {
+            "source": "可重跑概念工况，用于软件与物理守恒验证；未按厂商曲线校准。",
+            "state": "assumed",
+            "unit": "1",
+            "value": 4.5
+          },
+          "response_tau_s": {
+            "source": "可重跑概念工况，用于软件与物理守恒验证；未按厂商曲线校准。",
+            "state": "assumed",
+            "unit": "s",
+            "value": 20
+          }
+        },
+        "reference": "assets/physics/chiller.physics.json",
+        "source": "版本化集总水系统本构模型 v1；参数采用概念假设。",
+        "state": "assumed"
+      },
+      "ports": {
+        "chilled-in": {
+          "direction": "inout",
+          "kind": "chilled-water"
+        },
+        "chilled-out": {
+          "direction": "inout",
+          "kind": "chilled-water"
+        },
+        "cooling-in": {
+          "direction": "inout",
+          "kind": "cooling-water"
+        },
+        "cooling-out": {
+          "direction": "inout",
+          "kind": "cooling-water"
+        }
+      }
+    },
+    "ColdStation": {
+      "behavior": {
+        "parameters": {
+          "cp_j_kg_k": {
+            "source": "可重跑概念工况，用于软件与物理守恒验证；未按厂商曲线校准。",
+            "state": "assumed",
+            "unit": "J/(kg.K)",
+            "value": 4186
+          },
+          "density_kg_m3": {
+            "source": "可重跑概念工况，用于软件与物理守恒验证；未按厂商曲线校准。",
+            "state": "assumed",
+            "unit": "kg/m3",
+            "value": 998.2
+          },
+          "gravity_m_s2": {
+            "source": "可重跑概念工况，用于软件与物理守恒验证；未按厂商曲线校准。",
+            "state": "assumed",
+            "unit": "m/s2",
+            "value": 9.80665
+          },
+          "viscosity_pa_s": {
+            "source": "可重跑概念工况，用于软件与物理守恒验证；未按厂商曲线校准。",
+            "state": "assumed",
+            "unit": "Pa.s",
+            "value": 0.001002
+          }
+        },
+        "reference": "assets/physics/water-network.physics.json",
+        "source": "版本化集总水系统本构模型 v1；参数采用概念假设。",
+        "state": "assumed"
+      },
+      "connections": [
+        {
+          "from": "P-CHW-01.outlet",
+          "to": "CH-01.chilled-in"
+        },
+        {
+          "from": "CH-01.chilled-out",
+          "to": "PIPE-CHW-01.inlet"
+        },
+        {
+          "from": "PIPE-CHW-01.outlet",
+          "to": "LOAD-01.inlet"
+        },
+        {
+          "from": "LOAD-01.outlet",
+          "to": "V-01.inlet"
+        },
+        {
+          "from": "V-01.outlet",
+          "to": "P-CHW-01.inlet"
+        },
+        {
+          "from": "P-CW-01.outlet",
+          "to": "CH-01.cooling-in"
+        },
+        {
+          "from": "CH-01.cooling-out",
+          "to": "CT-01.inlet"
+        },
+        {
+          "from": "CT-01.outlet",
+          "to": "PIPE-CW-01.inlet"
+        },
+        {
+          "from": "PIPE-CW-01.outlet",
+          "to": "P-CW-01.inlet"
+        }
+      ],
+      "instances": {
+        "CH-01": {
+          "component": "Chiller"
+        },
+        "CT-01": {
+          "component": "CoolingTower"
+        },
+        "LOAD-01": {
+          "component": "CoolingLoad"
+        },
+        "P-CHW-01": {
+          "component": "ChilledWaterPump"
+        },
+        "P-CW-01": {
+          "component": "CoolingWaterPump"
+        },
+        "PIPE-CHW-01": {
+          "component": "ChilledPipe"
+        },
+        "PIPE-CW-01": {
+          "component": "CoolingPipe"
+        },
+        "V-01": {
+          "component": "Valve"
+        }
+      }
+    },
+    "CoolingLoad": {
+      "behavior": {
+        "parameters": {
+          "elevation_change_m": {
+            "source": "可重跑概念工况，用于软件与物理守恒验证；未按厂商曲线校准。",
+            "state": "assumed",
+            "unit": "m",
+            "value": 0
+          },
+          "nominal_flow_m3_s": {
+            "source": "可重跑概念工况，用于软件与物理守恒验证；未按厂商曲线校准。",
+            "state": "assumed",
+            "unit": "m3/s",
+            "value": 0.005
+          },
+          "nominal_load_kw": {
+            "source": "可重跑概念工况，用于软件与物理守恒验证；未按厂商曲线校准。",
+            "state": "assumed",
+            "unit": "kW",
+            "value": 80
+          },
+          "nominal_pressure_drop_pa": {
+            "source": "可重跑概念工况，用于软件与物理守恒验证；未按厂商曲线校准。",
+            "state": "assumed",
+            "unit": "Pa",
+            "value": 10000
+          },
+          "volume_m3": {
+            "source": "可重跑概念工况，用于软件与物理守恒验证；未按厂商曲线校准。",
+            "state": "assumed",
+            "unit": "m3",
+            "value": 0.35
+          }
+        },
+        "reference": "assets/physics/load.physics.json",
+        "source": "版本化集总水系统本构模型 v1；参数采用概念假设。",
+        "state": "assumed"
+      },
+      "ports": {
+        "inlet": {
+          "direction": "inout",
+          "kind": "chilled-water"
+        },
+        "outlet": {
+          "direction": "inout",
+          "kind": "chilled-water"
+        }
+      }
+    },
+    "CoolingPipe": {
+      "behavior": {
+        "parameters": {
+          "diameter_m": {
+            "source": "可重跑概念工况，用于软件与物理守恒验证；未按厂商曲线校准。",
+            "state": "assumed",
+            "unit": "m",
+            "value": 0.065
+          },
+          "elevation_change_m": {
+            "source": "可重跑概念工况，用于软件与物理守恒验证；未按厂商曲线校准。",
+            "state": "assumed",
+            "unit": "m",
+            "value": 0
+          },
+          "heat_loss_ua_w_k": {
+            "source": "可重跑概念工况，用于软件与物理守恒验证；未按厂商曲线校准。",
+            "state": "assumed",
+            "unit": "W/K",
+            "value": 15
+          },
+          "length_m": {
+            "source": "可重跑概念工况，用于软件与物理守恒验证；未按厂商曲线校准。",
+            "state": "assumed",
+            "unit": "m",
+            "value": 50
+          },
+          "minor_loss_coefficient": {
+            "source": "可重跑概念工况，用于软件与物理守恒验证；未按厂商曲线校准。",
+            "state": "assumed",
+            "unit": "1",
+            "value": 4
+          },
+          "roughness_m": {
+            "source": "可重跑概念工况，用于软件与物理守恒验证；未按厂商曲线校准。",
+            "state": "assumed",
+            "unit": "m",
+            "value": 4.5e-05
+          },
+          "segments": {
+            "source": "可重跑概念工况，用于软件与物理守恒验证；未按厂商曲线校准。",
+            "state": "assumed",
+            "unit": "1",
+            "value": 3
+          },
+          "wall_capacity_j_k": {
+            "source": "可重跑概念工况，用于软件与物理守恒验证；未按厂商曲线校准。",
+            "state": "assumed",
+            "unit": "J/K",
+            "value": 30000
+          }
+        },
+        "reference": "assets/physics/pipe.physics.json",
+        "source": "版本化集总水系统本构模型 v1；参数采用概念假设。",
+        "state": "assumed"
+      },
+      "ports": {
+        "inlet": {
+          "direction": "inout",
+          "kind": "cooling-water"
+        },
+        "outlet": {
+          "direction": "inout",
+          "kind": "cooling-water"
+        }
+      }
+    },
+    "CoolingTower": {
+      "behavior": {
+        "parameters": {
+          "elevation_change_m": {
+            "source": "可重跑概念工况，用于软件与物理守恒验证；未按厂商曲线校准。",
+            "state": "assumed",
+            "unit": "m",
+            "value": 0
+          },
+          "nominal_flow_m3_s": {
+            "source": "可重跑概念工况，用于软件与物理守恒验证；未按厂商曲线校准。",
+            "state": "assumed",
+            "unit": "m3/s",
+            "value": 0.006
+          },
+          "nominal_pressure_drop_pa": {
+            "source": "可重跑概念工况，用于软件与物理守恒验证；未按厂商曲线校准。",
+            "state": "assumed",
+            "unit": "Pa",
+            "value": 15000
+          },
+          "ua_w_k": {
+            "source": "可重跑概念工况，用于软件与物理守恒验证；未按厂商曲线校准。",
+            "state": "assumed",
+            "unit": "W/K",
+            "value": 45000
+          },
+          "volume_m3": {
+            "source": "可重跑概念工况，用于软件与物理守恒验证；未按厂商曲线校准。",
+            "state": "assumed",
+            "unit": "m3",
+            "value": 0.6
+          }
+        },
+        "reference": "assets/physics/tower.physics.json",
+        "source": "版本化集总水系统本构模型 v1；参数采用概念假设。",
+        "state": "assumed"
+      },
+      "ports": {
+        "inlet": {
+          "direction": "inout",
+          "kind": "cooling-water"
+        },
+        "outlet": {
+          "direction": "inout",
+          "kind": "cooling-water"
+        }
+      }
+    },
+    "CoolingWaterPump": {
+      "behavior": {
+        "parameters": {
+          "check_valve": {
+            "source": "可重跑概念工况，用于软件与物理守恒验证；未按厂商曲线校准。",
+            "state": "assumed",
+            "unit": "1",
+            "value": 1
+          },
+          "curve_m_per_m6_s2": {
+            "source": "可重跑概念工况，用于软件与物理守恒验证；未按厂商曲线校准。",
+            "state": "assumed",
+            "unit": "s2/m5",
+            "value": 220000
+          },
+          "efficiency": {
+            "source": "可重跑概念工况，用于软件与物理守恒验证；未按厂商曲线校准。",
+            "state": "assumed",
+            "unit": "1",
+            "value": 0.72
+          },
+          "elevation_change_m": {
+            "source": "可重跑概念工况，用于软件与物理守恒验证；未按厂商曲线校准。",
+            "state": "assumed",
+            "unit": "m",
+            "value": 0
+          },
+          "nominal_flow_m3_s": {
+            "source": "可重跑概念工况，用于软件与物理守恒验证；未按厂商曲线校准。",
+            "state": "assumed",
+            "unit": "m3/s",
+            "value": 0.005
+          },
+          "nominal_pressure_drop_pa": {
+            "source": "可重跑概念工况，用于软件与物理守恒验证；未按厂商曲线校准。",
+            "state": "assumed",
+            "unit": "Pa",
+            "value": 1000
+          },
+          "shutoff_head_m": {
+            "source": "可重跑概念工况，用于软件与物理守恒验证；未按厂商曲线校准。",
+            "state": "assumed",
+            "unit": "m",
+            "value": 18
+          },
+          "volume_m3": {
+            "source": "可重跑概念工况，用于软件与物理守恒验证；未按厂商曲线校准。",
+            "state": "assumed",
+            "unit": "m3",
+            "value": 0.03
+          },
+          "water_heat_fraction": {
+            "source": "可重跑概念工况，用于软件与物理守恒验证；未按厂商曲线校准。",
+            "state": "assumed",
+            "unit": "1",
+            "value": 1
+          }
+        },
+        "reference": "assets/physics/pump.physics.json",
+        "source": "版本化集总水系统本构模型 v1；参数采用概念假设。",
+        "state": "assumed"
+      },
+      "ports": {
+        "inlet": {
+          "direction": "inout",
+          "kind": "cooling-water"
+        },
+        "outlet": {
+          "direction": "inout",
+          "kind": "cooling-water"
+        }
+      }
+    },
+    "Valve": {
+      "behavior": {
+        "parameters": {
+          "elevation_change_m": {
+            "source": "可重跑概念工况，用于软件与物理守恒验证；未按厂商曲线校准。",
+            "state": "assumed",
+            "unit": "m",
+            "value": 0
+          },
+          "kv_m3_h": {
+            "source": "可重跑概念工况，用于软件与物理守恒验证；未按厂商曲线校准。",
+            "state": "assumed",
+            "unit": "m3/h",
+            "value": 40
+          },
+          "nominal_flow_m3_s": {
+            "source": "可重跑概念工况，用于软件与物理守恒验证；未按厂商曲线校准。",
+            "state": "assumed",
+            "unit": "m3/s",
+            "value": 0.005
+          },
+          "nominal_pressure_drop_pa": {
+            "source": "可重跑概念工况，用于软件与物理守恒验证；未按厂商曲线校准。",
+            "state": "assumed",
+            "unit": "Pa",
+            "value": 1000
+          },
+          "volume_m3": {
+            "source": "可重跑概念工况，用于软件与物理守恒验证；未按厂商曲线校准。",
+            "state": "assumed",
+            "unit": "m3",
+            "value": 0.005
+          }
+        },
+        "reference": "assets/physics/valve.physics.json",
+        "source": "版本化集总水系统本构模型 v1；参数采用概念假设。",
+        "state": "assumed"
+      },
+      "ports": {
+        "inlet": {
+          "direction": "inout",
+          "kind": "chilled-water"
+        },
+        "outlet": {
+          "direction": "inout",
+          "kind": "chilled-water"
+        }
+      }
+    }
+  },
+  "root": "ColdStation",
+  "schema_version": 1
+}

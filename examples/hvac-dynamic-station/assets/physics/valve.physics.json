@@ -1,0 +1,8 @@
+{
+  "assumptions": [
+    "开度缩放 Kv；零开度精确断流。阀内水容积仍有热状态。"
+  ],
+  "kind": "valve",
+  "schema_version": 1,
+  "version": "1.0.0"
+}

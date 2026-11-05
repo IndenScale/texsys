@@ -1,0 +1,9 @@
+{
+  "assumptions": [
+    "冷却塔采用集总 UA，外界等效温度作为湿球代理输入。",
+    "风量比缩放 UA；不是蒸发与传质的高保真模型。"
+  ],
+  "kind": "tower",
+  "schema_version": 1,
+  "version": "1.0.0"
+}

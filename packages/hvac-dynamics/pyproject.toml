@@ -1,0 +1,18 @@
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "texsys-hvac-dynamics"
+version = "0.1.0"
+requires-python = ">=3.11"
+dependencies = ["texsys", "scipy>=1.15,<2"]
+
+[project.entry-points."texsys.packages"]
+hvac-dynamics = "texsys_hvac_dynamics:package"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.uv.sources]
+texsys = { workspace = true }

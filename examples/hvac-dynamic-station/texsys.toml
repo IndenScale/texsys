@@ -1,0 +1,15 @@
+schema_version = 1
+
+[project]
+name = "hvac-dynamic-station"
+
+[layout]
+source = "src"
+assets = "assets"
+build = "build"
+
+[build]
+default_targets = ["hvac:physical-model"]
+
+[dependencies]
+hvac-dynamics = { path = "../../packages/hvac-dynamics", version = "0.1.0" }

@@ -1,0 +1,9 @@
+{
+  "assumptions": [
+    "Darcy-Weisbach 管阻，层流采用解析关系，湍流采用 Haaland 近似。",
+    "热输运采用串联混合容积，壁面热容均分，不声称解析活塞流延迟。"
+  ],
+  "kind": "pipe",
+  "schema_version": 1,
+  "version": "1.0.0"
+}

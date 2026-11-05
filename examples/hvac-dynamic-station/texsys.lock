@@ -1,0 +1,11 @@
+schema_version = 1
+manifest_digest = "sha256:2eadec7496e942d1e20d729b9ac94c5467fefdd6dfb1398ce46e508a0f60a703"
+
+[[packages]]
+name = "hvac-dynamics"
+version = "0.1.0"
+source = "path"
+path = "../../packages/hvac-dynamics"
+digest = "sha256:10ce6443b9def3419e128765e32910a8fbf93df0705d153fec974b450070cb35"
+direct = true
+dependencies = []
