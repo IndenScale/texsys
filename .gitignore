@@ -12,13 +12,21 @@ refs/
 !.vscode/extensions.json
 *.swp
 
-# 构建与本地环境（后续实现代码时生效）
+# 构建与本地环境
 build/
+!spec/build/
 dist/
+
+# 示例只保留空 build 目录，生成物仍全部忽略
+!examples/**/build/
+examples/**/build/*
+!examples/**/build/.gitkeep
 node_modules/
 .venv/
 __pycache__/
 *.pyc
+*.egg-info/
+.pytest_cache/
 .uv/
 
 # 原始资料常见格式（即使误放也不入库）

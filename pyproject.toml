@@ -1,0 +1,30 @@
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "texsys"
+version = "0.1.0"
+description = "Reference implementation, toolchain and ecosystem for SDL"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+  "tomlkit>=0.13,<1",
+  "typer>=0.27,<1",
+]
+
+[dependency-groups]
+dev = ["pre-commit>=4", "pytest>=8"]
+
+[project.scripts]
+texsys = "texsys.cli:run"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+markers = [
+  "slow: large deterministic end-to-end fixture",
+]

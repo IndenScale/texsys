@@ -1,6 +1,7 @@
 # Package & lock files
 node_modules/
 package-lock.json
+uv.lock
 
 # Build outputs
 build/
