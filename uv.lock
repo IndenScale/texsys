@@ -14,6 +14,7 @@ members = [
     "texsys-diagram-elk",
     "texsys-hvac-bom",
     "texsys-hvac-checks",
+    "texsys-hvac-diagram",
     "texsys-hvac-dynamics",
     "texsys-hvac-equipment",
     "texsys-hvac-formatter",
@@ -596,6 +597,7 @@ dev = [
     { name = "texsys-diagram-elk" },
     { name = "texsys-hvac-bom" },
     { name = "texsys-hvac-checks" },
+    { name = "texsys-hvac-diagram" },
     { name = "texsys-hvac-dynamics" },
     { name = "texsys-hvac-equipment" },
     { name = "texsys-hvac-formatter" },
@@ -619,6 +621,7 @@ dev = [
     { name = "texsys-diagram-elk", editable = "packages/diagram-elk" },
     { name = "texsys-hvac-bom", editable = "packages/hvac-bom" },
     { name = "texsys-hvac-checks", editable = "packages/hvac-checks" },
+    { name = "texsys-hvac-diagram", editable = "packages/hvac-diagram" },
     { name = "texsys-hvac-dynamics", editable = "packages/hvac-dynamics" },
     { name = "texsys-hvac-equipment", editable = "packages/hvac-equipment" },
     { name = "texsys-hvac-formatter", editable = "packages/hvac-formatter" },
@@ -695,6 +698,27 @@ dependencies = [
 requires-dist = [
     { name = "texsys", editable = "." },
     { name = "texsys-hvac-equipment", editable = "packages/hvac-equipment" },
+]
+
+[[package]]
+name = "texsys-hvac-diagram"
+version = "0.1.0"
+source = { editable = "packages/hvac-diagram" }
+dependencies = [
+    { name = "texsys" },
+    { name = "texsys-diagram" },
+    { name = "texsys-diagram-elk" },
+    { name = "texsys-hvac-dynamics" },
+    { name = "texsys-hvac-graphics" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "texsys", editable = "." },
+    { name = "texsys-diagram", editable = "packages/diagram" },
+    { name = "texsys-diagram-elk", editable = "packages/diagram-elk" },
+    { name = "texsys-hvac-dynamics", editable = "packages/hvac-dynamics" },
+    { name = "texsys-hvac-graphics", editable = "packages/hvac-graphics" },
 ]
 
 [[package]]

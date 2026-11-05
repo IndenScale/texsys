@@ -1,0 +1,226 @@
+{
+  "components": {
+    "ChilledWaterPump": {
+      "behavior": {
+        "parameters": {
+          "flow_m3_h": {
+            "source": "Concept fixture for software verification; not equipment selection data.",
+            "state": "assumed",
+            "unit": "m3/h",
+            "value": 17.2
+          },
+          "head_m": {
+            "source": "Concept fixture for software verification; not equipment selection data.",
+            "state": "assumed",
+            "unit": "m",
+            "value": 20
+          }
+        },
+        "reference": "assets/ChilledWaterPump.mo",
+        "source": "Local versioned steady-state concept definition; not validated manufacturer performance.",
+        "state": "assumed"
+      },
+      "ports": {
+        "inlet": {
+          "direction": "in",
+          "kind": "chilled-water"
+        },
+        "outlet": {
+          "direction": "out",
+          "kind": "chilled-water"
+        }
+      }
+    },
+    "Chiller": {
+      "behavior": {
+        "parameters": {
+          "cooling_kw": {
+            "source": "Concept fixture for software verification; not equipment selection data.",
+            "state": "assumed",
+            "unit": "kW",
+            "value": 100
+          },
+          "electric_kw": {
+            "source": "Concept fixture for software verification; not equipment selection data.",
+            "state": "assumed",
+            "unit": "kW",
+            "value": 25
+          }
+        },
+        "reference": "assets/Chiller.mo",
+        "source": "Local versioned steady-state concept definition; not validated manufacturer performance.",
+        "state": "assumed"
+      },
+      "ports": {
+        "chilled-in": {
+          "direction": "in",
+          "kind": "chilled-water"
+        },
+        "chilled-out": {
+          "direction": "out",
+          "kind": "chilled-water"
+        },
+        "cooling-in": {
+          "direction": "in",
+          "kind": "cooling-water"
+        },
+        "cooling-out": {
+          "direction": "out",
+          "kind": "cooling-water"
+        }
+      }
+    },
+    "ColdStation": {
+      "connections": [
+        {
+          "from": "chilled-pump.outlet",
+          "to": "chiller.chilled-in"
+        },
+        {
+          "from": "chiller.chilled-out",
+          "to": "load.inlet"
+        },
+        {
+          "from": "load.outlet",
+          "to": "chilled-pump.inlet"
+        },
+        {
+          "from": "cooling-pump.outlet",
+          "to": "chiller.cooling-in"
+        },
+        {
+          "from": "chiller.cooling-out",
+          "to": "tower.inlet"
+        },
+        {
+          "from": "tower.outlet",
+          "to": "cooling-pump.inlet"
+        }
+      ],
+      "instances": {
+        "chilled-pump": {
+          "component": "ChilledWaterPump"
+        },
+        "chiller": {
+          "component": "Chiller"
+        },
+        "cooling-pump": {
+          "component": "CoolingWaterPump"
+        },
+        "load": {
+          "component": "CoolingLoad"
+        },
+        "tower": {
+          "component": "CoolingTower"
+        }
+      }
+    },
+    "CoolingLoad": {
+      "behavior": {
+        "parameters": {
+          "cp_kj_kgk": {
+            "source": "Concept fixture for software verification; not equipment selection data.",
+            "state": "assumed",
+            "unit": "kJ/(kg.K)",
+            "value": 4.186
+          },
+          "load_kw": {
+            "source": "Concept fixture for software verification; not equipment selection data.",
+            "state": "assumed",
+            "unit": "kW",
+            "value": 100
+          },
+          "mass_flow_kg_s": {
+            "source": "Concept fixture for software verification; not equipment selection data.",
+            "state": "assumed",
+            "unit": "kg/s",
+            "value": 4.78
+          }
+        },
+        "reference": "assets/CoolingLoad.mo",
+        "source": "Local versioned steady-state concept definition; not validated manufacturer performance.",
+        "state": "assumed"
+      },
+      "ports": {
+        "inlet": {
+          "direction": "in",
+          "kind": "chilled-water"
+        },
+        "outlet": {
+          "direction": "out",
+          "kind": "chilled-water"
+        }
+      }
+    },
+    "CoolingTower": {
+      "behavior": {
+        "parameters": {
+          "cp_kj_kgk": {
+            "source": "Concept fixture for software verification; not equipment selection data.",
+            "state": "assumed",
+            "unit": "kJ/(kg.K)",
+            "value": 4.186
+          },
+          "heat_rejection_kw": {
+            "source": "Concept fixture for software verification; not equipment selection data.",
+            "state": "assumed",
+            "unit": "kW",
+            "value": 125
+          },
+          "mass_flow_kg_s": {
+            "source": "Concept fixture for software verification; not equipment selection data.",
+            "state": "assumed",
+            "unit": "kg/s",
+            "value": 5.97
+          }
+        },
+        "reference": "assets/CoolingTower.mo",
+        "source": "Local versioned steady-state concept definition; not validated manufacturer performance.",
+        "state": "assumed"
+      },
+      "ports": {
+        "inlet": {
+          "direction": "in",
+          "kind": "cooling-water"
+        },
+        "outlet": {
+          "direction": "out",
+          "kind": "cooling-water"
+        }
+      }
+    },
+    "CoolingWaterPump": {
+      "behavior": {
+        "parameters": {
+          "flow_m3_h": {
+            "source": "Concept fixture for software verification; not equipment selection data.",
+            "state": "assumed",
+            "unit": "m3/h",
+            "value": 21.5
+          },
+          "head_m": {
+            "source": "Concept fixture for software verification; not equipment selection data.",
+            "state": "assumed",
+            "unit": "m",
+            "value": 20
+          }
+        },
+        "reference": "assets/CoolingWaterPump.mo",
+        "source": "Local versioned steady-state concept definition; not validated manufacturer performance.",
+        "state": "assumed"
+      },
+      "ports": {
+        "inlet": {
+          "direction": "in",
+          "kind": "cooling-water"
+        },
+        "outlet": {
+          "direction": "out",
+          "kind": "cooling-water"
+        }
+      }
+    }
+  },
+  "root": "ColdStation",
+  "schema_version": 1
+}

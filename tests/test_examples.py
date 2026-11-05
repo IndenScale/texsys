@@ -9,7 +9,7 @@ from texsys.cli import app
 
 runner = CliRunner()
 EXAMPLES = Path(__file__).parents[1] / "examples"
-PUBLIC_EXAMPLES = ("minimal",)
+PUBLIC_EXAMPLES = ("minimal", "hvac-cold-station", "hvac-system-schematic")
 
 
 @pytest.mark.parametrize("name", PUBLIC_EXAMPLES)

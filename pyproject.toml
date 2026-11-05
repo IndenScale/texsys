@@ -15,7 +15,21 @@ dependencies = [
 ]
 
 [dependency-groups]
-dev = ["pre-commit>=4", "pytest>=8", "texsys-bom", "texsys-diagram", "texsys-diagram-elk", "texsys-hvac-graphics", "texsys-hvac-dynamics", "texsys-hvac-bom", "texsys-hvac-equipment", "texsys-hvac-formatter", "texsys-hvac-linter", "texsys-hvac-checks"]
+dev = [
+  "pre-commit>=4",
+  "pytest>=8",
+  "texsys-bom",
+  "texsys-diagram",
+  "texsys-diagram-elk",
+  "texsys-hvac-graphics",
+  "texsys-hvac-diagram",
+  "texsys-hvac-dynamics",
+  "texsys-hvac-bom",
+  "texsys-hvac-equipment",
+  "texsys-hvac-formatter",
+  "texsys-hvac-linter",
+  "texsys-hvac-checks",
+]
 
 [project.scripts]
 texsys = "texsys.cli:run"
@@ -34,6 +48,7 @@ texsys-bom = { workspace = true }
 texsys-diagram = { workspace = true }
 texsys-diagram-elk = { workspace = true }
 texsys-hvac-graphics = { workspace = true }
+texsys-hvac-diagram = { workspace = true }
 texsys-hvac-dynamics = { workspace = true }
 texsys-hvac-bom = { workspace = true }
 texsys-hvac-equipment = { workspace = true }

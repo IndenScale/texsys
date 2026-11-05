@@ -1,0 +1,15 @@
+schema_version = 1
+
+[project]
+name = "hvac-system-schematic"
+
+[layout]
+source = "src"
+assets = "assets"
+build = "build"
+
+[build]
+default_targets = ["hvac:system-schematic"]
+
+[dependencies]
+hvac-diagram = { path = "../../packages/hvac-diagram", version = "0.1.0" }

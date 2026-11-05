@@ -1,0 +1,22 @@
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "texsys-hvac-diagram"
+version = "0.1.0"
+requires-python = ">=3.11"
+dependencies = ["texsys", "texsys-diagram", "texsys-diagram-elk", "texsys-hvac-graphics", "texsys-hvac-dynamics"]
+
+[project.entry-points."texsys.packages"]
+hvac-diagram = "texsys_hvac_diagram:package"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.uv.sources]
+texsys = { workspace = true }
+texsys-diagram = { workspace = true }
+texsys-diagram-elk = { workspace = true }
+texsys-hvac-graphics = { workspace = true }
+texsys-hvac-dynamics = { workspace = true }

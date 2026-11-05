@@ -1,5 +1,50 @@
 schema_version = 1
-manifest_digest = "sha256:2eadec7496e942d1e20d729b9ac94c5467fefdd6dfb1398ce46e508a0f60a703"
+manifest_digest = "sha256:1f9974e251f5c0c70deb7e3de8e7d0aca41184aad856c630278a9a41c0d3f96c"
+
+[[packages]]
+name = "bom"
+version = "0.1.0"
+source = "path"
+path = "../../packages/bom"
+digest = "sha256:2015569433e093b6ab52f00c38ed5eeed0723ec92e8cc72d1da951bd38559ab6"
+direct = false
+dependencies = []
+
+[[packages]]
+name = "diagram"
+version = "0.1.0"
+source = "path"
+path = "../../packages/diagram"
+digest = "sha256:736bf377691091cdc6ecfbb69248c00d92b001a7394a6101d955011f39e4d04e"
+direct = false
+dependencies = []
+
+[[packages]]
+name = "diagram-elk"
+version = "0.1.0"
+source = "path"
+path = "../../packages/diagram-elk"
+digest = "sha256:e966308c93944349e28622ea509bcbc467673e73d8e005efdc4f8859fa31727f"
+direct = false
+dependencies = ["diagram"]
+
+[[packages]]
+name = "hvac-bom"
+version = "0.1.0"
+source = "path"
+path = "../../packages/hvac-bom"
+digest = "sha256:66424ca3d48ac81243d2904c97efc627b6bc51435936ab66afa980fd77cddd53"
+direct = true
+dependencies = ["bom", "hvac-dynamics", "hvac-equipment"]
+
+[[packages]]
+name = "hvac-diagram"
+version = "0.1.0"
+source = "path"
+path = "../../packages/hvac-diagram"
+digest = "sha256:893558ca32938bbbda3400c8d2b9ed91c39d26f2ea270d59ceb24323fe8dc206"
+direct = true
+dependencies = ["diagram", "diagram-elk", "hvac-dynamics", "hvac-graphics"]
 
 [[packages]]
 name = "hvac-dynamics"
@@ -9,3 +54,21 @@ path = "../../packages/hvac-dynamics"
 digest = "sha256:10ce6443b9def3419e128765e32910a8fbf93df0705d153fec974b450070cb35"
 direct = true
 dependencies = []
+
+[[packages]]
+name = "hvac-equipment"
+version = "0.1.0"
+source = "path"
+path = "../../packages/hvac-equipment"
+digest = "sha256:e29733b006800cabd87c2dc108bd211b60a50e2f64aa381b847afce57f95be07"
+direct = false
+dependencies = []
+
+[[packages]]
+name = "hvac-graphics"
+version = "0.1.0"
+source = "path"
+path = "../../packages/hvac-graphics"
+digest = "sha256:da2131b1246561f796305762bb65f78f3b04d8470ed538abbdd48afef9aecc7f"
+direct = false
+dependencies = ["diagram", "diagram-elk"]
