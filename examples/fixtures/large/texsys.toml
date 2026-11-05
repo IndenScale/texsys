@@ -1,0 +1,9 @@
+schema_version = 1
+
+[project]
+name = "large"
+
+[layout]
+source = "src"
+assets = "assets"
+build = "build"

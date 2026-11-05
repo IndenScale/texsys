@@ -1,0 +1,34 @@
+{
+  "components": {
+    "Pump": {
+      "ports": {
+        "inlet": {
+          "direction": "in",
+          "kind": "water"
+        },
+        "outlet": {
+          "direction": "out",
+          "kind": "water"
+        }
+      }
+    },
+    "TwoPumpLoop": {
+      "connections": [
+        {
+          "from": "pump-01.outlet",
+          "to": "pump-02.inlet"
+        }
+      ],
+      "instances": {
+        "pump-01": {
+          "component": "Pump"
+        },
+        "pump-02": {
+          "component": "Pump"
+        }
+      }
+    }
+  },
+  "root": "TwoPumpLoop",
+  "schema_version": 1
+}

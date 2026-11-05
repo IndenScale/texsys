@@ -1,0 +1,54 @@
+{
+  "components": {
+    "BrokenLoop": {
+      "connections": [
+        {
+          "from": "pump.outlet",
+          "to": "fan.inlet"
+        },
+        {
+          "from": "pump.inlet",
+          "to": "fan.outlet"
+        },
+        {
+          "from": "missing.outlet",
+          "to": "pump.inlet"
+        }
+      ],
+      "instances": {
+        "fan": {
+          "component": "Fan"
+        },
+        "pump": {
+          "component": "Pump"
+        }
+      }
+    },
+    "Fan": {
+      "ports": {
+        "inlet": {
+          "direction": "in",
+          "kind": "air"
+        },
+        "outlet": {
+          "direction": "out",
+          "kind": "air"
+        }
+      }
+    },
+    "Pump": {
+      "ports": {
+        "inlet": {
+          "direction": "in",
+          "kind": "water"
+        },
+        "outlet": {
+          "direction": "out",
+          "kind": "water"
+        }
+      }
+    }
+  },
+  "root": "BrokenLoop",
+  "schema_version": 1
+}

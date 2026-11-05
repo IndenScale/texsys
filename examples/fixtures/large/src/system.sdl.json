@@ -1,0 +1,860 @@
+{
+  "components": {
+    "LargeLoop": {
+      "connections": [
+        {
+          "from": "pump-000.outlet",
+          "to": "pump-001.inlet"
+        },
+        {
+          "from": "pump-001.outlet",
+          "to": "pump-002.inlet"
+        },
+        {
+          "from": "pump-002.outlet",
+          "to": "pump-003.inlet"
+        },
+        {
+          "from": "pump-003.outlet",
+          "to": "pump-004.inlet"
+        },
+        {
+          "from": "pump-004.outlet",
+          "to": "pump-005.inlet"
+        },
+        {
+          "from": "pump-005.outlet",
+          "to": "pump-006.inlet"
+        },
+        {
+          "from": "pump-006.outlet",
+          "to": "pump-007.inlet"
+        },
+        {
+          "from": "pump-007.outlet",
+          "to": "pump-008.inlet"
+        },
+        {
+          "from": "pump-008.outlet",
+          "to": "pump-009.inlet"
+        },
+        {
+          "from": "pump-009.outlet",
+          "to": "pump-010.inlet"
+        },
+        {
+          "from": "pump-010.outlet",
+          "to": "pump-011.inlet"
+        },
+        {
+          "from": "pump-011.outlet",
+          "to": "pump-012.inlet"
+        },
+        {
+          "from": "pump-012.outlet",
+          "to": "pump-013.inlet"
+        },
+        {
+          "from": "pump-013.outlet",
+          "to": "pump-014.inlet"
+        },
+        {
+          "from": "pump-014.outlet",
+          "to": "pump-015.inlet"
+        },
+        {
+          "from": "pump-015.outlet",
+          "to": "pump-016.inlet"
+        },
+        {
+          "from": "pump-016.outlet",
+          "to": "pump-017.inlet"
+        },
+        {
+          "from": "pump-017.outlet",
+          "to": "pump-018.inlet"
+        },
+        {
+          "from": "pump-018.outlet",
+          "to": "pump-019.inlet"
+        },
+        {
+          "from": "pump-019.outlet",
+          "to": "pump-020.inlet"
+        },
+        {
+          "from": "pump-020.outlet",
+          "to": "pump-021.inlet"
+        },
+        {
+          "from": "pump-021.outlet",
+          "to": "pump-022.inlet"
+        },
+        {
+          "from": "pump-022.outlet",
+          "to": "pump-023.inlet"
+        },
+        {
+          "from": "pump-023.outlet",
+          "to": "pump-024.inlet"
+        },
+        {
+          "from": "pump-024.outlet",
+          "to": "pump-025.inlet"
+        },
+        {
+          "from": "pump-025.outlet",
+          "to": "pump-026.inlet"
+        },
+        {
+          "from": "pump-026.outlet",
+          "to": "pump-027.inlet"
+        },
+        {
+          "from": "pump-027.outlet",
+          "to": "pump-028.inlet"
+        },
+        {
+          "from": "pump-028.outlet",
+          "to": "pump-029.inlet"
+        },
+        {
+          "from": "pump-029.outlet",
+          "to": "pump-030.inlet"
+        },
+        {
+          "from": "pump-030.outlet",
+          "to": "pump-031.inlet"
+        },
+        {
+          "from": "pump-031.outlet",
+          "to": "pump-032.inlet"
+        },
+        {
+          "from": "pump-032.outlet",
+          "to": "pump-033.inlet"
+        },
+        {
+          "from": "pump-033.outlet",
+          "to": "pump-034.inlet"
+        },
+        {
+          "from": "pump-034.outlet",
+          "to": "pump-035.inlet"
+        },
+        {
+          "from": "pump-035.outlet",
+          "to": "pump-036.inlet"
+        },
+        {
+          "from": "pump-036.outlet",
+          "to": "pump-037.inlet"
+        },
+        {
+          "from": "pump-037.outlet",
+          "to": "pump-038.inlet"
+        },
+        {
+          "from": "pump-038.outlet",
+          "to": "pump-039.inlet"
+        },
+        {
+          "from": "pump-039.outlet",
+          "to": "pump-040.inlet"
+        },
+        {
+          "from": "pump-040.outlet",
+          "to": "pump-041.inlet"
+        },
+        {
+          "from": "pump-041.outlet",
+          "to": "pump-042.inlet"
+        },
+        {
+          "from": "pump-042.outlet",
+          "to": "pump-043.inlet"
+        },
+        {
+          "from": "pump-043.outlet",
+          "to": "pump-044.inlet"
+        },
+        {
+          "from": "pump-044.outlet",
+          "to": "pump-045.inlet"
+        },
+        {
+          "from": "pump-045.outlet",
+          "to": "pump-046.inlet"
+        },
+        {
+          "from": "pump-046.outlet",
+          "to": "pump-047.inlet"
+        },
+        {
+          "from": "pump-047.outlet",
+          "to": "pump-048.inlet"
+        },
+        {
+          "from": "pump-048.outlet",
+          "to": "pump-049.inlet"
+        },
+        {
+          "from": "pump-049.outlet",
+          "to": "pump-050.inlet"
+        },
+        {
+          "from": "pump-050.outlet",
+          "to": "pump-051.inlet"
+        },
+        {
+          "from": "pump-051.outlet",
+          "to": "pump-052.inlet"
+        },
+        {
+          "from": "pump-052.outlet",
+          "to": "pump-053.inlet"
+        },
+        {
+          "from": "pump-053.outlet",
+          "to": "pump-054.inlet"
+        },
+        {
+          "from": "pump-054.outlet",
+          "to": "pump-055.inlet"
+        },
+        {
+          "from": "pump-055.outlet",
+          "to": "pump-056.inlet"
+        },
+        {
+          "from": "pump-056.outlet",
+          "to": "pump-057.inlet"
+        },
+        {
+          "from": "pump-057.outlet",
+          "to": "pump-058.inlet"
+        },
+        {
+          "from": "pump-058.outlet",
+          "to": "pump-059.inlet"
+        },
+        {
+          "from": "pump-059.outlet",
+          "to": "pump-060.inlet"
+        },
+        {
+          "from": "pump-060.outlet",
+          "to": "pump-061.inlet"
+        },
+        {
+          "from": "pump-061.outlet",
+          "to": "pump-062.inlet"
+        },
+        {
+          "from": "pump-062.outlet",
+          "to": "pump-063.inlet"
+        },
+        {
+          "from": "pump-063.outlet",
+          "to": "pump-064.inlet"
+        },
+        {
+          "from": "pump-064.outlet",
+          "to": "pump-065.inlet"
+        },
+        {
+          "from": "pump-065.outlet",
+          "to": "pump-066.inlet"
+        },
+        {
+          "from": "pump-066.outlet",
+          "to": "pump-067.inlet"
+        },
+        {
+          "from": "pump-067.outlet",
+          "to": "pump-068.inlet"
+        },
+        {
+          "from": "pump-068.outlet",
+          "to": "pump-069.inlet"
+        },
+        {
+          "from": "pump-069.outlet",
+          "to": "pump-070.inlet"
+        },
+        {
+          "from": "pump-070.outlet",
+          "to": "pump-071.inlet"
+        },
+        {
+          "from": "pump-071.outlet",
+          "to": "pump-072.inlet"
+        },
+        {
+          "from": "pump-072.outlet",
+          "to": "pump-073.inlet"
+        },
+        {
+          "from": "pump-073.outlet",
+          "to": "pump-074.inlet"
+        },
+        {
+          "from": "pump-074.outlet",
+          "to": "pump-075.inlet"
+        },
+        {
+          "from": "pump-075.outlet",
+          "to": "pump-076.inlet"
+        },
+        {
+          "from": "pump-076.outlet",
+          "to": "pump-077.inlet"
+        },
+        {
+          "from": "pump-077.outlet",
+          "to": "pump-078.inlet"
+        },
+        {
+          "from": "pump-078.outlet",
+          "to": "pump-079.inlet"
+        },
+        {
+          "from": "pump-079.outlet",
+          "to": "pump-080.inlet"
+        },
+        {
+          "from": "pump-080.outlet",
+          "to": "pump-081.inlet"
+        },
+        {
+          "from": "pump-081.outlet",
+          "to": "pump-082.inlet"
+        },
+        {
+          "from": "pump-082.outlet",
+          "to": "pump-083.inlet"
+        },
+        {
+          "from": "pump-083.outlet",
+          "to": "pump-084.inlet"
+        },
+        {
+          "from": "pump-084.outlet",
+          "to": "pump-085.inlet"
+        },
+        {
+          "from": "pump-085.outlet",
+          "to": "pump-086.inlet"
+        },
+        {
+          "from": "pump-086.outlet",
+          "to": "pump-087.inlet"
+        },
+        {
+          "from": "pump-087.outlet",
+          "to": "pump-088.inlet"
+        },
+        {
+          "from": "pump-088.outlet",
+          "to": "pump-089.inlet"
+        },
+        {
+          "from": "pump-089.outlet",
+          "to": "pump-090.inlet"
+        },
+        {
+          "from": "pump-090.outlet",
+          "to": "pump-091.inlet"
+        },
+        {
+          "from": "pump-091.outlet",
+          "to": "pump-092.inlet"
+        },
+        {
+          "from": "pump-092.outlet",
+          "to": "pump-093.inlet"
+        },
+        {
+          "from": "pump-093.outlet",
+          "to": "pump-094.inlet"
+        },
+        {
+          "from": "pump-094.outlet",
+          "to": "pump-095.inlet"
+        },
+        {
+          "from": "pump-095.outlet",
+          "to": "pump-096.inlet"
+        },
+        {
+          "from": "pump-096.outlet",
+          "to": "pump-097.inlet"
+        },
+        {
+          "from": "pump-097.outlet",
+          "to": "pump-098.inlet"
+        },
+        {
+          "from": "pump-098.outlet",
+          "to": "pump-099.inlet"
+        },
+        {
+          "from": "pump-099.outlet",
+          "to": "pump-100.inlet"
+        },
+        {
+          "from": "pump-100.outlet",
+          "to": "pump-101.inlet"
+        },
+        {
+          "from": "pump-101.outlet",
+          "to": "pump-102.inlet"
+        },
+        {
+          "from": "pump-102.outlet",
+          "to": "pump-103.inlet"
+        },
+        {
+          "from": "pump-103.outlet",
+          "to": "pump-104.inlet"
+        },
+        {
+          "from": "pump-104.outlet",
+          "to": "pump-105.inlet"
+        },
+        {
+          "from": "pump-105.outlet",
+          "to": "pump-106.inlet"
+        },
+        {
+          "from": "pump-106.outlet",
+          "to": "pump-107.inlet"
+        },
+        {
+          "from": "pump-107.outlet",
+          "to": "pump-108.inlet"
+        },
+        {
+          "from": "pump-108.outlet",
+          "to": "pump-109.inlet"
+        },
+        {
+          "from": "pump-109.outlet",
+          "to": "pump-110.inlet"
+        },
+        {
+          "from": "pump-110.outlet",
+          "to": "pump-111.inlet"
+        },
+        {
+          "from": "pump-111.outlet",
+          "to": "pump-112.inlet"
+        },
+        {
+          "from": "pump-112.outlet",
+          "to": "pump-113.inlet"
+        },
+        {
+          "from": "pump-113.outlet",
+          "to": "pump-114.inlet"
+        },
+        {
+          "from": "pump-114.outlet",
+          "to": "pump-115.inlet"
+        },
+        {
+          "from": "pump-115.outlet",
+          "to": "pump-116.inlet"
+        },
+        {
+          "from": "pump-116.outlet",
+          "to": "pump-117.inlet"
+        },
+        {
+          "from": "pump-117.outlet",
+          "to": "pump-118.inlet"
+        },
+        {
+          "from": "pump-118.outlet",
+          "to": "pump-119.inlet"
+        }
+      ],
+      "instances": {
+        "pump-000": {
+          "component": "Pump"
+        },
+        "pump-001": {
+          "component": "Pump"
+        },
+        "pump-002": {
+          "component": "Pump"
+        },
+        "pump-003": {
+          "component": "Pump"
+        },
+        "pump-004": {
+          "component": "Pump"
+        },
+        "pump-005": {
+          "component": "Pump"
+        },
+        "pump-006": {
+          "component": "Pump"
+        },
+        "pump-007": {
+          "component": "Pump"
+        },
+        "pump-008": {
+          "component": "Pump"
+        },
+        "pump-009": {
+          "component": "Pump"
+        },
+        "pump-010": {
+          "component": "Pump"
+        },
+        "pump-011": {
+          "component": "Pump"
+        },
+        "pump-012": {
+          "component": "Pump"
+        },
+        "pump-013": {
+          "component": "Pump"
+        },
+        "pump-014": {
+          "component": "Pump"
+        },
+        "pump-015": {
+          "component": "Pump"
+        },
+        "pump-016": {
+          "component": "Pump"
+        },
+        "pump-017": {
+          "component": "Pump"
+        },
+        "pump-018": {
+          "component": "Pump"
+        },
+        "pump-019": {
+          "component": "Pump"
+        },
+        "pump-020": {
+          "component": "Pump"
+        },
+        "pump-021": {
+          "component": "Pump"
+        },
+        "pump-022": {
+          "component": "Pump"
+        },
+        "pump-023": {
+          "component": "Pump"
+        },
+        "pump-024": {
+          "component": "Pump"
+        },
+        "pump-025": {
+          "component": "Pump"
+        },
+        "pump-026": {
+          "component": "Pump"
+        },
+        "pump-027": {
+          "component": "Pump"
+        },
+        "pump-028": {
+          "component": "Pump"
+        },
+        "pump-029": {
+          "component": "Pump"
+        },
+        "pump-030": {
+          "component": "Pump"
+        },
+        "pump-031": {
+          "component": "Pump"
+        },
+        "pump-032": {
+          "component": "Pump"
+        },
+        "pump-033": {
+          "component": "Pump"
+        },
+        "pump-034": {
+          "component": "Pump"
+        },
+        "pump-035": {
+          "component": "Pump"
+        },
+        "pump-036": {
+          "component": "Pump"
+        },
+        "pump-037": {
+          "component": "Pump"
+        },
+        "pump-038": {
+          "component": "Pump"
+        },
+        "pump-039": {
+          "component": "Pump"
+        },
+        "pump-040": {
+          "component": "Pump"
+        },
+        "pump-041": {
+          "component": "Pump"
+        },
+        "pump-042": {
+          "component": "Pump"
+        },
+        "pump-043": {
+          "component": "Pump"
+        },
+        "pump-044": {
+          "component": "Pump"
+        },
+        "pump-045": {
+          "component": "Pump"
+        },
+        "pump-046": {
+          "component": "Pump"
+        },
+        "pump-047": {
+          "component": "Pump"
+        },
+        "pump-048": {
+          "component": "Pump"
+        },
+        "pump-049": {
+          "component": "Pump"
+        },
+        "pump-050": {
+          "component": "Pump"
+        },
+        "pump-051": {
+          "component": "Pump"
+        },
+        "pump-052": {
+          "component": "Pump"
+        },
+        "pump-053": {
+          "component": "Pump"
+        },
+        "pump-054": {
+          "component": "Pump"
+        },
+        "pump-055": {
+          "component": "Pump"
+        },
+        "pump-056": {
+          "component": "Pump"
+        },
+        "pump-057": {
+          "component": "Pump"
+        },
+        "pump-058": {
+          "component": "Pump"
+        },
+        "pump-059": {
+          "component": "Pump"
+        },
+        "pump-060": {
+          "component": "Pump"
+        },
+        "pump-061": {
+          "component": "Pump"
+        },
+        "pump-062": {
+          "component": "Pump"
+        },
+        "pump-063": {
+          "component": "Pump"
+        },
+        "pump-064": {
+          "component": "Pump"
+        },
+        "pump-065": {
+          "component": "Pump"
+        },
+        "pump-066": {
+          "component": "Pump"
+        },
+        "pump-067": {
+          "component": "Pump"
+        },
+        "pump-068": {
+          "component": "Pump"
+        },
+        "pump-069": {
+          "component": "Pump"
+        },
+        "pump-070": {
+          "component": "Pump"
+        },
+        "pump-071": {
+          "component": "Pump"
+        },
+        "pump-072": {
+          "component": "Pump"
+        },
+        "pump-073": {
+          "component": "Pump"
+        },
+        "pump-074": {
+          "component": "Pump"
+        },
+        "pump-075": {
+          "component": "Pump"
+        },
+        "pump-076": {
+          "component": "Pump"
+        },
+        "pump-077": {
+          "component": "Pump"
+        },
+        "pump-078": {
+          "component": "Pump"
+        },
+        "pump-079": {
+          "component": "Pump"
+        },
+        "pump-080": {
+          "component": "Pump"
+        },
+        "pump-081": {
+          "component": "Pump"
+        },
+        "pump-082": {
+          "component": "Pump"
+        },
+        "pump-083": {
+          "component": "Pump"
+        },
+        "pump-084": {
+          "component": "Pump"
+        },
+        "pump-085": {
+          "component": "Pump"
+        },
+        "pump-086": {
+          "component": "Pump"
+        },
+        "pump-087": {
+          "component": "Pump"
+        },
+        "pump-088": {
+          "component": "Pump"
+        },
+        "pump-089": {
+          "component": "Pump"
+        },
+        "pump-090": {
+          "component": "Pump"
+        },
+        "pump-091": {
+          "component": "Pump"
+        },
+        "pump-092": {
+          "component": "Pump"
+        },
+        "pump-093": {
+          "component": "Pump"
+        },
+        "pump-094": {
+          "component": "Pump"
+        },
+        "pump-095": {
+          "component": "Pump"
+        },
+        "pump-096": {
+          "component": "Pump"
+        },
+        "pump-097": {
+          "component": "Pump"
+        },
+        "pump-098": {
+          "component": "Pump"
+        },
+        "pump-099": {
+          "component": "Pump"
+        },
+        "pump-100": {
+          "component": "Pump"
+        },
+        "pump-101": {
+          "component": "Pump"
+        },
+        "pump-102": {
+          "component": "Pump"
+        },
+        "pump-103": {
+          "component": "Pump"
+        },
+        "pump-104": {
+          "component": "Pump"
+        },
+        "pump-105": {
+          "component": "Pump"
+        },
+        "pump-106": {
+          "component": "Pump"
+        },
+        "pump-107": {
+          "component": "Pump"
+        },
+        "pump-108": {
+          "component": "Pump"
+        },
+        "pump-109": {
+          "component": "Pump"
+        },
+        "pump-110": {
+          "component": "Pump"
+        },
+        "pump-111": {
+          "component": "Pump"
+        },
+        "pump-112": {
+          "component": "Pump"
+        },
+        "pump-113": {
+          "component": "Pump"
+        },
+        "pump-114": {
+          "component": "Pump"
+        },
+        "pump-115": {
+          "component": "Pump"
+        },
+        "pump-116": {
+          "component": "Pump"
+        },
+        "pump-117": {
+          "component": "Pump"
+        },
+        "pump-118": {
+          "component": "Pump"
+        },
+        "pump-119": {
+          "component": "Pump"
+        }
+      }
+    },
+    "Pump": {
+      "ports": {
+        "inlet": {
+          "direction": "in",
+          "kind": "water"
+        },
+        "outlet": {
+          "direction": "out",
+          "kind": "water"
+        }
+      }
+    }
+  },
+  "root": "LargeLoop",
+  "schema_version": 1
+}

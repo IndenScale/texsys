@@ -1,0 +1,41 @@
+{
+  "diagnostics": [
+    {
+      "file": "src/system.sdl.json",
+      "message": "Port kinds differ: water vs air",
+      "object": "BrokenLoop.connections[0]",
+      "rule": "L005",
+      "status": "fail"
+    },
+    {
+      "file": "src/system.sdl.json",
+      "message": "Port kinds differ: water vs air",
+      "object": "BrokenLoop.connections[1]",
+      "rule": "L005",
+      "status": "fail"
+    },
+    {
+      "file": "src/system.sdl.json",
+      "message": "Directions are incompatible: in -> out",
+      "object": "BrokenLoop.connections[1]",
+      "rule": "L006",
+      "status": "fail"
+    },
+    {
+      "file": "src/system.sdl.json",
+      "message": "Endpoint references undefined Instance: missing",
+      "object": "BrokenLoop.connections[2].from",
+      "rule": "L003",
+      "status": "fail"
+    },
+    {
+      "file": "src/system.sdl.json",
+      "message": "Port has 2 connections; maximum is 1",
+      "object": "BrokenLoop.pump.inlet",
+      "rule": "L007",
+      "status": "fail"
+    }
+  ],
+  "files": 1,
+  "status": "fail"
+}
