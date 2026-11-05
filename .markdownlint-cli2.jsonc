@@ -1,0 +1,16 @@
+{
+  "config": {
+    "default": true,
+    "MD013": false,
+    "MD024": { "siblings_only": true },
+    "MD033": false,
+    "MD036": false,
+    "MD040": false,
+    "MD060": false,
+    "no-python-pip-commands": true,
+  },
+  "customRules": ["./tools/markdownlint-rules/no-python-pip-commands.cjs"],
+  "gitignore": true,
+  "ignores": ["tools/usd-brep-proposal.md"],
+  "noProgress": true,
+}

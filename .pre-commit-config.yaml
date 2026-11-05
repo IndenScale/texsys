@@ -1,0 +1,9 @@
+repos:
+  - repo: local
+    hooks:
+      - id: markdownlint
+        name: markdownlint with uv command policy
+        entry: node node_modules/markdownlint-cli2/markdownlint-cli2.mjs
+        language: system
+        types: [markdown]
+        pass_filenames: true

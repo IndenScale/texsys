@@ -1,15 +1,27 @@
 {
   "name": "texsys",
-  "version": "0.1.0",
   "private": true,
   "description": "texsys: reference implementation, toolchain and ecosystem for SDL",
   "type": "module",
   "scripts": {
     "format": "prettier --write .",
-    "format:check": "prettier --check ."
+    "format:check": "prettier --check .",
+    "lint:md": "markdownlint-cli2 \"**/*.md\"",
+    "test:md-rule": "node --test tools/markdownlint-rules/no-python-pip-commands.test.cjs"
   },
   "devDependencies": {
-    "prettier": "^3.5.2"
+    "markdownlint-cli2": "^0.24.0",
+    "prettier": "^3.5.2",
+    "elkjs": "0.10.2",
+    "react": "19.2.0",
+    "react-dom": "19.2.0",
+    "esbuild-wasm": "0.25.12",
+    "typescript": "5.9.3",
+    "@types/react": "19.2.2",
+    "@types/react-dom": "19.2.2"
+  },
+  "overrides": {
+    "katex": "0.19.1",
+    "re2js": "2.9.1"
   }
 }
-
