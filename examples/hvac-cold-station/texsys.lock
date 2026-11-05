@@ -1,5 +1,23 @@
 schema_version = 1
-manifest_digest = "sha256:a9d0cf49d5ab95c541b717c89e2351a12aa12fbebfc810cad7db8e61c24a54f4"
+manifest_digest = "sha256:814a7a5b29306dd73cd87d6575fe1e7baeea8b52dae4eb0e2127e5576e6cab75"
+
+[[packages]]
+name = "bom"
+version = "0.1.0"
+source = "path"
+path = "../../packages/bom"
+digest = "sha256:2015569433e093b6ab52f00c38ed5eeed0723ec92e8cc72d1da951bd38559ab6"
+direct = false
+dependencies = []
+
+[[packages]]
+name = "hvac-bom"
+version = "0.1.0"
+source = "path"
+path = "../../packages/hvac-bom"
+digest = "sha256:66424ca3d48ac81243d2904c97efc627b6bc51435936ab66afa980fd77cddd53"
+direct = true
+dependencies = ["bom", "hvac-dynamics", "hvac-equipment"]
 
 [[packages]]
 name = "hvac-checks"
@@ -9,6 +27,15 @@ path = "../../packages/hvac-checks"
 digest = "sha256:6a87989d1ae787678fa5b19528223796f744ac350d50a8e5660f2d3099e97952"
 direct = true
 dependencies = ["hvac-equipment"]
+
+[[packages]]
+name = "hvac-dynamics"
+version = "0.1.0"
+source = "path"
+path = "../../packages/hvac-dynamics"
+digest = "sha256:10ce6443b9def3419e128765e32910a8fbf93df0705d153fec974b450070cb35"
+direct = false
+dependencies = []
 
 [[packages]]
 name = "hvac-equipment"

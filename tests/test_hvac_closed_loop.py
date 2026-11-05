@@ -49,6 +49,7 @@ def test_all_hvac_packages_are_discoverable() -> None:
 
   assert packages == {
     "bom": "0.1.0",
+    "hvac-bom": "0.1.0",
     "hvac-dynamics": "0.1.0",
     "hvac-equipment": "0.1.0",
     "hvac-formatter": "0.1.0",

@@ -1,0 +1,25 @@
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "texsys-hvac-bom"
+version = "0.1.0"
+description = "Target BOM derivation and profile checks for HVAC"
+requires-python = ">=3.11"
+dependencies = ["texsys", "texsys-bom", "texsys-hvac-equipment", "texsys-hvac-dynamics"]
+
+[project.scripts]
+hvac-check-bom = "texsys_hvac_bom.checker:main"
+
+[project.entry-points."texsys.packages"]
+hvac-bom = "texsys_hvac_bom:package"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.uv.sources]
+texsys = { workspace = true }
+texsys-bom = { workspace = true }
+texsys-hvac-equipment = { workspace = true }
+texsys-hvac-dynamics = { workspace = true }

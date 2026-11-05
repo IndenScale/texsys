@@ -10,6 +10,7 @@ resolution-markers = [
 members = [
     "texsys",
     "texsys-bom",
+    "texsys-hvac-bom",
     "texsys-hvac-checks",
     "texsys-hvac-dynamics",
     "texsys-hvac-equipment",
@@ -588,6 +589,7 @@ dev = [
     { name = "pre-commit" },
     { name = "pytest" },
     { name = "texsys-bom" },
+    { name = "texsys-hvac-bom" },
     { name = "texsys-hvac-checks" },
     { name = "texsys-hvac-dynamics" },
     { name = "texsys-hvac-equipment" },
@@ -607,6 +609,7 @@ dev = [
     { name = "pre-commit", specifier = ">=4" },
     { name = "pytest", specifier = ">=8" },
     { name = "texsys-bom", editable = "packages/bom" },
+    { name = "texsys-hvac-bom", editable = "packages/hvac-bom" },
     { name = "texsys-hvac-checks", editable = "packages/hvac-checks" },
     { name = "texsys-hvac-dynamics", editable = "packages/hvac-dynamics" },
     { name = "texsys-hvac-equipment", editable = "packages/hvac-equipment" },
@@ -624,6 +627,25 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [{ name = "texsys", editable = "." }]
+
+[[package]]
+name = "texsys-hvac-bom"
+version = "0.1.0"
+source = { editable = "packages/hvac-bom" }
+dependencies = [
+    { name = "texsys" },
+    { name = "texsys-bom" },
+    { name = "texsys-hvac-dynamics" },
+    { name = "texsys-hvac-equipment" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "texsys", editable = "." },
+    { name = "texsys-bom", editable = "packages/bom" },
+    { name = "texsys-hvac-dynamics", editable = "packages/hvac-dynamics" },
+    { name = "texsys-hvac-equipment", editable = "packages/hvac-equipment" },
+]
 
 [[package]]
 name = "texsys-hvac-checks"
