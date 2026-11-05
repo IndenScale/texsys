@@ -55,3 +55,9 @@
 3. **图纸是位图，提取需要人工确认。** 本套 PDF 无文本层（`pdftotext` 近乎零输出），必须渲染后识别，识别结果按"待确认"处理，不得直接当已知值。
 4. **识别错误按假设处理。** 见方法论书第二章 2.4：无法确认的取值使用"已知但未确认"，不得填默认值。
 5. **客户信息脱敏。** 入库内容不得包含客户名称、内部地址、账号口令、人员信息。
+
+## OpenUSD BRep 示例提取参考
+
+完整提案原文仅保存在本地 `refs/openusd/usd-brep-proposal.md`，不入库。上游项目入口为 [OpenUSD-proposals](https://github.com/PixarAnimationStudios/OpenUSD-proposals)；当前只记录本地副本，尚未固定上游提交。该副本的 SHA-256 为 `9b51cbe733ccf88deb5f5d12aa69e1cb691e620e096c4508460545b91aae8c91`。
+
+`tools/extract_usd_brep_asset.py` 从本地副本提取 `CubeFaceMaterials.usda` 示例到 `src/texsys/assets/unit_brep_cube.usda`，也可通过位置参数指定其他本地副本。本次复核确认提取结果与入库资产逐字节一致；正常构建和测试直接读取入库资产，不依赖外部原文。该资产用于解析盒包络的 USD 表示，不证明 BRep 内核的布尔、测量或三角化能力。

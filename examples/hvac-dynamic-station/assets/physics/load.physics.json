@@ -1,7 +1,5 @@
 {
-  "assumptions": [
-    "外加载荷向充分混合水容积注热。"
-  ],
+  "assumptions": ["外加载荷向充分混合水容积注热。"],
   "kind": "load",
   "schema_version": 1,
   "version": "1.0.0"

@@ -42,13 +42,13 @@ uv run texsys build -p examples/hvac-system-schematic --target hvac:system-schem
 
 两个视图分别输出到 `build/hvac/system/` 和 `build/hvac/schematic/`，遵守项目自定义 build 目录：
 
-| 文件                | artifact ID     | 内容                                                       |
-| ------------------- | --------------- | ---------------------------------------------------------- |
-| `system.json`       | `system-data`   | DiagramDocument v1、图元解析、排版、来源、行为引用摘要     |
-| `system.svg`        | `system-svg`    | 矢量预览，显示介质、可确定的流向、端口和行为标注           |
-| `system.drawio`     | `system-drawio` | 非压缩 XML，保留图元、显式端口、路由与 UserObject 语义属性 |
-| `system.html` | `system-viewer` | React 离线工作台：图元参数预览、设备详情、运行曲线与时间回放 |
-| `system-check.json` | `system-check`  | diagnostic；语义／版面检查、回退、降级、人工审核与未决项   |
+| 文件                | artifact ID     | 内容                                                         |
+| ------------------- | --------------- | ------------------------------------------------------------ |
+| `system.json`       | `system-data`   | DiagramDocument v1、图元解析、排版、来源、行为引用摘要       |
+| `system.svg`        | `system-svg`    | 矢量预览，显示介质、可确定的流向、端口和行为标注             |
+| `system.drawio`     | `system-drawio` | 非压缩 XML，保留图元、显式端口、路由与 UserObject 语义属性   |
+| `system.html`       | `system-viewer` | React 离线工作台：图元参数预览、设备详情、运行曲线与时间回放 |
+| `system-check.json` | `system-check`  | diagnostic；语义／版面检查、回退、降级、人工审核与未决项     |
 
 DiagramDocument 含 target、profile、view、模型摘要、单页、节点、端口、连接、分组／注记空集合、source map、expected projection、图元和后端证据。图面 ID 由根身份、实例身份、端口名、连接端点组成，与坐标及数组顺序分离。连接以端点对寻址；显式 Net 等更完整网络语义见 OQ-3，不伪造已实现的 Net。
 

@@ -4,17 +4,19 @@ texsys 来自 **textual system**，是 **SDL** 的参考实现、工具链与生
 
 ## 当前状态（2026-11）
 
-| 维度             | 状态                                       |
-| ---------------- | ------------------------------------------ |
-| 方法论           | 有：13 章《设计自动化原理》                |
-| SDL 规范         | 草案：仅核心语义模型 2 篇                  |
-| 语法 / 校验器    | 无                                         |
-| 参考实现 / 代码  | 无                                         |
-| conformance 测试 | 无                                         |
-| 暖通领域插件     | 脚手架，无实现                             |
-| 首个验证场景     | 暖通（HVAC），见 [当前范围](docs/scope.md) |
+| 维度             | 状态                                                                                                         |
+| ---------------- | ------------------------------------------------------------------------------------------------------------ |
+| 方法论           | 有：13 章《设计自动化原理》                                                                                  |
+| SDL 规范         | 草案：核心语义模型与 JSON 交换子集                                                                           |
+| 语法 / 校验器    | JSON 交换子集的基础静态检查；最终文本语法未开始                                                              |
+| 参考实现 / 代码  | CLI 覆盖项目、依赖、形式检查及显式 target 的 `build` / `test` / `sim(event)`；支持 Target BOM 与 Hook Runner |
+| conformance 测试 | 单元、CLI 集成与 examples 端到端用例，含反向与确定性测试                                                     |
+| 暖通领域插件     | 设备族、静态规则、设计校核、Target BOM、工程图元、系统原理图与集总参数动态求解                               |
+| 通用构建组件     | 专业无关的 BOM 投影、快照、映射、比较与检查内核，通过显式契约组合专业规则                                    |
+| 首个验证场景     | 同源冷站：BOM、工程图纸、负荷／调速／停泵工况；另有安装几何事件示例                                          |
+| 系统图／原理图   | TypeScript 共享工程图元、React/SVG、draw.io、离线交互与工况回放                                              |
 
-项目当前处于**规范成形期**：概念已对齐，可执行部分为零。任何声称"能用"的判断都还没有依据。
+项目当前处于**可执行参考实现阶段**：JSON 交换子集、形式检查、本地路径依赖、暖通最小闭环与首个出图切片已可执行，但最终 SDL 文本语法仍未完成。Python 已支持准稳态水力与集总热动态，真实 OpenModelica 导出／执行已对三种示例工况作独立比较；几何求值仍为解析轴对齐盒，通用高保真行为与几何求解未完成。详细进度和未完成边界见 [项目进度审查](docs/progress.md)。
 
 ## 文档地图
 
@@ -22,27 +24,64 @@ texsys 来自 **textual system**，是 **SDL** 的参考实现、工具链与生
 | -------------------------------------------------- | ------------------------------------------------------ | -------------------------------------- |
 | [MEMO.md](MEMO.md)                                 | 定位、范围、决策与开放问题索引                         | 索引，不重复正文                       |
 | [docs/scope.md](docs/scope.md)                     | 当前范围与验收口径（暖通冷启动）                       | **权威**：判断某件事是否在范围内       |
+| [docs/progress.md](docs/progress.md)               | 本地实现进度、验证入口与未完成能力                     | 实现状态审查，不代替规范或发布验收     |
+| [docs/project-layout.md](docs/project-layout.md)   | 项目元数据、依赖／锁文件识别与目录布局                 | **权威**：`init`／`info` 的布局契约    |
+| [examples/](examples/README.md)                    | 用户参考项目与端到端桩数据                             | **权威**：可执行示例契约               |
 | [docs/adr/](docs/adr/README.md)                    | 架构决策记录                                           | **权威**：为什么这样决定               |
 | [docs/open-questions.md](docs/open-questions.md)   | 未决议题、阻塞影响与触发条件                           | **权威**：什么还没定、何时必须定       |
 | [docs/references.md](docs/references.md)           | 外部资料边界、来源与校验和                             | **权威**：某份资料能否被引用、是否入库 |
 | [plugins/hvac/](plugins/hvac/README.md)            | 暖通领域插件：设备模型、静态规则、输出格式、简易求解器 | 领域扩展，不含核心语义                 |
 | [spec/sdl/](spec/sdl/00-overview.md)               | SDL 规范                                               | **权威**：语义怎么定义                 |
+| [spec/build/](spec/build/00-overview.md)           | target、Target BOM 与 Hook Runner 构建契约             | **权威**：构建怎么选择与闭环           |
 | [设计自动化原理/](设计自动化原理/00-前言与导读.md) | 方法论书                                               | 背景论证，**不构成约束**               |
 
 同一件事只在一处定义。若发现重复，以本表标注的权威来源为准，并删除复述。
 
-## 三条阅读路径
+## 四条阅读路径
 
 1. **想理解为什么**：`设计自动化原理/00` → `01` → `02`。
 2. **想判断范围**：本文件 → `docs/scope.md` → `docs/adr/0001`。
 3. **想动手实现**：`spec/sdl/00` → `spec/sdl/01` → `docs/open-questions.md`（先解决阻塞项）。
 4. **想做暖通切片**：`plugins/hvac/` → `examples/` → `docs/references.md`（资料只在本地）。
 
+## 开发环境
+
+Python 项目环境、依赖与命令执行统一使用 uv。首次同步并验证 CLI：
+
+```bash
+uv sync
+uv run texsys --help
+uv run texsys --version
+uv run pytest
+```
+
+生成 HVAC 系统图与原理图（需要本机 Node.js）：
+
+```bash
+uv run tools/sync_node_tools.py
+uv run examples/build-deliverables/run.py all
+```
+
+在统一示例的 `build/hvac/system/` 与 `build/hvac/schematic/` 分别输出 SVG、draw.io、JSON、离线 HTML 和检查报告；动态运行放在 `build/tests/scenarios/`。默认完成 review 草稿生成；工程 profile 需额外的人工审核记录。行为缺失明确降级为系统图，空间状态独立标记，完整协议见 [出图构建契约](spec/build/03-system-schematic.md)。
+
+BOM、系统图、原理图的命令、参数和 Python 函数调用集中展示在 [构建调用示例](examples/build-deliverables/README.md)，并提供可执行脚本。
+
+Markdown 与提交前检查：
+
+```bash
+uv run tools/sync_node_tools.py
+node node_modules/markdownlint-cli2/markdownlint-cli2.mjs "**/*.md"
+uv run pre-commit install
+uv run pre-commit run --all-files
+```
+
+Shell 教程不得包含直接解释器或包安装器命令，包括通过兼容接口绕过 uv 项目工作流的写法。该约束由自定义 markdownlint 规则和 pre-commit 自动执行。
+
 ## 下一步（按优先级）
 
 1. 关闭阻塞性开放问题（见 open-questions 的"阻塞"列）。
-2. 用一个真实暖通小系统写通"描述 → 静态校验 → 一个评价器 → 证据包"。
-3. 再补规范文本；在 2 完成前不扩写章节。
+2. 用真实项目资料替换冷站概念桩数据，并记录参数来源与适用范围。
+3. 继续验证更复杂的动态拓扑、设备性能校准与 USD BRep 几何内核，并分别积累证据。
 
 ## 约定
 

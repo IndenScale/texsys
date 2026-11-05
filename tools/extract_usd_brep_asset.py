@@ -1,9 +1,18 @@
 """Extract the reviewed unit BrepArray example without rewriting its data."""
 
+import argparse
 from pathlib import Path
 
 ROOT = Path(__file__).parents[1]
-SOURCE = ROOT / "tools" / "usd-brep-proposal.md"
+parser = argparse.ArgumentParser(description=__doc__)
+parser.add_argument(
+  "source",
+  type=Path,
+  nargs="?",
+  default=ROOT / "refs" / "openusd" / "usd-brep-proposal.md",
+  help="Local upstream proposal; raw reference documents are not versioned.",
+)
+SOURCE = parser.parse_args().source
 TARGET = ROOT / "src" / "texsys" / "assets" / "unit_brep_cube.usda"
 
 text = SOURCE.read_text(encoding="utf-8")

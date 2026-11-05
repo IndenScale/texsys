@@ -11,6 +11,5 @@
   },
   "customRules": ["./tools/markdownlint-rules/no-python-pip-commands.cjs"],
   "gitignore": true,
-  "ignores": ["tools/usd-brep-proposal.md"],
   "noProgress": true,
 }

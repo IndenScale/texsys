@@ -3,8 +3,13 @@ node_modules/
 package-lock.json
 uv.lock
 
+# Canonical design inputs are formatted by texsys format.
+**/*.sdl.json
+**/src/hvac.json
+
 # Build outputs
 build/
+!spec/build/
 dist/
 
 # Python & virtual environments

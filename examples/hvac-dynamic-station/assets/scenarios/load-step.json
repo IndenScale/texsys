@@ -27,48 +27,28 @@
   "signals": {
     "ColdStation.CH-01.enabled": {
       "interpolation": "hold",
-      "points": [
-        [
-          0,
-          1
-        ]
-      ],
+      "points": [[0, 1]],
       "source": "概念验证工况；不代表现场运行记录。",
       "state": "assumed",
       "unit": "1"
     },
     "ColdStation.CH-01.setpoint_c": {
       "interpolation": "hold",
-      "points": [
-        [
-          0,
-          7
-        ]
-      ],
+      "points": [[0, 7]],
       "source": "概念验证工况；不代表现场运行记录。",
       "state": "assumed",
       "unit": "degC"
     },
     "ColdStation.CT-01.ambient_c": {
       "interpolation": "hold",
-      "points": [
-        [
-          0,
-          25
-        ]
-      ],
+      "points": [[0, 25]],
       "source": "概念验证工况；不代表现场运行记录。",
       "state": "assumed",
       "unit": "degC"
     },
     "ColdStation.CT-01.fan_ratio": {
       "interpolation": "hold",
-      "points": [
-        [
-          0,
-          1
-        ]
-      ],
+      "points": [[0, 1]],
       "source": "概念验证工况；不代表现场运行记录。",
       "state": "assumed",
       "unit": "1"
@@ -76,14 +56,8 @@
     "ColdStation.LOAD-01.load_w": {
       "interpolation": "hold",
       "points": [
-        [
-          0,
-          40000
-        ],
-        [
-          300,
-          80000
-        ]
+        [0, 40000],
+        [300, 80000]
       ],
       "source": "概念验证工况；不代表现场运行记录。",
       "state": "assumed",
@@ -91,60 +65,35 @@
     },
     "ColdStation.P-CHW-01.speed_ratio": {
       "interpolation": "hold",
-      "points": [
-        [
-          0,
-          1
-        ]
-      ],
+      "points": [[0, 1]],
       "source": "概念验证工况；不代表现场运行记录。",
       "state": "assumed",
       "unit": "1"
     },
     "ColdStation.P-CW-01.speed_ratio": {
       "interpolation": "hold",
-      "points": [
-        [
-          0,
-          1
-        ]
-      ],
+      "points": [[0, 1]],
       "source": "概念验证工况；不代表现场运行记录。",
       "state": "assumed",
       "unit": "1"
     },
     "ColdStation.PIPE-CHW-01.ambient_c": {
       "interpolation": "hold",
-      "points": [
-        [
-          0,
-          25
-        ]
-      ],
+      "points": [[0, 25]],
       "source": "概念验证工况；不代表现场运行记录。",
       "state": "assumed",
       "unit": "degC"
     },
     "ColdStation.PIPE-CW-01.ambient_c": {
       "interpolation": "hold",
-      "points": [
-        [
-          0,
-          25
-        ]
-      ],
+      "points": [[0, 25]],
       "source": "概念验证工况；不代表现场运行记录。",
       "state": "assumed",
       "unit": "degC"
     },
     "ColdStation.V-01.opening": {
       "interpolation": "hold",
-      "points": [
-        [
-          0,
-          1
-        ]
-      ],
+      "points": [[0, 1]],
       "source": "概念验证工况；不代表现场运行记录。",
       "state": "assumed",
       "unit": "1"

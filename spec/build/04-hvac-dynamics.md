@@ -27,14 +27,14 @@
 
 顶层字段严格为 `schema_version`、`id`、`duration_s`、`sample_interval_s`、`signals`、`initial`、`solver`、`assertions`。ID 使用可移植字母、数字、连字符和下划线。采样上限为 100000 个间隔，事件时间另行保留。
 
-| 设备 | 必需时变输入 | 单位／约束 |
-| --- | --- | --- |
-| pump | `speed_ratio` | 1，0–1 |
-| valve | `opening` | 1，0–1 |
-| load | `load_w` | W，非负 |
-| chiller | `enabled`、`setpoint_c` | 1（离散 0/1）、degC |
-| tower | `fan_ratio`、`ambient_c` | 1（0–1）、degC |
-| pipe、tank | `ambient_c` | degC |
+| 设备       | 必需时变输入             | 单位／约束          |
+| ---------- | ------------------------ | ------------------- |
+| pump       | `speed_ratio`            | 1，0–1              |
+| valve      | `opening`                | 1，0–1              |
+| load       | `load_w`                 | W，非负             |
+| chiller    | `enabled`、`setpoint_c`  | 1（离散 0/1）、degC |
+| tower      | `fan_ratio`、`ambient_c` | 1（0–1）、degC      |
+| pipe、tank | `ambient_c`              | degC                |
 
 信号键为 `{完整设备身份}.{输入名}`。每个信号包含 `unit`、`interpolation=hold|linear`、`points=[[time,value],...]`、`state`、`source`；时间从 0 开始，严格递增且不超过工况时长。使能信号只接受 hold。没有遗漏输入的隐式默认值。
 

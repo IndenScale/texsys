@@ -1,0 +1,59 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+
+      - name: Install Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Synchronize locked Python environment
+        run: uv sync --locked
+
+      - name: Install integrity-checked local Node tools
+        run: uv run tools/sync_node_tools.py
+
+      - name: Run unit and examples end-to-end tests
+        run: uv run pytest
+
+      - name: Verify public examples
+        run: |
+          uv run texsys lint -p examples/minimal
+          uv run texsys lint -p examples/hvac-cold-station
+          uv run texsys lint -p examples/hvac-system-schematic
+          uv run texsys lint -p examples/hvac-dynamic-station
+          uv run texsys format --check -p examples/hvac-dynamic-station
+          uv run texsys lock --check -p examples/hvac-dynamic-station
+          uv run texsys format --check -p examples/minimal
+          uv run texsys format --check -p examples/hvac-cold-station
+          uv run texsys format --check -p examples/hvac-system-schematic
+          uv run texsys lock --check -p examples/hvac-system-schematic
+          uv run texsys build -p examples/hvac-system-schematic
+
+      - name: Check documentation and command policy
+        run: |
+          node node_modules/prettier/bin/prettier.cjs --check .
+          node node_modules/markdownlint-cli2/markdownlint-cli2.mjs "**/*.md"
+          node --test tools/markdownlint-rules/no-python-pip-commands.test.cjs
+
+      - name: Check engineering geometry and TypeScript
+        run: |
+          node --test tools/test_graphics.mjs
+          node node_modules/typescript/bin/tsc --noEmit --strict --jsx react-jsx --moduleResolution bundler --module esnext --target es2022 --lib es2022,dom --skipLibCheck packages/hvac-graphics/src/texsys_hvac_graphics/assets/*.ts packages/hvac-graphics/src/texsys_hvac_graphics/assets/*.tsx
