@@ -13,6 +13,7 @@ from texsys.dependencies import (
   remove_dependency,
   sync_project,
 )
+from texsys.execution import build_project, evaluate_project, simulate_project, test_project
 from texsys.formal import format_project, lint_project
 from texsys.project import (
   DEPENDENCY_FILES,
@@ -269,6 +270,100 @@ def fmt_command(
   """Alias for format."""
   _format(path, check, diff)
 
+
+def _finish_execution(status: str, report: Path, root: Path) -> None:
+  typer.echo(f"Status: {status}")
+  typer.echo(f"Evidence: {report.relative_to(root.expanduser().resolve())}")
+  if status == "fail":
+    raise typer.Exit(code=1)
+  if status == "indeterminate":
+    raise typer.Exit(code=3)
+  if status == "error":
+    raise typer.Exit(code=2)
+
+
+@app.command("build")
+def build_command(
+  path: PathOption = Path("."),
+  target: Annotated[
+    list[str] | None,
+    typer.Option("--target", help="Build this target and its dependencies; repeatable."),
+  ] = None,
+  profile: Annotated[
+    str | None,
+    typer.Option("--profile", help="Override the selected target profile."),
+  ] = None,
+  scope: Annotated[
+    str | None,
+    typer.Option("--scope", help="Override the selected target scope with a JSON object."),
+  ] = None,
+) -> None:
+  """Lint locked inputs and deterministically generate selected target artifacts."""
+  parsed_scope = None
+  if scope is not None:
+    try:
+      parsed_scope = json.loads(scope)
+    except json.JSONDecodeError as error:
+      _print_error(ProjectError(f"Invalid --scope JSON: {error}"), code=2)
+    if not isinstance(parsed_scope, dict):
+      _print_error(ProjectError("--scope must be a JSON object."), code=2)
+  try:
+    result = build_project(path, tuple(target or ()), profile, parsed_scope)
+  except ProjectError as error:
+    _print_error(error, code=2)
+  for resolved in result.targets:
+    typer.echo(
+      f"Target {resolved.definition.id} (profile={resolved.profile}, "
+      f"source={resolved.resolution_source})"
+    )
+  for item in result.items:
+    typer.echo(f"Generated {item.relative_to(path.expanduser().resolve())}")
+  _finish_execution(result.status, result.report, path)
+
+
+@app.command("test")
+def test_command(
+  path: PathOption = Path("."),
+  scenario: Annotated[str | None, typer.Option("--scenario", help="Fixed behavior scenario inside project assets.")] = None,
+  backend: Annotated[str, typer.Option("--backend", help="Behavior backend: scipy or openmodelica.")] = "scipy",
+) -> None:
+  """Run behavior and capacity cases as stimulus, solve and assertions."""
+  try:
+    result = evaluate_project(path, scenario, backend) if scenario else test_project(path)
+  except ProjectError as error:
+    _print_error(error, code=2)
+  if scenario:
+    for item in result.items:
+      typer.echo(f"Generated {item.relative_to(path.expanduser().resolve())}")
+    _finish_execution(result.status, result.report, path)
+    return
+  for item in result.items:
+    typer.echo(f"{item.name}: {item.status}")
+    for assertion in item.assertions:
+      typer.echo(
+        f"  {assertion.status}: {assertion.assertion.metric} "
+        f"{assertion.assertion.operator} {assertion.assertion.expected} "
+        f"(actual: {assertion.actual})"
+      )
+  _finish_execution(result.status, result.report, path)
+
+
+@app.command("sim")
+def sim_command(
+  path: PathOption = Path("."),
+  kind: Annotated[
+    str,
+    typer.Option("--kind", help="Simulation model: event; field is reserved and unimplemented."),
+  ] = "event",
+) -> None:
+  """Run geometric installation events and independently assert collisions."""
+  try:
+    result = simulate_project(path, kind)
+  except ProjectError as error:
+    _print_error(error, code=2)
+  for item in result.items:
+    typer.echo(f"{item['name']}: {item['status']}")
+  _finish_execution(result.status, result.report, path)
 
 
 def run() -> None:
