@@ -1,0 +1,19 @@
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "texsys-diagram-elk"
+version = "0.1.0"
+requires-python = ">=3.11"
+dependencies = ["texsys", "texsys-diagram"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.uv.sources]
+texsys = { workspace = true }
+texsys-diagram = { workspace = true }
+
+[tool.setuptools.package-data]
+texsys_diagram_elk = ["*.json"]
