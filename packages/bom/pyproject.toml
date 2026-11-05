@@ -1,0 +1,22 @@
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "texsys-bom"
+version = "0.1.0"
+description = "Domain-neutral Target BOM projection, snapshots, comparison and checks"
+requires-python = ">=3.11"
+dependencies = ["texsys"]
+
+[project.scripts]
+bom-check = "texsys_bom.checker:main"
+
+[project.entry-points."texsys.packages"]
+bom = "texsys_bom:package"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.uv.sources]
+texsys = { workspace = true }

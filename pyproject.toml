@@ -15,7 +15,7 @@ dependencies = [
 ]
 
 [dependency-groups]
-dev = ["pre-commit>=4", "pytest>=8"]
+dev = ["pre-commit>=4", "pytest>=8", "texsys-bom"]
 
 [project.scripts]
 texsys = "texsys.cli:run"
@@ -25,6 +25,12 @@ where = ["src"]
 
 [tool.setuptools.package-data]
 texsys = ["assets/*.usda"]
+
+[tool.uv.workspace]
+members = ["packages/*"]
+
+[tool.uv.sources]
+texsys-bom = { workspace = true }
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

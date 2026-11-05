@@ -6,6 +6,12 @@ resolution-markers = [
     "python_full_version < '3.12'",
 ]
 
+[manifest]
+members = [
+    "texsys",
+    "texsys-bom",
+]
+
 [[package]]
 name = "annotated-doc"
 version = "0.0.5"
@@ -270,6 +276,7 @@ dependencies = [
 dev = [
     { name = "pre-commit" },
     { name = "pytest" },
+    { name = "texsys-bom" },
 ]
 
 [package.metadata]
@@ -283,7 +290,19 @@ requires-dist = [
 dev = [
     { name = "pre-commit", specifier = ">=4" },
     { name = "pytest", specifier = ">=8" },
+    { name = "texsys-bom", editable = "packages/bom" },
 ]
+
+[[package]]
+name = "texsys-bom"
+version = "0.1.0"
+source = { editable = "packages/bom" }
+dependencies = [
+    { name = "texsys" },
+]
+
+[package.metadata]
+requires-dist = [{ name = "texsys", editable = "." }]
 
 [[package]]
 name = "tomlkit"
