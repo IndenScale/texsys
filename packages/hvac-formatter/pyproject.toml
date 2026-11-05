@@ -1,0 +1,20 @@
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "texsys-hvac-formatter"
+version = "0.1.0"
+description = "HVAC canonical input and reviewed projections for texsys"
+requires-python = ">=3.11"
+dependencies = ["texsys", "texsys-hvac-equipment"]
+
+[project.entry-points."texsys.packages"]
+hvac-formatter = "texsys_hvac_formatter:package"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.uv.sources]
+texsys = { workspace = true }
+texsys-hvac-equipment = { workspace = true }

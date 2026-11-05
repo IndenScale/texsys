@@ -15,7 +15,7 @@ dependencies = [
 ]
 
 [dependency-groups]
-dev = ["pre-commit>=4", "pytest>=8", "texsys-bom"]
+dev = ["pre-commit>=4", "pytest>=8", "texsys-bom", "texsys-hvac-equipment", "texsys-hvac-formatter", "texsys-hvac-linter", "texsys-hvac-checks"]
 
 [project.scripts]
 texsys = "texsys.cli:run"
@@ -31,6 +31,10 @@ members = ["packages/*"]
 
 [tool.uv.sources]
 texsys-bom = { workspace = true }
+texsys-hvac-equipment = { workspace = true }
+texsys-hvac-formatter = { workspace = true }
+texsys-hvac-linter = { workspace = true }
+texsys-hvac-checks = { workspace = true }
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

@@ -10,6 +10,10 @@ resolution-markers = [
 members = [
     "texsys",
     "texsys-bom",
+    "texsys-hvac-checks",
+    "texsys-hvac-equipment",
+    "texsys-hvac-formatter",
+    "texsys-hvac-linter",
 ]
 
 [[package]]
@@ -277,6 +281,10 @@ dev = [
     { name = "pre-commit" },
     { name = "pytest" },
     { name = "texsys-bom" },
+    { name = "texsys-hvac-checks" },
+    { name = "texsys-hvac-equipment" },
+    { name = "texsys-hvac-formatter" },
+    { name = "texsys-hvac-linter" },
 ]
 
 [package.metadata]
@@ -291,6 +299,10 @@ dev = [
     { name = "pre-commit", specifier = ">=4" },
     { name = "pytest", specifier = ">=8" },
     { name = "texsys-bom", editable = "packages/bom" },
+    { name = "texsys-hvac-checks", editable = "packages/hvac-checks" },
+    { name = "texsys-hvac-equipment", editable = "packages/hvac-equipment" },
+    { name = "texsys-hvac-formatter", editable = "packages/hvac-formatter" },
+    { name = "texsys-hvac-linter", editable = "packages/hvac-linter" },
 ]
 
 [[package]]
@@ -303,6 +315,62 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [{ name = "texsys", editable = "." }]
+
+[[package]]
+name = "texsys-hvac-checks"
+version = "0.1.0"
+source = { editable = "packages/hvac-checks" }
+dependencies = [
+    { name = "texsys" },
+    { name = "texsys-hvac-equipment" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "texsys", editable = "." },
+    { name = "texsys-hvac-equipment", editable = "packages/hvac-equipment" },
+]
+
+[[package]]
+name = "texsys-hvac-equipment"
+version = "0.1.0"
+source = { editable = "packages/hvac-equipment" }
+dependencies = [
+    { name = "texsys" },
+]
+
+[package.metadata]
+requires-dist = [{ name = "texsys", editable = "." }]
+
+[[package]]
+name = "texsys-hvac-formatter"
+version = "0.1.0"
+source = { editable = "packages/hvac-formatter" }
+dependencies = [
+    { name = "texsys" },
+    { name = "texsys-hvac-equipment" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "texsys", editable = "." },
+    { name = "texsys-hvac-equipment", editable = "packages/hvac-equipment" },
+]
+
+[[package]]
+name = "texsys-hvac-linter"
+version = "0.1.0"
+source = { editable = "packages/hvac-linter" }
+dependencies = [
+    { name = "texsys" },
+    { name = "texsys-hvac-equipment" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "texsys", editable = "." },
+    { name = "texsys-hvac-equipment", editable = "packages/hvac-equipment" },
+]
 
 [[package]]
 name = "tomlkit"

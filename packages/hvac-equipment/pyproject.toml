@@ -1,0 +1,22 @@
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "texsys-hvac-equipment"
+version = "0.1.0"
+description = "HVAC equipment families and geometric event adapter for texsys"
+requires-python = ">=3.11"
+dependencies = ["texsys"]
+
+[project.entry-points."texsys.packages"]
+hvac-equipment = "texsys_hvac_equipment:package"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+texsys_hvac_equipment = ["assets/*.json"]
+
+[tool.uv.sources]
+texsys = { workspace = true }

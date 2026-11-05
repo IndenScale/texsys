@@ -1,0 +1,38 @@
+schema_version = 1
+manifest_digest = "sha256:a9d0cf49d5ab95c541b717c89e2351a12aa12fbebfc810cad7db8e61c24a54f4"
+
+[[packages]]
+name = "hvac-checks"
+version = "0.1.0"
+source = "path"
+path = "../../packages/hvac-checks"
+digest = "sha256:6a87989d1ae787678fa5b19528223796f744ac350d50a8e5660f2d3099e97952"
+direct = true
+dependencies = ["hvac-equipment"]
+
+[[packages]]
+name = "hvac-equipment"
+version = "0.1.0"
+source = "path"
+path = "../../packages/hvac-equipment"
+digest = "sha256:e29733b006800cabd87c2dc108bd211b60a50e2f64aa381b847afce57f95be07"
+direct = true
+dependencies = []
+
+[[packages]]
+name = "hvac-formatter"
+version = "0.1.0"
+source = "path"
+path = "../../packages/hvac-formatter"
+digest = "sha256:74eb9589256bde90a8601060af5829f74d98fbff541ca71786af24dc287b4312"
+direct = true
+dependencies = ["hvac-equipment"]
+
+[[packages]]
+name = "hvac-linter"
+version = "0.1.0"
+source = "path"
+path = "../../packages/hvac-linter"
+digest = "sha256:62780fd35fc84ae5602cc5bdee912d855595010a1b484d58926216f2a7653fe0"
+direct = true
+dependencies = ["hvac-equipment"]

@@ -1,0 +1,20 @@
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "texsys-hvac-checks"
+version = "0.1.0"
+description = "Python capacity, ventilation and dew-point design checks for HVAC"
+requires-python = ">=3.11"
+dependencies = ["texsys", "texsys-hvac-equipment"]
+
+[project.entry-points."texsys.packages"]
+hvac-checks = "texsys_hvac_checks:package"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.uv.sources]
+texsys = { workspace = true }
+texsys-hvac-equipment = { workspace = true }

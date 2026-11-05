@@ -1,0 +1,97 @@
+{
+  "clearance_m": 0.1,
+  "conditions": {
+    "air_cp_kj_kgk": 1.006,
+    "air_density_kg_m3": 1.2,
+    "ambient_temperature_c": 25.0,
+    "cooling_load_kw": 80.0,
+    "relative_humidity": 0.6,
+    "surface_temperature_c": 18.0,
+    "ventilation_m3_s": 2.0
+  },
+  "equipment": {
+    "chilled-pump": {
+      "family": "pump",
+      "model": "generic-pump",
+      "origin": [
+        4.0,
+        0.0,
+        0.0
+      ],
+      "size": [
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    "chilled-return": {
+      "family": "pump",
+      "model": "generic-pump",
+      "origin": [
+        6.0,
+        0.0,
+        0.0
+      ],
+      "size": [
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    "chiller": {
+      "family": "chiller",
+      "model": "generic-100kw",
+      "origin": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "size": [
+        3.0,
+        2.0,
+        2.2
+      ]
+    },
+    "cooling-pump": {
+      "family": "pump",
+      "model": "generic-pump",
+      "origin": [
+        0.0,
+        3.0,
+        0.0
+      ],
+      "size": [
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    "cooling-return": {
+      "family": "pump",
+      "model": "generic-pump",
+      "origin": [
+        2.0,
+        3.0,
+        0.0
+      ],
+      "size": [
+        1.0,
+        1.0,
+        1.0
+      ]
+    }
+  },
+  "installation_order": [
+    "chiller",
+    "chilled-pump",
+    "chilled-return",
+    "cooling-pump",
+    "cooling-return"
+  ],
+  "requirements": {
+    "max_room_temperature_c": 30.0,
+    "min_capacity_margin_kw": 0.0,
+    "min_dew_point_margin_c": 1.0
+  },
+  "schema_version": 1
+}

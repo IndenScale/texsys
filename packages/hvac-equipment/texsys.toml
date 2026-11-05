@@ -1,0 +1,10 @@
+schema_version = 1
+
+[project]
+name = "hvac-equipment"
+version = "0.1.0"
+
+[layout]
+source = "src"
+assets = "assets"
+build = "build"

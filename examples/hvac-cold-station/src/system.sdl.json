@@ -1,0 +1,87 @@
+{
+  "components": {
+    "ChilledWaterPump": {
+      "ports": {
+        "inlet": {
+          "direction": "in",
+          "kind": "chilled-water"
+        },
+        "outlet": {
+          "direction": "out",
+          "kind": "chilled-water"
+        }
+      }
+    },
+    "Chiller": {
+      "ports": {
+        "chilled-in": {
+          "direction": "in",
+          "kind": "chilled-water"
+        },
+        "chilled-out": {
+          "direction": "out",
+          "kind": "chilled-water"
+        },
+        "cooling-in": {
+          "direction": "in",
+          "kind": "cooling-water"
+        },
+        "cooling-out": {
+          "direction": "out",
+          "kind": "cooling-water"
+        }
+      }
+    },
+    "ColdStation": {
+      "connections": [
+        {
+          "from": "chilled-pump.outlet",
+          "to": "chiller.chilled-in"
+        },
+        {
+          "from": "chiller.chilled-out",
+          "to": "chilled-return.inlet"
+        },
+        {
+          "from": "cooling-pump.outlet",
+          "to": "chiller.cooling-in"
+        },
+        {
+          "from": "chiller.cooling-out",
+          "to": "cooling-return.inlet"
+        }
+      ],
+      "instances": {
+        "chilled-pump": {
+          "component": "ChilledWaterPump"
+        },
+        "chilled-return": {
+          "component": "ChilledWaterPump"
+        },
+        "chiller": {
+          "component": "Chiller"
+        },
+        "cooling-pump": {
+          "component": "CoolingWaterPump"
+        },
+        "cooling-return": {
+          "component": "CoolingWaterPump"
+        }
+      }
+    },
+    "CoolingWaterPump": {
+      "ports": {
+        "inlet": {
+          "direction": "in",
+          "kind": "cooling-water"
+        },
+        "outlet": {
+          "direction": "out",
+          "kind": "cooling-water"
+        }
+      }
+    }
+  },
+  "root": "ColdStation",
+  "schema_version": 1
+}
