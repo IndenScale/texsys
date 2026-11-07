@@ -1,7 +1,7 @@
 import { t } from "./i18n";
 import React, { useEffect, useLayoutEffect, useRef, useState, type RefObject } from "react";
 import { filterCommands, type CommandItem } from "./menus";
-import { filterFiles, type SearchScope } from "./search";
+import { filterFiles, parseFileQuery, type FileLocation, type SearchScope } from "./search";
 import type { ProjectFile } from "./sdk";
 import { InlineTabStrip } from "./atomstudio/WorkspaceTabs";
 import { Keycaps } from "./Keycaps";
@@ -54,7 +54,7 @@ export function CommandCenter({
   filesLoading: boolean;
   filesError: string;
   filesTruncated: boolean;
-  onFile: (file: ProjectFile) => void;
+  onFile: (file: ProjectFile, location?: FileLocation) => void;
 }) {
   const root = useRef<HTMLDivElement>(null),
     button = useRef<HTMLButtonElement>(null),
@@ -65,15 +65,18 @@ export function CommandCenter({
     restore = useRef(false);
   const [query, setQuery] = useState(""),
     [selected, setSelected] = useState(0);
+  const resultScope = query.trimStart().startsWith(">") ? "commands" : scope;
+  const fileQuery = resultScope !== "commands" ? parseFileQuery(files, query) : undefined;
+  const location = fileQuery?.location;
   const matches: Result[] = [
-    ...(scope !== "files"
+    ...(resultScope !== "files"
       ? filterCommands(commands, query).map((command) => ({
           ...command,
           icon: command.icon ?? "arrow",
         }))
       : []),
-    ...(scope !== "commands"
-      ? filterFiles(files, query)
+    ...(fileQuery
+      ? filterFiles(files, fileQuery.text)
           .slice(0, 100)
           .map((file) => ({
             id: `file:${file.path}`,
@@ -107,6 +110,7 @@ export function CommandCenter({
   }, [project]);
   useLayoutEffect(() => {
     if (open) {
+      if (scope !== "commands") setQuery((current) => current.replace(/^\s*>\s*/, ""));
       input.current?.focus();
       input.current?.select();
     }
@@ -141,12 +145,12 @@ export function CommandCenter({
     list.current
       ?.querySelector(`[data-result-index="${index}"]`)
       ?.scrollIntoView({ block: "nearest" });
-  }, [index, query, open, scope]);
+  }, [index, query, open, resultScope]);
   const activate = (position: number) => {
     const result = matches[position];
     if (result && !result.disabled) {
       close(true);
-      if (result.file) onFile(result.file);
+      if (result.file) onFile(result.file, location);
       else invoke(result.id);
     }
   };
@@ -239,7 +243,9 @@ export function CommandCenter({
         </div>
         <div className="command-panel" inert={!open} aria-hidden={!open}>
           <span id="command-center-instructions" className="sr-only">
-            {t("上下方向键选择，Enter 执行或打开文件，Esc 关闭。底部标签切换搜索范围。")}
+            {t(
+              "上下方向键选择，Enter 执行或打开文件，Esc 关闭。输入 > 查找命令，输入文件名:行号定位。",
+            )}
           </span>
           <div
             ref={list}
@@ -268,7 +274,11 @@ export function CommandCenter({
                 </span>
                 {item.file ? (
                   <span className="command-label file-result-label">
-                    <span className="file-result-name">{item.file.name}</span>
+                    <span className="file-result-name">
+                      {item.file.name}
+                      {location &&
+                        `:${location.line}${location.column ? `:${location.column}` : ""}`}
+                    </span>
                     {item.file.parent && (
                       <span className="file-result-parent">{item.file.parent}</span>
                     )}
@@ -287,12 +297,12 @@ export function CommandCenter({
                 </span>
               </button>
             ))}
-            {scope !== "commands" && filesLoading && <p role="status">{t("正在读取项目文件…")}</p>}
-            {scope !== "commands" && filesError && <p role="alert">{filesError}</p>}
-            {!matches.length && (scope === "commands" || (!filesLoading && !filesError)) && (
+            {fileQuery && filesLoading && <p role="status">{t("正在读取项目文件…")}</p>}
+            {fileQuery && filesError && <p role="alert">{filesError}</p>}
+            {!matches.length && (!fileQuery || (!filesLoading && !filesError)) && (
               <p role="status">{t("没有匹配的结果")}</p>
             )}
-            {scope !== "commands" && filesTruncated && (
+            {fileQuery && filesTruncated && (
               <p className="search-limit">{t("仅索引前 5000 个项目文件。")}</p>
             )}
           </div>
@@ -300,11 +310,12 @@ export function CommandCenter({
             <InlineTabStrip
               label={t("搜索范围")}
               tabs={[
-                { id: "all", label: t("全部"), focused: scope === "all" },
-                { id: "commands", label: t("命令"), focused: scope === "commands" },
-                { id: "files", label: t("文件"), focused: scope === "files" },
+                { id: "all", label: t("全部"), focused: resultScope === "all" },
+                { id: "commands", label: t("命令"), focused: resultScope === "commands" },
+                { id: "files", label: t("文件"), focused: resultScope === "files" },
               ]}
               onSelect={(id) => {
+                if (id !== "commands") setQuery((current) => current.replace(/^\s*>\s*/, ""));
                 setSelected(0);
                 onScopeChange(id as SearchScope);
               }}

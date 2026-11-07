@@ -23,10 +23,12 @@ import {
   type SearchMatch,
 } from "./workspace-model";
 import { visitDocument, stepDocument, type DocumentHistory } from "./navigation";
+import type { FileLocation } from "./search";
 import { useCodeSearch } from "./CodeSearch";
 import { ExplorerTree } from "./ExplorerTree";
 import { FileIcon } from "./FileIcon";
 import { EditorActionButton } from "./EditorActionButton";
+import { ToolbarButton } from "./ToolbarButton";
 import { NavigatorMenu, type NavigatorMenuItem } from "./NavigatorMenu";
 import {
   NavigatorButton as Tool,
@@ -57,9 +59,7 @@ type Document = {
 type FileRequest = {
   path: string;
   token: number;
-  line?: number;
-  column?: number;
-  end_column?: number;
+  location?: FileLocation;
 };
 type Core = {
   activity: Activity;
@@ -70,6 +70,7 @@ type Core = {
   tabs: ReactNode;
   inspector: ReactNode;
   documentActive: boolean;
+  closeFocusRequest: number;
   activateDomain: () => void;
   hasDomain: boolean;
   changeCount: number;
@@ -87,16 +88,88 @@ const coreSidebarTitles: Record<Activity, string> = {
   search: "搜索",
   scm: "源代码管理",
 };
+const macKeys = /Mac|iPhone|iPad/.test(navigator.platform);
+const tabCloseKeys = macKeys ? "Delete Backspace" : "Delete";
+
+function DocumentTab({
+  selected,
+  tabStop = selected,
+  title,
+  children,
+  closeLabel,
+  closeDisabled,
+  closeShortcut,
+  onSelect,
+  onClose,
+}: {
+  selected: boolean;
+  tabStop?: boolean;
+  title?: string;
+  children: ReactNode;
+  closeLabel: string;
+  closeDisabled: boolean;
+  closeShortcut?: string[];
+  onSelect: () => void;
+  onClose: () => void;
+}) {
+  return (
+    <div
+      className={`core-file-tab${selected ? " active" : ""}`}
+      onKeyDown={(event) => {
+        if (
+          (event.key !== "Delete" && !(macKeys && event.key === "Backspace")) ||
+          event.altKey ||
+          event.ctrlKey ||
+          event.metaKey ||
+          event.shiftKey ||
+          event.nativeEvent.isComposing ||
+          event.keyCode === 229
+        )
+          return;
+        event.preventDefault();
+        if (!event.repeat && !closeDisabled) onClose();
+      }}
+    >
+      <button
+        role="tab"
+        tabIndex={tabStop ? 0 : -1}
+        aria-selected={selected}
+        aria-keyshortcuts={closeDisabled ? undefined : tabCloseKeys}
+        title={title}
+        onClick={onSelect}
+      >
+        {children}
+      </button>
+      <ToolbarButton
+        type="button"
+        className="navigator-button"
+        aria-label={closeLabel}
+        aria-disabled={closeDisabled || undefined}
+        aria-keyshortcuts={closeDisabled ? undefined : tabCloseKeys}
+        tooltip={closeLabel}
+        shortcut={!closeDisabled && selected ? closeShortcut : undefined}
+        onClick={() => {
+          if (!closeDisabled) onClose();
+        }}
+      >
+        <Icon name="close" size={16} />
+      </ToolbarButton>
+    </div>
+  );
+}
+
 function DialogLayer({ children, cancel }: { children: ReactNode; cancel: () => void }) {
   const ref = useRef<HTMLDivElement>(null);
   const cancelRef = useRef(cancel);
   cancelRef.current = cancel;
-  useEffect(() => {
+  useLayoutEffect(() => {
     const previous = document.activeElement as HTMLElement | null;
     ref.current?.querySelector<HTMLElement>("input,textarea,button")?.focus();
     const handler = (event: KeyboardEvent) => {
+      if (event.isComposing || event.keyCode === 229) return;
       if (event.key === "Escape") {
         event.preventDefault();
+        event.stopPropagation();
         cancelRef.current();
       }
       if (event.key === "Tab") {
@@ -106,7 +179,10 @@ function DialogLayer({ children, cancel }: { children: ReactNode; cancel: () => 
         if (!nodes.length) return;
         const first = nodes[0],
           last = nodes[nodes.length - 1];
-        if (event.shiftKey && document.activeElement === first) {
+        if (!nodes.some((node) => node === document.activeElement)) {
+          event.preventDefault();
+          (event.shiftKey ? last : first).focus();
+        } else if (event.shiftKey && document.activeElement === first) {
           event.preventDefault();
           last.focus();
         } else if (!event.shiftKey && document.activeElement === last) {
@@ -118,7 +194,7 @@ function DialogLayer({ children, cancel }: { children: ReactNode; cancel: () => 
     document.addEventListener("keydown", handler);
     return () => {
       document.removeEventListener("keydown", handler);
-      previous?.focus();
+      if (previous?.isConnected) previous.focus();
     };
   }, []);
   return <div ref={ref}>{children}</div>;
@@ -134,6 +210,8 @@ export function CoreWorkspaceProvider({
   fileRequest,
   activityRequest,
   settingsRequest,
+  closeRequest,
+  closeShortcut,
   navigationRequest,
   onNavigationState,
   hasDomain,
@@ -148,8 +226,15 @@ export function CoreWorkspaceProvider({
   fileRequest?: FileRequest;
   activityRequest?: { id: Activity; token: number };
   settingsRequest?: number;
+  closeRequest?: number;
+  closeShortcut?: string[];
   navigationRequest?: WorkbenchProps["navigationRequest"];
-  onNavigationState?: (next: { active: boolean; canBack: boolean; canForward: boolean }) => void;
+  onNavigationState?: (next: {
+    active: boolean;
+    canBack: boolean;
+    canForward: boolean;
+    canClose: boolean;
+  }) => void;
   hasDomain: boolean;
   children: ReactNode;
 }) {
@@ -189,8 +274,11 @@ export function CoreWorkspaceProvider({
   }>();
   const [formError, setFormError] = useState("");
   const [closePath, setClosePath] = useState<string>();
+  const [closeFocusRequest, setCloseFocusRequest] = useState(0);
   const [diskComparison, setDiskComparison] = useState<{ path: string; file: FilePreview }>();
   const searchInput = useRef<HTMLInputElement>(null);
+  const [sourceFocus, setSourceFocus] = useState<{ path: string; origin: Element | null }>();
+  const openReads = useRef(new Map<string, symbol>());
   const [sourceModels] = useState<SourceModels>(() => new Map());
   useEffect(() => {
     const paths = new Set(documents.map(({ path }) => path));
@@ -211,6 +299,22 @@ export function CoreWorkspaceProvider({
   const documentsRef = useRef(documents);
   documentsRef.current = documents;
   const active = documents.find((item) => item.path === activePath);
+  const activeTab = settingsActive
+    ? "settings"
+    : !documentActive
+      ? null
+      : searchEditorActive
+        ? "search"
+        : diffActive
+          ? "diff"
+          : active
+            ? "source"
+            : null;
+  const tabStop =
+    activeTab ??
+    (active ? "source" : searchDocumentOpen ? "search" : settingsOpen ? "settings" : null);
+  const closeDisabled = !!(busy || form || closePath || diskComparison);
+  const canClose = !!activeTab && !closeDisabled;
   const dirty = documents.some((item) => item.content !== item.saved);
   const select = useCallback(
     (id: Activity) => changeLayout({ sidebarOpen: true, sidebarActivity: id }),
@@ -280,7 +384,21 @@ export function CoreWorkspaceProvider({
     window.addEventListener("beforeunload", handler);
     return () => window.removeEventListener("beforeunload", handler);
   }, [dirty]);
-  const openFile = async (path: string, location?: FileRequest, recordHistory = true) => {
+  const openFile = async (
+    path: string,
+    {
+      location,
+      recordHistory = true,
+      focus = false,
+      fromDiskSearch = false,
+    }: {
+      location?: FileLocation & { end_column?: number };
+      recordHistory?: boolean;
+      focus?: boolean;
+      fromDiskSearch?: boolean;
+    } = {},
+  ) => {
+    setSourceFocus(focus ? { path, origin: document.activeElement } : undefined);
     setSettingsActive(false);
     if (recordHistory) setHistory((previous) => visitDocument(previous, path));
     setSearchEditorActive(false);
@@ -311,10 +429,20 @@ export function CoreWorkspaceProvider({
         }
       : undefined;
     const existing = documentsRef.current.find((item) => item.path === path);
-    if (existing && existing.content !== existing.saved) {
-      if (target) notify(t("文件有未保存的编辑，已打开文件；请保存后再按磁盘搜索结果定位。"));
+    const hasEdits = existing && existing.content !== existing.saved;
+    if (hasEdits || (focus && existing && !existing.loading && !existing.error)) {
+      openReads.current.delete(path);
+      if (target && hasEdits && fromDiskSearch) {
+        notify(t("文件有未保存的编辑，已打开文件；请保存后再按磁盘搜索结果定位。"));
+      } else if (focus) {
+        setDocuments((previous) =>
+          previous.map((item) => (item.path === path ? { ...item, location: target } : item)),
+        );
+      }
       return;
     }
+    const read = Symbol(path);
+    openReads.current.set(path, read);
     setDocuments((previous) =>
       previous.some((item) => item.path === path)
         ? previous
@@ -325,6 +453,7 @@ export function CoreWorkspaceProvider({
     );
     try {
       const file = await api<FilePreview>(`/api/file?path=${encodeURIComponent(path)}`);
+      if (openReads.current.get(path) !== read) return;
       setDocuments((previous) =>
         previous.map((item) =>
           item.path === path && item.content === item.saved
@@ -342,11 +471,14 @@ export function CoreWorkspaceProvider({
         ),
       );
     } catch (error) {
+      if (openReads.current.get(path) !== read) return;
       setDocuments((previous) =>
         previous.map((item) =>
           item.path === path ? { ...item, loading: false, error: String(error) } : item,
         ),
       );
+    } finally {
+      if (openReads.current.get(path) === read) openReads.current.delete(path);
     }
   };
   useEffect(() => {
@@ -354,8 +486,16 @@ export function CoreWorkspaceProvider({
       active: documentActive || settingsActive,
       canBack: !settingsActive && history.index > 0,
       canForward: !settingsActive && history.index < history.entries.length - 1,
+      canClose,
     });
-  }, [documentActive, settingsActive, history.index, history.entries.length, onNavigationState]);
+  }, [
+    documentActive,
+    settingsActive,
+    history.index,
+    history.entries.length,
+    canClose,
+    onNavigationState,
+  ]);
   useEffect(() => {
     if (
       !documentActive ||
@@ -367,11 +507,16 @@ export function CoreWorkspaceProvider({
     const next = stepDocument(history, navigationRequest.command === "navigation.back" ? -1 : 1);
     if (next === history) return;
     setHistory(next);
-    void openFile(next.entries[next.index], undefined, false);
+    void openFile(next.entries[next.index], { recordHistory: false });
   }, [navigationRequest?.token]);
   useEffect(() => {
-    if (fileRequest) void openFile(fileRequest.path, fileRequest);
+    if (fileRequest)
+      void openFile(fileRequest.path, { location: fileRequest.location, focus: true });
   }, [fileRequest?.token]);
+  useLayoutEffect(() => {
+    if (sourceFocus && (sourceFocus.path !== activePath || activeTab !== "source"))
+      setSourceFocus(undefined);
+  }, [sourceFocus, activePath, activeTab]);
   useEffect(() => {
     if (!settingsRequest) return;
     setSettingsOpen(true);
@@ -443,21 +588,52 @@ export function CoreWorkspaceProvider({
       notify(String(error), true);
     }
   };
-  const closeDocument = (path: string, discard = false) => {
+  const removeDocument = (path: string) => {
+    const index = documentsRef.current.findIndex((item) => item.path === path);
+    openReads.current.delete(path);
+    setDocuments((previous) => previous.filter((item) => item.path !== path));
+    if (activePath === path) {
+      const neighbor = documentsRef.current[index + 1] ?? documentsRef.current[index - 1];
+      setActivePath(neighbor?.path ?? null);
+    }
+    setClosePath(undefined);
+  };
+  const finishClosingTab = (close: () => void) => {
+    close();
+    setCloseFocusRequest((request) => request + 1);
+  };
+  const closeFileTab = (path: string) => {
     const document = documentsRef.current.find((item) => item.path === path);
-    if (!discard && document && document.saved !== document.content) {
+    if (document && document.saved !== document.content) {
       setClosePath(path);
       return;
     }
-    setDocuments((previous) => previous.filter((item) => item.path !== path));
-    if (activePath === path)
-      setActivePath(documentsRef.current.filter((item) => item.path !== path).at(-1)?.path ?? null);
-    setClosePath(undefined);
+    finishClosingTab(() => removeDocument(path));
   };
+  const closeSearchTab = () =>
+    finishClosingTab(() => {
+      setSearchDocumentOpen(false);
+      setSearchEditorActive(false);
+    });
+  const closeDiffTab = () => finishClosingTab(() => setDiffActive(false));
+  const closeSettingsTab = () =>
+    finishClosingTab(() => {
+      setSettingsOpen(false);
+      setSettingsActive(false);
+    });
+  useEffect(() => {
+    if (!closeRequest || !canClose) return;
+    if (activeTab === "settings") closeSettingsTab();
+    if (activeTab === "search") closeSearchTab();
+    if (activeTab === "diff") closeDiffTab();
+    if (activeTab === "source" && activePath) closeFileTab(activePath);
+  }, [closeRequest]);
   useEffect(() => {
     const handler = (event: KeyboardEvent) => {
-      if (!(event.metaKey || event.ctrlKey)) return;
-      if (event.key.toLowerCase() === "s" && documentActive && !diffActive && !searchEditorActive) {
+      if (event.defaultPrevented || event.isComposing || event.keyCode === 229) return;
+      if (!(event.metaKey || event.ctrlKey) || event.altKey) return;
+      if (event.target instanceof Element && event.target.closest('[aria-modal="true"]')) return;
+      if (event.key.toLowerCase() === "s" && activeTab === "source") {
         event.preventDefault();
         if (!busy) void saveFile();
       }
@@ -472,7 +648,7 @@ export function CoreWorkspaceProvider({
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [documentActive, diffActive, searchEditorActive, busy, activePath, documents, select]);
+  }, [activeTab, busy, activePath, documents, select]);
   const submitFileOperation = async (event: React.FormEvent) => {
     event.preventDefault();
     if (!form) return;
@@ -500,7 +676,7 @@ export function CoreWorkspaceProvider({
         target: form.value,
         version,
       });
-      if (["rename", "delete"].includes(form.action)) closeDocument(form.path, true);
+      if (["rename", "delete"].includes(form.action)) removeDocument(form.path);
       setForm(undefined);
       setSelected("");
       await reload();
@@ -584,7 +760,7 @@ export function CoreWorkspaceProvider({
     revision: state.project.revision,
     generation: searchGeneration,
     inputRef: searchInput,
-    onOpenFile: (path, match) => void openFile(path, match ? { ...match, token: 0 } : undefined),
+    onOpenFile: (path, match) => void openFile(path, { location: match, fromDiskSearch: true }),
     onOpenEditor: () => {
       setSettingsActive(false);
       setSearchDocumentOpen(true);
@@ -775,7 +951,7 @@ export function CoreWorkspaceProvider({
                 return next;
               })
             }
-            open={(path) => void openFile(path)}
+            open={(path, keyboard) => void openFile(path, { focus: keyboard })}
             contextMenu={(path, x, y) => setExplorerMenu({ path, x, y })}
             rename={() => startForm("rename")}
             remove={() => startForm("delete")}
@@ -922,13 +1098,20 @@ export function CoreWorkspaceProvider({
               {t("有未保存的编辑。")}
             </p>
             <div className="core-dialog-actions">
-              <button onClick={() => setClosePath(undefined)}>{t("取消")}</button>
-              <button onClick={() => closeDocument(closePath, true)}>{t("放弃更改")}</button>
+              <button disabled={busy} onClick={() => setClosePath(undefined)}>
+                {t("取消")}
+              </button>
+              <button
+                disabled={busy}
+                onClick={() => finishClosingTab(() => removeDocument(closePath))}
+              >
+                {t("放弃更改")}
+              </button>
               <button
                 className="core-primary"
                 disabled={busy}
                 onClick={async () => {
-                  if (await saveFile(closePath)) closeDocument(closePath, true);
+                  if (await saveFile(closePath)) finishClosingTab(() => removeDocument(closePath));
                 }}
               >
                 {t("保存并关闭")}
@@ -1026,6 +1209,9 @@ export function CoreWorkspaceProvider({
       role="tablist"
       aria-label={t("工作区文档")}
       onKeyDown={(event) => {
+        if (event.defaultPrevented || event.nativeEvent.isComposing || event.keyCode === 229)
+          return;
+        if (event.altKey || event.metaKey || event.ctrlKey || event.shiftKey) return;
         if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
         const nodes = Array.from(
           event.currentTarget.querySelectorAll<HTMLButtonElement>('[role="tab"]'),
@@ -1044,118 +1230,82 @@ export function CoreWorkspaceProvider({
       }}
     >
       {documents.map((document) => (
-        <div
-          className={`core-file-tab ${documentActive && !settingsActive && !diffActive && !searchEditorActive && activePath === document.path ? "active" : ""}`}
+        <DocumentTab
           key={document.path}
+          selected={activeTab === "source" && activePath === document.path}
+          tabStop={tabStop === "source" && activePath === document.path}
+          title={document.path}
+          closeLabel={t("关闭 {0}", { "0": document.path })}
+          closeDisabled={closeDisabled}
+          closeShortcut={closeShortcut}
+          onClose={() => closeFileTab(document.path)}
+          onSelect={() => {
+            setSettingsActive(false);
+            setSearchEditorActive(false);
+            setHistory((previous) => visitDocument(previous, document.path));
+            setActivePath(document.path);
+            setDocumentActive(true);
+            setDiffActive(false);
+          }}
         >
-          <button
-            role="tab"
-            tabIndex={!settingsActive && activePath === document.path ? 0 : -1}
-            aria-selected={
-              documentActive &&
-              !settingsActive &&
-              !diffActive &&
-              !searchEditorActive &&
-              activePath === document.path
-            }
-            title={document.path}
-            onClick={() => {
-              setSettingsActive(false);
-              setSearchEditorActive(false);
-              setHistory((previous) => visitDocument(previous, document.path));
-              setActivePath(document.path);
-              setDocumentActive(true);
-              setDiffActive(false);
-            }}
-          >
-            <FileIcon path={document.path} />
-            <span>{document.path.split("/").pop()}</span>
-            {document.content !== document.saved && (
-              <span className="core-dirty" title={t("未保存")} />
-            )}
-          </button>
-          <Tool
-            label={t("关闭 {0}", { "0": document.path })}
-            icon="close"
-            onClick={() => closeDocument(document.path)}
-          />
-        </div>
+          <FileIcon path={document.path} />
+          <span>{document.path.split("/").pop()}</span>
+          {document.content !== document.saved && (
+            <span className="core-dirty" title={t("未保存")} />
+          )}
+        </DocumentTab>
       ))}
       {searchDocumentOpen && (
-        <div
-          className={`core-file-tab ${documentActive && !settingsActive && searchEditorActive ? "active" : ""}`}
+        <DocumentTab
+          selected={activeTab === "search"}
+          tabStop={tabStop === "search"}
+          closeLabel={t("关闭搜索结果")}
+          closeDisabled={closeDisabled}
+          closeShortcut={closeShortcut}
+          onClose={closeSearchTab}
+          onSelect={() => {
+            setSettingsActive(false);
+            setSearchEditorActive(true);
+            setDocumentActive(true);
+            setDiffActive(false);
+          }}
         >
-          <button
-            role="tab"
-            aria-selected={documentActive && !settingsActive && searchEditorActive}
-            tabIndex={documentActive && !settingsActive && searchEditorActive ? 0 : -1}
-            onClick={() => {
-              setSettingsActive(false);
-              setSearchEditorActive(true);
-              setDocumentActive(true);
-              setDiffActive(false);
-            }}
-          >
-            <Icon name="search" size={14} />
-            <span>{t("搜索结果")}</span>
-          </button>
-          <Tool
-            label={t("关闭搜索结果")}
-            icon="close"
-            onClick={() => {
-              setSearchDocumentOpen(false);
-              setSearchEditorActive(false);
-            }}
-          />
-        </div>
+          <Icon name="search" size={14} />
+          <span>{t("搜索结果")}</span>
+        </DocumentTab>
       )}
       {diffActive && (
-        <div className={`core-file-tab ${settingsActive ? "" : "active"}`}>
-          <button
-            role="tab"
-            aria-selected={!settingsActive}
-            tabIndex={settingsActive ? -1 : 0}
-            onClick={() => {
-              setSettingsActive(false);
-              setDocumentActive(true);
-              setSearchEditorActive(false);
-            }}
-          >
-            <span>
-              {t("差异 ·")}
-              {diff?.path.split("/").pop() ?? t("读取中")}
-            </span>
-          </button>
-          <Tool label={t("关闭差异")} icon="close" onClick={() => setDiffActive(false)} />
-        </div>
+        <DocumentTab
+          selected={activeTab === "diff"}
+          closeLabel={t("关闭差异")}
+          closeDisabled={closeDisabled}
+          closeShortcut={closeShortcut}
+          onClose={closeDiffTab}
+          onSelect={() => {
+            setSettingsActive(false);
+            setDocumentActive(true);
+            setSearchEditorActive(false);
+          }}
+        >
+          <span>
+            {t("差异 ·")}
+            {diff?.path.split("/").pop() ?? t("读取中")}
+          </span>
+        </DocumentTab>
       )}
       {settingsOpen && (
-        <div className={`core-file-tab ${settingsActive ? "active" : ""}`}>
-          <button
-            role="tab"
-            aria-selected={settingsActive}
-            tabIndex={settingsActive ? 0 : -1}
-            onClick={() => setSettingsActive(true)}
-          >
-            <Icon name="settings" size={14} />
-            <span>{t("设置")}</span>
-          </button>
-          <Tool
-            label={t("关闭设置")}
-            icon="close"
-            onClick={(event) => {
-              const tabStrip = event.currentTarget.closest(".core-document-tabs");
-              setSettingsOpen(false);
-              setSettingsActive(false);
-              requestAnimationFrame(() => {
-                const target = tabStrip?.querySelector<HTMLElement>(
-                  '[role="tab"][aria-selected="true"]',
-                );
-                (target ?? document.querySelector<HTMLElement>(".settings-trigger"))?.focus();
-              });
-            }}
-          />
-        </div>
+        <DocumentTab
+          selected={activeTab === "settings"}
+          tabStop={tabStop === "settings"}
+          closeLabel={t("关闭设置")}
+          closeDisabled={closeDisabled}
+          closeShortcut={closeShortcut}
+          onClose={closeSettingsTab}
+          onSelect={() => setSettingsActive(true)}
+        >
+          <Icon name="settings" size={14} />
+          <span>{t("设置")}</span>
+        </DocumentTab>
       )}
     </div>
   );
@@ -1312,6 +1462,8 @@ export function CoreWorkspaceProvider({
         models={sourceModels}
         visible={documentActive && !settingsActive}
         location={active.location}
+        focusRequest={sourceFocus?.path === active.path ? sourceFocus : undefined}
+        onFocusHandled={() => setSourceFocus(undefined)}
         onChange={(content) => {
           setDocuments((previous) =>
             previous.map((item) =>
@@ -1390,6 +1542,7 @@ export function CoreWorkspaceProvider({
     tabs,
     inspector,
     documentActive: documentActive || settingsActive,
+    closeFocusRequest,
     activateDomain,
     hasDomain,
     changeCount: gitStatus?.entries.length ?? 0,
@@ -1443,6 +1596,19 @@ export function WorkbenchSurface({
 }) {
   const core = useCoreWorkspace();
   const tabList = useRef<HTMLDivElement>(null);
+  const documentArea = useRef<HTMLDivElement>(null);
+  const lastCloseFocus = useRef(core?.closeFocusRequest);
+  useLayoutEffect(() => {
+    if (lastCloseFocus.current === core?.closeFocusRequest) return;
+    lastCloseFocus.current = core?.closeFocusRequest;
+    const list = tabList.current;
+    if (!list || list.closest("[hidden]")) return;
+    const group = core?.documentActive ? ".core-file-tabs" : ".core-domain-tabs";
+    const selected = list.querySelector<HTMLButtonElement>(
+      `${group} [role="tab"][aria-selected="true"]`,
+    );
+    (selected ?? documentArea.current)?.focus();
+  }, [core?.closeFocusRequest, core?.documentActive]);
   const lastSelectedTab = useRef<Element | null>(null);
   useLayoutEffect(() => {
     const list = tabList.current;
@@ -1458,7 +1624,6 @@ export function WorkbenchSurface({
   });
   if (!core) throw new Error("WorkbenchSurface requires the Studio host.");
   const documentActions = core.documentActive ? core.editorActions : tabActions;
-  const macKeys = /Mac|iPhone|iPad/.test(navigator.platform);
   const items = coreItems.map(({ id, label, icon, shortcutKey }) => ({
     id,
     label,
@@ -1516,7 +1681,13 @@ export function WorkbenchSurface({
             </div>
           )}
         </div>
-        <div className="core-surface-content">
+        <div
+          className="core-surface-content"
+          ref={documentArea}
+          role="group"
+          aria-label={t("文档区域")}
+          tabIndex={-1}
+        >
           <div className="core-document-content" hidden={!core.documentActive}>
             {core.editor}
           </div>

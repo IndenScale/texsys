@@ -268,7 +268,19 @@ test("layout preferences keep project and discipline state separate and tolerate
 });
 
 const { visitDocument, stepDocument } = load("src/texsys/assets/studio/navigation.ts");
-const { studioMenus, filterCommands } = load("src/texsys/assets/studio/menus.ts");
+const { studioMenus, filterCommands, isCloseDocumentShortcut } = load(
+  "src/texsys/assets/studio/menus.ts",
+);
+test("close editor uses the VS Code key without an extra modifier", () => {
+  const commandW = { key: "w", metaKey: true, ctrlKey: false, altKey: false, shiftKey: false };
+  assert.equal(isCloseDocumentShortcut(commandW, true), true);
+  assert.equal(isCloseDocumentShortcut({ ...commandW, altKey: true }, true), false);
+  assert.equal(isCloseDocumentShortcut(commandW, false), false);
+  assert.equal(
+    isCloseDocumentShortcut({ ...commandW, metaKey: false, ctrlKey: true }, false),
+    true,
+  );
+});
 const { visibleMenuCount } = load("src/texsys/assets/studio/menuLayout.ts");
 test("titlebar menu overflow reserves More and keeps an ordered visible prefix", () => {
   const widths = [40, 40, 40, 40, 40];
@@ -320,7 +332,12 @@ test("menu and command search share group names and stable action identities", (
     ["tasks.show"],
   );
   assert.equal(filterCommands(commands, "不存在的命令").length, 0);
-  assert.ok(filterCommands(commands, "").every((item) => !item.id.startsWith("view.")));
+  assert.deepEqual(
+    filterCommands(commands, "")
+      .filter((item) => item.id.startsWith("view."))
+      .map((item) => item.id),
+    ["view.fullscreen"],
+  );
   assert.deepEqual(
     filterCommands(commands, "布局").map((item) => item.id),
     ["view.sidebar", "view.bottom", "view.inspector"],
@@ -336,7 +353,7 @@ test("explicit drawing fit respects both aperture dimensions and a small-window 
   assert.equal(fitDrawingWidth(100, 100, 1600, 800), 160);
 });
 
-const { filterFiles } = load("src/texsys/assets/studio/search.ts");
+const { filterFiles, parseFileQuery } = load("src/texsys/assets/studio/search.ts");
 test("file search ranks exact names and filters case-insensitive path terms", () => {
   const files = [
     { name: "system.json", path: "src/system.json" },
@@ -350,6 +367,22 @@ test("file search ranks exact names and filters case-insensitive path terms", ()
   );
   assert.equal(filterFiles(files, "systjs")[0].path, "src/system.json");
   assert.equal(filterFiles(files, "missing-unique-filename").length, 0);
+});
+
+test("file locations keep exact filenames containing colons and reject unsafe offsets", () => {
+  const files = [{ name: "notes:42", path: "docs/notes:42" }];
+  assert.deepEqual(parseFileQuery(files, "docs/notes:42"), { text: "docs/notes:42" });
+  assert.deepEqual(parseFileQuery(files, "docs/notes:42:3"), {
+    text: "docs/notes:42",
+    location: { line: 3, column: undefined },
+  });
+  assert.deepEqual(parseFileQuery(files, "src/system.json:42:3"), {
+    text: "src/system.json",
+    location: { line: 42, column: 3 },
+  });
+  assert.deepEqual(parseFileQuery(files, "doc:9007199254740992"), {
+    text: "doc:9007199254740992",
+  });
 });
 
 const { visibleFileTree, gitGroups, gitPathInProject, sourceOffset, commitGraph } = load(

@@ -48,6 +48,8 @@ export function SourceEditor({
   models,
   visible,
   location,
+  focusRequest,
+  onFocusHandled,
   onChange,
   onCursorLine,
 }: {
@@ -56,6 +58,8 @@ export function SourceEditor({
   models: SourceModels;
   visible: boolean;
   location?: SearchMatch;
+  focusRequest?: { origin: Element | null };
+  onFocusHandled: () => void;
   onChange: (value: string) => void;
   onCursorLine: (line: number) => void;
 }) {
@@ -147,8 +151,15 @@ export function SourceEditor({
       endColumn: end.column,
     });
     code.revealPositionInCenter(start);
-    code.focus();
+    if (!focusRequest) code.focus();
   }, [path, visible, location]);
+
+  useLayoutEffect(() => {
+    if (!visible || !focusRequest) return;
+    if (document.activeElement === focusRequest.origin || document.activeElement === document.body)
+      instance.current?.focus();
+    onFocusHandled();
+  }, [visible, focusRequest, onFocusHandled]);
 
   return <div className="core-code-editor" ref={container} />;
 }

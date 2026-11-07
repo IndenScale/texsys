@@ -8,6 +8,27 @@ export type MenuItem = {
   keywords?: string;
 };
 export type MenuGroup = { id: string; label: string; items: MenuItem[] };
+export const closeDocumentCommand = {
+  id: "document.close",
+  label: "关闭当前文档",
+  icon: "close",
+  keywords: "Close editor 关闭标签页",
+} satisfies MenuItem;
+
+export function closeDocumentKeys(mac: boolean): string[] {
+  return mac ? ["⌘", "W"] : ["Ctrl", "W"];
+}
+
+export function isCloseDocumentShortcut(event: KeyboardEvent, mac: boolean): boolean {
+  return (
+    event.key.toLowerCase() === "w" &&
+    !event.altKey &&
+    !event.shiftKey &&
+    event.metaKey === mac &&
+    event.ctrlKey === !mac
+  );
+}
+
 export const studioMenus: MenuGroup[] = [
   {
     id: "project",
@@ -15,6 +36,7 @@ export const studioMenus: MenuGroup[] = [
     items: [
       { id: "project.overview", label: "项目概览", icon: "folder" },
       { id: "project.refresh", label: "读取外部修改", icon: "refresh" },
+      closeDocumentCommand,
     ],
   },
   {
@@ -60,6 +82,7 @@ export const studioMenus: MenuGroup[] = [
         searchOnly: true,
         keywords: "布局 侧栏 右侧",
       },
+      { id: "view.fullscreen", label: "全屏", keywords: "Full Screen 专注 编辑器快捷键" },
     ],
   },
   {

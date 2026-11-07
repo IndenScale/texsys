@@ -25,8 +25,13 @@ import { AnimatedPresence } from "./AnimatedPresence";
 import { ToolbarButton } from "./ToolbarButton";
 import { ApplicationMenuBar } from "./ApplicationMenuBar";
 import { NavigatorMenu } from "./NavigatorMenu";
-import type { SearchScope } from "./search";
-import { studioMenus } from "./menus";
+import type { FileLocation, SearchScope } from "./search";
+import {
+  closeDocumentCommand,
+  closeDocumentKeys,
+  isCloseDocumentShortcut,
+  studioMenus,
+} from "./menus";
 import { t, useLocale, getLocale, localizeError } from "./i18n";
 import "./studio.css";
 
@@ -202,8 +207,23 @@ function Studio({ plugins, chrome }: { plugins: WorkbenchPlugin[]; chrome: Studi
   useEffect(() => {
     document.documentElement.lang = locale;
   }, [locale]);
-  const [fileRequest, setFileRequest] = useState<{ path: string; token: number }>();
+  const [fileRequest, setFileRequest] = useState<{
+    path: string;
+    token: number;
+    location?: FileLocation;
+  }>();
   const [settingsRequest, setSettingsRequest] = useState(0);
+  const [closeRequest, setCloseRequest] = useState(0);
+  const [fullscreen, setFullscreen] = useState(
+    () => document.fullscreenElement === document.documentElement,
+  );
+  useEffect(() => {
+    const syncFullscreen = () =>
+      setFullscreen(document.fullscreenElement === document.documentElement);
+    document.addEventListener("fullscreenchange", syncFullscreen);
+    return () => document.removeEventListener("fullscreenchange", syncFullscreen);
+  }, []);
+  const closeShortcut = fullscreen ? closeDocumentKeys(macKeys) : undefined;
   const [activityRequest, setActivityRequest] = useState<{
     id: "explorer" | "search" | "scm";
     token: number;
@@ -243,13 +263,15 @@ function Studio({ plugins, chrome }: { plugins: WorkbenchPlugin[]; chrome: Studi
     active: true,
     canBack: false,
     canForward: false,
+    canClose: false,
   });
   const reportCoreHistory = useCallback(
     (next: typeof coreHistory) =>
       setCoreHistory((previous) =>
         previous.active === next.active &&
         previous.canBack === next.canBack &&
-        previous.canForward === next.canForward
+        previous.canForward === next.canForward &&
+        previous.canClose === next.canClose
           ? previous
           : next,
       ),
@@ -389,6 +411,9 @@ function Studio({ plugins, chrome }: { plugins: WorkbenchPlugin[]; chrome: Studi
       case "project.refresh":
         void refresh();
         break;
+      case closeDocumentCommand.id:
+        if (coreHistory.canClose) setCloseRequest((request) => request + 1);
+        break;
       case "view.sidebar":
         updateLayout(active, { sidebarOpen: !layout.sidebarOpen });
         break;
@@ -397,6 +422,13 @@ function Studio({ plugins, chrome }: { plugins: WorkbenchPlugin[]; chrome: Studi
         break;
       case "view.inspector":
         updateLayout(active, { inspectorOpen: !layout.inspectorOpen });
+        break;
+      case "view.fullscreen":
+        void (
+          document.fullscreenElement
+            ? document.exitFullscreen()
+            : document.documentElement.requestFullscreen()
+        ).catch((error) => notify(String(error), true));
         break;
       case "navigation.back":
         if (historyState.canBack) requestNavigation(id);
@@ -429,25 +461,29 @@ function Studio({ plugins, chrome }: { plugins: WorkbenchPlugin[]; chrome: Studi
       ...item,
       group: group.label,
       keys:
-        item.id === "commands.open"
-          ? macKeys
-            ? ["⇧", "⌘", "P"]
-            : ["Ctrl", "Shift", "P"]
-          : item.id === "navigation.back"
+        item.id === closeDocumentCommand.id
+          ? closeShortcut
+          : item.id === "commands.open"
             ? macKeys
-              ? ["⌘", "["]
-              : ["Alt", "←"]
-            : item.id === "navigation.forward"
+              ? ["⇧", "⌘", "P"]
+              : ["Ctrl", "Shift", "P"]
+            : item.id === "navigation.back"
               ? macKeys
-                ? ["⌘", "]"]
-                : ["Alt", "→"]
-              : item.id === "view.sidebar"
-                ? [macKeys ? "⌘" : "Ctrl", "\\"]
-                : item.id === "files.search"
-                  ? [macKeys ? "⌘" : "Ctrl", "P"]
-                  : undefined,
+                ? ["⌘", "["]
+                : ["Alt", "←"]
+              : item.id === "navigation.forward"
+                ? macKeys
+                  ? ["⌘", "]"]
+                  : ["Alt", "→"]
+                : item.id === "view.sidebar"
+                  ? [macKeys ? "⌘" : "Ctrl", "\\"]
+                  : item.id === "files.search"
+                    ? [macKeys ? "⌘" : "Ctrl", "P"]
+                    : undefined,
       disabled:
         !state ||
+        (item.id === "view.fullscreen" && !document.fullscreenEnabled) ||
+        (item.id === closeDocumentCommand.id && !coreHistory.canClose) ||
         (item.id === "navigation.back" && !historyState.canBack) ||
         (item.id === "navigation.forward" && !historyState.canForward) ||
         (item.id === "help.capabilities" && !current),
@@ -458,11 +494,32 @@ function Studio({ plugins, chrome }: { plugins: WorkbenchPlugin[]; chrome: Studi
             ? layout.bottomOpen
             : item.id === "view.inspector"
               ? layout.inspectorOpen
-              : undefined,
+              : item.id === "view.fullscreen"
+                ? fullscreen
+                : undefined,
     })),
   );
   useEffect(() => {
+    const closeHandler = (event: KeyboardEvent) => {
+      if (
+        document.fullscreenElement !== document.documentElement ||
+        !isCloseDocumentShortcut(event, macKeys)
+      )
+        return;
+      event.preventDefault();
+      event.stopPropagation();
+      if (event.repeat || event.isComposing || event.keyCode === 229 || commandOpen) return;
+      if (event.target instanceof Element && event.target.closest('[aria-modal="true"]')) return;
+      invokeCommand(closeDocumentCommand.id);
+    };
+    // Monaco handles key events in the editor before they bubble to the workbench.
+    window.addEventListener("keydown", closeHandler, true);
+    return () => window.removeEventListener("keydown", closeHandler, true);
+  }, [coreHistory.canClose, commandOpen]);
+  useEffect(() => {
     const handler = (event: KeyboardEvent) => {
+      if (event.defaultPrevented || event.isComposing || event.keyCode === 229) return;
+      if (event.target instanceof Element && event.target.closest('[aria-modal="true"]')) return;
       if ((event.metaKey || event.ctrlKey) && event.shiftKey && event.key.toLowerCase() === "p") {
         event.preventDefault();
         openCommands("commands");
@@ -522,8 +579,12 @@ function Studio({ plugins, chrome }: { plugins: WorkbenchPlugin[]; chrome: Studi
       current = false;
     };
   }, [commandOpen, commandFocusRequest, commandScope]);
-  const openFile = (file: ProjectFile) => {
-    setFileRequest((previous) => ({ path: file.path, token: (previous?.token ?? 0) + 1 }));
+  const openFile = (file: ProjectFile, location?: FileLocation) => {
+    setFileRequest((previous) => ({
+      path: file.path,
+      location,
+      token: (previous?.token ?? 0) + 1,
+    }));
   };
   const branch = state?.project.branch;
   const branchLabel =
@@ -705,6 +766,8 @@ function Studio({ plugins, chrome }: { plugins: WorkbenchPlugin[]; chrome: Studi
             fileRequest={fileRequest}
             activityRequest={activityRequest}
             settingsRequest={settingsRequest}
+            closeRequest={closeRequest}
+            closeShortcut={closeShortcut}
             navigationRequest={navigation[active]}
             onNavigationState={reportCoreHistory}
             hasDomain={available.length > 0}

@@ -23,7 +23,7 @@ export function ExplorerTree({
   dirtyPaths: Set<string>;
   select: (path: string) => void;
   toggle: (path: string) => void;
-  open: (path: string) => void;
+  open: (path: string, keyboard: boolean) => void;
   contextMenu: (path: string, x: number, y: number) => void;
   rename: () => void;
   remove: () => void;
@@ -109,10 +109,10 @@ export function ExplorerTree({
               select(entry.path);
               contextMenu(entry.path, event.clientX, event.clientY);
             }}
-            onClick={() => {
+            onClick={(event) => {
               select(entry.path);
               if (entry.directory) toggle(entry.path);
-              else open(entry.path);
+              else open(entry.path, event.detail === 0);
             }}
           >
             <span className="core-tree-guides" aria-hidden="true">

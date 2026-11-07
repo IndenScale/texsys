@@ -68,8 +68,8 @@ export const englishMessages: Record<string, string> = {
   搜索文件或命令: "Search files or commands",
   "搜索文件…": "Search files…",
   "搜索或运行命令…": "Search or run a command…",
-  "上下方向键选择，Enter 执行或打开文件，Esc 关闭。底部标签切换搜索范围。":
-    "Use Up and Down to select, Enter to run or open, and Esc to close. Tabs change the search scope.",
+  "上下方向键选择，Enter 执行或打开文件，Esc 关闭。输入 > 查找命令，输入文件名:行号定位。":
+    "Use Up and Down to select, Enter to run or open, and Esc to close. Type > to find commands, or filename:line to go to a line.",
   搜索结果: "Search results",
   "正在读取项目文件…": "Reading project files…",
   没有匹配的结果: "No results found",
@@ -113,6 +113,9 @@ export const englishMessages: Record<string, string> = {
   删除: "Delete",
   确定: "Confirm",
   保存文件更改: "Save file changes",
+  关闭当前文档: "Close Current Document",
+  全屏: "Full Screen",
+  文档区域: "Document area",
   "保存文件更改？": "Save file changes?",
   "有未保存的编辑。": " has unsaved changes.",
   放弃更改: "Discard changes",
