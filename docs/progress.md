@@ -27,6 +27,8 @@ TexSys 已具备一条同源冷站链路：SDL 中的实例、端口、连接、
 
 ## 可重跑入口
 
+Tex Studio 的启动入口为 `uv run texsys studio -p examples/hvac-dynamic-station --open`。新增的本地 Web 宿主与 HVAC 插件采用 [工作台契约 v1](../spec/studio/01-workbench.md)，并遵守 [ADR-0021](adr/0021-tex-studio-plugin-based-disciplinary-workbenches.md)。
+
 ```bash
 uv sync --locked
 uv run tools/sync_node_tools.py
@@ -41,7 +43,15 @@ node node_modules/markdownlint-cli2/markdownlint-cli2.mjs "**/*.md"
 
 本地 Python API 为 `texsys.api.build/evaluate`，CLI 和参数集中于 [调用示例](../examples/build-deliverables/README.md)。物理与数值口径以 [动态行为契约](../spec/build/04-hvac-dynamics.md) 为权威；图纸与审核以 [出图契约](../spec/build/03-system-schematic.md) 为权威。
 
-## 本次实际验证
+## Tex Studio 首个本地切片
+
+已实现专业 entry point 发现、专业切换入口、项目与修订上下文、设备浏览器、系统图／原理图、设备表、器件图元库、只读源视图、对象属性／接管／依据，以及实例参数覆盖、恢复继承和单步撤销。图纸支持缩放、适应工作区、拖动查看及导出；回放面板可展开，避免占满设计画布。
+
+后台模型检查、图纸构建和动态求解在独立输入副本中运行，支持日志、取消、重启后读取任务记录和旧结果标记。GUI 参数写入进行模式、连接语义和物理参数校验，外部源修改产生冲突，不覆盖外部变更。已接入的实际专业只有 HVAC；架构搜索、物理布局布线、器件类型创建、拓扑编辑及正式提资明确列为未接入。当前通过本机浏览器运行，未实现 Electron 宿主、远程多用户服务或插件分发安装器。
+
+Studio 后端新增 13 项契约测试，涵盖两个专业的发现与重复／不兼容诊断、空宿主、参数编辑与撤销、未知参数状态、拒绝非法写入、外部冲突、输入副本、取消、任务恢复和失效工况。多专业测试使用管理专业桩，不代表已提供真实管理专业 GUI。浏览器实际核验和最终工作区检查记录见 [Studio 实施与验收](implementation-tex-studio.md)。
+
+## 前一实现阶段实际验证
 
 提交整理时，从暂存内容导出的干净目录执行锁定环境与 Python 全量测试，**143 passed**（原有 134 项及本次新增的 9 项回归）；Node 图元 9 项、命令规则 4 项通过；TypeScript strict 类型检查与 Markdown 检查通过。统一冷站 lint、format、lock 检查通过。旧设备布置示例迁移后的容量／温升／露点校核仍通过。
 

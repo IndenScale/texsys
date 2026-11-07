@@ -18,6 +18,8 @@ texsys 来自 **textual system**，是 **SDL** 的参考实现、工具链与生
 
 项目当前处于**可执行参考实现阶段**：JSON 交换子集、形式检查、本地路径依赖、暖通最小闭环与首个出图切片已可执行，但最终 SDL 文本语法仍未完成。Python 已支持准稳态水力与集总热动态，真实 OpenModelica 导出／执行已对三种示例工况作独立比较；几何求值仍为解析轴对齐盒，通用高保真行为与几何求解未完成。详细进度和未完成边界见 [项目进度审查](docs/progress.md)。
 
+Tex Studio 已提供首个本地 Web 插件宿主与 HVAC 工作台，支持实例参数编辑、后台检查／出图／仿真和结果回放；Electron 与远程协作尚未实现。启动入口见下文。
+
 ## 文档地图
 
 | 位置                                               | 内容                                                   | 权威性                                 |
@@ -54,6 +56,31 @@ uv run texsys --help
 uv run texsys --version
 uv run pytest
 ```
+
+## Tex Studio 与 HVAC 工作台
+
+启动本地工作台：
+
+```bash
+uv sync --locked
+uv run tools/sync_node_tools.py
+uv run texsys studio -p examples/hvac-dynamic-station --open
+```
+
+前端开发时改用 Vite HMR 模式（需 Node.js 与 Bun）：
+
+```bash
+bun install --frozen-lockfile
+uv run texsys studio -p examples/hvac-dynamic-station --hmr --open
+```
+
+该模式由 Vite 提供 React Fast Refresh，Studio 本地 API 仍由 Python 服务提供。默认启动不变，继续使用预构建静态前端。
+
+默认地址为 `http://127.0.0.1:8710`，可用 `--port` 修改。第一次进入后点击“生成图纸”，或到“仿真分析”启动工况求解。暖通工作台提供系统图／原理图、设备表、器件图元、参数与依据、检查报告及模型源视图。参数保存形成实例覆盖，可恢复继承或撤销；后台计算在输入副本中执行，保留日志、诊断与固定版本结果。
+
+专业插件通过 `texsys.studio` 入口发现，宿主启动时加载已安装专业并提供切换入口。当前实际提供 HVAC 一个专业；架构搜索、物理布局布线和正式提资显示为未接入。插件架构见 [ADR-0021](docs/adr/0021-tex-studio-plugin-based-disciplinary-workbenches.md)，当前接入协议见 [工作台契约](spec/studio/01-workbench.md)。
+
+## 交付物构建与检查
 
 生成 HVAC 系统图与原理图（需要本机 Node.js）：
 

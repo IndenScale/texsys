@@ -2,6 +2,8 @@
 
 本目录是 uv workspace，也是可版本化设计包的源代码目录。当前通用 BOM 与暖通领域包通过 `texsys.packages` entry point 发现；通用绘图契约、ELK 后端与专业前端图元由专业投影包组合使用。各包分别提供 `texsys.toml`，供设计项目使用 `texsys lock` 与 `texsys sync` 固定内容和依赖图。
 
+Studio UI 插件另通过 `texsys.studio` entry point 发现。`studio-hvac/`（`texsys-studio-hvac`）是首个专业工作台，依赖既有暖通领域包和共享工程图元；它属于应用插件，不作为项目的设计依赖包，也不伪造 `texsys.packages` 入口。宿主与专业契约见 [工作台契约](../spec/studio/01-workbench.md)。
+
 | 目录              | Python 分发包           | 设计包           | 主要职责                                    |
 | ----------------- | ----------------------- | ---------------- | ------------------------------------------- |
 | `bom/`            | `texsys-bom`            | `bom`            | 通用 BOM 投影、外部快照、映射、比较与检查   |
