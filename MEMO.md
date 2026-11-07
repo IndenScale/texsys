@@ -6,6 +6,7 @@
 
 - **texsys**：来自 **textual system**。
 - 三者关系：**SysDA** 是设计自动化方法论；**SDL** 是 SYSTEM 描述语言与语义标准；**texsys** 是 SDL 的参考实现、一体化工具链与生态。
+- **Tex Studio**：插件式 GUI 工作环境，各专业拥有自己的工作台；定位与共同契约见 [ADR-0021](docs/adr/0021-tex-studio-plugin-based-disciplinary-workbenches.md)。
 
 > SDL 的定位：面向 SysDA 的系统描述语言与描述标准，是设计意图与系统语义的稳定、声明式入口，**不是**完整的设计自动化平台、评估器、求解器或生成算法。
 > 因此 texsys 是 SysDA 的语义基础，不等同于 SysDA 本身。
@@ -32,6 +33,7 @@
 | 采用六阶段 SysDA 模型并区分三类仿真                        | 已接受            | [ADR-0008](docs/adr/0008-six-stage-sysda-model.md)                                                                            |
 | 建立设备与拓扑的分层映射规则                               | 已接受            | [ADR-0009](docs/adr/0009-equipment-and-topology-refinement.md)                                                                |
 | 划分 build、test、sim 与领域包边界                         | 已接受            | [ADR-0010](docs/adr/0010-build-test-sim-and-package-boundaries.md)                                                            |
+| Tex Studio 采用插件式多专业工作台架构                      | 已接受            | [ADR-0021](docs/adr/0021-tex-studio-plugin-based-disciplinary-workbenches.md)                                                 |
 | 原理图（及设备表、计算书）是模型投影，不是核心对象         | 已定（0018 修订） | [SDL 核心模型](spec/sdl/01-core-model.md#交付物与视图)、[ADR-0018](docs/adr/0018-deliverable-semantics-and-baseline-gates.md) |
 | 以组成／拓扑／行为／空间界定四类交付物；过程自由、基线有门 | 已定              | [ADR-0018](docs/adr/0018-deliverable-semantics-and-baseline-gates.md)                                                         |
 | Component 采用递归组合模型，不另设 System／Assembly        | 已定              | [SDL 核心模型](spec/sdl/01-core-model.md)                                                                                     |

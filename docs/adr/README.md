@@ -48,3 +48,4 @@ adr/NNNN-short-title.md
 | [0018](0018-deliverable-semantics-and-baseline-gates.md)                 | 以组成、拓扑、行为与空间界定工程交付物并采用基线准出门禁    | 已接受                                 |
 | [0019](0019-first-executable-hvac-schematic-slice.md)                    | 以单页根网络启动 HVAC 原理图可执行切片                      | 已接受；0017／0018 的首个实现子集      |
 | [0020](0020-python-physics-and-typescript-engineering-graphics.md)       | Python 物理行为与 TypeScript/React 工程图元；清除旧草稿实现 | 已接受                                 |
+| [0021](0021-tex-studio-plugin-based-disciplinary-workbenches.md)         | Tex Studio 采用插件式多专业工作台架构                       | 已接受                                 |
