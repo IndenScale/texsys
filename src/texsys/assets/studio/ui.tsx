@@ -66,8 +66,9 @@ const paths: Record<string, React.ReactNode> = {
   ),
   files: (
     <>
-      <path d="M8 3h9l4 4v14H8Z" />
-      <path d="M17 3v5h4M4 5H2v13h3" />
+      <path d="M8 7H5a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1v-2" />
+      <path d="M9 18h9a1 1 0 0 0 1-1V7l-4-4H9a1 1 0 0 0-1 1v13a1 1 0 0 0 1 1Z" />
+      <path d="M15 3v4h4" />
     </>
   ),
   "new-file": (
