@@ -16,14 +16,13 @@ export type EditorAreaLayout = "contained" | "full-bleed";
  * Stable workbench container for every Studio page.
  *
  * Unified Editor Area structure:
- * 1. Editor Tab Bar (document tabs; global layout actions live in the host header)
- * 2. Editor Header (resource context and domain actions)
+ * 1. Editor Tab Bar (the Studio host renders the shared row for tabs and document actions)
+ * 2. Editor Header (resource context)
  * 3. Canvas (viewport for surface rendering)
  */
 export function EditorArea(props: {
   tabs?: ComponentChildren;
   breadcrumb?: ComponentChildren;
-  headerActions?: ComponentChildren;
   chrome: EditorAreaChrome;
   layout: EditorAreaLayout;
   className?: string;
@@ -39,9 +38,7 @@ export function EditorArea(props: {
       }`}
     >
       {showTabs ? <EditorTabBar>{props.tabs}</EditorTabBar> : null}
-      {showHeader && props.breadcrumb ? (
-        <EditorHeader actions={props.headerActions}>{props.breadcrumb}</EditorHeader>
-      ) : null}
+      {showHeader && props.breadcrumb ? <EditorHeader>{props.breadcrumb}</EditorHeader> : null}
       <EditorCanvas layout={props.layout}>{props.children}</EditorCanvas>
     </Stack>
   );

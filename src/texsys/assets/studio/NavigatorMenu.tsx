@@ -1,4 +1,5 @@
 import React, { useEffect, useId, useLayoutEffect, useRef, useState, type ReactNode } from "react";
+import { Keycaps } from "./Keycaps";
 import { NavigatorButton } from "./NavigatorPanel";
 import { Icon } from "./ui";
 
@@ -7,9 +8,10 @@ export type NavigatorMenuItem = {
   run?: () => void;
   icon?: string;
   checked?: boolean;
+  checkbox?: boolean;
   reason?: string;
   separator?: boolean;
-  shortcut?: string;
+  shortcut?: string[];
 };
 
 function placeMenu(
@@ -134,28 +136,32 @@ export function NavigatorMenu({
           buttons[next]?.focus();
         }}
       >
-        {items.map(({ label: itemLabel, run, icon, checked, reason, separator, shortcut }) => (
-          <button
-            key={itemLabel}
-            type="button"
-            role={checked === undefined ? "menuitem" : "menuitemradio"}
-            aria-checked={checked}
-            disabled={!run}
-            tabIndex={-1}
-            title={reason}
-            className={separator ? "navigator-menu-group-start" : undefined}
-            onClick={() => {
-              menuRef.current?.hidePopover();
-              run?.();
-            }}
-          >
-            <span className="navigator-menu-icon" aria-hidden="true">
-              {checked ? <Icon name="tick" size={16} /> : icon && <Icon name={icon} size={16} />}
-            </span>
-            <span>{itemLabel}</span>
-            {shortcut && <kbd>{shortcut}</kbd>}
-          </button>
-        ))}
+        {items.map(
+          ({ label: itemLabel, run, icon, checked, checkbox, reason, separator, shortcut }) => (
+            <button
+              key={itemLabel}
+              type="button"
+              role={
+                checkbox ? "menuitemcheckbox" : checked === undefined ? "menuitem" : "menuitemradio"
+              }
+              aria-checked={checked}
+              disabled={!run}
+              tabIndex={-1}
+              title={reason}
+              className={separator ? "navigator-menu-group-start" : undefined}
+              onClick={() => {
+                if (!checkbox) menuRef.current?.hidePopover();
+                run?.();
+              }}
+            >
+              <span className="navigator-menu-icon" aria-hidden="true">
+                {checked ? <Icon name="tick" size={16} /> : icon && <Icon name={icon} size={16} />}
+              </span>
+              <span>{itemLabel}</span>
+              {shortcut && <Keycaps keys={shortcut} />}
+            </button>
+          ),
+        )}
       </div>
     </>
   );

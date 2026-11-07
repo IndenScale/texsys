@@ -219,6 +219,7 @@
 }
 .activity-bar {
   display: flex;
+  min-height: 100%;
   flex-direction: column;
   align-items: center;
   gap: 5px;
@@ -255,9 +256,6 @@
   border-radius: 50%;
   background: var(--ui-attention);
   font-size: 0;
-}
-.editor-tab-bar {
-  grid-template-columns: minmax(0, 1fr);
 }
 .page-tabs {
   display: flex;
@@ -330,9 +328,6 @@
   font-size: 12px;
   overflow: hidden;
 }
-.editor-header__actions {
-  min-width: 0;
-}
 .editor-canvas__content {
   display: block;
 }
@@ -404,10 +399,6 @@
     width: var(--workbench-gap);
     z-index: 26;
     transition: left var(--motion-layout) var(--motion-ease);
-  }
-  .editor-header {
-    overflow-x: auto;
-    grid-template-columns: minmax(80px, 1fr) max-content;
   }
   .editor-header__breadcrumb {
     padding-left: 8px;

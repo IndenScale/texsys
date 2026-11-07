@@ -1,6 +1,7 @@
 import { t } from "./i18n";
 import React, { useEffect, useMemo, useRef, useState, type ReactNode, type RefObject } from "react";
 import { FileIcon } from "./FileIcon";
+import { EditorActionButton } from "./EditorActionButton";
 import { NavigatorButton } from "./NavigatorPanel";
 import { Icon } from "./ui";
 import type { WorkbenchProps } from "./sdk";
@@ -719,6 +720,16 @@ export function useCodeSearch({
         {!error && notices}
       </div>
     ),
+    editorActions: (
+      <>
+        <EditorActionButton
+          label={t("刷新")}
+          icon="refresh"
+          onClick={() => setRun((value) => value + 1)}
+        />
+        <EditorActionButton label={t("新建搜索")} icon="search-plus" onClick={reset} />
+      </>
+    ),
     editor: (
       <section className="code-search-editor" aria-label={t("搜索结果编辑器")}>
         <div className="core-document-header">
@@ -726,10 +737,6 @@ export function useCodeSearch({
             {t("搜索：")}
             {query || t("（空）")} · {status}
           </span>
-          <div>
-            <button onClick={() => setRun((value) => value + 1)}>{t("刷新")}</button>
-            <button onClick={reset}>{t("新建搜索")}</button>
-          </div>
         </div>
         <div className="code-search-editor-results">
           {error && (

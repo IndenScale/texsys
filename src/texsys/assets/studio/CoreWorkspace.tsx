@@ -4,6 +4,7 @@ import React, {
   useCallback,
   useContext,
   useEffect,
+  useLayoutEffect,
   useRef,
   useState,
   type ReactNode,
@@ -24,6 +25,7 @@ import { visitDocument, stepDocument, type DocumentHistory } from "./navigation"
 import { useCodeSearch } from "./CodeSearch";
 import { ExplorerTree } from "./ExplorerTree";
 import { FileIcon } from "./FileIcon";
+import { EditorActionButton } from "./EditorActionButton";
 import { NavigatorMenu, type NavigatorMenuItem } from "./NavigatorMenu";
 import {
   NavigatorButton as Tool,
@@ -59,10 +61,11 @@ type FileRequest = {
   end_column?: number;
 };
 type Core = {
-  activity: Activity | null;
+  activity: Activity;
   select: (id: Activity) => void;
   sidebar: ReactNode;
   editor: ReactNode;
+  editorActions: ReactNode;
   tabs: ReactNode;
   inspector: ReactNode;
   documentActive: boolean;
@@ -74,10 +77,10 @@ const CoreContext = createContext<Core | null>(null);
 export const useCoreWorkspace = () => useContext(CoreContext);
 const emptyListing: FileListing = { files: [], directories: [], truncated: false };
 const coreItems = [
-  { id: "explorer", label: "文件资源管理器", icon: <Icon name="files" size={19} /> },
-  { id: "search", label: "搜索", icon: <Icon name="search" size={19} /> },
-  { id: "scm", label: "源代码管理", icon: <Icon name="branch" size={19} /> },
-];
+  { id: "explorer", label: "文件资源管理器", icon: "files", shortcutKey: "E" },
+  { id: "search", label: "搜索", icon: "search", shortcutKey: "F" },
+  { id: "scm", label: "源代码管理", icon: "branch", shortcutKey: "G" },
+] as const;
 const coreSidebarTitles: Record<Activity, string> = {
   explorer: "文件资源管理器",
   search: "搜索",
@@ -149,8 +152,7 @@ export function CoreWorkspaceProvider({
   hasDomain: boolean;
   children: ReactNode;
 }) {
-  const coreActivity = isCoreActivity(sidebarActivity) ? sidebarActivity : null;
-  const activity = coreActivity ?? "explorer";
+  const activity = isCoreActivity(sidebarActivity) ? sidebarActivity : "explorer";
   const [listing, setListing] = useState<FileListing>(emptyListing),
     [listingError, setListingError] = useState("");
   const [loadingFiles, setLoadingFiles] = useState(false);
@@ -458,13 +460,13 @@ export function CoreWorkspaceProvider({
         event.preventDefault();
         if (!busy) void saveFile();
       }
-      if (event.shiftKey && ["e", "f", "g"].includes(event.key.toLowerCase())) {
+      const item = event.shiftKey
+        ? coreItems.find(({ shortcutKey }) => shortcutKey === event.key.toUpperCase())
+        : undefined;
+      if (item) {
         event.preventDefault();
-        const id = ({ e: "explorer", f: "search", g: "scm" } as const)[
-          event.key.toLowerCase() as "e" | "f" | "g"
-        ];
-        select(id);
-        if (id === "search") requestAnimationFrame(() => searchInput.current?.focus());
+        select(item.id);
+        if (item.id === "search") requestAnimationFrame(() => searchInput.current?.focus());
       }
     };
     window.addEventListener("keydown", handler);
@@ -637,7 +639,7 @@ export function CoreWorkspaceProvider({
     {
       label: t("重命名…"),
       icon: "edit",
-      shortcut: "F2",
+      shortcut: ["F2"],
       separator: true,
       run: busy || !path ? undefined : () => startForm("rename", path),
     },
@@ -1161,6 +1163,39 @@ export function CoreWorkspaceProvider({
     : (diff?.title ?? (diff?.staged ? t("已暂存 ↔ HEAD") : t("工作区 ↔ 暂存区")));
   const diffProjectPath =
     diff && !diff.historical ? gitPathInProject(diff.path, gitStatus?.project_prefix) : undefined;
+  const activeDirty = !!active && active.content !== active.saved;
+  const editorActions = settingsActive ? null : searchEditorActive ? (
+    codeSearch.editorActions
+  ) : diffActive ? (
+    diffProjectPath !== undefined && (
+      <EditorActionButton
+        label={t("打开文件")}
+        icon="scm-open-file"
+        onClick={() => void openFile(diffProjectPath)}
+      />
+    )
+  ) : active && !active.loading && !active.error && !active.reason ? (
+    <>
+      <EditorActionButton
+        label={t("与磁盘内容比较")}
+        icon="compare"
+        disabled={busy}
+        onClick={() => void compareDisk(active.path)}
+      />
+      <EditorActionButton
+        label={t("重新读取文件")}
+        icon="refresh"
+        disabled={busy || activeDirty}
+        onClick={() => void rereadFile(active.path)}
+      />
+      <EditorActionButton
+        label={t("保存")}
+        icon="save"
+        disabled={busy || !activeDirty}
+        onClick={() => void saveFile()}
+      />
+    </>
+  ) : null;
   const editorContent = searchEditorActive ? (
     codeSearch.editor
   ) : diffActive ? (
@@ -1169,9 +1204,6 @@ export function CoreWorkspaceProvider({
         <span>
           {diff?.path} {diff ? `· ${diffTitle}` : ""}
         </span>
-        {diffProjectPath !== undefined && (
-          <button onClick={() => void openFile(diffProjectPath)}>{t("打开文件")}</button>
-        )}
       </div>
       {diffLoading ? (
         <p className="core-hint">{t("正在读取差异…")}</p>
@@ -1209,23 +1241,28 @@ export function CoreWorkspaceProvider({
       <h2>{t("打开文件，开始编辑")}</h2>
       <p>{t("从文件资源管理器选择文件，或使用 ⌘ / Ctrl + P 快速打开。")}</p>
       {hasDomain && (
-        <button className="core-primary" onClick={activateDomain}>
-          {t("打开专业预览")}
-        </button>
+        <EditorActionButton
+          label={t("打开专业预览")}
+          icon="system"
+          emphasis
+          onClick={activateDomain}
+        />
       )}
     </div>
   ) : active.loading ? (
     <Empty title={t("正在打开文件")}>{active.path}</Empty>
   ) : active.error || active.reason ? (
-    <Empty title={active.error ? t("文件读取失败") : t("暂不支持编辑此文件")}>
+    <Empty
+      title={active.error ? t("文件读取失败") : t("暂不支持编辑此文件")}
+      action={
+        <EditorActionButton
+          label={t("重新读取")}
+          icon="refresh"
+          onClick={() => void rereadFile(active.path)}
+        />
+      }
+    >
       {t(active.error ?? active.reason)}
-      <button
-        onClick={() => {
-          void rereadFile(active.path);
-        }}
-      >
-        {t("重新读取")}
-      </button>
     </Empty>
   ) : (
     <section className="core-text-document" aria-label={t("编辑 {0}", { "0": active.path })}>
@@ -1267,32 +1304,6 @@ export function CoreWorkspaceProvider({
             </React.Fragment>
           ))}
         </nav>
-        <div>
-          <span className="core-save-state">
-            {active.content !== active.saved ? t("未保存") : t("已保存")}
-          </span>
-          <Tool
-            label={t("与磁盘内容比较")}
-            icon="compare"
-            disabled={busy}
-            onClick={() => void compareDisk(active.path)}
-          />
-          <Tool
-            label={t("重新读取文件")}
-            icon="refresh"
-            disabled={busy || active.content !== active.saved}
-            onClick={() => {
-              void rereadFile(active.path);
-            }}
-          />
-          <button
-            className="core-save-button"
-            disabled={busy || active.content === active.saved}
-            onClick={() => void saveFile()}
-          >
-            {t("保存")}
-          </button>
-        </div>
       </div>
       <SourceEditor
         path={active.path}
@@ -1320,7 +1331,10 @@ export function CoreWorkspaceProvider({
         }}
       />
       <div className="core-editor-status">
-        <span>UTF-8 · {active.path.split(".").pop()?.toUpperCase()}</span>
+        <span className="core-editor-status-details">
+          <span>UTF-8 · {active.path.split(".").pop()?.toUpperCase()}</span>
+          <span>{activeDirty ? t("未保存") : t("已保存")}</span>
+        </span>
         <span>
           {t("行 {0} · 共 {1} 行", {
             0: active.cursorLine ?? 1,
@@ -1360,7 +1374,7 @@ export function CoreWorkspaceProvider({
     </section>
   );
   const value: Core = {
-    activity: coreActivity,
+    activity,
     select,
     sidebar,
     editor: (
@@ -1371,6 +1385,7 @@ export function CoreWorkspaceProvider({
         {settingsActive && <Settings />}
       </>
     ),
+    editorActions,
     tabs,
     inspector,
     documentActive: documentActive || settingsActive,
@@ -1407,73 +1422,66 @@ export function CoreWorkspaceProvider({
   );
 }
 
-/** Host-owned composition; professional plugins contribute resources and preview surfaces. */
+/** Host-owned composition; professional plugins contribute preview surfaces. */
 export function WorkbenchSurface({
   layout,
   change,
-  activityItems = [],
-  activeActivity = "",
-  onActivity,
-  sidebar,
   inspector,
   bottom,
   tabs,
+  tabActions,
   children,
 }: {
   layout: StudioLayout;
   change: WorkbenchProps["changeLayout"];
-  activityItems?: { id: string; label: string; icon: ReactNode; count?: number }[];
-  activeActivity?: string;
-  onActivity?: (id: string) => void;
-  sidebar?: ReactNode;
   inspector?: ReactNode;
   bottom?: ReactNode;
   tabs?: ReactNode;
+  tabActions?: ReactNode;
   children?: ReactNode;
 }) {
   const core = useCoreWorkspace();
+  const tabList = useRef<HTMLDivElement>(null);
+  const lastSelectedTab = useRef<Element | null>(null);
+  useLayoutEffect(() => {
+    const list = tabList.current;
+    if (!list) return;
+    const selected = list.querySelector('[role="tab"][aria-selected="true"]');
+    if (selected === lastSelectedTab.current) return;
+    lastSelectedTab.current = selected;
+    if (!selected) return;
+    const tab = (selected.closest(".core-file-tab, .page-tab") ?? selected).getBoundingClientRect();
+    const visible = list.getBoundingClientRect();
+    if (tab.left < visible.left) list.scrollLeft += tab.left - visible.left;
+    else if (tab.right > visible.right) list.scrollLeft += tab.right - visible.right;
+  });
   if (!core) throw new Error("WorkbenchSurface requires the Studio host.");
-  const items = [
-    ...coreItems.map((item) => ({
-      ...item,
-      count: item.id === "scm" ? core.changeCount : undefined,
-    })),
-    ...activityItems.map((item, index) => ({ ...item, extensionStart: index === 0 })),
-  ];
-  const extensionActivity =
-    activeActivity ||
-    activityItems.find(({ id }) => id === layout.sidebarActivity)?.id ||
-    activityItems[0]?.id ||
-    "";
-  const activeActivityId = core.activity ?? (extensionActivity || "explorer");
-  const showCoreSidebar = isCoreActivity(activeActivityId);
+  const documentActions = core.documentActive ? core.editorActions : tabActions;
+  const macKeys = /Mac|iPhone|iPad/.test(navigator.platform);
+  const items = coreItems.map(({ id, label, icon, shortcutKey }) => ({
+    id,
+    label,
+    icon: <Icon name={icon} size={19} />,
+    count: id === "scm" ? core.changeCount : undefined,
+    shortcut: [
+      ...(macKeys ? (id === "explorer" ? ["⇧", "⌘"] : ["⌃", "⇧"]) : ["Ctrl", "Shift"]),
+      shortcutKey,
+    ],
+  }));
   return (
     <WorkbenchLayout
       layout={layout}
       change={change}
       activity={
         <ActivityBar
-          active={activeActivityId}
+          active={core.activity}
           items={items}
-          select={(id) => {
-            if (isCoreActivity(id)) core.select(id);
-            else {
-              change({ sidebarOpen: true, sidebarActivity: id });
-              onActivity?.(id);
-            }
-          }}
+          select={core.select}
+          hidden={layout.hiddenActivities ?? []}
+          setHidden={(hiddenActivities) => change({ hiddenActivities })}
         />
       }
-      sidebar={
-        <>
-          <div className="core-sidebar-slot" hidden={!showCoreSidebar}>
-            {core.sidebar}
-          </div>
-          <div className="core-sidebar-slot" hidden={showCoreSidebar}>
-            {sidebar}
-          </div>
-        </>
-      }
+      sidebar={core.sidebar}
       inspector={
         <>
           <div className="core-inspector-slot" hidden={!core.documentActive}>
@@ -1488,15 +1496,22 @@ export function WorkbenchSurface({
     >
       <div className="core-editor-surface">
         <div className="core-document-tabs">
-          {core.tabs}
-          {tabs && (
-            <div
-              className={`core-domain-tabs ${core.documentActive ? "inactive" : ""}`}
-              onClick={(event) => {
-                if ((event.target as HTMLElement).closest('[role="tab"]')) core.activateDomain();
-              }}
-            >
-              {tabs}
+          <div className="core-document-tab-list" ref={tabList}>
+            {core.tabs}
+            {tabs && (
+              <div
+                className={`core-domain-tabs ${core.documentActive ? "inactive" : ""}`}
+                onClick={(event) => {
+                  if ((event.target as HTMLElement).closest('[role="tab"]')) core.activateDomain();
+                }}
+              >
+                {tabs}
+              </div>
+            )}
+          </div>
+          {documentActions && (
+            <div className="core-document-actions" role="group" aria-label={t("文档操作")}>
+              {documentActions}
             </div>
           )}
         </div>

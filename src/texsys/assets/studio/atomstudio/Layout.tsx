@@ -5,6 +5,7 @@ import { t } from "../i18n";
  */
 import React, { type ReactNode } from "react";
 import { HeightResizeHandle, WidthResizeHandle } from "./ResizeHandle";
+import { NavigatorMenu } from "../NavigatorMenu";
 import {
   DEFAULT_SIDEBAR_WIDTH,
   MIN_BOTTOM_HEIGHT,
@@ -145,58 +146,110 @@ export function WorkbenchLayout({
   );
 }
 
-export function ActivityBar({
+export function ActivityBar<Id extends string>({
   active,
   items,
   select,
+  hidden,
+  setHidden,
 }: {
-  active: string;
-  items: { id: string; label: string; icon: ReactNode; count?: number; extensionStart?: boolean }[];
-  select: (id: string) => void;
+  active: Id;
+  items: { id: Id; label: string; icon: ReactNode; count?: number; shortcut?: string[] }[];
+  select: (id: Id) => void;
+  hidden: string[];
+  setHidden: (ids: string[]) => void;
 }) {
   const ref = React.useRef<HTMLDivElement>(null);
+  const [point, setPoint] = React.useState<{ x: number; y: number }>();
+  const visible = items.filter(({ id }) => !hidden.includes(id));
+  const focusable = visible.find(({ id }) => id === active)?.id ?? visible[0]?.id;
+  const label = t("配置活动栏");
   return (
-    <div
-      ref={ref}
-      className="activity-bar"
-      role="tablist"
-      aria-orientation="vertical"
-      aria-label={t("资源入口")}
-      onKeyDown={(event) => {
-        if (!["ArrowUp", "ArrowDown", "Home", "End"].includes(event.key)) return;
-        const tabs = Array.from(
-          ref.current?.querySelectorAll<HTMLButtonElement>('[role="tab"]') ?? [],
-        );
-        const index = tabs.indexOf(event.target as HTMLButtonElement);
-        if (index < 0) return;
-        const next =
-          event.key === "Home"
-            ? 0
-            : event.key === "End"
-              ? tabs.length - 1
-              : (index + (event.key === "ArrowDown" ? 1 : tabs.length - 1)) % tabs.length;
-        event.preventDefault();
-        tabs[next]?.focus();
-        tabs[next]?.click();
-      }}
-    >
-      {items.map((item) => (
-        <button
-          key={item.id}
-          role="tab"
-          data-activity-id={item.id}
-          className={item.extensionStart ? "extension-start" : undefined}
-          aria-selected={item.id === active}
-          aria-controls="studio-resource-panel"
-          aria-label={t(item.label)}
-          title={t(item.label)}
-          tabIndex={item.id === active ? 0 : -1}
-          onClick={() => select(item.id)}
-        >
-          {item.icon}
-          {item.count ? <span className="activity-badge">{item.count}</span> : null}
-        </button>
-      ))}
-    </div>
+    <>
+      <div
+        ref={ref}
+        className="activity-bar"
+        role={visible.length ? "tablist" : "group"}
+        aria-orientation={visible.length ? "vertical" : undefined}
+        aria-label={visible.length ? t("资源入口") : label}
+        tabIndex={visible.length ? undefined : 0}
+        title={label}
+        onContextMenu={(event) => {
+          event.preventDefault();
+          setPoint({ x: event.clientX, y: event.clientY });
+        }}
+        onKeyDown={(event) => {
+          if (event.key === "ContextMenu" || (event.shiftKey && event.key === "F10")) {
+            event.preventDefault();
+            const { right, top } = (event.target as HTMLElement).getBoundingClientRect();
+            setPoint({ x: right, y: top });
+            return;
+          }
+          if (!["ArrowUp", "ArrowDown", "Home", "End"].includes(event.key)) return;
+          const tabs = Array.from(
+            ref.current?.querySelectorAll<HTMLButtonElement>('[role="tab"]') ?? [],
+          );
+          const index = tabs.indexOf(event.target as HTMLButtonElement);
+          if (index < 0) return;
+          const next =
+            event.key === "Home"
+              ? 0
+              : event.key === "End"
+                ? tabs.length - 1
+                : (index + (event.key === "ArrowDown" ? 1 : tabs.length - 1)) % tabs.length;
+          event.preventDefault();
+          tabs[next]?.focus();
+          tabs[next]?.click();
+        }}
+      >
+        {visible.map((item) => (
+          <button
+            key={item.id}
+            role="tab"
+            data-activity-id={item.id}
+            aria-selected={item.id === active}
+            aria-controls="studio-resource-panel"
+            aria-label={t(item.label)}
+            title={t(item.label)}
+            tabIndex={item.id === focusable ? 0 : -1}
+            onClick={() => select(item.id)}
+          >
+            {item.icon}
+            {item.count ? <span className="activity-badge">{item.count}</span> : null}
+          </button>
+        ))}
+      </div>
+      {point && (
+        <NavigatorMenu
+          label={label}
+          point={point}
+          onDismiss={() => {
+            setPoint(undefined);
+            if (document.activeElement !== document.body) return;
+            (
+              ref.current?.querySelector<HTMLElement>('[role="tab"][tabindex="0"]') ?? ref.current
+            )?.focus();
+          }}
+          items={[
+            ...items.map(({ id, label, shortcut }) => {
+              const checked = !hidden.includes(id);
+              return {
+                label: t(label),
+                checked,
+                checkbox: true,
+                shortcut,
+                run: () =>
+                  setHidden(checked ? [...hidden, id] : hidden.filter((item) => item !== id)),
+              };
+            }),
+            {
+              label: t("恢复默认入口"),
+              separator: true,
+              run: visible.length < items.length ? () => setHidden([]) : undefined,
+            },
+          ]}
+        />
+      )}
+    </>
   );
 }

@@ -1,0 +1,43 @@
+.toolbar-button.editor-action {
+  width: 28px;
+  height: 28px;
+  flex: 0 0 28px;
+  padding: 0;
+  border-radius: 5px;
+  color: var(--ui-text-muted);
+  cursor: pointer;
+  transition:
+    background-color 110ms ease-out,
+    color 110ms ease-out;
+}
+
+.toolbar-button.editor-action--emphasis,
+.toolbar-button.editor-action[aria-pressed="true"] {
+  background: var(--ui-surface-active);
+  color: var(--ui-proof);
+}
+
+.toolbar-button.editor-action:hover:not(:disabled) {
+  background: var(--ui-control-hover);
+  color: var(--ui-text);
+}
+
+.toolbar-button.editor-action:active:not(:disabled) {
+  background: var(--ui-border);
+}
+
+.toolbar-button.editor-action:focus-visible {
+  outline: 2px solid var(--ui-proof);
+  outline-offset: -2px;
+}
+
+.toolbar-button.editor-action:disabled {
+  background: transparent;
+  cursor: not-allowed;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .toolbar-button.editor-action {
+    transition: none;
+  }
+}

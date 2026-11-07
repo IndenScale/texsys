@@ -68,6 +68,11 @@ export function readLayoutPreferences(project: string, defaults: StudioLayout): 
                   ),
                   sidebarActivity:
                     typeof layout.sidebarActivity === "string" ? layout.sidebarActivity : undefined,
+                  ...(Array.isArray(layout.hiddenActivities) && {
+                    hiddenActivities: layout.hiddenActivities.filter(
+                      (id): id is string => typeof id === "string",
+                    ),
+                  }),
                 },
               ],
             ];

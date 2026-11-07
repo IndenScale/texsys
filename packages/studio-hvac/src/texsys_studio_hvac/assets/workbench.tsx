@@ -7,10 +7,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import type { WorkbenchPlugin, WorkbenchProps } from "../../../../../src/texsys/assets/studio/sdk";
 import { labels } from "../../../../../src/texsys/assets/studio/sdk";
 import { Empty, Icon } from "../../../../../src/texsys/assets/studio/ui";
-import {
-  NavigatorPage,
-  NavigatorPanel,
-} from "../../../../../src/texsys/assets/studio/NavigatorPanel";
+import { EditorActionButton } from "../../../../../src/texsys/assets/studio/EditorActionButton";
 import {
   DiagramSvg,
   EngineeringSymbol,
@@ -153,14 +150,11 @@ function IssueRows({ issues, locate }: { issues: Issue[]; locate: (issue: Issue)
             </small>
           </div>
           {issue.runPath || issue.object ? (
-            <button
-              className="small-button"
+            <EditorActionButton
+              icon="locate"
+              label={t("定位问题 {0} {1}", { "0": issue.title, "1": issue.origin })}
               onClick={() => locate(issue)}
-              aria-label={t("定位问题 {0} {1}", { "0": issue.title, "1": issue.origin })}
-            >
-              <Icon name="fit" size={14} />
-              {t("定位")}
-            </button>
+            />
           ) : (
             <span className="muted issue-unlocated">{t("无对象定位")}</span>
           )}
@@ -193,14 +187,11 @@ function Workspace({
   const [view, setView] = useState<View>("design");
   const [filePath, setFilePath] = useState("");
   const [history, setHistory] = useState<DocumentHistory<View>>({ entries: ["design"], index: 0 });
-  const activity =
-    ["components", "analysis", "outputs"].find((id) => id === layout.sidebarActivity) ?? "system";
   const [documents, setDocuments] = useState<View[]>(["design"]);
   const [selection, setSelection] = useState<Selection | undefined>(() =>
     entries[0] ? { kind: "instance", id: entries[0][0] } : undefined,
   );
   const [search, setSearch] = useState("");
-  const [treeOpen, setTreeOpen] = useState(true);
   const [drawingView, setDrawingView] = useState("schematic");
   const [overlay, setOverlay] = useState(false);
   const [debug, setDebug] = useState(false);
@@ -225,7 +216,6 @@ function Workspace({
   const [sourceSearch, setSourceSearch] = useState("");
   const [lastFocus, setLastFocus] = useState("");
   const viewport = useRef<HTMLDivElement>(null);
-  const searchInput = useRef<HTMLInputElement>(null);
   const sourceViewport = useRef<HTMLDivElement>(null);
   const contentViewport = useRef<HTMLDivElement>(null);
   const scrollPositions = useRef<Partial<Record<View, number>>>({});
@@ -375,23 +365,6 @@ function Workspace({
     } else openView(requested.action === "check" ? "checks" : "outputs");
   }, [taskResult?.token]);
   useEffect(() => {
-    const handler = (event: KeyboardEvent) => {
-      const target = event.target as HTMLElement;
-      if (target.matches("input,textarea,select") || target.isContentEditable) return;
-      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
-        event.preventDefault();
-        changeLayout({ sidebarOpen: true, sidebarActivity: "system" });
-        requestAnimationFrame(() => searchInput.current?.focus());
-      }
-      if ((event.metaKey || event.ctrlKey) && event.key === "\\") {
-        event.preventDefault();
-        changeLayout({ sidebarOpen: !layout.sidebarOpen });
-      }
-    };
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
-  }, [layout.sidebarOpen, changeLayout]);
-  useEffect(() => {
     onNavigationState?.({
       canBack: history.index > 0,
       canForward: history.index < history.entries.length - 1,
@@ -494,6 +467,7 @@ function Workspace({
   };
   const runPanel = run && (
     <RunPanel
+      ActionButton={EditorActionButton}
       runs={runs.map((item) => item.result)}
       runIndex={runIndex}
       setRunIndex={chooseRun}
@@ -519,227 +493,6 @@ function Workspace({
     }
     setPlayback((previous) => ({ ...previous, playing: false }));
   };
-  const activityItems = [
-    { id: "system", label: t("系统对象"), icon: <Icon name="system" size={18} /> },
-    { id: "components", label: t("器件类型库"), icon: <Icon name="cube" size={18} /> },
-    {
-      id: "analysis",
-      label: t("工况与分析"),
-      icon: <Icon name="chart" size={18} />,
-      count: currentIssues.length,
-    },
-    { id: "outputs", label: t("成果文件"), icon: <Icon name="download" size={18} /> },
-  ];
-  const sidebarTitle = activityItems.find((item) => item.id === activity)?.label;
-  const sidebarCounts: Partial<Record<string, number>> = {
-    system: entries.length,
-    components: types.length,
-    outputs: data.exports.length,
-  };
-  const sidebar = (
-    <NavigatorPanel title={sidebarTitle} count={sidebarCounts[activity]}>
-      <NavigatorPage
-        id="activity-resource-panel"
-        role="tabpanel"
-        aria-label={sidebarTitle}
-        className="activity-resource-panel"
-      >
-        <section className="resource-page" hidden={activity !== "system"}>
-          <label className="equipment-search">
-            <Icon name="search" size={15} />
-            <input
-              ref={searchInput}
-              aria-label={t("搜索设备")}
-              placeholder={t("搜索设备或类型…")}
-              value={search}
-              onChange={(event) => setSearch(event.target.value)}
-            />
-            {search && (
-              <button
-                className="icon-button"
-                aria-label={t("清除设备搜索")}
-                onClick={() => setSearch("")}
-              >
-                <Icon name="close" size={13} />
-              </button>
-            )}
-          </label>
-          <button
-            className="root-node"
-            aria-expanded={treeOpen}
-            onClick={() => setTreeOpen(!treeOpen)}
-          >
-            <Icon name="chevron" size={14} />
-            <Icon name="folder" size={15} />
-            <strong>{source.root}</strong>
-          </button>
-          {(treeOpen || search) && (
-            <div className="system-tree">
-              {filtered.map(([id, instance]) => (
-                <button
-                  key={id}
-                  className={selection?.kind === "instance" && selected === id ? "selected" : ""}
-                  onClick={() => {
-                    if (choose({ kind: "instance", id })) {
-                      openView(
-                        ["design", "equipment", "simulation", "source"].includes(view)
-                          ? view
-                          : "design",
-                      );
-                    }
-                  }}
-                >
-                  <span
-                    className={`tree-object ${instance.component.includes("Cooling") && !instance.component.includes("Load") ? "cooling" : ""}`}
-                  >
-                    <Icon
-                      name={instance.component.includes("Pipe") ? "system" : "cube"}
-                      size={15}
-                    />
-                  </span>
-                  <span>
-                    <strong>{id}</strong>
-                    <small>{t(names[instance.component]) ?? instance.component}</small>
-                  </span>
-                  {issues.some((item) => item.current && item.object === id) && (
-                    <span className="object-issue-dot" title={t("此对象有待处理问题")} />
-                  )}
-                </button>
-              ))}
-              {!filtered.length && <p className="tree-empty">{t("没有匹配设备")}</p>}
-            </div>
-          )}
-
-          <button className="resource-open-view" onClick={() => openView("equipment")}>
-            <Icon name="table" size={15} />
-            {t("打开设备表")}
-            <Icon name="arrow" size={14} />
-          </button>
-        </section>
-        <section className="resource-page" hidden={activity !== "components"}>
-          <label className="equipment-search">
-            <Icon name="search" size={15} />
-            <input
-              aria-label={t("搜索器件类型")}
-              placeholder={t("搜索器件类型…")}
-              value={librarySearch}
-              onChange={(event) => setLibrarySearch(event.target.value)}
-            />
-          </label>
-          <div className="resource-list">
-            {types
-              .filter(([id]) =>
-                `${id} ${t(names[id]) ?? ""}`.toLowerCase().includes(librarySearch.toLowerCase()),
-              )
-              .map(([id]) => (
-                <button
-                  key={id}
-                  className={selection?.kind === "type" && selection.id === id ? "selected" : ""}
-                  onClick={() => {
-                    if (choose({ kind: "type", id })) openView("components");
-                  }}
-                >
-                  <Icon name="cube" size={16} />
-                  <span>
-                    <strong>{t(names[id]) ?? id}</strong>
-                    <small>{id}</small>
-                  </span>
-                </button>
-              ))}
-          </div>
-        </section>
-        <section className="resource-page" hidden={activity !== "analysis"}>
-          <div className="resource-section-label">{t("工况配置")}</div>
-          <div className="resource-list">
-            {data.scenarios.map((item) => (
-              <button
-                key={item.id}
-                onClick={() => {
-                  setScenario(item.id);
-                  openView("simulation");
-                }}
-              >
-                <Icon name="chart" size={16} />
-                <span>
-                  <strong>{t(scenarioNames[item.id]) ?? item.id}</strong>
-                  <small>
-                    {item.duration_s} s · {item.events}
-                    {t("个事件")}
-                  </small>
-                </span>
-              </button>
-            ))}
-          </div>
-          <div className="resource-section-label">
-            {t("计算结果")}
-            <span>{runs.length}</span>
-          </div>
-          <div className="resource-list">
-            {runs.map((item, index) => (
-              <button
-                key={item.path}
-                className={view === "simulation" && runIndex === index ? "selected" : ""}
-                onClick={() => {
-                  chooseRun(index);
-                  openView("simulation");
-                }}
-              >
-                <Icon name="chart" size={16} />
-                <span>
-                  <strong>{t(scenarioNames[item.result.scenario]) ?? item.result.scenario}</strong>
-                  <small>
-                    {backendName(item.result)} · {item.current ? t("当前输入") : t("历史输入")}
-                  </small>
-                </span>
-              </button>
-            ))}
-          </div>
-          <button className="resource-open-view" onClick={() => openView("checks")}>
-            <Icon name="check" size={15} />
-            {t("检查与问题")}
-            <span className="resource-count">{currentIssues.length}</span>
-          </button>
-        </section>
-        <section className="resource-page" hidden={activity !== "outputs"}>
-          <div className="resource-list">
-            {data.exports.map((item) => (
-              <button key={item.path} onClick={() => openView("outputs")} title={item.path}>
-                <Icon name="file" size={16} />
-                <span>
-                  <strong>{item.name}</strong>
-                  <small>{item.current ? t("当前输入") : t("历史输入")}</small>
-                </span>
-              </button>
-            ))}
-          </div>
-          {!data.exports.length && (
-            <p className="resource-hint">{t("生成图纸后在这里查看成果文件。")}</p>
-          )}
-          <button className="resource-open-view" onClick={() => openView("outputs")}>
-            <Icon name="download" size={15} />
-            {t("成果与导出")}
-            <Icon name="arrow" size={14} />
-          </button>
-        </section>
-        <section className="resource-page" hidden={activity !== "files"}>
-          <div className="resource-section-label">{state.project.name}</div>
-          <div className="resource-list">
-            <button onClick={() => openView("source")} title={data.source_path}>
-              <Icon name="code" size={16} />
-              <span>
-                <strong>{data.source_path.split("/").pop()}</strong>
-                <small>{t("系统模型 · 只读视图")}</small>
-              </span>
-            </button>
-            <button onClick={() => openView("overview")}>
-              <Icon name="folder" size={16} />
-              <span>{t("项目概览")}</span>
-            </button>
-          </div>
-        </section>
-      </NavigatorPage>
-    </NavigatorPanel>
-  );
   const tabs = (
     <WorkspaceTabStrip
       label={t("打开的文档")}
@@ -794,139 +547,111 @@ function Workspace({
             <option value="schematic">{t("原理图")}</option>
             <option value="system">{t("系统图")}</option>
           </select>
+          <span className="context-separator">/</span>
+          <select
+            className="editor-view-select drawing-mode-select"
+            aria-label={t("画布显示模式")}
+            value={overlay ? "results" : "design"}
+            onChange={(event) => {
+              setOverlay(event.target.value === "results");
+              setPlayback((previous) => ({ ...previous, playing: false }));
+            }}
+          >
+            <option value="design">{t("设计参数")}</option>
+            <option value="results" disabled={!runs.length}>
+              {t("结果叠加")}
+            </option>
+          </select>
+          <output className="drawing-zoom">{Math.round(zoom * 100)}%</output>
         </>
+      )}
+      {hasDraft && (
+        <span className="draft-status">
+          <span className="draft-dot" aria-hidden="true" />
+          {t("参数未保存")}
+        </span>
       )}
     </>
   );
-  const headerActions = (
+  const tabActions = (
     <>
       {view === "design" && (
-        <div className="drawing-context-tools">
-          <div className="design-mode">
-            <select
-              aria-label={t("画布显示模式")}
-              value={overlay ? "results" : "design"}
-              onChange={(event) => {
-                setOverlay(event.target.value === "results");
-                setPlayback((previous) => ({ ...previous, playing: false }));
-              }}
-            >
-              <option value="design">{t("设计参数")}</option>
-              <option value="results" disabled={!runs.length}>
-                {t("结果叠加")}
-              </option>
-            </select>
-          </div>
-          <div className="drawing-tools">
-            <button
-              className="icon-button"
-              aria-label={t("接口标记")}
-              title={t("接口标记")}
-              aria-pressed={debug}
-              onClick={() => setDebug(!debug)}
-            >
-              <Icon name="system" size={15} />
-            </button>
-            <button
-              className="icon-button"
-              aria-label={t("缩小图纸")}
-              onClick={() => setZoom(Math.max(0.4, zoom - 0.2))}
-            >
-              −
-            </button>
-            <output>{Math.round(zoom * 100)}%</output>
-            <button
-              className="icon-button"
-              aria-label={t("放大图纸")}
-              onClick={() => setZoom(Math.min(4, zoom + 0.2))}
-            >
-              ＋
-            </button>
-            <button
-              className="icon-button"
-              title={t("适合图面")}
-              aria-label={t("适合图面")}
-              onClick={() => {
-                drawingCamera.fit();
-              }}
-            >
-              <Icon name="fit" size={17} />
-            </button>
-          </div>
+        <div className="drawing-tab-actions">
+          <EditorActionButton
+            label={t("接口标记")}
+            icon="system"
+            aria-pressed={debug}
+            onClick={() => setDebug(!debug)}
+          />
+          <EditorActionButton
+            label={t("缩小图纸")}
+            icon="minus"
+            onClick={() => setZoom(Math.max(0.4, zoom - 0.2))}
+          />
+          <EditorActionButton
+            label={t("放大图纸")}
+            icon="plus"
+            onClick={() => setZoom(Math.min(4, zoom + 0.2))}
+          />
+          <EditorActionButton label={t("适合图面")} icon="fit" onClick={drawingCamera.fit} />
         </div>
-      )}{" "}
-      <div className="workbench-actions">
-        {hasDraft && (
-          <button className="draft-status" onClick={() => setInspectorOpen(true)}>
-            <span className="draft-dot" />
-            {t("参数未保存")}
-          </button>
-        )}
-        {undo && (
-          <button
-            className="icon-button"
-            title={t("撤销上次参数修改")}
-            aria-label={t("撤销上次参数修改")}
-            disabled={saving || hasDraft}
-            onClick={() =>
-              void save(undo.operation, undo.revision).catch((error) => notify(String(error), true))
-            }
-          >
-            <Icon name="undo" size={17} />
-          </button>
-        )}
-        {["design", "equipment"].includes(view) && (
-          <>
-            <button
-              className="small-button"
-              title={t("检查模型")}
-              disabled={!canRun}
-              onClick={() => void submit("check")}
-            >
-              <Icon name="check" size={15} />
-              {t("检查模型")}
-            </button>
-            <button
-              className="primary-button"
-              title={t("生成图纸")}
-              disabled={!canRun}
-              onClick={() => void submit("build")}
-            >
-              <Icon name="layers" size={15} />
-              {t("生成图纸")}
-            </button>
-          </>
-        )}
-        {view === "checks" && (
-          <button
-            className="primary-button"
+      )}
+      {hasDraft && (
+        <EditorActionButton
+          label={t("查看未保存参数")}
+          icon="inspector"
+          onClick={() => setInspectorOpen(true)}
+        />
+      )}
+      {undo && (
+        <EditorActionButton
+          label={t("撤销上次参数修改")}
+          icon="undo"
+          disabled={saving || hasDraft}
+          onClick={() =>
+            void save(undo.operation, undo.revision).catch((error) => notify(String(error), true))
+          }
+        />
+      )}
+      {["design", "equipment"].includes(view) && (
+        <>
+          <EditorActionButton
+            label={t("检查模型")}
+            icon="check"
             disabled={!canRun}
             onClick={() => void submit("check")}
-          >
-            <Icon name="check" size={15} />
-            {t("运行模型检查")}
-          </button>
-        )}
-        {view === "outputs" && (
-          <button
-            className="primary-button"
+          />
+          <EditorActionButton
+            label={t("生成图纸")}
+            icon="layers"
             disabled={!canRun}
             onClick={() => void submit("build")}
-          >
-            <Icon name="layers" size={15} />
-            {t("更新图纸")}
-          </button>
-        )}
-        {view === "source" && (
-          <button
-            className="small-button"
-            onClick={() => download(JSON.stringify(source, null, 2) + "\n", "system.sdl.json")}
-          >
-            <Icon name="download" size={15} />
-            {t("导出模型")}
-          </button>
-        )}
-      </div>
+          />
+        </>
+      )}
+      {view === "checks" && (
+        <EditorActionButton
+          label={t("运行模型检查")}
+          icon="check"
+          disabled={!canRun}
+          onClick={() => void submit("check")}
+        />
+      )}
+      {view === "outputs" && (
+        <EditorActionButton
+          label={t("更新图纸")}
+          icon="layers"
+          disabled={!canRun}
+          onClick={() => void submit("build")}
+        />
+      )}
+      {view === "source" && (
+        <EditorActionButton
+          label={t("导出模型")}
+          icon="download"
+          onClick={() => download(JSON.stringify(source, null, 2) + "\n", "system.sdl.json")}
+        />
+      )}
     </>
   );
   const bottom = (
@@ -968,10 +693,12 @@ function Workspace({
       <WorkbenchSurface
         layout={layout}
         change={changeLayout}
-        activityItems={activityItems}
-        activeActivity={activity}
         tabs={tabs}
-        sidebar={sidebar}
+        tabActions={
+          hasDraft || undo || ["design", "equipment", "checks", "outputs", "source"].includes(view)
+            ? tabActions
+            : null
+        }
         bottom={bottom}
         inspector={
           <Inspector
@@ -992,12 +719,7 @@ function Workspace({
           />
         }
       >
-        <EditorArea
-          breadcrumb={breadcrumb}
-          headerActions={headerActions}
-          chrome="breadcrumb-only"
-          layout="full-bleed"
-        >
+        <EditorArea breadcrumb={breadcrumb} chrome="breadcrumb-only" layout="full-bleed">
           <div
             id="hvac-document-panel"
             role="tabpanel"
@@ -1034,15 +756,18 @@ function Workspace({
                       {t("类器件")}
                     </p>
                   </div>
-                  <button className="primary-button" onClick={() => openView("design")}>
-                    {t("打开系统图")}
-                    <Icon name="arrow" size={15} />
-                  </button>
+                  <EditorActionButton
+                    label={t("打开系统图")}
+                    icon="arrow"
+                    emphasis
+                    onClick={() => openView("design")}
+                  />
                 </section>
                 <h3>{t("项目工作")}</h3>
                 <div className="project-work-list">
                   {[
                     ["equipment", t("核对设备与参数"), t("查看实例覆盖、继承与参数依据")],
+                    ["components", t(info("components").label), t(info("components").description)],
                     [
                       "simulation",
                       t("运行与分析工况"),
@@ -1099,9 +824,12 @@ function Workspace({
                   <div className="stale-banner">
                     <Icon name="clock" size={16} />
                     <span>{t("当前显示历史图纸。源模型已变化，请重新生成。")}</span>
-                    <button disabled={!canRun} onClick={() => void submit("build")}>
-                      {t("更新图纸")}
-                    </button>
+                    <EditorActionButton
+                      label={t("更新图纸")}
+                      icon="layers"
+                      disabled={!canRun}
+                      onClick={() => void submit("build")}
+                    />
                   </div>
                 )}
                 {overlay && run && (
@@ -1126,19 +854,20 @@ function Workspace({
                         ? t("当前输入版本")
                         : t("历史结果 · 不叠加到图面")}
                     </span>
-                    <button className="text-button" onClick={() => openView("simulation")}>
-                      {t("完整分析")}
-                    </button>
-                    <button
-                      className="icon-button"
-                      aria-label={t("退出结果叠加")}
+                    <EditorActionButton
+                      label={t("完整分析")}
+                      icon="chart"
+                      onClick={() => openView("simulation")}
+                    />
+                    <EditorActionButton
+                      className="overlay-dismiss"
+                      label={t("退出结果叠加")}
+                      icon="close"
                       onClick={() => {
                         setOverlay(false);
                         setPlayback((previous) => ({ ...previous, playing: false }));
                       }}
-                    >
-                      <Icon name="close" size={15} />
-                    </button>
+                    />
                   </div>
                 )}
                 {diagram ? (
@@ -1186,13 +915,13 @@ function Workspace({
                   <Empty
                     title={t("从系统模型生成图纸")}
                     action={
-                      <button
-                        className="primary-button"
+                      <EditorActionButton
+                        label={t("生成第一张图纸")}
+                        icon="layers"
+                        emphasis
                         disabled={!canRun}
                         onClick={() => void submit("build")}
-                      >
-                        {t("生成第一张图纸")}
-                      </button>
+                      />
                     }
                   >
                     {t("已读取")} {entries.length}
@@ -1201,15 +930,13 @@ function Workspace({
                 )}
                 {overlay && run && (
                   <div className="overlay-playback">
-                    <button
-                      className="small-button"
+                    <EditorActionButton
+                      label={playback.playing ? t("暂停") : t("播放")}
+                      icon={playback.playing ? "pause" : "play"}
                       onClick={() =>
                         setPlayback((previous) => ({ ...previous, playing: !previous.playing }))
                       }
-                    >
-                      <Icon name={playback.playing ? "pause" : "play"} size={15} />
-                      {playback.playing ? t("暂停") : t("播放")}
-                    </button>
+                    />
                     <input
                       type="range"
                       aria-label={t("叠加时间")}
@@ -1233,11 +960,21 @@ function Workspace({
               <div className="data-view">
                 <div className="view-intro">
                   <p>{t(info(view).description)}</p>
-                  <button className="small-button" onClick={exportEquipment}>
-                    <Icon name="download" size={15} />
-                    {t("导出设备表")}
-                  </button>
+                  <EditorActionButton
+                    label={t("导出设备表")}
+                    icon="download"
+                    onClick={exportEquipment}
+                  />
                 </div>
+                <label className="library-search">
+                  <Icon name="search" size={16} />
+                  <input
+                    aria-label={t("搜索设备")}
+                    placeholder={t("搜索设备或类型…")}
+                    value={search}
+                    onChange={(event) => setSearch(event.target.value)}
+                  />
+                </label>
                 <div className="table-summary">
                   <span>
                     {filtered.length} / {entries.length}
@@ -1305,18 +1042,16 @@ function Workspace({
                               </span>
                             </td>
                             <td>
-                              <button
-                                className="text-button"
-                                aria-label={t("图中定位 {0}", { "0": id })}
+                              <EditorActionButton
+                                label={t("图中定位 {0}", { "0": id })}
+                                icon="locate"
                                 onClick={() => {
                                   if (choose({ kind: "instance", id }, false)) {
                                     openView("design");
                                     setLocateToken((previous) => previous + 1);
                                   }
                                 }}
-                              >
-                                {t("图中定位")}
-                              </button>
+                              />
                             </td>
                           </tr>
                         );
@@ -1324,7 +1059,7 @@ function Workspace({
                     </tbody>
                   </table>
                   {!filtered.length && (
-                    <Empty title={t("没有匹配设备")}>{t("调整左侧的设备搜索条件。")}</Empty>
+                    <Empty title={t("没有匹配设备")}>{t("调整设备搜索条件。")}</Empty>
                   )}
                 </div>
               </div>
@@ -1437,14 +1172,18 @@ function Workspace({
                       <option value="openmodelica">{t("OpenModelica / 外部求解器")}</option>
                     </select>
                   </label>
-                  <button
-                    className="primary-button"
+                  {busy && (
+                    <span className="simulation-busy" role="status">
+                      {t("任务运行中")}
+                    </span>
+                  )}
+                  <EditorActionButton
+                    label={t("运行仿真")}
+                    icon="play"
+                    emphasis
                     disabled={!canRun || !data.scenarios.length}
                     onClick={() => void submit("simulate")}
-                  >
-                    <Icon name="play" size={15} />
-                    {busy ? t("任务运行中") : t("运行仿真")}
-                  </button>
+                  />
                 </div>
                 {!data.scenarios.length && (
                   <p className="section-note">{t("当前项目没有工况配置。")}</p>
@@ -1461,40 +1200,36 @@ function Workspace({
                           {t(labels[run.result.status]) ?? run.result.status}
                         </span>
                       </div>
-                      <button
-                        className="small-button"
+                      <EditorActionButton
+                        label={t("导出本次结果")}
+                        icon="download"
                         onClick={() =>
                           void exportArtifact(
                             run.path,
                             `${run.result.scenario}-${backendName(run.result)}.json`,
                           )
                         }
-                      >
-                        <Icon name="download" size={14} />
-                        {t("导出本次结果")}
-                      </button>
+                      />
                     </div>
                     {lastFocus && (
                       <div className="analysis-focus" role="status">
                         <Icon name="fit" size={16} />
                         <strong>{lastFocus}</strong>
-                        <button
-                          className="text-button"
+                        <EditorActionButton
+                          className="analysis-locate"
+                          label={t("在图面查看")}
+                          icon="locate"
                           onClick={() => {
                             openView("design");
                             setOverlay(true);
                             setLocateToken((previous) => previous + 1);
                           }}
-                        >
-                          {t("在图面查看")}
-                        </button>
-                        <button
-                          className="icon-button"
-                          aria-label={t("关闭定位提示")}
+                        />
+                        <EditorActionButton
+                          label={t("关闭定位提示")}
+                          icon="close"
                           onClick={() => setLastFocus("")}
-                        >
-                          <Icon name="close" size={14} />
-                        </button>
+                        />
                       </div>
                     )}
                     {runPanel}
@@ -1598,12 +1333,11 @@ function Workspace({
                       <span className={`tag ${report.data.status}`}>
                         {t(labels[report.data.status]) ?? report.data.status}
                       </span>
-                      <button
-                        className="text-button"
+                      <EditorActionButton
+                        label={t("导出报告")}
+                        icon="download"
                         onClick={() => void exportArtifact(report.path, report.kind)}
-                      >
-                        {t("导出报告")}
-                      </button>
+                      />
                     </div>
                   ))}
                   {!data.reports.length && (
@@ -1665,14 +1399,13 @@ function Workspace({
                       <small>{data.source_path}</small>
                     </div>
                     <span className="tag info">{t("当前源数据")}</span>
-                    <button
-                      className="small-button"
+                    <EditorActionButton
+                      label={t("导出 JSON")}
+                      icon="download"
                       onClick={() =>
                         download(JSON.stringify(source, null, 2) + "\n", "system.sdl.json")
                       }
-                    >
-                      {t("导出 JSON")}
-                    </button>
+                    />
                   </div>
                   <div className="output-row">
                     <Icon name="table" size={20} />
@@ -1684,9 +1417,11 @@ function Workspace({
                       </small>
                     </div>
                     <span className="tag info">{t("当前源数据")}</span>
-                    <button className="small-button" onClick={exportEquipment}>
-                      {t("导出 CSV")}
-                    </button>
+                    <EditorActionButton
+                      label={t("导出 CSV")}
+                      icon="download"
+                      onClick={exportEquipment}
+                    />
                   </div>
                 </section>
                 <section className="output-section">
@@ -1701,12 +1436,11 @@ function Workspace({
                       <span className={`tag ${item.current ? "info" : "warning"}`}>
                         {item.current ? t("当前输入版本") : t("历史输入")}
                       </span>
-                      <button
-                        className="small-button"
+                      <EditorActionButton
+                        label={t("导出")}
+                        icon="download"
                         onClick={() => void exportArtifact(item.path, item.name)}
-                      >
-                        {t("导出")}
-                      </button>
+                      />
                     </div>
                   ))}
                   {!data.exports.length && (
@@ -1729,26 +1463,24 @@ function Workspace({
                           {t(labels[item.result.status]) ?? item.result.status}
                         </small>
                       </div>
-                      <button
-                        className="text-button"
+                      <EditorActionButton
+                        label={t("打开分析")}
+                        icon="chart"
                         onClick={() => {
                           chooseRun(index);
                           openView("simulation");
                         }}
-                      >
-                        {t("打开分析")}
-                      </button>
-                      <button
-                        className="small-button"
+                      />
+                      <EditorActionButton
+                        label={t("导出 JSON")}
+                        icon="download"
                         onClick={() =>
                           void exportArtifact(
                             item.path,
                             `${item.result.scenario}-${backendName(item.result)}.json`,
                           )
                         }
-                      >
-                        {t("导出 JSON")}
-                      </button>
+                      />
                     </div>
                   ))}
                   {!runs.length && (

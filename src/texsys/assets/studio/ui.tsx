@@ -152,6 +152,8 @@ const paths: Record<string, React.ReactNode> = {
     </>
   ),
   play: <path d="m8 4 12 8-12 8Z" />,
+  "skip-back": <path d="M5 5v14m14-14L8 12l11 7Z" />,
+  "skip-forward": <path d="M19 5v14M5 5l11 7-11 7Z" />,
   pause: (
     <>
       <path d="M8 4v16M16 4v16" />
@@ -167,6 +169,19 @@ const paths: Record<string, React.ReactNode> = {
     <>
       <circle cx="10" cy="10" r="6" />
       <path d="m15 15 6 6" />
+    </>
+  ),
+  "search-plus": (
+    <>
+      <circle cx="10" cy="10" r="6" />
+      <path d="m15 15 6 6M7 10h6m-3-3v6" />
+    </>
+  ),
+  locate: (
+    <>
+      <circle cx="12" cy="12" r="6" />
+      <path d="M12 2v4m0 12v4M2 12h4m12 0h4" />
+      <circle cx="12" cy="12" r="1" />
     </>
   ),
   close: <path d="m6 6 12 12M6 18 18 6" />,

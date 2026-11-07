@@ -10,7 +10,7 @@ import { createPortal } from "react-dom";
 import { Keycaps } from "./Keycaps";
 import { AnimatedPresence } from "./AnimatedPresence";
 
-/** Quiet titlebar control: independent hover, toggle, pressed and keyboard-focus feedback. */
+/** Shared button and tooltip interaction for Studio chrome. */
 export function ToolbarButton({
   tooltip,
   shortcut,
@@ -64,13 +64,18 @@ export function ToolbarButton({
           8,
           Math.min(window.innerWidth - box.width - 8, anchor.left + (anchor.width - box.width) / 2),
         ),
-        top: anchor.bottom + 8,
+        top:
+          anchor.bottom + 8 + box.height <= window.innerHeight - 8
+            ? anchor.bottom + 8
+            : Math.max(8, anchor.top - box.height - 8),
       });
     };
     place();
     window.addEventListener("resize", place);
+    window.addEventListener("scroll", place, true);
     return () => {
       window.removeEventListener("resize", place);
+      window.removeEventListener("scroll", place, true);
     };
   }, [open]);
   return (

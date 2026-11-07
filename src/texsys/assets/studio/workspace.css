@@ -244,13 +244,28 @@
   --tab-corner: 6px;
   --tab-surface: var(--ui-context-chrome);
   display: flex;
+  min-width: 0;
+  background: var(--ui-workspace-chrome);
+}
+.core-document-tab-list {
+  display: flex;
+  flex: 1 1 0;
   gap: var(--space-1);
   overflow-x: auto;
   overflow-y: hidden;
   scrollbar-width: thin;
   min-width: 0;
   padding-inline-end: var(--tab-corner);
-  background: var(--ui-workspace-chrome);
+}
+.core-document-actions {
+  display: flex;
+  flex: 0 1 auto;
+  align-items: center;
+  gap: var(--space-1);
+  max-width: calc(100% - 88px);
+  padding-inline: var(--space-2);
+  overflow-x: auto;
+  scrollbar-width: none;
 }
 .core-file-tabs {
   display: flex;
@@ -385,23 +400,6 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.core-document-header > div {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-  flex-shrink: 0;
-}
-.core-save-state {
-  font-size: 11px;
-  color: var(--ui-text-muted);
-}
-.core-save-button {
-  font-size: 11px;
-  padding: 3px 7px;
-  border-radius: 3px;
-  background: #e6f3ef;
-  color: #087f72;
-}
 .core-text-document {
   display: grid;
   height: 100%;
@@ -421,6 +419,14 @@
   padding: 0 12px;
   font-size: 10px;
   color: var(--ui-text-muted);
+  gap: var(--space-1);
+  white-space: nowrap;
+  overflow: hidden;
+}
+.core-editor-status-details {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
 }
 .core-welcome {
   height: 100%;
@@ -532,32 +538,14 @@
   padding: 6px 10px;
   font-size: 12px;
 }
-.activity-bar > button.extension-start {
-  margin-top: 13px;
-}
-.activity-bar > button.extension-start::before {
-  content: "";
-  position: absolute;
-  height: 1px;
-  top: -9px;
-  left: 4px;
-  right: 4px;
-  background: var(--ui-chrome-divider);
-}
-
 .core-project-root[aria-expanded="false"] > .core-tree-twistie > svg,
 .core-tree-row[aria-expanded="false"] > .core-tree-twistie > svg {
   transform: rotate(-90deg);
 }
 
-.core-sidebar-slot,
 .core-inspector-slot {
   height: 100%;
   min-height: 0;
-}
-.core-sidebar-slot {
-  display: flex;
-  flex-direction: column;
 }
 .core-file-properties dl {
   margin: 10px 15px;

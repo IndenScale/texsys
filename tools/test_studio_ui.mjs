@@ -238,6 +238,7 @@ test("layout preferences keep project and discipline state separate and tolerate
         ...defaults,
         sidebarOpen: false,
         sidebarActivity: "components",
+        hiddenActivities: ["scm"],
         sidebarWidth: 367,
         inspectorOpen: true,
         inspectorWidth: 371,

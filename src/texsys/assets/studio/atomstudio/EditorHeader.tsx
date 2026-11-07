@@ -7,7 +7,6 @@ import { Stack } from "./primitives";
 
 export function EditorHeader(props: {
   children: ComponentChildren;
-  actions?: ComponentChildren;
   className?: string;
 }): JSX.Element {
   return (
@@ -15,7 +14,6 @@ export function EditorHeader(props: {
       className={`editor-header editor-area__header${props.className ? ` ${props.className}` : ""}`}
     >
       <Stack className="editor-header__breadcrumb">{props.children}</Stack>
-      {props.actions ? <Stack className="editor-header__actions">{props.actions}</Stack> : null}
     </Stack>
   );
 }

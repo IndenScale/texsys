@@ -149,6 +149,16 @@ function Plot({
   );
 }
 
+type RunActionProps = { label: string; icon: string; onClick: () => void };
+
+function TextRunAction({ label, onClick }: RunActionProps) {
+  return (
+    <button type="button" onClick={onClick}>
+      {label}
+    </button>
+  );
+}
+
 export function RunPanel({
   runs,
   runIndex,
@@ -161,6 +171,7 @@ export function RunPanel({
   focus,
   onLocateAssertion,
   onVariableChange,
+  ActionButton = TextRunAction,
 }: {
   runs: Simulation[];
   runIndex: number;
@@ -173,6 +184,7 @@ export function RunPanel({
   focus?: { variable: string; token: number };
   onLocateAssertion?: (index: number) => void;
   onVariableChange?: (variable: string) => void;
+  ActionButton?: React.ComponentType<RunActionProps>;
 }) {
   const result = runs[runIndex];
   const candidates = Object.entries(result.variables).filter(([, variable]) =>
@@ -245,15 +257,19 @@ export function RunPanel({
       </div>
       <Plot result={result} variableKey={key} index={index} />
       <div className="playback">
-        <button onClick={() => setPlaying(!playing)}>{playing ? t("暂停") : t("播放")}</button>
-        <button
+        <ActionButton
+          label={playing ? t("暂停") : t("播放")}
+          icon={playing ? "pause" : "play"}
+          onClick={() => setPlaying(!playing)}
+        />
+        <ActionButton
+          label={t("回到初始")}
+          icon="skip-back"
           onClick={() => {
             setIndex(0);
             setPlaying(false);
           }}
-        >
-          {t("回到初始")}
-        </button>
+        />
         <input
           aria-label={t("仿真时间")}
           type="range"
@@ -267,7 +283,9 @@ export function RunPanel({
           }}
         />
         <output aria-label={t("当前仿真时间")}>{result.time_s[index].toFixed(0)} s</output>
-        <button
+        <ActionButton
+          label={t("下一事件")}
+          icon="skip-forward"
           onClick={() => {
             const next = result.events.find((event) => event.time_s > result.time_s[index]);
             setIndex(
@@ -277,9 +295,7 @@ export function RunPanel({
             );
             setPlaying(false);
           }}
-        >
-          {t("下一事件")}
-        </button>
+        />
       </div>
       <details className="run-checks" open={onLocateAssertion ? true : undefined}>
         <summary>{t("守恒与性能检查")}</summary>
@@ -317,14 +333,11 @@ export function RunPanel({
                 })}
             </p>
             {onLocateAssertion && assertion.variable && result.variables[assertion.variable] && (
-              <button
-                className="small-button"
+              <ActionButton
+                label={t("定位约束 {0}", { "0": i + 1 })}
+                icon="locate"
                 onClick={() => onLocateAssertion(i)}
-                aria-label={t("定位约束 {0}", { "0": i + 1 })}
-              >
-                {t("定位")}
-                {assertion.status === "fail" ? t("越限") : t("极值")}
-              </button>
+              />
             )}
           </div>
         ))}

@@ -460,6 +460,10 @@ function Studio({ plugins, chrome }: { plugins: WorkbenchPlugin[]; chrome: Studi
         (event.target as HTMLElement).matches("input,textarea,select,[contenteditable=true]")
       )
         return;
+      if ((event.metaKey || event.ctrlKey) && event.key === "\\") {
+        event.preventDefault();
+        invokeCommand("view.sidebar");
+      }
       if (
         (event.altKey && event.key === "ArrowLeft") ||
         ((event.metaKey || event.ctrlKey) && event.key === "[")
@@ -477,7 +481,7 @@ function Studio({ plugins, chrome }: { plugins: WorkbenchPlugin[]; chrome: Studi
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [active, historyState.canBack, historyState.canForward, commandOpen]);
+  }, [active, layout.sidebarOpen, historyState.canBack, historyState.canForward, commandOpen]);
   useEffect(() => {
     if (!commandOpen || commandScope === "commands") return;
     let current = true;
