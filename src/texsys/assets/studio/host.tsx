@@ -13,7 +13,10 @@ import {
 import { CoreWorkspaceProvider, WorkbenchSurface } from "./CoreWorkspace";
 import { DEFAULT_SIDEBAR_WIDTH } from "./atomstudio/layoutSizing";
 import {
+  readHiddenTitlebarGroups,
   readLayoutPreferences,
+  titlebarGroups,
+  writeHiddenTitlebarGroups,
   writeLayoutPreferences,
   type LayoutPreferences,
 } from "./layout-preferences";
@@ -21,6 +24,7 @@ import { CommandCenter } from "./CommandCenter";
 import { AnimatedPresence } from "./AnimatedPresence";
 import { ToolbarButton } from "./ToolbarButton";
 import { ApplicationMenuBar } from "./ApplicationMenuBar";
+import { NavigatorMenu } from "./NavigatorMenu";
 import type { SearchScope } from "./search";
 import { studioMenus } from "./menus";
 import { t, useLocale, getLocale, localizeError } from "./i18n";
@@ -205,6 +209,14 @@ function Studio({ plugins, chrome }: { plugins: WorkbenchPlugin[]; chrome: Studi
     token: number;
   }>();
   const [state, setState] = useState<StudioState>();
+  const titlebar = useRef<HTMLElement>(null);
+  const [titlebarMenuPoint, setTitlebarMenuPoint] = useState<{ x: number; y: number }>();
+  const [hiddenTitlebarGroups, setHiddenTitlebarGroups] = useState(readHiddenTitlebarGroups);
+  useEffect(() => {
+    writeHiddenTitlebarGroups(hiddenTitlebarGroups);
+  }, [hiddenTitlebarGroups]);
+  const showNavigation = !hiddenTitlebarGroups.includes("navigationControls");
+  const showLayout = !hiddenTitlebarGroups.includes("layoutControls");
   const [commandOpen, setCommandOpen] = useState(false);
   const [commandScope, setCommandScope] = useState<SearchScope>("all");
   const [files, setFiles] = useState<ProjectFile[]>([]);
@@ -214,8 +226,14 @@ function Studio({ plugins, chrome }: { plugins: WorkbenchPlugin[]; chrome: Studi
   const [commandFocusRequest, setCommandFocusRequest] = useState(0);
   const commandOrigin = useRef<HTMLElement | null>(null);
   const closeCommands = useCallback(() => setCommandOpen(false), []);
+  const openTitlebarMenu = (point: { x: number; y: number }) => {
+    setMenu(null);
+    closeCommands();
+    setTitlebarMenuPoint(point);
+  };
   const openCommands = (scope: SearchScope = "all") => {
     if (!commandOpen) commandOrigin.current = document.activeElement as HTMLElement | null;
+    setTitlebarMenuPoint(undefined);
     setMenu(null);
     setCommandScope(scope);
     setCommandOpen(true);
@@ -519,8 +537,22 @@ function Studio({ plugins, chrome }: { plugins: WorkbenchPlugin[]; chrome: Studi
   return (
     <div className="studio-app">
       <header
+        ref={titlebar}
         className={`studio-titlebar ${chrome.nativeMenu ? "has-native-menu" : "has-app-menu"} window-controls-${chrome.windowControls}`}
         aria-label={t("窗口标题栏")}
+        tabIndex={-1}
+        onContextMenu={(event) => {
+          if (event.target instanceof HTMLInputElement) return;
+          event.preventDefault();
+          openTitlebarMenu({ x: event.clientX, y: event.clientY });
+        }}
+        onKeyDown={(event) => {
+          if (event.key !== "ContextMenu" && !(event.shiftKey && event.key === "F10")) return;
+          if (event.target instanceof HTMLInputElement) return;
+          event.preventDefault();
+          const { left, bottom } = (event.target as HTMLElement).getBoundingClientRect();
+          openTitlebarMenu({ x: left, y: bottom });
+        }}
       >
         <div className="titlebar-leading">
           {chrome.windowControls === "left" && (
@@ -535,61 +567,68 @@ function Studio({ plugins, chrome }: { plugins: WorkbenchPlugin[]; chrome: Studi
                 setMenu(null);
                 closeCommands();
               }}
-              dismiss={commandOpen || menu !== null}
+              dismiss={commandOpen || menu !== null || !!titlebarMenuPoint}
             />
           )}
-          <div className="titlebar-controls" role="toolbar" aria-label={t("导航与布局")}>
-            <div className="titlebar-control-group" role="group" aria-label={t("文档导航")}>
-              <ToolbarButton
-                aria-label={t("后退")}
-                tooltip={t("后退")}
-                shortcut={macKeys ? ["⌘", "["] : ["Alt", "←"]}
-                disabled={!historyState.canBack}
-                onClick={() => requestNavigation("navigation.back")}
-              >
-                <Icon name="back" size={18} />
-              </ToolbarButton>
-              <ToolbarButton
-                aria-label={t("前进")}
-                tooltip={t("前进")}
-                shortcut={macKeys ? ["⌘", "]"] : ["Alt", "→"]}
-                disabled={!historyState.canForward}
-                onClick={() => requestNavigation("navigation.forward")}
-              >
-                <Icon name="forward" size={18} />
-              </ToolbarButton>
+          {(showNavigation || showLayout) && (
+            <div className="titlebar-controls">
+              {showNavigation && (
+                <div className="titlebar-navigation" role="group" aria-label={t("导航控件")}>
+                  <ToolbarButton
+                    aria-label={t("后退")}
+                    tooltip={t("后退")}
+                    shortcut={macKeys ? ["⌘", "["] : ["Alt", "←"]}
+                    disabled={!historyState.canBack}
+                    onClick={() => requestNavigation("navigation.back")}
+                  >
+                    <Icon name="back" size={18} />
+                  </ToolbarButton>
+                  <ToolbarButton
+                    aria-label={t("前进")}
+                    tooltip={t("前进")}
+                    shortcut={macKeys ? ["⌘", "]"] : ["Alt", "→"]}
+                    disabled={!historyState.canForward}
+                    onClick={() => requestNavigation("navigation.forward")}
+                  >
+                    <Icon name="forward" size={18} />
+                  </ToolbarButton>
+                </div>
+              )}
+              {showLayout && (
+                <div className="titlebar-layout" role="group" aria-label={t("布局控件")}>
+                  <ToolbarButton
+                    aria-label={t("切换资源面板")}
+                    tooltip={t("显示/隐藏资源面板")}
+                    shortcut={[macKeys ? "⌘" : "Ctrl", "\\"]}
+                    aria-pressed={layout.sidebarOpen}
+                    onClick={() => updateLayout(active, { sidebarOpen: !layout.sidebarOpen })}
+                  >
+                    <Icon name="sidebar" size={18} expanded={layout.sidebarOpen} />
+                  </ToolbarButton>
+                  <ToolbarButton
+                    aria-label={t("切换底部面板")}
+                    tooltip={t("显示/隐藏底部面板")}
+                    aria-pressed={layout.bottomOpen}
+                    onClick={() => updateLayout(active, { bottomOpen: !layout.bottomOpen })}
+                  >
+                    <Icon name="bottom-panel" size={18} expanded={layout.bottomOpen} />
+                  </ToolbarButton>
+                  <ToolbarButton
+                    aria-label={t("切换属性面板")}
+                    tooltip={t("显示/隐藏属性面板")}
+                    aria-pressed={layout.inspectorOpen}
+                    onClick={() => updateLayout(active, { inspectorOpen: !layout.inspectorOpen })}
+                  >
+                    <Icon name="inspector" size={18} expanded={layout.inspectorOpen} />
+                  </ToolbarButton>
+                </div>
+              )}
             </div>
-            <div className="titlebar-control-group" role="group" aria-label={t("面板布局")}>
-              <ToolbarButton
-                aria-label={t("切换资源面板")}
-                tooltip={t("显示/隐藏资源面板")}
-                shortcut={[macKeys ? "⌘" : "Ctrl", "\\"]}
-                aria-pressed={layout.sidebarOpen}
-                onClick={() => updateLayout(active, { sidebarOpen: !layout.sidebarOpen })}
-              >
-                <Icon name="sidebar" size={18} expanded={layout.sidebarOpen} />
-              </ToolbarButton>
-              <ToolbarButton
-                aria-label={t("切换底部面板")}
-                tooltip={t("显示/隐藏底部面板")}
-                aria-pressed={layout.bottomOpen}
-                onClick={() => updateLayout(active, { bottomOpen: !layout.bottomOpen })}
-              >
-                <Icon name="bottom-panel" size={18} expanded={layout.bottomOpen} />
-              </ToolbarButton>
-              <ToolbarButton
-                aria-label={t("切换属性面板")}
-                tooltip={t("显示/隐藏属性面板")}
-                aria-pressed={layout.inspectorOpen}
-                onClick={() => updateLayout(active, { inspectorOpen: !layout.inspectorOpen })}
-              >
-                <Icon name="inspector" size={18} expanded={layout.inspectorOpen} />
-              </ToolbarButton>
-            </div>
-          </div>
+          )}
         </div>
         <CommandCenter
           project={state?.project.name ?? t("打开项目中")}
+          showTrigger={!hiddenTitlebarGroups.includes("commandCenter")}
           disabled={!state}
           open={commandOpen}
           focusRequest={commandFocusRequest}
@@ -626,6 +665,25 @@ function Studio({ plugins, chrome }: { plugins: WorkbenchPlugin[]; chrome: Studi
           )}
         </div>
       </header>
+      {titlebarMenuPoint && (
+        <NavigatorMenu
+          label={t("配置标题栏")}
+          point={titlebarMenuPoint}
+          onDismiss={() => {
+            setTitlebarMenuPoint(undefined);
+            if (document.activeElement === document.body) titlebar.current?.focus();
+          }}
+          items={titlebarGroups.map(({ id, label }) => ({
+            label: t(label),
+            checked: !hiddenTitlebarGroups.includes(id),
+            checkbox: true,
+            run: () =>
+              setHiddenTitlebarGroups((hidden) =>
+                hidden.includes(id) ? hidden.filter((group) => group !== id) : [...hidden, id],
+              ),
+          }))}
+        />
+      )}
       <main className="studio-workspace">
         {error && (
           <div className="connection-error" role="alert">

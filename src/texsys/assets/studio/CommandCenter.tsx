@@ -19,6 +19,7 @@ type Result = {
 };
 export function CommandCenter({
   project,
+  showTrigger,
   disabled,
   open,
   focusRequest,
@@ -37,6 +38,7 @@ export function CommandCenter({
   onFile,
 }: {
   project: string;
+  showTrigger: boolean;
   disabled: boolean;
   open: boolean;
   focusRequest: number;
@@ -148,10 +150,13 @@ export function CommandCenter({
       else invoke(result.id);
     }
   };
+  const hasControls = showTrigger || open;
   return (
     <div
       ref={root}
       className={`command-center${open ? " is-open" : ""}`}
+      role={hasControls ? "group" : undefined}
+      aria-label={hasControls ? t("命令中心") : undefined}
       onBlur={(event) => {
         if (open && event.relatedTarget && !root.current?.contains(event.relatedTarget as Node))
           close(false);
@@ -159,9 +164,9 @@ export function CommandCenter({
     >
       <button
         ref={button}
+        hidden={!showTrigger}
         inert={open}
         aria-hidden={open}
-        tabIndex={open ? -1 : 0}
         className="command-center-button"
         aria-label={t("打开搜索")}
         aria-haspopup="listbox"
@@ -170,15 +175,15 @@ export function CommandCenter({
         disabled={disabled}
         onClick={onOpen}
       >
-        <span ref={title} className="command-center-project">
-          {project}
-        </span>
         <span className="command-center-affordance" aria-hidden="true">
           <Icon name="search" size={16} />
           <span>{t("搜索文件或运行命令…")}</span>
           <Keycaps keys={shortcut} />
         </span>
       </button>
+      <span ref={title} className="command-center-project" aria-hidden={open}>
+        {project}
+      </span>
       <>
         <div className="command-center-input" inert={!open} aria-hidden={!open}>
           <Icon name="search" size={16} />

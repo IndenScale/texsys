@@ -11,6 +11,34 @@ export type LayoutPreferences = {
 };
 
 const storageKey = (project: string) => `texsys.studio.layout:${project}`;
+const titlebarStorageKey = "texsys.studio.titlebar.hidden";
+
+export const titlebarGroups = [
+  { id: "commandCenter", label: "命令中心" },
+  { id: "navigationControls", label: "导航控件" },
+  { id: "layoutControls", label: "布局控件" },
+] as const;
+
+export type TitlebarGroup = (typeof titlebarGroups)[number]["id"];
+
+export function readHiddenTitlebarGroups(): TitlebarGroup[] {
+  try {
+    const saved: unknown = JSON.parse(localStorage.getItem(titlebarStorageKey) ?? "null");
+    if (Array.isArray(saved))
+      return titlebarGroups.map(({ id }) => id).filter((id) => saved.includes(id));
+  } catch {
+    // Use the defaults if preferences are unreadable or storage is unavailable.
+  }
+  return [];
+}
+
+export function writeHiddenTitlebarGroups(hidden: TitlebarGroup[]) {
+  try {
+    localStorage.setItem(titlebarStorageKey, JSON.stringify(hidden));
+  } catch {
+    // The title bar still works for the current page when storage is unavailable.
+  }
+}
 
 function record(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === "object" && !Array.isArray(value);
