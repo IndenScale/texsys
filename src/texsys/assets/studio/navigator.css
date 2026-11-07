@@ -58,7 +58,7 @@
   background: var(--ui-control-hover);
 }
 .navigator-menu {
-  --menu-key-width: 14px;
+  --menu-key-width: 11px;
   position: fixed;
   inset: auto;
   width: max-content;
@@ -100,11 +100,12 @@
   flex: 0 0 16px;
 }
 .navigator-menu:has(.keycap-wide) {
-  --menu-key-width: 28px;
+  --menu-key-width: 32px;
 }
 .navigator-menu .keycaps {
+  gap: 2px;
   margin-inline-start: auto;
-  padding-inline-start: 8px;
+  padding-inline-start: 16px;
 }
 .navigator-menu .keycaps kbd {
   inline-size: var(--menu-key-width);
@@ -113,5 +114,8 @@
   border: 0;
   background: transparent;
   color: var(--ui-text-muted);
+  font-size: 12px;
+  font-weight: 550;
+  line-height: 1;
   white-space: nowrap;
 }
