@@ -20,6 +20,7 @@ members = [
     "texsys-hvac-formatter",
     "texsys-hvac-graphics",
     "texsys-hvac-linter",
+    "texsys-studio-hvac",
 ]
 
 [[package]]
@@ -603,6 +604,7 @@ dev = [
     { name = "texsys-hvac-formatter" },
     { name = "texsys-hvac-graphics" },
     { name = "texsys-hvac-linter" },
+    { name = "texsys-studio-hvac" },
 ]
 
 [package.metadata]
@@ -627,6 +629,7 @@ dev = [
     { name = "texsys-hvac-formatter", editable = "packages/hvac-formatter" },
     { name = "texsys-hvac-graphics", editable = "packages/hvac-graphics" },
     { name = "texsys-hvac-linter", editable = "packages/hvac-linter" },
+    { name = "texsys-studio-hvac", editable = "packages/studio-hvac" },
 ]
 
 [[package]]
@@ -793,6 +796,27 @@ dependencies = [
 requires-dist = [
     { name = "texsys", editable = "." },
     { name = "texsys-hvac-equipment", editable = "packages/hvac-equipment" },
+]
+
+[[package]]
+name = "texsys-studio-hvac"
+version = "0.1.0"
+source = { editable = "packages/studio-hvac" }
+dependencies = [
+    { name = "texsys" },
+    { name = "texsys-hvac-bom" },
+    { name = "texsys-hvac-diagram" },
+    { name = "texsys-hvac-dynamics" },
+    { name = "texsys-hvac-graphics" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "texsys", editable = "." },
+    { name = "texsys-hvac-bom", editable = "packages/hvac-bom" },
+    { name = "texsys-hvac-diagram", editable = "packages/hvac-diagram" },
+    { name = "texsys-hvac-dynamics", editable = "packages/hvac-dynamics" },
+    { name = "texsys-hvac-graphics", editable = "packages/hvac-graphics" },
 ]
 
 [[package]]

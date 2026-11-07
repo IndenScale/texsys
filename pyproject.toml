@@ -29,6 +29,7 @@ dev = [
   "texsys-hvac-formatter",
   "texsys-hvac-linter",
   "texsys-hvac-checks",
+  "texsys-studio-hvac",
 ]
 
 [project.scripts]
@@ -38,7 +39,7 @@ texsys = "texsys.cli:run"
 where = ["src"]
 
 [tool.setuptools.package-data]
-texsys = ["assets/*.usda"]
+texsys = ["assets/*.usda", "assets/studio/*", "assets/studio/atomstudio/*"]
 
 [tool.uv.workspace]
 members = ["packages/*"]
@@ -55,6 +56,7 @@ texsys-hvac-equipment = { workspace = true }
 texsys-hvac-formatter = { workspace = true }
 texsys-hvac-linter = { workspace = true }
 texsys-hvac-checks = { workspace = true }
+texsys-studio-hvac = { workspace = true }
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

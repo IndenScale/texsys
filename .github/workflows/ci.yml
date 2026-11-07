@@ -56,4 +56,6 @@ jobs:
       - name: Check engineering geometry and TypeScript
         run: |
           node --test tools/test_graphics.mjs
+          node --test tools/test_studio_ui.mjs
           node node_modules/typescript/bin/tsc --noEmit --strict --jsx react-jsx --moduleResolution bundler --module esnext --target es2022 --lib es2022,dom --skipLibCheck packages/hvac-graphics/src/texsys_hvac_graphics/assets/*.ts packages/hvac-graphics/src/texsys_hvac_graphics/assets/*.tsx
+          node node_modules/typescript/bin/tsc --noEmit --strict --jsx react-jsx --moduleResolution bundler --module esnext --target es2022 --lib es2022,dom --skipLibCheck src/texsys/assets/studio/*.ts src/texsys/assets/studio/*.tsx packages/studio-hvac/src/texsys_studio_hvac/assets/*.tsx

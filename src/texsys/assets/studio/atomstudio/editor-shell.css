@@ -1,0 +1,128 @@
+/* SPDX-License-Identifier: MIT
+ * Adapted from AtomStudio. Copyright (c) 2026 AtomDocs Contributors.
+ * See SOURCE.json and LICENSE for origin and adaptation scope.
+ */
+.editor-area {
+  display: grid;
+  width: 100%;
+  max-width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  grid-template-rows: var(--editor-tab-height) var(--editor-tab-height) minmax(0, 1fr);
+}
+
+.editor-area--chrome-tabs-only {
+  grid-template-rows: var(--editor-tab-height) minmax(0, 1fr);
+}
+
+.editor-area--chrome-breadcrumb-only {
+  grid-template-rows: var(--editor-tab-height) minmax(0, 1fr);
+}
+
+.editor-area--chrome-content-only {
+  grid-template-rows: minmax(0, 1fr);
+}
+
+.editor-area > .editor-area__tabs,
+.editor-area > .editor-area__breadcrumb {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 0;
+}
+
+.editor-tab-bar,
+.editor-header {
+  display: grid;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  grid-template-columns: minmax(0, 1fr) max-content;
+  align-items: center;
+}
+
+.editor-tab-bar__tabs,
+.editor-header__breadcrumb {
+  min-width: 0;
+  max-width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+.editor-tab-bar__actions,
+.editor-header__actions {
+  display: flex;
+  width: max-content;
+  align-items: center;
+  gap: var(--space-1);
+  padding-right: var(--space-2);
+  flex-shrink: 0;
+}
+
+.editor-canvas,
+.editor-area__viewport {
+  min-height: 0;
+  overflow: auto;
+  padding: var(--space-5) var(--space-6) var(--space-8);
+}
+
+.editor-canvas__content,
+.editor-area__content {
+  display: grid;
+  width: min(100%, var(--content-max));
+  margin: 0 auto;
+  gap: var(--space-4);
+}
+
+.editor-canvas__content > .panel + .panel,
+.editor-area__content > .panel + .panel {
+  margin-top: 0;
+}
+
+.editor-area--layout-full-bleed > .editor-canvas,
+.editor-area--layout-full-bleed > .editor-area__viewport {
+  overflow: hidden;
+  padding: 0;
+}
+
+.editor-area--layout-full-bleed > .editor-canvas > .editor-canvas__content,
+.editor-area--layout-full-bleed > .editor-area__viewport > .editor-area__content {
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  margin: 0;
+  gap: 0;
+}
+
+.editor-groups,
+.editor-group {
+  width: 100%;
+  max-width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.editor-groups--split {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+}
+
+.editor-groups--split > .editor-group--secondary {
+  border-left: 1px solid var(--ui-chrome-border-subtle);
+}
+
+@media (max-width: 47.5rem) {
+  .editor-canvas,
+  .editor-area__viewport {
+    padding: var(--space-4) var(--space-3) var(--space-8);
+  }
+
+  .editor-area--layout-full-bleed > .editor-canvas,
+  .editor-area--layout-full-bleed > .editor-area__viewport {
+    padding: 0;
+  }
+}

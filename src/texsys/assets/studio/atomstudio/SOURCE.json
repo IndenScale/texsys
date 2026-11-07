@@ -1,0 +1,45 @@
+{
+  "source": "AtomLab / products/atom-studio",
+  "revision": "74ddfa4fb3829406278cf4a19920dfa700235b46",
+  "source_tree": "local working tree; hashes identify the exact source files",
+  "license": "MIT",
+  "adaptations": [
+    "Preact JSX and event types adapted to React; domain imports removed",
+    "Editor group layout actions belong to the Tex Studio global header",
+    "Only editor area, tabs, resizer, sizing and layout styles imported; no application, domain services, brand assets or AtomDocs runtime"
+  ],
+  "files": [
+    {
+      "path": "products/atom-studio/web/src/shell/EditorArea.tsx",
+      "sha256": "41cb1ef7520ec94b9ccf957c47edd3b5b78c53f27bab16a0debae194228b073f"
+    },
+    {
+      "path": "products/atom-studio/web/src/shell/EditorCanvas.tsx",
+      "sha256": "f056a2135f0c0cd7556e79d0e7a0913505a9e5a8f553d22854827e3a068230b9"
+    },
+    {
+      "path": "products/atom-studio/web/src/shell/EditorHeader.tsx",
+      "sha256": "10e4e40ee9b4e4f4e8afed3e48d2361601108be146000ffec43672ed43130f9b"
+    },
+    {
+      "path": "products/atom-studio/web/src/shell/EditorTabBar.tsx",
+      "sha256": "b25d1b9d196752af2bb805c7d9e5f73c7648e64b5a8a645d475b40b0de636a7c"
+    },
+    {
+      "path": "products/atom-studio/web/src/shell/ResizeHandle.tsx",
+      "sha256": "563308d25e94bc8374ca3c5add9752c17e139d7c751e6c34a4cecdfc46e98237"
+    },
+    {
+      "path": "products/atom-studio/web/src/app/layoutSizing.ts",
+      "sha256": "14cdb16302c786f302c05919483a0027754d3ba50306c1c4f54aeedea40445dd"
+    },
+    {
+      "path": "products/atom-studio/web/src/ui/workspaceChrome.tsx",
+      "sha256": "ac8bb6064f4bc8f340371d00d8928a33d0e2b52779807dc9d5402b6b1182eb14"
+    },
+    {
+      "path": "products/atom-studio/web/src/styles/editor-shell.css",
+      "sha256": "8eeba71e0ae8268514c6deabd840d26350c766f68e3ba3d4603aa3a94a4c09ec"
+    }
+  ]
+}
