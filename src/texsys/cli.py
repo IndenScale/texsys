@@ -366,5 +366,20 @@ def sim_command(
   _finish_execution(result.status, result.report, path)
 
 
+@app.command("studio")
+def studio_command(
+  path: PathOption = Path("."),
+  port: Annotated[int, typer.Option("--port", min=0, max=65535, help="Local Studio HTTP port.")] = 8710,
+  open_browser: Annotated[bool, typer.Option("--open", help="Open Studio in the default browser.")] = False,
+  hmr: Annotated[bool, typer.Option("--hmr", help="Run the Studio frontend with Vite hot module replacement.")] = False,
+) -> None:
+  """Open the plugin-based Tex Studio workbench for a local project."""
+  from texsys.studio.server import serve, serve_hmr
+  try:
+    (serve_hmr if hmr else serve)(path, port, open_browser)
+  except (ProjectError, OSError) as error:
+    _print_error(ProjectError(str(error)), code=2)
+
+
 def run() -> None:
   app()
