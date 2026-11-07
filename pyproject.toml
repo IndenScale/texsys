@@ -18,6 +18,7 @@ dependencies = [
 dev = [
   "pre-commit>=4",
   "pytest>=8",
+  "ruff>=0.8",
   "texsys-bom",
   "texsys-diagram",
   "texsys-diagram-elk",
@@ -64,3 +65,12 @@ addopts = "-q"
 markers = [
   "slow: large deterministic end-to-end fixture",
 ]
+
+[tool.ruff]
+line-length = 120
+indent-width = 2
+
+[tool.ruff.lint]
+select = ["E", "F", "W"]
+ignore = ["E501"]
+

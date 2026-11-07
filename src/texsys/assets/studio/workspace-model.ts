@@ -122,7 +122,7 @@ export type GitCommit = {
 export type GitHistory = { commits: GitCommit[]; truncated: boolean };
 /** Keep each pending parent in a lane, joining lanes when branches merge. */
 export function commitGraph(commits: GitCommit[]) {
-  let lanes: string[] = [];
+  const lanes: string[] = [];
   return commits.map((commit) => {
     if (!lanes.includes(commit.id)) lanes.push(commit.id);
     const before = [...lanes];

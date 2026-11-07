@@ -6,21 +6,27 @@
   "scripts": {
     "format": "prettier --write .",
     "format:check": "prettier --check .",
+    "lint": "markdownlint-cli2 \"**/*.md\" && eslint .",
+    "lint:es": "eslint .",
     "lint:md": "markdownlint-cli2 \"**/*.md\"",
     "test:md-rule": "node --test tools/markdownlint-rules/no-python-pip-commands.test.cjs"
   },
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
     "@types/react": "19.2.2",
     "@types/react-dom": "19.2.2",
     "@vitejs/plugin-react": "^4.7.0",
     "elkjs": "0.10.2",
     "esbuild-wasm": "0.25.12",
+    "eslint": "^10.14.0",
+    "globals": "^17.14.0",
     "markdownlint-cli2": "^0.24.0",
     "monaco-editor": "0.57.0",
     "prettier": "^3.5.2",
     "react": "19.2.0",
     "react-dom": "19.2.0",
     "typescript": "5.9.3",
+    "typescript-eslint": "^8.72.1",
     "vite": "^6.4.1"
   },
   "overrides": {

@@ -7,3 +7,15 @@ repos:
         language: system
         types: [markdown]
         pass_filenames: true
+      - id: ruff
+        name: ruff
+        entry: sh -c 'if [ -x .venv/bin/ruff ]; then exec .venv/bin/ruff check --force-exclude "$@"; elif command -v ruff >/dev/null 2>&1; then exec ruff check --force-exclude "$@"; else exec uv run ruff check --force-exclude "$@"; fi' --
+        language: system
+        types_or: [python, pyi]
+        pass_filenames: true
+      - id: eslint
+        name: eslint
+        entry: node node_modules/eslint/bin/eslint.js --no-warn-ignored
+        language: system
+        types_or: [javascript, jsx, ts, tsx]
+        pass_filenames: true

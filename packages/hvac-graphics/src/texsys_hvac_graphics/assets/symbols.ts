@@ -78,7 +78,7 @@ export function resolveGraphic(
   const template = (knownPorts || requested === "junction") && compatible ? requested : "neutral";
   let width = 150,
     height = 130;
-  let primitives: Primitive[] = [];
+  let primitives: Primitive[];
   const anchors: Record<string, [number, number]> = {};
   if (template === "chiller") {
     width = 310;
