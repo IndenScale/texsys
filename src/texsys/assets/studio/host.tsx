@@ -10,6 +10,7 @@ import {
   type ProjectFile,
   type StudioChrome,
 } from "./sdk";
+import { CoreWorkspaceProvider, WorkbenchSurface } from "./CoreWorkspace";
 import { CommandCenter } from "./CommandCenter";
 import { AnimatedPresence } from "./AnimatedPresence";
 import { ToolbarButton } from "./ToolbarButton";
@@ -34,17 +35,22 @@ async function api<T>(path: string, body?: unknown): Promise<T> {
   return data as T;
 }
 
-class WorkbenchBoundary extends Component<{ children: React.ReactNode }, { error: string }> {
+class WorkbenchBoundary extends Component<
+  { children: React.ReactNode; fallback?: React.ReactNode },
+  { error: string }
+> {
   state = { error: "" };
   static getDerivedStateFromError(error: Error) {
     return { error: error.message };
   }
   render() {
-    return this.state.error ? (
-      <Empty title="工作台暂时无法显示">{this.state.error}。请刷新项目，检查输入和插件诊断。</Empty>
-    ) : (
-      this.props.children
-    );
+    return this.state.error
+      ? (this.props.fallback ?? (
+          <Empty title="工作台暂时无法显示">
+            {this.state.error}。请刷新项目，检查输入和插件诊断。
+          </Empty>
+        ))
+      : this.props.children;
   }
 }
 
@@ -107,7 +113,7 @@ function TaskPanel({
               </button>
             ))
           ) : (
-            <p className="muted">尚未提交任务。可从暖通工作台运行检查、构建或仿真。</p>
+            <p className="muted">尚未提交任务。已启用的扩展可在这里显示运行记录。</p>
           )}
         </div>
         {job && (
@@ -166,7 +172,7 @@ function TaskPanel({
 function initialLayout(): StudioLayout {
   return {
     sidebarOpen: window.innerWidth > 760,
-    inspectorOpen: window.innerWidth > 1050,
+    inspectorOpen: false,
     bottomOpen: false,
     bottomTab: "problems",
     sidebarWidth: 248,
@@ -178,6 +184,11 @@ function initialLayout(): StudioLayout {
 const macKeys = /Mac|iPhone|iPad/.test(navigator.platform);
 
 function Studio({ plugins, chrome }: { plugins: WorkbenchPlugin[]; chrome: StudioChrome }) {
+  const [fileRequest, setFileRequest] = useState<{ path: string; token: number }>();
+  const [activityRequest, setActivityRequest] = useState<{
+    id: "explorer" | "search" | "scm";
+    token: number;
+  }>();
   const [state, setState] = useState<StudioState>();
   const [active, setActive] = useState("");
   const [commandOpen, setCommandOpen] = useState(false);
@@ -196,6 +207,22 @@ function Studio({ plugins, chrome }: { plugins: WorkbenchPlugin[]; chrome: Studi
     setCommandOpen(true);
     setCommandFocusRequest((previous) => previous + 1);
   };
+  const [coreHistory, setCoreHistory] = useState({
+    active: true,
+    canBack: false,
+    canForward: false,
+  });
+  const reportCoreHistory = useCallback(
+    (next: typeof coreHistory) =>
+      setCoreHistory((previous) =>
+        previous.active === next.active &&
+        previous.canBack === next.canBack &&
+        previous.canForward === next.canForward
+          ? previous
+          : next,
+      ),
+    [],
+  );
   const [historyStates, setHistoryStates] = useState<
     Record<string, { canBack: boolean; canForward: boolean }>
   >({});
@@ -274,18 +301,30 @@ function Studio({ plugins, chrome }: { plugins: WorkbenchPlugin[]; chrome: Studi
     }));
     setMenu(null);
   };
-  const historyState = historyStates[active] ?? { canBack: false, canForward: false };
+  const historyState = coreHistory.active
+    ? coreHistory
+    : (historyStates[active] ?? { canBack: false, canForward: false });
   const invokeCommand = (id: string) => {
     setMenu(null);
     switch (id) {
       case "commands.open":
         openCommands("commands");
         break;
+      case "workspace.explorer":
+      case "workspace.search":
+      case "workspace.scm":
+        setActivityRequest((previous) => ({
+          id: id.split(".")[1] as "explorer" | "search" | "scm",
+          token: (previous?.token ?? 0) + 1,
+        }));
+        break;
       case "files.search":
         openCommands("files");
         break;
       case "project.overview":
-        requestNavigation("overview");
+        if (!current)
+          setActivityRequest((previous) => ({ id: "explorer", token: (previous?.token ?? 0) + 1 }));
+        else requestNavigation("overview");
         break;
       case "project.refresh":
         void refresh();
@@ -341,7 +380,8 @@ function Studio({ plugins, chrome }: { plugins: WorkbenchPlugin[]; chrome: Studi
       disabled:
         !state ||
         (item.id === "navigation.back" && !historyState.canBack) ||
-        (item.id === "navigation.forward" && !historyState.canForward),
+        (item.id === "navigation.forward" && !historyState.canForward) ||
+        (item.id === "help.capabilities" && !current),
       checked:
         item.id === "view.sidebar"
           ? layout.sidebarOpen
@@ -410,14 +450,7 @@ function Studio({ plugins, chrome }: { plugins: WorkbenchPlugin[]; chrome: Studi
     };
   }, [commandOpen, commandFocusRequest, commandScope]);
   const openFile = (file: ProjectFile) => {
-    setNavigation((previous) => ({
-      ...previous,
-      [active]: {
-        command: "file.open",
-        path: file.path,
-        token: (previous[active]?.token ?? 0) + 1,
-      },
-    }));
+    setFileRequest((previous) => ({ path: file.path, token: (previous?.token ?? 0) + 1 }));
   };
   const branch = state?.project.branch;
   const branchLabel =
@@ -530,60 +563,93 @@ function Studio({ plugins, chrome }: { plugins: WorkbenchPlugin[]; chrome: Studi
         )}
         {!state ? (
           <Empty title="正在打开工作空间">读取项目、专业和运行记录。</Empty>
-        ) : available.length === 0 ? (
-          <Empty title="没有可用的专业工作台">
-            安装兼容的专业插件后重新启动。
-            {state.diagnostics.map((item) => (
-              <span key={item.message}>{item.message}</span>
-            ))}
-          </Empty>
         ) : (
-          available.map((plugin) => {
-            const Workbench = plugin.Workbench,
-              id = plugin.manifest.id;
-            return (
-              <div key={id} hidden={id !== active} className="professional-workbench">
-                <WorkbenchBoundary>
-                  <Workbench
+          <CoreWorkspaceProvider
+            state={state}
+            api={api}
+            refresh={refresh}
+            notify={notify}
+            changeLayout={(patch) => updateLayout(active, patch)}
+            fileRequest={fileRequest}
+            activityRequest={activityRequest}
+            navigationRequest={navigation[active]}
+            onNavigationState={reportCoreHistory}
+            hasDomain={available.length > 0}
+          >
+            {available.length === 0 ? (
+              <WorkbenchSurface
+                layout={layout}
+                change={(patch) => updateLayout(active, patch)}
+                bottom={
+                  <TaskPanel
                     state={state}
-                    data={state.data[id]}
                     refresh={refresh}
-                    api={api}
                     notify={notify}
-                    layout={layouts[id] ?? defaultLayout}
-                    changeLayout={(patch) => updateLayout(id, patch)}
-                    showTasks={(jobId) => {
-                      setTaskId(jobId);
-                      updateLayout(id, { bottomOpen: true, bottomTab: "tasks" });
-                    }}
-                    taskResult={taskResult}
-                    navigationRequest={navigation[id]}
-                    onNavigationState={(next) =>
-                      setHistoryStates((previous) =>
-                        previous[id]?.canBack === next.canBack &&
-                        previous[id]?.canForward === next.canForward
-                          ? previous
-                          : { ...previous, [id]: next },
-                      )
-                    }
-                    taskPanel={
-                      <TaskPanel
-                        state={state}
-                        refresh={refresh}
-                        notify={notify}
-                        initialJob={taskId}
-                        openResult={(job) => {
-                          setActive(job.plugin);
-                          setTaskResult((previous) => ({ job, token: (previous?.token ?? 0) + 1 }));
-                          updateLayout(job.plugin, { bottomOpen: false });
-                        }}
-                      />
-                    }
+                    openResult={() => {}}
                   />
-                </WorkbenchBoundary>
-              </div>
-            );
-          })
+                }
+              />
+            ) : (
+              available.map((plugin) => {
+                const Workbench = plugin.Workbench,
+                  id = plugin.manifest.id;
+                return (
+                  <div key={id} hidden={id !== active} className="professional-workbench">
+                    <WorkbenchBoundary
+                      fallback={
+                        <WorkbenchSurface
+                          layout={layouts[id] ?? defaultLayout}
+                          change={(patch) => updateLayout(id, patch)}
+                        >
+                          <Empty title="专业预览暂时无法显示">请检查项目输入和插件诊断。</Empty>
+                        </WorkbenchSurface>
+                      }
+                    >
+                      <Workbench
+                        state={state}
+                        data={state.data[id]}
+                        refresh={refresh}
+                        api={api}
+                        notify={notify}
+                        layout={layouts[id] ?? defaultLayout}
+                        changeLayout={(patch) => updateLayout(id, patch)}
+                        showTasks={(jobId) => {
+                          setTaskId(jobId);
+                          updateLayout(id, { bottomOpen: true, bottomTab: "tasks" });
+                        }}
+                        taskResult={taskResult}
+                        navigationRequest={navigation[id]}
+                        onNavigationState={(next) =>
+                          setHistoryStates((previous) =>
+                            previous[id]?.canBack === next.canBack &&
+                            previous[id]?.canForward === next.canForward
+                              ? previous
+                              : { ...previous, [id]: next },
+                          )
+                        }
+                        taskPanel={
+                          <TaskPanel
+                            state={state}
+                            refresh={refresh}
+                            notify={notify}
+                            initialJob={taskId}
+                            openResult={(job) => {
+                              setActive(job.plugin);
+                              setTaskResult((previous) => ({
+                                job,
+                                token: (previous?.token ?? 0) + 1,
+                              }));
+                              updateLayout(job.plugin, { bottomOpen: false });
+                            }}
+                          />
+                        }
+                      />
+                    </WorkbenchBoundary>
+                  </div>
+                );
+              })
+            )}
+          </CoreWorkspaceProvider>
         )}
       </main>
       <footer className="studio-statusbar" aria-label="工作空间状态">
@@ -639,7 +705,7 @@ function Studio({ plugins, chrome }: { plugins: WorkbenchPlugin[]; chrome: Studi
             aria-expanded={menu === "discipline"}
             onClick={() => setMenu(menu === "discipline" ? null : "discipline")}
           >
-            <span>{current?.manifest.discipline ?? "选择专业"}</span>
+            <span>{current?.manifest.discipline ?? "通用编辑"}</span>
             <Icon name="chevron" size={13} />
           </button>
           <AnimatedPresence show={menu === "discipline"}>
@@ -682,7 +748,7 @@ function Studio({ plugins, chrome }: { plugins: WorkbenchPlugin[]; chrome: Studi
           <i className={error ? "offline-dot" : "online-dot"} />
           {error ? "连接中断" : "本地"}
         </span>
-        <span className="statusbar-review">概念设计 · 待工程审核</span>
+        {current && <span className="statusbar-review">概念设计 · 待工程审核</span>}
         <span className="statusbar-revision" title={state?.project.revision}>
           {state ? `修订 ${state.project.revision.slice(7, 15)}` : "读取中"}
         </span>

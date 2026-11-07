@@ -13,7 +13,9 @@ from urllib.parse import parse_qs, urlparse
 
 from texsys.project import ProjectError
 from .runtime import Conflict, StudioRuntime
-from .files import project_file, project_files
+from .files import file_operation, project_file, project_files, search_project
+from .search import replacement
+from .source_control import source_diff, source_operation, source_status, source_history, source_commit_diff, repository
 
 ASSETS = Path(__file__).parents[1] / "assets" / "studio"
 
@@ -39,6 +41,11 @@ def compile_frontend(runtime: StudioRuntime):
 def create_server(runtime: StudioRuntime, port=8710, frontend=None, token=None):
   frontend = compile_frontend(runtime) if frontend is None else frontend
   token = token or secrets.token_urlsafe(32)
+
+  def scm_root(scope):
+    if scope not in {"project", "repository"}:
+      raise ProjectError("未知的源码管理范围。")
+    return (repository(runtime.root) or runtime.root) if scope == "repository" else runtime.root
 
   class Handler(BaseHTTPRequestHandler):
     def log_message(self, *_):
@@ -83,6 +90,9 @@ def create_server(runtime: StudioRuntime, port=8710, frontend=None, token=None):
                 '<script src="/studio.js" defer></script></body></html>')
         self._send(200, page.encode(), "text/html; charset=utf-8")
         return
+      if parsed.path == "/favicon.ico":
+        self._send(204, b"", "image/x-icon")
+        return
       if parsed.path in {"/studio.js", "/studio.css"}:
         file = frontend / parsed.path[1:]
         if file.is_file():
@@ -100,6 +110,36 @@ def create_server(runtime: StudioRuntime, port=8710, frontend=None, token=None):
         elif parsed.path == "/api/file":
           relative = parse_qs(parsed.query).get("path", [""])[0]
           self._send(200, project_file(runtime.root, relative, runtime.project.build))
+        elif parsed.path == "/api/search":
+          query = parse_qs(parsed.query)
+          self._send(200, search_project(runtime.root, runtime.project.build, query.get("q", [""])[0],
+                     case_sensitive=query.get("case", [""])[0] == "true", include=query.get("include", [""])[0],
+                     exclude=query.get("exclude", [""])[0], whole_word=query.get("word", [""])[0] == "true",
+                     regex=query.get("regex", [""])[0] == "true"))
+        elif parsed.path == "/api/scm":
+          with runtime.lock:
+            scope = parse_qs(parsed.query).get("scope", ["project"])[0]
+            root = scm_root(scope)
+            result = source_status(root, runtime.project.build if root == runtime.root else "build")
+            result["project_prefix"] = runtime.root.relative_to(root).as_posix() if root != runtime.root else ""
+            self._send(200, result)
+        elif parsed.path == "/api/scm/history":
+          query = parse_qs(parsed.query)
+          try:
+            limit = int(query.get("limit", ["50"])[0])
+          except ValueError:
+            raise ProjectError("历史条数必须是整数。")
+          with runtime.lock:
+            self._send(200, source_history(runtime.root, limit))
+        elif parsed.path == "/api/scm/commit":
+          with runtime.lock:
+            self._send(200, source_commit_diff(scm_root(parse_qs(parsed.query).get("scope", ["project"])[0]), parse_qs(parsed.query).get("id", [""])[0]))
+        elif parsed.path == "/api/scm/diff":
+          query = parse_qs(parsed.query)
+          with runtime.lock:
+            root = scm_root(query.get("scope", ["project"])[0])
+            self._send(200, source_diff(root, runtime.project.build if root == runtime.root else "build", query.get("path", [""])[0],
+                       staged=query.get("staged", [""])[0] == "true"))
         elif parsed.path == "/api/artifact":
           relative = parse_qs(parsed.query).get("path", [""])[0]
           file = (runtime.root / relative).resolve()
@@ -121,12 +161,23 @@ def create_server(runtime: StudioRuntime, port=8710, frontend=None, token=None):
         return
       try:
         length = int(self.headers.get("Content-Length", "0"))
-        if not 0 < length <= 1_000_000:
-          raise ProjectError("Request body must contain at most 1 MB of JSON.")
+        if not 0 < length <= 8 * 1024 * 1024:
+          raise ProjectError("Request body must contain at most 8 MiB of JSON.")
         body = json.loads(self.rfile.read(length))
         if not isinstance(body, dict):
           raise ProjectError("Request must be an object.")
-        if self.path == "/api/edit":
+        if self.path == "/api/search/replace":
+          with runtime.lock:
+            result = replacement(runtime.root, runtime.project.build, body)
+        elif self.path == "/api/file":
+          with runtime.lock:
+            result = file_operation(runtime.root, runtime.project.build, body)
+        elif self.path == "/api/scm":
+          with runtime.lock:
+            root = scm_root(body.get("scope", "project"))
+            result = source_operation(root, runtime.project.build if root == runtime.root else "build", body)
+            result["project_prefix"] = runtime.root.relative_to(root).as_posix() if root != runtime.root else ""
+        elif self.path == "/api/edit":
           result = runtime.edit(body)
         elif self.path == "/api/jobs":
           result = runtime.submit(body)

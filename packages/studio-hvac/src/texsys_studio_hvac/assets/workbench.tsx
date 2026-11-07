@@ -1,3 +1,7 @@
+import {
+  WorkbenchSurface,
+  useCoreWorkspace,
+} from "../../../../../src/texsys/assets/studio/CoreWorkspace";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { WorkbenchPlugin, WorkbenchProps } from "../../../../../src/texsys/assets/studio/sdk";
 import { labels } from "../../../../../src/texsys/assets/studio/sdk";
@@ -26,10 +30,6 @@ import {
   type Issue,
   type Selection,
 } from "./model";
-import {
-  WorkbenchLayout,
-  ActivityBar,
-} from "../../../../../src/texsys/assets/studio/atomstudio/Layout";
 import { EditorArea } from "../../../../../src/texsys/assets/studio/atomstudio/EditorArea";
 import {
   WorkspaceTabStrip,
@@ -179,6 +179,8 @@ function Workspace({
   navigationRequest,
   onNavigationState,
 }: WorkbenchProps & { data: Data }) {
+  const core = useCoreWorkspace();
+  const activateDomain = core?.activateDomain;
   const source = data.source!;
   const instances = source.components[source.root]?.instances ?? {};
   const entries = Object.entries(instances);
@@ -251,12 +253,16 @@ function Workspace({
   );
   const sourceLines = JSON.stringify(source, null, 2).split("\n");
   const objectLine = sourceObjectLine(source, selection);
-  const openView = useCallback((next: View) => {
-    setDocuments((previous) => (previous.includes(next) ? previous : [...previous, next]));
-    setView(next);
-    setHistory((previous) => visitDocument(previous, next));
-    setPlayback((previous) => ({ ...previous, playing: false }));
-  }, []);
+  const openView = useCallback(
+    (next: View) => {
+      activateDomain?.();
+      setDocuments((previous) => (previous.includes(next) ? previous : [...previous, next]));
+      setView(next);
+      setHistory((previous) => visitDocument(previous, next));
+      setPlayback((previous) => ({ ...previous, playing: false }));
+    },
+    [activateDomain],
+  );
   const setInspectorOpen = (inspectorOpen: boolean) => changeLayout({ inspectorOpen });
   const choose = (next: Selection, reveal = true) => {
     if (hasDraft && (next.id !== selection?.id || next.kind !== selection?.kind)) {
@@ -331,7 +337,7 @@ function Workspace({
   }, [view]);
   const drawingCamera = useDrawingViewport(
     viewport,
-    view === "design" && !!diagram,
+    view === "design" && !!diagram && !core?.documentActive,
     `${drawingView}:${diagram?.pages[0]?.width}:${diagram?.pages[0]?.height}`,
     diagram?.pages[0]?.width ?? 1,
     diagram?.pages[0]?.height ?? 1,
@@ -392,6 +398,7 @@ function Workspace({
       setFilePath(navigationRequest.path);
       openView("file");
     } else if (command === "navigation.back" || command === "navigation.forward") {
+      if (core?.documentActive) return;
       const next = stepDocument(history, command === "navigation.back" ? -1 : 1);
       if (next === history) return;
       const target = next.entries[next.index];
@@ -516,7 +523,6 @@ function Workspace({
       count: currentIssues.length,
     },
     { id: "outputs", label: "成果文件", icon: <Icon name="download" size={18} /> },
-    { id: "files", label: "项目文件", icon: <Icon name="folder" size={18} /> },
   ];
   const sidebar = (
     <>
@@ -575,8 +581,11 @@ function Workspace({
                   className={selection?.kind === "instance" && selected === id ? "selected" : ""}
                   onClick={() => {
                     if (choose({ kind: "instance", id })) {
-                      if (!["design", "equipment", "simulation", "source"].includes(view))
-                        openView("design");
+                      openView(
+                        ["design", "equipment", "simulation", "source"].includes(view)
+                          ? view
+                          : "design",
+                      );
                     }
                   }}
                 >
@@ -738,7 +747,7 @@ function Workspace({
               ? source.root
               : info(id).label,
         icon: info(id).icon,
-        focused: view === id,
+        focused: view === id && !core?.documentActive,
         dirty: hasDraft && ["design", "equipment", "source"].includes(id),
         dirtyLabel: "有未保存参数",
         action: { label: `关闭文档 ${info(id).label}`, icon: "close" },
@@ -945,19 +954,16 @@ function Workspace({
   );
   return (
     <div className="hvac-workbench">
-      <WorkbenchLayout
+      <WorkbenchSurface
         layout={layout}
         change={changeLayout}
-        activity={
-          <ActivityBar
-            active={activity}
-            items={activityItems}
-            select={(id) => {
-              setActivity(id);
-              changeLayout({ sidebarOpen: true });
-            }}
-          />
-        }
+        activityItems={activityItems}
+        activeActivity={activity}
+        onActivity={(id) => {
+          setActivity(id);
+          changeLayout({ sidebarOpen: true });
+        }}
+        tabs={tabs}
         sidebar={sidebar}
         bottom={bottom}
         inspector={
@@ -980,10 +986,9 @@ function Workspace({
         }
       >
         <EditorArea
-          tabs={tabs}
           breadcrumb={breadcrumb}
           headerActions={headerActions}
-          chrome="tabs-and-breadcrumb"
+          chrome="breadcrumb-only"
           layout="full-bleed"
         >
           <div
@@ -1742,7 +1747,7 @@ function Workspace({
             )}
           </div>
         </EditorArea>
-      </WorkbenchLayout>
+      </WorkbenchSurface>
     </div>
   );
 }
@@ -1750,7 +1755,11 @@ function Workspace({
 function HvacWorkbench(props: WorkbenchProps) {
   const data = props.data as Data;
   if (!data || data.error || !data.source)
-    return <Empty title="无法读取暖通项目">{data?.error ?? "当前项目没有可用的系统模型。"}</Empty>;
+    return (
+      <WorkbenchSurface layout={props.layout} change={props.changeLayout}>
+        <Empty title="无法读取暖通预览">{data?.error ?? "当前项目没有可用的系统模型。"}</Empty>
+      </WorkbenchSurface>
+    );
   return <Workspace {...props} data={data} />;
 }
 const plugin: WorkbenchPlugin = {

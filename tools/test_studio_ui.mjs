@@ -285,3 +285,95 @@ test("file search ranks exact names and filters case-insensitive path terms", ()
   assert.equal(filterFiles(files, "systjs")[0].path, "src/system.json");
   assert.equal(filterFiles(files, "missing-unique-filename").length, 0);
 });
+
+const { visibleFileTree, gitGroups, sourceOffset, commitGraph } = load(
+  "src/texsys/assets/studio/workspace-model.ts",
+);
+test("Explorer preserves empty directories and expands ancestors without duplicating them", () => {
+  const listing = {
+    files: [
+      { path: "src/nested/model.json", name: "model.json", parent: "src/nested", size: 1 },
+      { path: "README.md", name: "README.md", parent: "", size: 1 },
+    ],
+    directories: ["src", "src/nested", "empty"],
+    truncated: false,
+  };
+  assert.deepEqual(
+    visibleFileTree(listing, new Set()).map((entry) => entry.path),
+    ["empty", "src", "README.md"],
+  );
+  const rows = visibleFileTree(listing, new Set(["src", "src/nested"]));
+  assert.equal(rows.filter((entry) => entry.path === "src").length, 1);
+  assert.equal(rows.find((entry) => entry.path === "src/nested/model.json").depth, 2);
+});
+test("Source Control shows partially staged files in both change groups", () => {
+  const entry = { path: "model", index: "M", worktree: "M" };
+  assert.deepEqual(gitGroups({ entries: [entry] }), { staged: [entry], changes: [entry] });
+  assert.equal(
+    gitGroups({ entries: [{ path: "new", index: "?", worktree: "?" }] }).staged.length,
+    0,
+  );
+});
+test("Search navigation converts Unicode code point columns to textarea UTF-16 offsets", () => {
+  const text = "heading\n😀 Pump pump\n";
+  assert.equal(text.slice(sourceOffset(text, 2, 3), sourceOffset(text, 2, 7)), "Pump");
+  assert.equal(sourceOffset("a\r\nb", 2, 1), 3);
+});
+
+test("commit graph joins merge parents without duplicate lanes", () => {
+  const commits = [
+    { id: "merge", parents: ["main", "feature"] },
+    { id: "feature", parents: ["base"] },
+    { id: "main", parents: ["base"] },
+    { id: "base", parents: [] },
+  ];
+  const rows = commitGraph(commits);
+  assert.deepEqual(rows[0].after, ["main", "feature"]);
+  assert.equal(rows[1].lane, 1);
+  assert.deepEqual(rows[2].after, ["base"]);
+  assert.deepEqual(rows[3].after, []);
+  assert.equal(rows[3].lane, 0);
+});
+
+const { groupCodeSearchResults, searchLineSegments } = load(
+  "src/texsys/assets/studio/code-search-model.ts",
+);
+test("Code Search groups same-line occurrences and retains occurrence counts", () => {
+  const results = {
+    matches: [1, 2, 3, 4],
+    lines: [
+      {
+        path: "README.md",
+        line: 20,
+        text: "test test",
+        count: 4,
+        matches: [
+          { column: 1, end_column: 5, offset: 0, length: 4 },
+          { column: 6, end_column: 10, offset: 5, length: 4 },
+        ],
+      },
+    ],
+  };
+  const groups = groupCodeSearchResults(results);
+  assert.equal(groups.length, 1);
+  assert.equal(groups[0].lines.length, 1);
+  assert.equal(groups[0].count, 4);
+});
+test("Code Search highlights Unicode offsets without splitting surrogate pairs", () => {
+  const line = {
+    path: "model",
+    line: 1,
+    text: "😀 test test",
+    count: 2,
+    matches: [
+      { column: 3, end_column: 7, offset: 2, length: 4 },
+      { column: 8, end_column: 12, offset: 7, length: 4 },
+    ],
+  };
+  const segments = searchLineSegments(line);
+  assert.equal(segments.map((segment) => segment.text).join(""), line.text);
+  assert.deepEqual(
+    segments.filter((segment) => segment.match).map((segment) => segment.text),
+    ["test", "test"],
+  );
+});

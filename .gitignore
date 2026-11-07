@@ -33,3 +33,7 @@ __pycache__/
 *.rar
 *.zip
 *.dwg
+
+# Studio browser acceptance artifacts
+.playwright-cli/
+output/playwright/

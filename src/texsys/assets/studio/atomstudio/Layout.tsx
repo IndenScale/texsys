@@ -42,6 +42,7 @@ export function WorkbenchLayout({
         {activity}
       </nav>
       <aside
+        id="studio-resource-panel"
         className="workbench-navigator"
         aria-label="资源浏览器"
         inert={!layout.sidebarOpen}
@@ -126,7 +127,7 @@ export function ActivityBar({
   select,
 }: {
   active: string;
-  items: { id: string; label: string; icon: ReactNode; count?: number }[];
+  items: { id: string; label: string; icon: ReactNode; count?: number; extensionStart?: boolean }[];
   select: (id: string) => void;
 }) {
   const ref = React.useRef<HTMLDivElement>(null);
@@ -159,8 +160,9 @@ export function ActivityBar({
         <button
           key={item.id}
           role="tab"
+          className={item.extensionStart ? "extension-start" : undefined}
           aria-selected={item.id === active}
-          aria-controls="activity-resource-panel"
+          aria-controls="studio-resource-panel"
           aria-label={item.label}
           title={item.label}
           tabIndex={item.id === active ? 0 : -1}

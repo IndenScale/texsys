@@ -22,6 +22,24 @@ export const studioMenus: MenuGroup[] = [
     label: "视图",
     items: [
       {
+        id: "workspace.explorer",
+        label: "文件资源管理器",
+        icon: "files",
+        keywords: "Explorer 文件树",
+      },
+      {
+        id: "workspace.search",
+        label: "搜索项目内容",
+        icon: "search",
+        keywords: "Search 全文搜索",
+      },
+      {
+        id: "workspace.scm",
+        label: "源代码管理",
+        icon: "branch",
+        keywords: "Source Control Git 版本控制",
+      },
+      {
         id: "view.sidebar",
         label: "资源面板",
         icon: "sidebar",

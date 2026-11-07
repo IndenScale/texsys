@@ -21,7 +21,7 @@ export type EditorAreaLayout = "contained" | "full-bleed";
  * 3. Canvas (viewport for surface rendering)
  */
 export function EditorArea(props: {
-  tabs: ComponentChildren;
+  tabs?: ComponentChildren;
   breadcrumb?: ComponentChildren;
   headerActions?: ComponentChildren;
   chrome: EditorAreaChrome;

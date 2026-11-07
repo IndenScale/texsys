@@ -58,6 +58,7 @@ export type FilePreview = {
   previewable: boolean;
   content?: string;
   reason?: string;
+  version?: string;
 };
 export type WorkbenchProps = {
   state: StudioState;

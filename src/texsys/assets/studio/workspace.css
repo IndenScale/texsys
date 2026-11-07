@@ -1,0 +1,942 @@
+/* Editor chrome stays quiet; source, previews and changes share the same document space. */
+.core-sidebar {
+  --tree-base: 8px;
+  --tree-indent: 8px;
+  --tree-twistie-size: 16px;
+  --tree-icon-size: 16px;
+  --tree-guide-color: #d1dade;
+  --tree-active-guide-color: #81999e;
+  --explorer-label-inset: 26px;
+  height: 100%;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  color: var(--ui-text);
+}
+.core-heading {
+  height: 36px;
+  flex-shrink: 0;
+  padding: 0 12px 0 var(--explorer-label-inset, 20px);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+}
+.core-heading strong {
+  font-size: 13px;
+  font-weight: 550;
+  color: var(--ui-text);
+  white-space: nowrap;
+}
+.core-tools {
+  display: flex;
+  align-items: center;
+  gap: 1px;
+}
+.core-tool {
+  width: 24px;
+  height: 24px;
+  padding: 3px;
+  border-radius: 3px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.core-tool:hover {
+  background: var(--ui-control-hover);
+}
+.core-resource {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  position: relative;
+}
+.core-project-row {
+  display: flex;
+  align-items: center;
+  min-height: 28px;
+}
+.core-project-root {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 0;
+  min-height: 28px;
+  padding: 3px 10px 3px var(--tree-base);
+  text-align: left;
+}
+.core-project-root strong {
+  min-width: 0;
+  font-size: 13px;
+  font-weight: 550;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.core-project-tools {
+  flex-shrink: 0;
+  margin-right: 7px;
+}
+.core-file-tree {
+  padding: 0 0 10px;
+}
+.core-tree-row {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 0;
+  height: 24px;
+  width: 100%;
+  text-align: left;
+  padding: 0 10px 0 calc(var(--tree-base) + var(--tree-depth) * var(--tree-indent));
+  font-size: 13px;
+  line-height: 20px;
+}
+.core-entry-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.core-tree-twistie,
+.core-tree-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 var(--tree-twistie-size);
+  width: var(--tree-twistie-size);
+  height: 20px;
+  margin-right: 2px;
+  pointer-events: none;
+  color: var(--ui-icon-muted);
+}
+.core-tree-icon {
+  flex-basis: var(--tree-icon-size);
+  width: var(--tree-icon-size);
+  margin-right: 6px;
+}
+.core-tree-guides {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.core-tree-guide {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: calc(
+    var(--tree-base) + var(--tree-twistie-size) / 2 + var(--guide-depth) * var(--tree-indent)
+  );
+  border-left: 1px solid var(--tree-guide-color);
+  opacity: 0;
+}
+.core-file-tree:hover .core-tree-guide,
+.core-file-tree:focus-within .core-tree-guide {
+  opacity: 1;
+}
+.core-file-tree:is(:hover, :focus-within) .core-tree-guide.active {
+  border-color: var(--tree-active-guide-color);
+}
+.core-tree-row:focus-visible {
+  outline-offset: -1px;
+}
+.core-tree-row:hover,
+.core-change-row:hover {
+  background: var(--ui-control-hover);
+}
+.core-tree-row.selected {
+  background: #e1ecee;
+  color: #185f66;
+}
+.core-dirty {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #788c94;
+  display: inline-block;
+  flex-shrink: 0;
+}
+.core-tree-row .core-dirty {
+  margin-left: 6px;
+}
+.core-hint {
+  font-size: 11px;
+  line-height: 1.6;
+  color: var(--ui-text-muted);
+  padding: 0 12px;
+  overflow-wrap: anywhere;
+}
+.core-error {
+  font-size: 12px;
+  color: #a34236;
+  line-height: 1.6;
+  padding: 0 12px;
+  overflow-wrap: anywhere;
+}
+.core-section-heading {
+  min-height: 28px;
+  padding: 5px 10px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+}
+.core-section-heading > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.core-section-heading > strong {
+  font-weight: 550;
+}
+.core-section-heading > small {
+  margin-left: auto;
+  font-size: 10px;
+  color: var(--ui-text-muted);
+}
+.core-scm-summary {
+  display: flex;
+  gap: 7px;
+  align-items: center;
+  padding: 8px 12px 0;
+  font-size: 12px;
+}
+.core-scm-summary strong {
+  font-weight: 500;
+}
+.core-scm-summary > span {
+  font-size: 10px;
+  color: var(--ui-text-muted);
+}
+.core-commit {
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+.core-commit textarea {
+  width: 100%;
+  min-height: 54px;
+  resize: vertical;
+  border-radius: 3px;
+  font-size: 12px;
+}
+.core-primary {
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  gap: 6px;
+  background: #087f72;
+  color: white;
+  padding: 6px 10px;
+  border-radius: 3px;
+  font-size: 12px;
+}
+.core-primary:hover:not(:disabled) {
+  background: #076d63;
+}
+.core-change-row {
+  display: flex;
+  align-items: center;
+  padding-right: 6px;
+}
+.core-change-row > button:first-child {
+  display: flex;
+  gap: 7px;
+  align-items: center;
+  min-width: 0;
+  flex: 1;
+  text-align: left;
+  padding: 5px 6px 5px 16px;
+  font-size: 12px;
+}
+.core-change-row > button > span {
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.core-change-row small {
+  font-size: 10px;
+  color: var(--ui-text-muted);
+  margin-left: 6px;
+}
+.core-git-code {
+  margin-left: auto;
+  font:
+    11px ui-monospace,
+    SFMono-Regular,
+    Menlo,
+    monospace;
+  color: #a47725;
+  padding: 0 3px;
+}
+.core-git-code.code-A,
+.core-git-code.code-\? {
+  color: #208168;
+}
+.core-git-code.code-D,
+.core-git-code.code-U {
+  color: #a34236;
+}
+.core-scm-empty {
+  padding: 25px 14px;
+  text-align: center;
+  color: var(--ui-text-muted);
+  font-size: 12px;
+}
+.core-editor-surface {
+  height: 100%;
+  min-height: 0;
+  min-width: 0;
+  display: grid;
+  grid-template-rows: 36px minmax(0, 1fr);
+  background: white;
+}
+.core-document-tabs {
+  display: flex;
+  overflow-x: auto;
+  overflow-y: hidden;
+  min-width: 0;
+  background: var(--ui-workspace-chrome);
+  border-bottom: 1px solid var(--ui-chrome-divider);
+}
+.core-file-tabs {
+  display: flex;
+  flex-shrink: 0;
+  min-width: 0;
+}
+.core-file-tab {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+  border-right: 1px solid var(--ui-chrome-divider);
+  border-top: 2px solid transparent;
+  padding: 0 4px 0 10px;
+  max-width: 230px;
+  font-size: 12px;
+}
+.core-file-tab.active {
+  border-top-color: #087f72;
+  background: white;
+}
+.core-file-tab > button[role="tab"] {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+  height: 100%;
+  padding: 0;
+}
+.core-file-tab > button[role="tab"] > span:not(.core-dirty) {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.core-domain-tabs {
+  flex-shrink: 0;
+  min-width: 0;
+}
+.core-domain-tabs.inactive .page-tab.is-focused {
+  background: transparent;
+  border-top-color: transparent;
+}
+.core-surface-content,
+.core-document-content,
+.core-domain-content {
+  min-width: 0;
+  min-height: 0;
+  height: 100%;
+}
+.core-domain-content > .editor-area {
+  height: 100%;
+}
+.core-document-header {
+  height: 35px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 0 14px;
+  border-bottom: 1px solid var(--ui-context-divider);
+  background: var(--ui-context-chrome);
+  font-size: 12px;
+}
+.core-document-header > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.core-document-header > div {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-shrink: 0;
+}
+.core-save-state {
+  font-size: 11px;
+  color: var(--ui-text-muted);
+}
+.core-save-button {
+  font-size: 11px;
+  padding: 3px 7px;
+  border-radius: 3px;
+  background: #e6f3ef;
+  color: #087f72;
+}
+.core-text-document {
+  display: grid;
+  height: 100%;
+  min-height: 0;
+  grid-template-rows: 35px minmax(0, 1fr) 24px;
+}
+.core-code-editor {
+  display: flex;
+  min-height: 0;
+  overflow: hidden;
+}
+.core-code-gutter {
+  white-space: pre;
+  width: 57px;
+  flex-shrink: 0;
+  padding: 12px 12px 12px 0;
+  overflow: hidden;
+  text-align: right;
+  color: #95a1a9;
+  user-select: none;
+  background: #fbfcfc;
+  font:
+    12px/21px ui-monospace,
+    SFMono-Regular,
+    Menlo,
+    Consolas,
+    monospace;
+}
+.core-code-editor textarea {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  resize: none;
+  border: 0;
+  border-radius: 0;
+  padding: 12px 16px;
+  outline-offset: -2px;
+  white-space: pre;
+  tab-size: 2;
+  color: #263b46;
+  font:
+    12px/21px ui-monospace,
+    SFMono-Regular,
+    Menlo,
+    Consolas,
+    monospace;
+}
+.core-editor-status {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-top: 1px solid #edf0f2;
+  padding: 0 12px;
+  font-size: 10px;
+  color: var(--ui-text-muted);
+}
+.core-welcome {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  padding: 28px;
+  color: var(--ui-text-muted);
+  text-align: center;
+}
+.core-welcome h2 {
+  margin: 6px 0 0;
+  font-size: 18px;
+  color: var(--ui-text);
+  font-weight: 500;
+}
+.core-welcome p {
+  font-size: 12px;
+  margin: 0 0 10px;
+  line-height: 1.7;
+}
+.core-diff-document {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+.core-diff-document .core-document-header {
+  flex-shrink: 0;
+}
+.core-diff-document pre {
+  margin: 0;
+  padding: 12px 0;
+  flex: 1;
+  overflow: auto;
+  font:
+    12px/21px ui-monospace,
+    SFMono-Regular,
+    Menlo,
+    Consolas,
+    monospace;
+}
+.core-diff-document pre > div {
+  padding: 0 16px;
+  min-width: max-content;
+}
+.core-diff-document .added {
+  background: #eaf5ed;
+  color: #23623f;
+}
+.core-diff-document .removed {
+  background: #fbecea;
+  color: #943b35;
+}
+.core-diff-document .hunk {
+  background: #edf3f7;
+  color: #4d7187;
+}
+.core-dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  background: #172d3c38;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.core-dialog {
+  width: min(440px, calc(100vw - 32px));
+  background: white;
+  padding: 20px;
+  border: 1px solid var(--ui-border);
+  border-radius: 5px;
+  box-shadow: 0 12px 40px #172d3c24;
+  font-size: 13px;
+}
+.core-dialog > strong {
+  font-size: 15px;
+  font-weight: 550;
+}
+.core-dialog > label {
+  display: block;
+  margin-top: 16px;
+  font-size: 12px;
+  color: var(--ui-text-muted);
+}
+.core-dialog input {
+  display: block;
+  width: 100%;
+  margin-top: 6px;
+}
+.core-dialog > p {
+  overflow-wrap: anywhere;
+  line-height: 1.7;
+}
+.core-dialog .core-error {
+  padding: 0;
+}
+.core-dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 10px;
+  margin-top: 17px;
+}
+.core-dialog-actions > button {
+  padding: 6px 10px;
+  font-size: 12px;
+}
+.activity-bar > button.extension-start {
+  margin-top: 13px;
+}
+.activity-bar > button.extension-start::before {
+  content: "";
+  position: absolute;
+  height: 1px;
+  top: -9px;
+  left: 4px;
+  right: 4px;
+  background: var(--ui-chrome-divider);
+}
+
+.core-project-root[aria-expanded="false"] > .core-tree-twistie > svg,
+.core-tree-row[aria-expanded="false"] > .core-tree-twistie > svg {
+  transform: rotate(-90deg);
+}
+
+.core-sidebar-slot,
+.core-inspector-slot {
+  height: 100%;
+  min-height: 0;
+}
+.core-sidebar-slot {
+  display: flex;
+  flex-direction: column;
+}
+.core-file-properties dl {
+  margin: 10px 15px;
+  font-size: 12px;
+}
+.core-file-properties dt {
+  color: var(--ui-text-muted);
+  margin-top: 17px;
+  font-size: 11px;
+}
+.core-file-properties dd {
+  margin: 5px 0 0;
+  overflow-wrap: anywhere;
+  line-height: 1.6;
+}
+.core-domain-tabs.inactive .page-tab.is-focused::before {
+  display: none;
+}
+.core-document-tabs {
+  scrollbar-width: thin;
+}
+
+.core-compare-dialog {
+  width: min(1000px, calc(100vw - 32px));
+}
+.core-compare-columns {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 12px;
+  margin-top: 16px;
+}
+.core-compare-columns label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--ui-text-muted);
+}
+.core-compare-columns textarea {
+  width: 100%;
+  height: min(48vh, 500px);
+  resize: none;
+  white-space: pre;
+  font:
+    12px/20px ui-monospace,
+    SFMono-Regular,
+    Menlo,
+    monospace;
+}
+@media (max-width: 600px) {
+  .core-compare-columns {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .core-compare-columns textarea {
+    height: 20vh;
+  }
+  .core-compare-dialog .core-dialog-actions {
+    flex-wrap: wrap;
+  }
+}
+
+.core-file-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  color: #758793;
+  vertical-align: middle;
+}
+.core-file-icon > span {
+  font:
+    700 11px/1 ui-monospace,
+    SFMono-Regular,
+    Menlo,
+    monospace;
+  letter-spacing: -1px;
+}
+.core-file-icon.file-json {
+  color: #a57921;
+}
+.core-file-icon.file-markdown {
+  color: #427baf;
+}
+.core-file-icon.file-python {
+  color: #318c91;
+}
+.core-file-icon.file-config {
+  color: #8170a3;
+}
+.core-file-icon.file-image {
+  color: #547fa1;
+}
+.core-breadcrumb {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  gap: 5px;
+  overflow: hidden;
+  white-space: nowrap;
+  color: var(--ui-text-muted);
+  font-size: 12px;
+}
+.core-breadcrumb > button {
+  padding: 2px 3px;
+  border-radius: 2px;
+}
+.core-breadcrumb > button:hover {
+  color: var(--ui-text);
+  background: var(--ui-control-hover);
+}
+.core-breadcrumb-separator {
+  display: inline-flex;
+  flex-shrink: 0;
+  transform: rotate(-90deg);
+  color: #8a989f;
+}
+.core-breadcrumb-file {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.core-menu-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 119;
+  cursor: default;
+}
+.core-explorer-menu {
+  position: fixed;
+  z-index: 120;
+  width: 188px;
+  padding: 4px;
+  background: white;
+  border: 1px solid var(--ui-border);
+  border-radius: 4px;
+  box-shadow: 0 4px 15px #1d35421f;
+}
+.core-explorer-menu > button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 28px;
+  padding: 5px 7px;
+  border-radius: 2px;
+  text-align: left;
+  font-size: 12px;
+}
+.core-explorer-menu > button:hover {
+  background: var(--ui-control-hover);
+}
+.core-explorer-menu > button:focus-visible {
+  outline-offset: -1px;
+}
+.core-explorer-menu .core-menu-group-start {
+  margin-top: 4px;
+  border-top: 1px solid var(--ui-chrome-divider);
+  border-radius: 0;
+}
+.core-explorer-menu kbd {
+  margin-left: auto;
+  color: var(--ui-text-muted);
+  font-size: 10px;
+  font-family: inherit;
+}
+
+/* Source control uses two independently scrollable panes, like the editor explorer. */
+.core-scm:not([hidden]) {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.scm-working {
+  flex: 1 1 50%;
+  min-height: 120px;
+  overflow: auto;
+}
+.scm-scope {
+  margin: 5px 12px 0;
+  font-size: 11px;
+  overflow-wrap: anywhere;
+}
+.core-commit textarea {
+  min-height: 46px;
+  max-height: 160px;
+}
+.scm-section-heading {
+  display: flex;
+  align-items: center;
+  min-height: 29px;
+  padding: 0 7px;
+  gap: 4px;
+}
+.scm-section-toggle {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  align-items: center;
+  text-align: left;
+  gap: 5px;
+  padding: 4px 0;
+  font-size: 12px;
+}
+.scm-section-toggle strong {
+  font-weight: 550;
+}
+.scm-section-toggle small {
+  margin-left: auto;
+  background: var(--ui-control-hover);
+  padding: 0 6px;
+  border-radius: 10px;
+  font-size: 11px;
+}
+.core-change-row > button:first-child {
+  padding: 4px 3px 4px 18px;
+}
+.core-change-row > button:first-child > span:not(.core-file-icon) {
+  flex: 1;
+}
+.scm-row-tools {
+  display: none;
+  flex-shrink: 0;
+}
+.core-change-row:hover .scm-row-tools,
+.core-change-row:focus-within .scm-row-tools {
+  display: flex;
+}
+.core-change-row .core-git-code {
+  width: 20px;
+  flex-shrink: 0;
+  text-align: center;
+}
+.core-git-code.code-\? {
+  color: #208168;
+}
+.scm-graph {
+  --scm-lane-0: #3689d3;
+  --scm-lane-1: #b277c6;
+  --scm-lane-2: #20947f;
+  --scm-lane-3: #bd882e;
+  flex: 1 1 50%;
+  min-height: 120px;
+  display: flex;
+  flex-direction: column;
+  border-top: 1px solid var(--ui-border);
+}
+.scm-graph.collapsed {
+  flex: 0 0 auto;
+  min-height: 0;
+}
+.scm-graph > .scm-section-heading {
+  flex-shrink: 0;
+}
+.scm-graph-scope {
+  color: var(--ui-text-muted);
+  font-size: 10px;
+}
+.scm-graph-list {
+  overflow: auto;
+  min-height: 0;
+  padding-bottom: 6px;
+}
+.scm-graph-row {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  height: 29px;
+  gap: 5px;
+  text-align: left;
+  padding: 0 9px 0 5px;
+  font-size: 12px;
+}
+.scm-graph-row svg path {
+  fill: none;
+  stroke-width: 1.4;
+}
+.scm-graph-row:hover,
+.scm-graph-row.selected {
+  background: var(--ui-control-hover);
+}
+.scm-commit-subject {
+  min-width: 50px;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.scm-commit-author {
+  max-width: 65px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--ui-text-muted);
+  font-size: 10px;
+}
+.scm-ref {
+  max-width: 100px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  background: #d8eafa;
+  color: #1764a2;
+  border-radius: 8px;
+  padding: 1px 6px;
+  font-size: 10px;
+  flex-shrink: 0;
+}
+.scm-load-more {
+  width: 100%;
+  padding: 8px;
+  color: var(--ui-text-muted);
+  font-size: 11px;
+}
+@media (hover: none) {
+  .scm-row-tools {
+    display: flex;
+  }
+}
+.scm-scope-select {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 12px;
+  font-size: 11px;
+  color: var(--ui-text-muted);
+}
+.scm-scope-select select {
+  min-width: 0;
+  flex: 1;
+  font-size: 11px;
+  padding: 3px;
+}
+
+.activity-bar > button[aria-label="源代码管理"] .activity-badge {
+  width: auto;
+  min-width: 14px;
+  height: 14px;
+  top: auto;
+  bottom: 2px;
+  right: 0;
+  border-radius: 7px;
+  font-size: 9px;
+  line-height: 14px;
+  padding: 0 3px;
+  color: white;
+  background: #087f72;
+}
+
+.core-file-icon.file-typescript,
+.core-file-icon.file-react {
+  color: #3178c6;
+}
+.core-file-icon.file-javascript {
+  color: #9a781b;
+}
+.core-file-icon.file-git {
+  color: #cd5143;
+}

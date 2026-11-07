@@ -1,12 +1,93 @@
 import React from "react";
 
 const paths: Record<string, React.ReactNode> = {
+  "clear-search": (
+    <>
+      <path d="M3 5h18M3 10h14M3 15h9m3-1 6 6m0-6-6 6" />
+    </>
+  ),
+  list: <path d="M3 5h18M3 10h18M3 15h13M3 20h10" />,
+  replace: (
+    <>
+      <path d="M4 5h11l4 4-4 4M19 9H6M20 19H9l-4-4 4-4M5 15h13" />
+    </>
+  ),
+  "replace-all": (
+    <>
+      <path d="M4 4h12l4 4-4 4M20 8H4M20 20H8l-4-4 4-4M4 16h16M2 6V2h4M22 18v4h-4" />
+    </>
+  ),
+  more: (
+    <>
+      <circle cx="5" cy="12" r="1" />
+      <circle cx="12" cy="12" r="1" />
+      <circle cx="19" cy="12" r="1" />
+    </>
+  ),
+  braces: <path d="M9 3H7v6l-3 3 3 3v6h2M15 3h2v6l3 3-3 3v6h-2" />,
+  "file-config": (
+    <>
+      <path d="M14 3H5v18h14V8l-5-5ZM14 3v5h5M8 12h8M8 16h8M11 10v4M14 14v4" />
+    </>
+  ),
+  lock: (
+    <>
+      <rect x="5" y="10" width="14" height="11" rx="2" />
+      <path d="M8 10V7a4 4 0 0 1 8 0v3M12 14v3" />
+    </>
+  ),
+  image: (
+    <>
+      <rect x="3" y="3" width="18" height="18" rx="1" />
+      <circle cx="8" cy="8" r="2" />
+      <path d="m3 17 6-5 4 4 3-3 5 5" />
+    </>
+  ),
+  trash: (
+    <>
+      <path d="M3 6h18M9 6V3h6v3M5 6l1 15h12l1-15M10 10v7M14 10v7" />
+    </>
+  ),
+  edit: (
+    <>
+      <path d="m4 16 12-12 4 4L8 20H4v-4ZM14 6l4 4" />
+    </>
+  ),
+  compare: (
+    <>
+      <path d="M9 3H3v18h6M15 3h6v18h-6M7 12h10m-3-3 3 3-3 3" />
+    </>
+  ),
+  files: (
+    <>
+      <path d="M8 3h9l4 4v14H8Z" />
+      <path d="M17 3v5h4M4 5H2v13h3" />
+    </>
+  ),
+  "new-file": (
+    <>
+      <path d="M13 3H4v18h15V9l-6-6ZM13 3v6h6M8 14h7m-3.5-3.5v7" />
+    </>
+  ),
+  "new-folder": (
+    <>
+      <path d="M3 7V5h6l2 2h10v13H3ZM9 14h6m-3-3v6" />
+    </>
+  ),
+  collapse: (
+    <>
+      <rect x="7" y="7" width="14" height="14" rx="1" />
+      <path d="M17 3H3v14m8-3h6" />
+    </>
+  ),
   file: (
     <>
       <path d="M14 3H5v18h14V8Z" />
       <path d="M14 3v5h5" />
     </>
   ),
+  plus: <path d="M12 4v16M4 12h16" />,
+  minus: <path d="M4 12h16" />,
   tick: <path d="m5 12 4 4L19 6" />,
   back: <path d="M20 12H4m6-6-6 6 6 6" />,
   forward: <path d="M4 12h16m-6-6 6 6-6 6" />,

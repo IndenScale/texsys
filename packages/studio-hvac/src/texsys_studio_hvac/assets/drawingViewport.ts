@@ -32,6 +32,7 @@ export function useDrawingViewport(
     const element = ref.current;
     if (!element) return;
     const rect = element.getBoundingClientRect();
+    if (!rect.width || !rect.height) return;
     element.style.setProperty(
       "--camera-x",
       `${camera.current.left - rect.left + camera.current.x}px`,
@@ -45,6 +46,7 @@ export function useDrawingViewport(
     const element = ref.current;
     if (!element) return;
     const rect = element.getBoundingClientRect();
+    if (!rect.width || !rect.height) return;
     camera.current = { key, left: rect.left, top: rect.top, x: 0, y: 0 };
     setWidth(fitDrawingWidth(element.clientWidth, element.clientHeight, pageWidth, pageHeight));
     resetZoom();
@@ -53,9 +55,13 @@ export function useDrawingViewport(
   useLayoutEffect(() => {
     const element = ref.current;
     if (!enabled || !element) return;
-    if (camera.current.key !== key) fit();
-    else paint();
-    const observer = new ResizeObserver(paint);
+    const update = () => {
+      if (!element.clientWidth || !element.clientHeight) return;
+      if (camera.current.key !== key) fit();
+      else paint();
+    };
+    update();
+    const observer = new ResizeObserver(update);
     observer.observe(element);
     const wheel = (event: WheelEvent) => {
       if (event.ctrlKey || event.metaKey) return;
