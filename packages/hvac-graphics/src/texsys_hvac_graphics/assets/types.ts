@@ -75,6 +75,7 @@ export type SimulationVariable = {
 };
 export type Simulation = {
   schema_version: number;
+  backend?: string | { name: string; [key: string]: unknown };
   status: string;
   scenario: string;
   model_digest: string;

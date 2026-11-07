@@ -7,7 +7,17 @@ export const scenarioNames: Record<string, string> = {
   "pump-trip": "冷冻水泵退出",
 };
 
-function variableName(key: string, variable: SimulationVariable): string {
+export function backendName(result: Simulation): string {
+  const name = typeof result.backend === "string" ? result.backend : result.backend?.name;
+  if (!name) return "";
+  return name === "openmodelica"
+    ? "OpenModelica"
+    : name === "scipy" || name.startsWith("lumped-water-network/")
+      ? "SciPy"
+      : name;
+}
+
+export function variableName(key: string, variable: SimulationVariable): string {
   const object = variable.semantic_ref.split(".").at(-1);
   const role =
     variable.role === "outlet-temperature"
@@ -27,7 +37,7 @@ function variableName(key: string, variable: SimulationVariable): string {
           ? "冷却侧"
           : ""
       : "";
-  return `${object} · ${side}${role} (${variable.unit})`;
+  return `${object} · ${side}${role} (${variable.unit === "degC" ? "°C" : variable.unit})`;
 }
 
 function Plot({
@@ -42,8 +52,12 @@ function Plot({
   const variable = result.variables[variableKey];
   if (!variable) return null;
   const values = variable.values;
-  const min = values.reduce((a, b) => Math.min(a, b), Infinity),
-    max = values.reduce((a, b) => Math.max(a, b), -Infinity);
+  const limits = result.assertions.filter(
+    (item) => item.variable === variableKey && item.value !== undefined,
+  );
+  const bounds = [...values, ...limits.map((item) => item.value!)];
+  const min = bounds.reduce((a, b) => Math.min(a, b), Infinity),
+    max = bounds.reduce((a, b) => Math.max(a, b), -Infinity);
   const pad = Math.max((max - min) * 0.15, Math.abs(max) * 0.01, 0.1);
   const low = min - pad,
     high = max + pad;
@@ -94,6 +108,21 @@ function Plot({
           </text>
         </g>
       ))}
+      {limits.map((limit, i) => (
+        <g key={i} aria-label={`约束 ${limit.operator} ${limit.value} ${limit.unit}`}>
+          <line
+            x1="60"
+            x2="820"
+            y1={y(limit.value!)}
+            y2={y(limit.value!)}
+            stroke="#b05742"
+            strokeDasharray="5 4"
+          />
+          <text x="816" y={y(limit.value!) - 5} textAnchor="end" fontSize="10" fill="#a64a35">
+            约束 {limit.operator} {limit.value} {limit.unit === "degC" ? "°C" : limit.unit}
+          </text>
+        </g>
+      ))}
       <polyline points={points} fill="none" stroke="#1769aa" strokeWidth="2" />
       <line
         x1={x(result.time_s[index])}
@@ -119,6 +148,9 @@ export function RunPanel({
   playing,
   setPlaying,
   selected,
+  focus,
+  onLocateAssertion,
+  onVariableChange,
 }: {
   runs: Simulation[];
   runIndex: number;
@@ -128,6 +160,9 @@ export function RunPanel({
   playing: boolean;
   setPlaying: (playing: boolean) => void;
   selected?: string;
+  focus?: { variable: string; token: number };
+  onLocateAssertion?: (index: number) => void;
+  onVariableChange?: (variable: string) => void;
 }) {
   const result = runs[runIndex];
   const candidates = Object.entries(result.variables).filter(([, variable]) =>
@@ -143,6 +178,9 @@ export function RunPanel({
     );
     if (preferred) setChoice(preferred[0]);
   }, [selected, runIndex]);
+  useEffect(() => {
+    if (focus?.variable && result.variables[focus.variable]) setChoice(focus.variable);
+  }, [focus?.variable, focus?.token]);
   const key = result.variables[choice] ? choice : candidates[0]?.[0];
   if (!key) return <section className="run-panel">此工况没有可回放的物理变量。</section>;
   return (
@@ -170,8 +208,9 @@ export function RunPanel({
             }}
           >
             {runs.map((run, i) => (
-              <option key={run.scenario} value={i}>
+              <option key={`${run.scenario}:${backendName(run)}:${i}`} value={i}>
                 {scenarioNames[run.scenario] ?? run.scenario}
+                {backendName(run) ? ` / ${backendName(run)}` : ""}
               </option>
             ))}
           </select>
@@ -181,7 +220,10 @@ export function RunPanel({
           <select
             aria-label="显示变量"
             value={key}
-            onChange={(event) => setChoice(event.target.value)}
+            onChange={(event) => {
+              setChoice(event.target.value);
+              onVariableChange?.(event.target.value);
+            }}
           >
             {candidates.map(([name, variable]) => (
               <option key={name} value={name}>
@@ -229,7 +271,7 @@ export function RunPanel({
           下一事件
         </button>
       </div>
-      <details className="run-checks">
+      <details className="run-checks" open={onLocateAssertion ? true : undefined}>
         <summary>守恒与性能检查</summary>
         <div>
           质量残差 {result.checks.mass_residual_kg_s.toExponential(2)} kg/s；能量残差{" "}
@@ -237,21 +279,35 @@ export function RunPanel({
           {result.checks.integrated_energy_error_j.toExponential(2)} J。
         </div>
         {result.assertions.map((assertion, i) => (
-          <p key={i} className={assertion.status === "fail" ? "failed-check" : ""}>
-            {assertion.status === "pass"
-              ? "通过"
-              : assertion.status === "fail"
-                ? "未满足"
-                : "待确认"}
-            ：
-            {assertion.variable && result.variables[assertion.variable]
-              ? variableName(assertion.variable, result.variables[assertion.variable])
-              : (assertion.message ?? assertion.variable)}
-            {assertion.actual !== undefined &&
-              `；极值 ${assertion.actual.toFixed(3)} ${assertion.unit}`}
-            {assertion.value !== undefined &&
-              `；要求 ${assertion.operator} ${assertion.value} ${assertion.unit}`}
-          </p>
+          <div
+            key={i}
+            className={`assertion-row ${assertion.status === "fail" ? "failed-check" : ""}`}
+          >
+            <p>
+              {assertion.status === "pass"
+                ? "通过"
+                : assertion.status === "fail"
+                  ? "未满足"
+                  : "待确认"}
+              ：
+              {assertion.variable && result.variables[assertion.variable]
+                ? variableName(assertion.variable, result.variables[assertion.variable])
+                : (assertion.message ?? assertion.variable)}
+              {assertion.actual !== undefined &&
+                `；极值 ${assertion.actual.toFixed(3)} ${assertion.unit === "degC" ? "°C" : (assertion.unit ?? "")}`}
+              {assertion.value !== undefined &&
+                `；要求 ${assertion.operator} ${assertion.value} ${assertion.unit === "degC" ? "°C" : (assertion.unit ?? "")}`}
+            </p>
+            {onLocateAssertion && assertion.variable && result.variables[assertion.variable] && (
+              <button
+                className="small-button"
+                onClick={() => onLocateAssertion(i)}
+                aria-label={`定位约束 ${i + 1}`}
+              >
+                定位{assertion.status === "fail" ? "越限" : "极值"}
+              </button>
+            )}
+          </div>
         ))}
       </details>
     </section>
