@@ -267,7 +267,23 @@ test("layout preferences keep project and discipline state separate and tolerate
   assert.deepEqual(readLayoutPreferences("/example/a", defaults), { discipline: "", layouts: {} });
 });
 
-const { visitDocument, stepDocument } = load("src/texsys/assets/studio/navigation.ts");
+const { visitDocument, stepDocument, closeDocumentFromList } = load(
+  "src/texsys/assets/studio/navigation.ts",
+);
+test("closing document focuses right then left neighbor and permits an empty list", () => {
+  assert.deepEqual(closeDocumentFromList(["overview"], "overview"), {
+    remaining: [],
+    next: null,
+  });
+  assert.deepEqual(closeDocumentFromList(["design", "overview"], "overview"), {
+    remaining: ["design"],
+    next: "design",
+  });
+  assert.deepEqual(closeDocumentFromList(["design", "equipment", "source"], "equipment"), {
+    remaining: ["design", "source"],
+    next: "source",
+  });
+});
 const { studioMenus, filterCommands, isCloseDocumentShortcut } = load(
   "src/texsys/assets/studio/menus.ts",
 );

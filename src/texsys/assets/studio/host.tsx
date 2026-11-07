@@ -278,7 +278,7 @@ function Studio({ plugins, chrome }: { plugins: WorkbenchPlugin[]; chrome: Studi
     [],
   );
   const [historyStates, setHistoryStates] = useState<
-    Record<string, { canBack: boolean; canForward: boolean }>
+    Record<string, { canBack: boolean; canForward: boolean; canClose?: boolean }>
   >({});
   const [menu, setMenu] = useState<"project" | "discipline" | null>(null);
   const [defaultLayout] = useState(initialLayout);
@@ -385,7 +385,7 @@ function Studio({ plugins, chrome }: { plugins: WorkbenchPlugin[]; chrome: Studi
   };
   const historyState = coreHistory.active
     ? coreHistory
-    : (historyStates[active] ?? { canBack: false, canForward: false });
+    : (historyStates[active] ?? { canBack: false, canForward: false, canClose: false });
   const invokeCommand = (id: string) => {
     setMenu(null);
     switch (id) {
@@ -412,7 +412,11 @@ function Studio({ plugins, chrome }: { plugins: WorkbenchPlugin[]; chrome: Studi
         void refresh();
         break;
       case closeDocumentCommand.id:
-        if (coreHistory.canClose) setCloseRequest((request) => request + 1);
+        if (coreHistory.active && coreHistory.canClose) {
+          setCloseRequest((request) => request + 1);
+        } else if (!coreHistory.active && historyState.canClose) {
+          requestNavigation("document.close");
+        }
         break;
       case "view.sidebar":
         updateLayout(active, { sidebarOpen: !layout.sidebarOpen });
@@ -483,7 +487,7 @@ function Studio({ plugins, chrome }: { plugins: WorkbenchPlugin[]; chrome: Studi
       disabled:
         !state ||
         (item.id === "view.fullscreen" && !document.fullscreenEnabled) ||
-        (item.id === closeDocumentCommand.id && !coreHistory.canClose) ||
+        (item.id === closeDocumentCommand.id && !historyState.canClose) ||
         (item.id === "navigation.back" && !historyState.canBack) ||
         (item.id === "navigation.forward" && !historyState.canForward) ||
         (item.id === "help.capabilities" && !current),
@@ -515,7 +519,7 @@ function Studio({ plugins, chrome }: { plugins: WorkbenchPlugin[]; chrome: Studi
     // Monaco handles key events in the editor before they bubble to the workbench.
     window.addEventListener("keydown", closeHandler, true);
     return () => window.removeEventListener("keydown", closeHandler, true);
-  }, [coreHistory.canClose, commandOpen]);
+  }, [historyState.canClose, commandOpen]);
   useEffect(() => {
     const handler = (event: KeyboardEvent) => {
       if (event.defaultPrevented || event.isComposing || event.keyCode === 229) return;
@@ -820,7 +824,8 @@ function Studio({ plugins, chrome }: { plugins: WorkbenchPlugin[]; chrome: Studi
                         onNavigationState={(next) =>
                           setHistoryStates((previous) =>
                             previous[id]?.canBack === next.canBack &&
-                            previous[id]?.canForward === next.canForward
+                            previous[id]?.canForward === next.canForward &&
+                            previous[id]?.canClose === next.canClose
                               ? previous
                               : { ...previous, [id]: next },
                           )

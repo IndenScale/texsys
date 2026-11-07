@@ -240,6 +240,12 @@
   grid-template-rows: var(--editor-tab-height) minmax(0, 1fr);
   background: white;
 }
+.core-editor-surface.no-tabs {
+  grid-template-rows: minmax(0, 1fr);
+}
+.core-editor-surface.no-tabs .core-document-tabs {
+  display: none;
+}
 .core-document-tabs {
   --tab-corner: 6px;
   --tab-surface: var(--ui-context-chrome);
@@ -449,6 +455,24 @@
   font-size: 12px;
   margin: 0 0 10px;
   line-height: 1.7;
+}
+.core-welcome-shortcuts {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 4px 0 16px;
+  min-width: 250px;
+}
+.core-welcome-shortcut {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  font-size: 12px;
+  color: var(--ui-text-muted);
+}
+.core-welcome-shortcut span {
+  color: var(--ui-text-muted);
 }
 .core-diff-document {
   height: 100%;

@@ -74,7 +74,11 @@ export type WorkbenchProps = {
   changeLayout: (patch: Partial<StudioLayout>) => void;
   taskPanel: ReactNode;
   navigationRequest?: { command: string; token: number; path?: string };
-  onNavigationState?: (state: { canBack: boolean; canForward: boolean }) => void;
+  onNavigationState?: (state: {
+    canBack: boolean;
+    canForward: boolean;
+    canClose?: boolean;
+  }) => void;
 };
 export type WorkbenchPlugin = {
   manifest: PluginManifest;

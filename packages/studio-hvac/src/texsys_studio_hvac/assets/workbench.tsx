@@ -40,6 +40,7 @@ import {
 import {
   visitDocument,
   stepDocument,
+  closeDocumentFromList,
   type DocumentHistory,
 } from "../../../../../src/texsys/assets/studio/navigation";
 import { FileDocument } from "../../../../../src/texsys/assets/studio/FileDocument";
@@ -368,14 +369,25 @@ function Workspace({
     onNavigationState?.({
       canBack: history.index > 0,
       canForward: history.index < history.entries.length - 1,
+      canClose: documents.length > 0,
     });
-  }, [history]);
+  }, [history, documents.length, onNavigationState]);
+  useEffect(() => {
+    core?.setDomainTabsOpen?.(documents.length > 0);
+  }, [core?.setDomainTabsOpen, documents.length]);
+  useEffect(() => {
+    if (core && !core.documentActive && documents.length === 0) {
+      openView("overview");
+    }
+  }, [core?.documentActive, documents.length, openView]);
   useEffect(() => {
     if (!navigationRequest) return;
     const command = navigationRequest.command;
     if (command === "file.open" && navigationRequest.path) {
       setFilePath(navigationRequest.path);
       openView("file");
+    } else if (command === "document.close") {
+      if (view && documents.includes(view)) closeDocument(view);
     } else if (command === "navigation.back" || command === "navigation.forward") {
       if (core?.documentActive) return;
       const next = stepDocument(history, command === "navigation.back" ? -1 : 1);
@@ -485,15 +497,15 @@ function Workspace({
   );
   const canRun = !busy && !submitting && !saving && !hasDraft;
   const closeDocument = (target: View) => {
-    const remaining = documents.filter((item) => item !== target);
-    setDocuments(remaining.length ? remaining : ["overview"]);
+    const { remaining, next } = closeDocumentFromList(documents, target);
+    setDocuments(remaining);
     if (view === target) {
-      const next = remaining[Math.max(0, documents.indexOf(target) - 1)] ?? "overview";
-      openView(next);
+      if (next) openView(next);
+      else core?.activateCore?.();
     }
     setPlayback((previous) => ({ ...previous, playing: false }));
   };
-  const tabs = (
+  const tabs = documents.length ? (
     <WorkspaceTabStrip
       label={t("打开的文档")}
       tabs={documents.map((id) => ({
@@ -513,7 +525,7 @@ function Workspace({
       onSelect={(id) => openView(id as View)}
       onAction={(id) => closeDocument(id as View)}
     />
-  );
+  ) : null;
   const breadcrumb = (
     <>
       <select

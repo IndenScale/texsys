@@ -17,3 +17,14 @@ export function stepDocument<T extends string>(
   const index = history.index + step;
   return index < 0 || index >= history.entries.length ? history : { ...history, index };
 }
+
+export function closeDocumentFromList<T extends string>(
+  documents: T[],
+  target: T,
+): { remaining: T[]; next: T | null } {
+  const index = documents.indexOf(target);
+  const remaining = documents.filter((item) => item !== target);
+  const next =
+    remaining.length > 0 ? (remaining[index] ?? remaining[index - 1] ?? remaining[0]) : null;
+  return { remaining, next };
+}

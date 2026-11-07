@@ -40,6 +40,7 @@ import "./workspace.css";
 import { SourceControl } from "./SourceControl";
 import { SourceEditor, type SourceModels } from "./SourceEditor";
 import { Settings } from "./Settings";
+import { Keycaps } from "./Keycaps";
 
 type Activity = "explorer" | "search" | "scm";
 function isCoreActivity(id: string): id is Activity {
@@ -72,6 +73,9 @@ type Core = {
   documentActive: boolean;
   closeFocusRequest: number;
   activateDomain: () => void;
+  activateCore: () => void;
+  hasCoreTabs: boolean;
+  setDomainTabsOpen: (open: boolean) => void;
   hasDomain: boolean;
   changeCount: number;
 };
@@ -249,6 +253,9 @@ export function CoreWorkspaceProvider({
   const [documents, setDocuments] = useState<Document[]>([]),
     [activePath, setActivePath] = useState<string | null>(null);
   const [documentActive, setDocumentActive] = useState(true);
+  const [domainTabsOpen, setDomainTabsOpen] = useState(false);
+  const domainTabsOpenRef = useRef(domainTabsOpen);
+  domainTabsOpenRef.current = domainTabsOpen;
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [settingsActive, setSettingsActive] = useState(false);
   const [searchEditorActive, setSearchEditorActive] = useState(false);
@@ -320,6 +327,10 @@ export function CoreWorkspaceProvider({
     (id: Activity) => changeLayout({ sidebarOpen: true, sidebarActivity: id }),
     [changeLayout],
   );
+  const hasCoreTabs = documents.length > 0 || searchDocumentOpen || diffActive || settingsOpen;
+  const activateCore = useCallback(() => {
+    setDocumentActive(true);
+  }, []);
   const activateDomain = useCallback(() => {
     setSettingsActive(false);
     setDocumentActive(false);
@@ -591,10 +602,23 @@ export function CoreWorkspaceProvider({
   const removeDocument = (path: string) => {
     const index = documentsRef.current.findIndex((item) => item.path === path);
     openReads.current.delete(path);
-    setDocuments((previous) => previous.filter((item) => item.path !== path));
+    const nextDocuments = documentsRef.current.filter((item) => item.path !== path);
+    setDocuments(nextDocuments);
     if (activePath === path) {
-      const neighbor = documentsRef.current[index + 1] ?? documentsRef.current[index - 1];
-      setActivePath(neighbor?.path ?? null);
+      const neighbor = nextDocuments[index] ?? nextDocuments[index - 1];
+      if (neighbor) {
+        setActivePath(neighbor.path);
+      } else if (settingsOpen) {
+        setSettingsActive(true);
+      } else if (searchDocumentOpen) {
+        setSearchEditorActive(true);
+      } else if (diffActive) {
+        // diff remains active
+      } else if (domainTabsOpenRef.current) {
+        activateDomain();
+      } else {
+        setActivePath(null);
+      }
     }
     setClosePath(undefined);
   };
@@ -614,12 +638,50 @@ export function CoreWorkspaceProvider({
     finishClosingTab(() => {
       setSearchDocumentOpen(false);
       setSearchEditorActive(false);
+      if (documentsRef.current.length > 0) {
+        const last = documentsRef.current[documentsRef.current.length - 1];
+        setActivePath(last.path);
+        setDocumentActive(true);
+      } else if (settingsOpen) {
+        setSettingsActive(true);
+      } else if (diffActive) {
+        setDocumentActive(true);
+      } else if (domainTabsOpenRef.current) {
+        activateDomain();
+      }
     });
-  const closeDiffTab = () => finishClosingTab(() => setDiffActive(false));
+  const closeDiffTab = () =>
+    finishClosingTab(() => {
+      setDiffActive(false);
+      if (documentsRef.current.length > 0) {
+        const last = documentsRef.current[documentsRef.current.length - 1];
+        setActivePath(last.path);
+        setDocumentActive(true);
+      } else if (settingsOpen) {
+        setSettingsActive(true);
+      } else if (searchDocumentOpen) {
+        setSearchEditorActive(true);
+        setDocumentActive(true);
+      } else if (domainTabsOpenRef.current) {
+        activateDomain();
+      }
+    });
   const closeSettingsTab = () =>
     finishClosingTab(() => {
       setSettingsOpen(false);
       setSettingsActive(false);
+      if (documentsRef.current.length > 0) {
+        const last = documentsRef.current[documentsRef.current.length - 1];
+        setActivePath(last.path);
+        setDocumentActive(true);
+      } else if (searchDocumentOpen) {
+        setSearchEditorActive(true);
+        setDocumentActive(true);
+      } else if (diffActive) {
+        setDocumentActive(true);
+      } else if (domainTabsOpenRef.current) {
+        activateDomain();
+      }
     });
   useEffect(() => {
     if (!closeRequest || !canClose) return;
@@ -1388,9 +1450,23 @@ export function CoreWorkspaceProvider({
     </section>
   ) : !active ? (
     <div className="core-welcome">
-      <Icon name="files" size={38} />
+      <Icon name="system" size={44} />
       <h2>{t("打开文件，开始编辑")}</h2>
       <p>{t("从文件资源管理器选择文件，或使用 ⌘ / Ctrl + P 快速打开。")}</p>
+      <div className="core-welcome-shortcuts">
+        <div className="core-welcome-shortcut">
+          <span>{t("命令面板…")}</span>
+          <Keycaps keys={macKeys ? ["⇧", "⌘", "P"] : ["Ctrl", "Shift", "P"]} />
+        </div>
+        <div className="core-welcome-shortcut">
+          <span>{t("搜索文件…")}</span>
+          <Keycaps keys={macKeys ? ["⌘", "P"] : ["Ctrl", "P"]} />
+        </div>
+        <div className="core-welcome-shortcut">
+          <span>{t("搜索项目内容")}</span>
+          <Keycaps keys={macKeys ? ["⇧", "⌘", "F"] : ["Ctrl", "Shift", "F"]} />
+        </div>
+      </div>
       {hasDomain && (
         <EditorActionButton
           label={t("打开专业预览")}
@@ -1544,6 +1620,9 @@ export function CoreWorkspaceProvider({
     documentActive: documentActive || settingsActive,
     closeFocusRequest,
     activateDomain,
+    activateCore,
+    hasCoreTabs,
+    setDomainTabsOpen,
     hasDomain,
     changeCount: gitStatus?.entries.length ?? 0,
   };
@@ -1634,6 +1713,7 @@ export function WorkbenchSurface({
       shortcutKey,
     ],
   }));
+  const hasTabs = core.hasCoreTabs || Boolean(tabs);
   return (
     <WorkbenchLayout
       layout={layout}
@@ -1660,7 +1740,7 @@ export function WorkbenchSurface({
       }
       bottom={bottom}
     >
-      <div className="core-editor-surface">
+      <div className={`core-editor-surface${hasTabs ? "" : " no-tabs"}`}>
         <div className="core-document-tabs">
           <div className="core-document-tab-list" ref={tabList}>
             {core.tabs}
