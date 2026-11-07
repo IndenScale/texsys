@@ -24,9 +24,15 @@ import { visitDocument, stepDocument, type DocumentHistory } from "./navigation"
 import { useCodeSearch } from "./CodeSearch";
 import { ExplorerTree } from "./ExplorerTree";
 import { FileIcon } from "./FileIcon";
-import { ExplorerMenu, type ExplorerAction } from "./ExplorerMenu";
+import { NavigatorMenu, type NavigatorMenuItem } from "./NavigatorMenu";
+import {
+  NavigatorButton as Tool,
+  NavigatorPage,
+  NavigatorPanel,
+  NavigatorToolbar,
+} from "./NavigatorPanel";
 import "./workspace.css";
-import { ScmMenu, SourceControl } from "./SourceControl";
+import { SourceControl } from "./SourceControl";
 import { SourceEditor, type SourceModels } from "./SourceEditor";
 import { Settings } from "./Settings";
 
@@ -77,30 +83,6 @@ const coreSidebarTitles: Record<Activity, string> = {
   search: "搜索",
   scm: "源代码管理",
 };
-function Tool({
-  label,
-  icon,
-  onClick,
-  disabled,
-}: {
-  label: string;
-  icon: string;
-  onClick: React.MouseEventHandler<HTMLButtonElement>;
-  disabled?: boolean;
-}) {
-  return (
-    <button
-      className="core-tool"
-      aria-label={label}
-      title={label}
-      onClick={onClick}
-      disabled={disabled}
-    >
-      <Icon name={icon} size={15} />
-    </button>
-  );
-}
-
 function DialogLayer({ children, cancel }: { children: ReactNode; cancel: () => void }) {
   const ref = useRef<HTMLDivElement>(null);
   const cancelRef = useRef(cancel);
@@ -635,13 +617,36 @@ export function CoreWorkspaceProvider({
       value: action === "rename" ? path : parent ? parent + "/" : "",
     });
   };
-  const invokeExplorerAction = (action: ExplorerAction) => {
-    const path = explorerMenu?.path ?? selected;
-    setExplorerMenu(undefined);
-    if (action === "refresh") void reload();
-    else if (action === "collapse") setExpanded(new Set());
-    else startForm(action, path);
-  };
+  const explorerActions = (path: string): NavigatorMenuItem[] => [
+    {
+      label: t("新建文件…"),
+      icon: "new-file",
+      run: busy ? undefined : () => startForm("create", path),
+    },
+    {
+      label: t("新建文件夹…"),
+      icon: "new-folder",
+      run: busy ? undefined : () => startForm("mkdir", path),
+    },
+    { label: t("刷新"), icon: "refresh", run: busy ? undefined : () => void reload() },
+    {
+      label: t("折叠所有文件夹"),
+      icon: "collapse",
+      run: busy ? undefined : () => setExpanded(new Set()),
+    },
+    {
+      label: t("重命名…"),
+      icon: "edit",
+      shortcut: "F2",
+      separator: true,
+      run: busy || !path ? undefined : () => startForm("rename", path),
+    },
+    {
+      label: t("删除…"),
+      icon: "trash",
+      run: busy || !path ? undefined : () => startForm("delete", path),
+    },
+  ];
   useEffect(() => {
     setExplorerMenu(undefined);
   }, [activity]);
@@ -661,24 +666,14 @@ export function CoreWorkspaceProvider({
     activity === "search" ? (
       codeSearch.actions
     ) : activity === "explorer" ? (
-      <button
-        className="core-tool"
-        aria-label={t("资源管理器更多操作")}
-        title={t("更多操作")}
-        aria-haspopup="menu"
-        aria-expanded={!!explorerMenu}
-        onClick={(event) => {
-          if (explorerMenu) setExplorerMenu(undefined);
-          else {
-            const rect = event.currentTarget.getBoundingClientRect();
-            setExplorerMenu({ x: rect.right - 188, y: rect.bottom + 3, path: selected });
-          }
-        }}
-      >
-        <Icon name="more" size={18} />
-      </button>
+      <NavigatorMenu
+        key="explorer"
+        label={t("资源管理器更多操作")}
+        items={explorerActions(selected)}
+      />
     ) : activity === "scm" ? (
-      <ScmMenu
+      <NavigatorMenu
+        key="scm"
         label={t("源码管理范围")}
         title={`${t("管理范围")} · ${t(gitScope === "project" ? "当前项目" : "整个仓库")}`}
         items={[
@@ -703,16 +698,13 @@ export function CoreWorkspaceProvider({
       <Tool label={t("刷新资源")} icon="refresh" disabled={busy} onClick={() => void reload()} />
     );
   const sidebar = (
-    <div className="core-sidebar" data-activity={activity}>
-      <div className="navigator-heading">
-        <strong title={t(coreSidebarTitles[activity])}>{t(coreSidebarTitles[activity])}</strong>
-        <div className="core-tools">{sidebarActions}</div>
-      </div>
-      <section
-        className="core-resource"
-        hidden={activity !== "explorer"}
-        aria-label={t("文件资源管理器内容")}
-      >
+    <NavigatorPanel
+      className="core-sidebar"
+      data-activity={activity}
+      title={t(coreSidebarTitles[activity])}
+      actions={sidebarActions}
+    >
+      <NavigatorPage hidden={activity !== "explorer"} aria-label={t("文件资源管理器内容")}>
         <div className="core-project-row" data-expanded={rootOpen}>
           <button
             aria-label={t("项目 {0}", { "0": state.project.name })}
@@ -726,8 +718,8 @@ export function CoreWorkspaceProvider({
             </span>
             <strong>{state.project.name}</strong>
           </button>
-          <div
-            className="core-tools core-project-tools"
+          <NavigatorToolbar
+            className="core-project-tools"
             role="toolbar"
             aria-label={t("项目文件操作")}
             hidden={!rootOpen}
@@ -751,7 +743,7 @@ export function CoreWorkspaceProvider({
               disabled={busy}
             />
             <Tool label={t("全部折叠")} icon="collapse" onClick={() => setExpanded(new Set())} />
-          </div>
+          </NavigatorToolbar>
         </div>
         {listingError && (
           <p className="core-error" role="alert">
@@ -792,16 +784,16 @@ export function CoreWorkspaceProvider({
         {!loadingFiles && !listing.files.length && !listing.directories.length && (
           <p className="core-hint">{t("项目中尚无文件，可在上方新建。")}</p>
         )}
-      </section>
-      <section
-        className="core-resource core-search"
+      </NavigatorPage>
+      <NavigatorPage
+        className="core-search"
         hidden={activity !== "search"}
         aria-label={t("全文搜索内容")}
       >
         {codeSearch.sidebar}
-      </section>
-      <section
-        className="core-resource core-scm"
+      </NavigatorPage>
+      <NavigatorPage
+        className="core-scm"
         hidden={activity !== "scm"}
         aria-label={t("源代码管理内容")}
       >
@@ -848,8 +840,8 @@ export function CoreWorkspaceProvider({
             />
           </>
         )}
-      </section>
-    </div>
+      </NavigatorPage>
+    </NavigatorPanel>
   );
   const dialogs = (
     <>
@@ -1391,13 +1383,11 @@ export function CoreWorkspaceProvider({
       {children}
       {codeSearch.dialog}
       {explorerMenu && (
-        <ExplorerMenu
-          x={explorerMenu.x}
-          y={explorerMenu.y}
-          hasSelection={!!explorerMenu.path}
-          busy={busy}
-          close={() => setExplorerMenu(undefined)}
-          invoke={invokeExplorerAction}
+        <NavigatorMenu
+          label={t("资源管理器操作")}
+          point={explorerMenu}
+          items={explorerActions(explorerMenu.path)}
+          onDismiss={() => setExplorerMenu(undefined)}
         />
       )}
       {(form || closePath || diskComparison) && (

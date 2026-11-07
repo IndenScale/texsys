@@ -80,32 +80,6 @@
     calc(100vw - var(--activity-width) - 3 * var(--workbench-gap))
   );
 }
-.navigator-heading {
-  display: flex;
-  flex-shrink: 0;
-  align-items: center;
-  gap: 6px;
-  height: var(--editor-tab-height);
-  padding: 4px var(--navigator-end) 4px var(--navigator-inset);
-  font:
-    13px/18px system-ui,
-    sans-serif;
-  color: var(--ui-text);
-}
-.navigator-heading > strong {
-  flex: 1 1 auto;
-  /* Reserve room for a full-width first character and the ellipsis. */
-  min-inline-size: 2em;
-  font-weight: 600;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.navigator-heading > span {
-  flex: none;
-  font-size: 11px;
-  color: var(--ui-text-muted);
-}
 .workbench-stage {
   --bottom-size: 0px;
   --bottom-gap: 0px;

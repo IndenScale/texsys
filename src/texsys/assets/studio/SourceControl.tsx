@@ -1,7 +1,9 @@
 import { t } from "./i18n";
-import React, { useEffect, useId, useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Icon } from "./ui";
 import { FileIcon } from "./FileIcon";
+import { NavigatorButton, NavigatorToolbar } from "./NavigatorPanel";
+import { NavigatorMenu } from "./NavigatorMenu";
 import {
   commitGraph,
   gitGroups,
@@ -12,110 +14,6 @@ import {
   type GitDiff,
 } from "./workspace-model";
 import type { WorkbenchProps } from "./sdk";
-
-type ScmMenuItem = {
-  label: string;
-  run?: () => void;
-  checked?: boolean;
-  reason?: string;
-  separator?: boolean;
-};
-
-export function ScmMenu({
-  label,
-  title = label,
-  icon = "more",
-  split = false,
-  items,
-}: {
-  label: string;
-  title?: string;
-  icon?: string;
-  split?: boolean;
-  items: ScmMenuItem[];
-}) {
-  const id = useId();
-  const menu = useRef<HTMLDivElement>(null);
-  const firstEnabled = items.findIndex((item) => item.run);
-  return (
-    <>
-      <button
-        type="button"
-        className={split ? "core-primary scm-commit-menu-trigger" : "core-tool"}
-        aria-label={label}
-        aria-haspopup="menu"
-        title={title}
-        popoverTarget={id}
-        onClick={(event) => {
-          const rect = event.currentTarget.getBoundingClientRect();
-          const width = 146;
-          const height = 10 + items.length * 24 + (items.some((item) => item.separator) ? 4 : 0);
-          const left =
-            split && rect.right + width <= window.innerWidth - 4
-              ? rect.right
-              : Math.max(4, rect.right - width);
-          const top =
-            rect.bottom + height <= window.innerHeight - 4
-              ? rect.bottom
-              : Math.max(4, rect.top - height);
-          menu.current?.style.setProperty("left", `${left}px`);
-          menu.current?.style.setProperty("top", `${top}px`);
-        }}
-        onKeyDown={(event) => {
-          if (event.key === "ArrowDown" && !menu.current?.matches(":popover-open")) {
-            event.preventDefault();
-            event.currentTarget.click();
-          }
-        }}
-      >
-        <Icon name={icon} size={split ? 18 : 16} />
-      </button>
-      <div
-        className="core-explorer-menu scm-menu"
-        id={id}
-        ref={menu}
-        role="menu"
-        aria-label={label}
-        popover="auto"
-        onKeyDown={(event) => {
-          if (!["ArrowDown", "ArrowUp", "Home", "End"].includes(event.key)) return;
-          event.preventDefault();
-          const buttons = Array.from(event.currentTarget.querySelectorAll("button:not(:disabled)"));
-          const index = buttons.indexOf(document.activeElement as HTMLButtonElement);
-          const next =
-            event.key === "Home"
-              ? 0
-              : event.key === "End"
-                ? buttons.length - 1
-                : (index + (event.key === "ArrowDown" ? 1 : buttons.length - 1)) % buttons.length;
-          (buttons[next] as HTMLButtonElement | undefined)?.focus();
-        }}
-      >
-        {items.map(({ label, run, checked, reason, separator }, index) => (
-          <button
-            key={label}
-            type="button"
-            role={checked === undefined ? "menuitem" : "menuitemradio"}
-            aria-checked={checked}
-            disabled={!run}
-            autoFocus={index === firstEnabled}
-            title={reason}
-            className={separator ? "core-menu-group-start" : undefined}
-            onClick={() => {
-              menu.current?.hidePopover();
-              run?.();
-            }}
-          >
-            {checked !== undefined && (
-              <span className="scm-menu-check">{checked && <Icon name="tick" size={15} />}</span>
-            )}
-            {label}
-          </button>
-        ))}
-      </div>
-    </>
-  );
-}
 
 export function SourceControl({
   status,
@@ -191,20 +89,17 @@ export function SourceControl({
   const tool = (
     label: string,
     icon: string,
-    handler: () => void,
+    onClick: () => void,
     disabled = busy,
     title = label,
   ) => (
-    <button
-      type="button"
-      className="core-tool"
-      title={title}
-      aria-label={label}
+    <NavigatorButton
+      label={label}
+      icon={icon}
+      onClick={onClick}
       disabled={disabled}
-      onClick={handler}
-    >
-      <Icon name={icon} size={15} />
-    </button>
+      title={title}
+    />
   );
   const hasChanges = status.entries.length > 0;
   const commitHint = !groups.staged.length
@@ -260,10 +155,10 @@ export function SourceControl({
             <Icon name="scm-chevron" size={14} />
             <strong>{t("更改")}</strong>
           </button>
-          <div className="scm-heading-tools">
+          <NavigatorToolbar role="toolbar" aria-label={t("更改操作")}>
             {tool(t("提交"), "tick", submitCommit, busy || !hasChanges || !!status.truncated)}
             {tool(t("刷新源代码管理"), "refresh", refresh)}
-            <ScmMenu
+            <NavigatorMenu
               label={t("更多更改操作")}
               items={[
                 {
@@ -282,7 +177,7 @@ export function SourceControl({
                 },
               ]}
             />
-          </div>
+          </NavigatorToolbar>
         </div>
         {!collapsed.changes && hasChanges && (
           <form
@@ -337,10 +232,11 @@ export function SourceControl({
                 <Icon name="tick" size={16} />
                 {busy ? t("正在操作…") : t("提交")}
               </button>
-              <ScmMenu
+              <NavigatorMenu
                 label={t("提交选项")}
-                icon="scm-chevron"
-                split
+                placement="side"
+                triggerClassName="core-primary scm-commit-menu-trigger"
+                triggerIcon={<Icon name="scm-chevron" size={18} />}
                 items={[
                   { label: t("提交"), run: busy || status.truncated ? undefined : submitCommit },
                   { label: t("提交（修订）"), reason: t("Tex Studio 暂不支持修订提交。") },

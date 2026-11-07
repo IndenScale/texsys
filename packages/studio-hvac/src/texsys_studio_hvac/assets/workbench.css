@@ -1544,9 +1544,7 @@
   flex-direction: column;
 }
 .activity-resource-panel {
-  flex: 1;
   overflow: hidden;
-  min-height: 0;
 }
 .resource-page {
   height: 100%;

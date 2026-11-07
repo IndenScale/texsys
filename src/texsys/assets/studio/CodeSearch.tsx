@@ -1,6 +1,7 @@
 import { t } from "./i18n";
 import React, { useEffect, useMemo, useRef, useState, type ReactNode, type RefObject } from "react";
 import { FileIcon } from "./FileIcon";
+import { NavigatorButton } from "./NavigatorPanel";
 import { Icon } from "./ui";
 import type { WorkbenchProps } from "./sdk";
 import type { GitEntry, SearchLine, SearchMatch, SearchResults } from "./workspace-model";
@@ -55,29 +56,28 @@ function SearchTool({
   pressed?: boolean;
 }) {
   return (
-    <button
-      className="core-tool"
-      aria-label={label}
-      title={label}
+    <NavigatorButton
+      label={label}
       disabled={disabled}
       aria-pressed={pressed}
       onClick={onClick}
-    >
-      <svg
-        className="code-search-action-icon"
-        width="16"
-        height="16"
-        viewBox="0 0 16 16"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1"
-        strokeLinecap="square"
-        strokeLinejoin="miter"
-        aria-hidden="true"
-      >
-        {searchActionPaths[icon]}
-      </svg>
-    </button>
+      icon={
+        <svg
+          className="code-search-action-icon"
+          width="16"
+          height="16"
+          viewBox="0 0 16 16"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1"
+          strokeLinecap="square"
+          strokeLinejoin="miter"
+          aria-hidden="true"
+        >
+          {searchActionPaths[icon]}
+        </svg>
+      }
+    />
   );
 }
 function SearchToggle({

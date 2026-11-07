@@ -8,6 +8,10 @@ import type { WorkbenchPlugin, WorkbenchProps } from "../../../../../src/texsys/
 import { labels } from "../../../../../src/texsys/assets/studio/sdk";
 import { Empty, Icon } from "../../../../../src/texsys/assets/studio/ui";
 import {
+  NavigatorPage,
+  NavigatorPanel,
+} from "../../../../../src/texsys/assets/studio/NavigatorPanel";
+import {
   DiagramSvg,
   EngineeringSymbol,
   parameterTitles,
@@ -526,24 +530,18 @@ function Workspace({
     },
     { id: "outputs", label: t("成果文件"), icon: <Icon name="download" size={18} /> },
   ];
+  const sidebarTitle = activityItems.find((item) => item.id === activity)?.label;
+  const sidebarCounts: Partial<Record<string, number>> = {
+    system: entries.length,
+    components: types.length,
+    outputs: data.exports.length,
+  };
   const sidebar = (
-    <>
-      <div className="navigator-heading">
-        <strong>{activityItems.find((item) => item.id === activity)?.label}</strong>
-        <span>
-          {activity === "system"
-            ? entries.length
-            : activity === "components"
-              ? types.length
-              : activity === "outputs"
-                ? data.exports.length
-                : ""}
-        </span>
-      </div>
-      <div
+    <NavigatorPanel title={sidebarTitle} count={sidebarCounts[activity]}>
+      <NavigatorPage
         id="activity-resource-panel"
         role="tabpanel"
-        aria-label={activityItems.find((item) => item.id === activity)?.label}
+        aria-label={sidebarTitle}
         className="activity-resource-panel"
       >
         <section className="resource-page" hidden={activity !== "system"}>
@@ -739,8 +737,8 @@ function Workspace({
             </button>
           </div>
         </section>
-      </div>
-    </>
+      </NavigatorPage>
+    </NavigatorPanel>
   );
   const tabs = (
     <WorkspaceTabStrip

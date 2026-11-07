@@ -6,11 +6,6 @@
   --tree-icon-size: 16px;
   --tree-guide-color: #d1dade;
   --tree-active-guide-color: #81999e;
-  height: 100%;
-  min-height: 0;
-  display: flex;
-  flex-direction: column;
-  color: var(--ui-text);
 }
 .core-heading {
   height: 36px;
@@ -26,33 +21,6 @@
   font-weight: 550;
   color: var(--ui-text);
   white-space: nowrap;
-}
-.navigator-heading > .core-tools {
-  flex-shrink: 0;
-}
-.core-tools {
-  display: flex;
-  align-items: center;
-  gap: 1px;
-}
-.core-tool {
-  width: 24px;
-  height: 24px;
-  padding: 3px;
-  border-radius: 3px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
-.core-tool:hover {
-  background: var(--ui-control-hover);
-}
-.core-resource {
-  flex: 1;
-  min-height: 0;
-  overflow: auto;
-  position: relative;
 }
 .core-project-row {
   display: flex;
@@ -706,70 +674,14 @@
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.core-menu-backdrop {
-  position: fixed;
-  inset: 0;
-  z-index: 119;
-  cursor: default;
-}
-.core-explorer-menu {
-  position: fixed;
-  z-index: 120;
-  width: 188px;
-  padding: 4px;
-  background: white;
-  border: 1px solid var(--ui-border);
-  border-radius: 4px;
-  box-shadow: 0 4px 15px #1d35421f;
-}
-.core-explorer-menu > button {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  width: 100%;
-  min-height: 28px;
-  padding: 5px 7px;
-  border-radius: 2px;
-  text-align: left;
-  font-size: 12px;
-}
-.core-explorer-menu > button:hover {
-  background: var(--ui-control-hover);
-}
-.core-explorer-menu > button:focus-visible {
-  outline-offset: -1px;
-}
-.core-explorer-menu .core-menu-group-start {
-  margin-top: 4px;
-  border-top: 1px solid var(--ui-chrome-divider);
-  border-radius: 0;
-}
-.core-explorer-menu kbd {
-  margin-left: auto;
-  color: var(--ui-text-muted);
-  font-size: 10px;
-  font-family: inherit;
-}
-
 /* Source Control shares the workbench card, controls, and palette. */
 .core-sidebar[data-activity="scm"] {
-  --scm-start: 20px;
-  --scm-end: 12px;
+  --scm-start: var(--navigator-inset);
+  --scm-end: var(--navigator-end);
   font-size: 13px;
 }
-.core-sidebar[data-activity="scm"] > .navigator-heading {
-  height: 34px;
-  padding-inline: var(--scm-start) var(--scm-end);
-  color: inherit;
-  font-size: 13px;
-}
-.core-sidebar[data-activity="scm"] :is(button, textarea):focus-visible {
+.core-sidebar[data-activity="scm"] textarea:focus-visible {
   outline-offset: -1px;
-}
-.core-sidebar[data-activity="scm"] .core-tool {
-  width: 24px;
-  height: 22px;
-  padding: 3px;
 }
 .core-scm:not([hidden]) {
   display: flex;
@@ -790,7 +702,7 @@
   align-items: center;
   flex: none;
   min-height: 22px;
-  padding-inline: 2px var(--scm-end);
+  padding-inline: var(--navigator-gutter) var(--scm-end);
 }
 .scm-changes-heading {
   min-height: 27px;
@@ -803,16 +715,12 @@
 .scm-changes-heading > .scm-section-toggle:focus-visible {
   outline: none;
 }
-.scm-heading-tools {
-  display: flex;
-  align-items: center;
-}
 .scm-section-toggle {
   display: flex;
   flex: 1;
   min-width: 0;
   align-items: center;
-  gap: 3px;
+  gap: 2px;
   min-height: inherit;
   padding: 0;
   text-align: left;
@@ -843,10 +751,10 @@
   line-height: 18px;
   font-variant-numeric: tabular-nums;
 }
-.scm-group-heading > .core-tool {
+.scm-group-heading > .navigator-button {
   display: none;
 }
-.scm-group-heading:is(:hover, :focus-within) > .core-tool {
+.scm-group-heading:is(:hover, :focus-within) > .navigator-button {
   display: inline-flex;
   margin-left: 3px;
 }
@@ -920,6 +828,7 @@
 .scm-commit-menu-trigger {
   position: relative;
   flex: 0 0 26px;
+  height: auto;
   padding: 0;
   border-radius: 0;
 }
@@ -998,7 +907,7 @@
   display: none;
   flex: none;
 }
-.core-sidebar[data-activity="scm"] .scm-row-tools > .core-tool {
+.core-sidebar[data-activity="scm"] .scm-row-tools > .navigator-button {
   width: 20px;
   height: 22px;
   padding: 2px;
@@ -1015,23 +924,6 @@
     600 12px/1 system-ui,
     sans-serif;
 }
-.scm-menu {
-  inset: auto;
-  margin: 3px 0 0;
-  width: 146px;
-  color: var(--ui-text);
-}
-.scm-menu > button {
-  gap: 5px;
-  min-height: 24px;
-  padding: 2px 8px;
-  white-space: nowrap;
-}
-.scm-menu-check {
-  display: flex;
-  width: 15px;
-}
-
 .scm-graph {
   --scm-lane-0: #3689d3;
   --scm-lane-1: #b277c6;
@@ -1105,7 +997,7 @@
 }
 @media (hover: none) {
   .scm-row-tools,
-  .scm-group-heading > .core-tool {
+  .scm-group-heading > .navigator-button {
     display: flex;
   }
 }

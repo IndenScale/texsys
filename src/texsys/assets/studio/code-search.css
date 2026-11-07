@@ -121,7 +121,7 @@
 .code-replace-row > .code-search-box {
   flex: 1;
 }
-.code-replace-row > .core-tool {
+.code-replace-row > .navigator-button {
   width: 22px;
 }
 .code-search-details-area {
@@ -417,14 +417,14 @@
   margin-right: 6px;
 }
 /* Reserve action geometry to avoid shifting badges on hover. */
-.code-search-file-heading > .core-tool {
+.code-search-file-heading > .navigator-button {
   opacity: 0;
   pointer-events: none;
   color: var(--search-icon);
 }
-.code-search-file-heading:hover > .core-tool,
-.code-search-file-heading:focus-within > .core-tool,
-.code-search-file-heading > .core-tool:focus-visible {
+.code-search-file-heading:hover > .navigator-button,
+.code-search-file-heading:focus-within > .navigator-button,
+.code-search-file-heading > .navigator-button:focus-visible {
   opacity: 1;
   pointer-events: auto;
 }
@@ -433,7 +433,7 @@
   flex-shrink: 0;
 }
 @media (max-width: 600px), (hover: none) {
-  .code-search-file-heading > .core-tool {
+  .code-search-file-heading > .navigator-button {
     opacity: 1;
     pointer-events: auto;
   }
