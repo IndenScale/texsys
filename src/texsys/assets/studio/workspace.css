@@ -811,6 +811,11 @@
   padding: 0;
   border-radius: 5px;
 }
+.scm-generate[data-expanded="true"] {
+  width: auto;
+  gap: 3px;
+  padding-inline: 4px;
+}
 .scm-commit-split {
   display: flex;
   min-height: var(--scm-control-height);
@@ -937,8 +942,6 @@
 }
 .scm-graph.collapsed {
   flex: 0 0 auto;
-}
-.scm-working[data-changes-visible="true"] + .scm-graph.collapsed {
   margin-top: auto;
 }
 .scm-graph > .scm-section-heading {

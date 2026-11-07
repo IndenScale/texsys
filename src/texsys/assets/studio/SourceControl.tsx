@@ -144,7 +144,7 @@ export function SourceControl({
   );
   return (
     <>
-      <div className="scm-working" data-changes-visible={hasChanges && !collapsed.changes}>
+      <div className="scm-working">
         <div className="scm-section-heading scm-changes-heading">
           <button
             type="button"
@@ -214,12 +214,14 @@ export function SourceControl({
               />
               <button
                 className="core-primary scm-generate"
+                data-expanded={!message}
                 type="button"
                 aria-label={generateLabel}
                 title={generateLabel}
-                disabled={busy || !!message.trim()}
+                disabled={busy}
                 onClick={generateMessage}
               >
+                {!message && t("生成")}
                 <Icon name="sparkles" size={16} />
               </button>
             </div>
