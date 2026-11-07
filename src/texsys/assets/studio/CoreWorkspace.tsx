@@ -14,6 +14,7 @@ import { Empty, Icon } from "./ui";
 import type { FilePreview, StudioLayout, StudioState, WorkbenchProps } from "./sdk";
 import {
   gitPathInProject,
+  sourceFileFormat,
   visibleFileTree,
   type FileListing,
   type GitDiff,
@@ -1332,7 +1333,7 @@ export function CoreWorkspaceProvider({
       />
       <div className="core-editor-status">
         <span className="core-editor-status-details">
-          <span>UTF-8 · {active.path.split(".").pop()?.toUpperCase()}</span>
+          <span>UTF-8 · {sourceFileFormat(active.path).toUpperCase()}</span>
           <span>{activeDirty ? t("未保存") : t("已保存")}</span>
         </span>
         <span>

@@ -17,7 +17,7 @@ import "monaco-editor/languages/definitions/python/register.js";
 import "monaco-editor/languages/definitions/shell/register.js";
 import "monaco-editor/languages/definitions/yaml/register.js";
 import { t } from "./i18n";
-import { sourceOffset, type SearchMatch } from "./workspace-model";
+import { sourceFileFormat, sourceOffset, type SearchMatch } from "./workspace-model";
 
 globalThis.MonacoEnvironment = {
   getWorker: (_id, label) => (label === "json" ? new JsonWorker() : new EditorWorker()),
@@ -106,7 +106,10 @@ export function SourceEditor({
 
   useLayoutEffect(() => {
     const code = instance.current!;
+    const language = languageByExtension[sourceFileFormat(path)] ?? "plaintext";
     let next = models.get(path);
+    if (next && next.model.getLanguageId() !== language)
+      editor.setModelLanguage(next.model, language);
     if (attached.current === next && next) {
       if (next.model.getValue() !== value) next.model.setValue(value);
       return;
@@ -114,8 +117,7 @@ export function SourceEditor({
     if (attached.current && !attached.current.model.isDisposed())
       attached.current.viewState = code.saveViewState();
     if (!next) {
-      const extension = path.split(".").pop()?.toLowerCase() ?? "";
-      const model = editor.createModel(value, languageByExtension[extension] ?? "plaintext");
+      const model = editor.createModel(value, language);
       model.updateOptions({ tabSize: 2, insertSpaces: true });
       next = { model, viewState: null };
       models.set(path, next);

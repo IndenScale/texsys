@@ -1,5 +1,10 @@
 import type { ProjectFile } from "./sdk";
 
+export function sourceFileFormat(path: string): string {
+  const name = path.slice(path.lastIndexOf("/") + 1).toLowerCase();
+  return name === "texsys.lock" ? "toml" : (name.split(".").pop() ?? "");
+}
+
 export type FileListing = { files: ProjectFile[]; directories: string[]; truncated: boolean };
 export type TreeEntry = { path: string; name: string; directory: boolean; depth: number };
 export function visibleFileTree(listing: FileListing, expanded: Set<string>): TreeEntry[] {
