@@ -303,3 +303,38 @@ def test_file_preview_enforces_scope_and_reports_binary_and_size_limits(tmp_path
   for path in ("../outside.txt", str(outside), "alias", "build/result.txt", ".git/config"):
     with pytest.raises(ProjectError):
       project_file(root, path, "build")
+
+
+def test_hmr_keeps_consuming_build_output_after_startup(station, monkeypatch, capsys):
+  import io
+  from texsys.studio.server import serve_hmr
+
+  drained = threading.Event()
+
+  class Output:
+    def __init__(self):
+      self.stream = io.StringIO("Vite ready\nLocal: http://127.0.0.1:8710/\n" + "hmr update\n" * 10000)
+
+    def readline(self):
+      return self.stream.readline()
+
+    def __iter__(self):
+      yield from self.stream
+      drained.set()
+
+  class Process:
+    stdout = Output()
+
+    def poll(self):
+      return None
+
+    def wait(self, timeout=None):
+      assert drained.wait(2), "Vite output must be drained while the development server is running"
+      return 0
+
+    def terminate(self):
+      pass
+
+  monkeypatch.setattr(subprocess, "Popen", lambda *args, **kwargs: Process())
+  serve_hmr(station)
+  assert capsys.readouterr().out.count("hmr update") == 10000

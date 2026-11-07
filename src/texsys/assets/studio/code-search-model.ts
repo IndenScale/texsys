@@ -40,7 +40,7 @@ export function groupCodeSearchResults(results?: SearchResults): SearchFileGroup
   }
   return Array.from(groups.values());
 }
-export function searchLineSegments(line: SearchLine) {
+export function searchLineSegments(line: SearchLine, { trimIndent = false } = {}) {
   const characters = Array.from(line.text),
     segments: { text: string; match?: SearchLine["matches"][number] }[] = [];
   let end = 0;
@@ -53,5 +53,9 @@ export function searchLineSegments(line: SearchLine) {
     end = match.offset + match.length;
   }
   if (end < characters.length) segments.push({ text: characters.slice(end).join("") });
+  // Only remove indentation outside a match. Match objects retain the original
+  // Unicode columns for navigation, including searches that match whitespace.
+  if (trimIndent && segments[0] && !segments[0].match)
+    segments[0] = { ...segments[0], text: segments[0].text.replace(/^[\t ]+/, "") };
   return segments;
 }

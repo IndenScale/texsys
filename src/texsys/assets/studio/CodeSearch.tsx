@@ -1,3 +1,4 @@
+import { t } from "./i18n";
 import React, { useEffect, useMemo, useRef, useState, type ReactNode, type RefObject } from "react";
 import { FileIcon } from "./FileIcon";
 import { Icon } from "./ui";
@@ -23,6 +24,23 @@ type ReplacementPreview = {
   skipped: number;
   changes: { path: string; count: number; before: string; after: string; line: number }[];
 };
+// Search actions use a small, consistent 16px vocabulary instead of detailed
+// document and bidirectional-arrow icons from the engineering workbench.
+const searchActionPaths: Record<string, ReactNode> = {
+  refresh: <path d="M12.5 6a5 5 0 1 0 .2 4.5M12.5 2.5V6H9" />,
+  "clear-search": <path d="M2 3.5h12M2 7.5h8M2 11.5h5m3-1 4 4m0-4-4 4" />,
+  "new-file": <path d="M9.5 2.5h4v4m0-4-6 6M6 3.5H2.5v10h10V10" />,
+  list: <path d="M2 4h12M2 8h9M2 12h6" />,
+  collapse: (
+    <>
+      <path d="M10.5 2.5h-8v8" />
+      <rect x="5.5" y="5.5" width="8" height="8" />
+      <path d="M7.5 9.5h4" />
+    </>
+  ),
+  replace: <path d="M2.5 4.5h10m-3-3 3 3-3 3M2.5 11.5h7" />,
+  "replace-all": <path d="M2.5 4.5h10m-3-3 3 3-3 3M2.5 10.5h10M2.5 13.5h10" />,
+};
 function SearchTool({
   label,
   icon,
@@ -45,7 +63,20 @@ function SearchTool({
       aria-pressed={pressed}
       onClick={onClick}
     >
-      <Icon name={icon} size={16} />
+      <svg
+        className="code-search-action-icon"
+        width="16"
+        height="16"
+        viewBox="0 0 16 16"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1"
+        strokeLinecap="square"
+        strokeLinejoin="miter"
+        aria-hidden="true"
+      >
+        {searchActionPaths[icon]}
+      </svg>
     </button>
   );
 }
@@ -125,12 +156,16 @@ function ReplacementDialog({
         className="core-dialog code-replace-preview"
         role="dialog"
         aria-modal="true"
-        aria-label="预览替换"
+        aria-label={t("预览替换")}
       >
-        <strong>预览替换</strong>
+        <strong>{t("预览替换")}</strong>
         <p>
-          将“{request.query}”替换为“{request.replacement || "（空文本）"}” · {preview.count} 处 ·{" "}
-          {preview.changes.length} 个文件
+          {t("将“")}
+          {request.query}
+          {t("”替换为“")}
+          {request.replacement || t("（空文本）")}” · {preview.count}
+          {t("处 ·")} {preview.changes.length}
+          {t("个文件")}
         </p>
         <div className="code-replace-files" tabIndex={0}>
           {preview.changes.map((change) => (
@@ -138,7 +173,10 @@ function ReplacementDialog({
               <div>
                 <FileIcon path={change.path} />
                 <strong>{change.path}</strong>
-                <span>{change.count} 处</span>
+                <span>
+                  {change.count}
+                  {t("处")}
+                </span>
               </div>
               <pre className="before">− {change.before || " "}</pre>
               <pre className="after">+ {change.after || " "}</pre>
@@ -146,7 +184,7 @@ function ReplacementDialog({
           ))}
         </div>
         <p className="core-hint">
-          每个文件展示首处修改附近的内容。确认后写入磁盘；文件有外部修改时会要求重新预览。
+          {t("每个文件展示首处修改附近的内容。确认后写入磁盘；文件有外部修改时会要求重新预览。")}
         </p>
         {error && (
           <p className="code-search-error" role="alert">
@@ -155,14 +193,14 @@ function ReplacementDialog({
         )}
         <div className="core-dialog-actions">
           <button disabled={busy} onClick={onClose}>
-            取消
+            {t("取消")}
           </button>
           <button
             className="core-primary"
             disabled={busy || !preview.changes.length || !!error}
             onClick={onApply}
           >
-            {busy ? "正在替换…" : `替换 ${preview.count} 处`}
+            {busy ? t("正在替换…") : t("替换 {0} 处", { "0": preview.count })}
           </button>
         </div>
       </div>
@@ -295,9 +333,10 @@ export function useCodeSearch({
     try {
       const result = await api<ReplacementPreview>("/api/search/replace", request);
       const dirtyPath = result.changes.find((change) => hasDirtyFile(change.path))?.path;
-      if (dirtyPath) throw new Error(`${dirtyPath} 有未保存编辑，请先保存或关闭该文件。`);
+      if (dirtyPath)
+        throw new Error(t("{0} 有未保存编辑，请先保存或关闭该文件。", { "0": dirtyPath }));
       if (!result.changes.length) {
-        notify("没有需要替换的内容。");
+        notify(t("没有需要替换的内容。"));
         return;
       }
       setReplacementPreview({ request, result });
@@ -314,7 +353,7 @@ export function useCodeSearch({
       const dirtyPath = replacementPreview.result.changes.find((change) =>
         hasDirtyFile(change.path),
       )?.path;
-      if (dirtyPath) throw new Error(`${dirtyPath} 有未保存编辑，请先保存。`);
+      if (dirtyPath) throw new Error(t("{0} 有未保存编辑，请先保存。", { "0": dirtyPath }));
       const result = await api<{
         complete: boolean;
         applied: string[];
@@ -329,8 +368,15 @@ export function useCodeSearch({
       setReplacementPreview(undefined);
       setRun((value) => value + 1);
       if (!result.complete)
-        throw new Error(`已修改 ${result.applied.length} 个文件，其余未完成：${result.error}`);
-      notify(`已替换 ${result.count} 处，涉及 ${result.applied.length} 个文件。`);
+        throw new Error(
+          t("已修改 {0} 个文件，其余未完成：{1}", {
+            "0": result.applied.length,
+            "1": result.error,
+          }),
+        );
+      notify(
+        t("已替换 {0} 处，涉及 {1} 个文件。", { "0": result.count, "1": result.applied.length }),
+      );
     } catch (error) {
       setReplaceError(error instanceof Error ? error.message : String(error));
       notify(error instanceof Error ? error.message : String(error), true);
@@ -364,7 +410,7 @@ export function useCodeSearch({
         aria-level={grouped ? 2 : 1}
         aria-selected={selected.startsWith(`${line.path}:${line.line}:`)}
         className="code-search-result"
-        title={`${line.path}:${line.line} · ${line.count} 处匹配`}
+        title={t("{0}:{1} · {2} 处匹配", { "0": line.path, "1": line.line, "2": line.count })}
         onClick={() => navigate(line)}
       >
         <span className="code-search-line" aria-hidden="true">
@@ -373,7 +419,7 @@ export function useCodeSearch({
         <span className="code-search-snippet">
           {flat && <span className="code-result-path">{line.path} </span>}
           {line.prefix && "…"}
-          {searchLineSegments(line).map((segment, index) =>
+          {searchLineSegments(line, { trimIndent: true }).map((segment, index) =>
             segment.match ? (
               <mark
                 key={index}
@@ -397,7 +443,7 @@ export function useCodeSearch({
     <div
       className="code-search-result-tree"
       role="tree"
-      aria-label="代码搜索结果"
+      aria-label={t("代码搜索结果")}
       onKeyDown={(event) => {
         const row = (event.target as Element).closest<HTMLButtonElement>('[role="treeitem"]');
         if (!row) return;
@@ -442,8 +488,12 @@ export function useCodeSearch({
                   title={group.path}
                   onClick={() => toggleFile(group.path)}
                 >
-                  <Icon name="chevron" size={14} expanded={!collapsed.has(group.path)} />
-                  <FileIcon path={group.path} />
+                  <span className="code-search-twistie" aria-hidden="true">
+                    <Icon name="chevron" size={12} expanded={!collapsed.has(group.path)} />
+                  </span>
+                  <span className="code-search-file-icon" aria-hidden="true">
+                    <FileIcon path={group.path} />
+                  </span>
                   <span className="code-search-file-name">{group.path.split("/").pop()}</span>
                   {group.path.includes("/") && (
                     <span className="code-search-parent">
@@ -459,7 +509,7 @@ export function useCodeSearch({
                 </button>
                 {replaceOpen && (
                   <SearchTool
-                    label={`替换文件 ${group.path}`}
+                    label={t("替换文件 {0}", { "0": group.path })}
                     icon="replace"
                     disabled={replacementBusy || searching}
                     onClick={() => void previewReplacement([group.path])}
@@ -475,57 +525,54 @@ export function useCodeSearch({
     </div>
   );
   const status = searching
-    ? "正在搜索…"
+    ? t("正在搜索…")
     : results
-      ? `${occurrenceCount} 个结果，${groups.length} 个文件`
-      : "搜索项目中的代码与文本";
-  const header = (
-    <div className="core-heading code-search-heading">
-      <strong>Code Search</strong>
-      <div className="core-tools">
-        <SearchTool
-          label="刷新搜索"
-          icon="refresh"
-          onClick={() => setRun((value) => value + 1)}
-          disabled={!query || searching}
-        />
-        <SearchTool
-          label="清空搜索"
-          icon="clear-search"
-          onClick={() => {
-            setQuery("");
-            inputRef.current?.focus();
-          }}
-          disabled={!query}
-        />
-        <SearchTool
-          label="在编辑器中打开搜索"
-          icon="new-file"
-          onClick={onOpenEditor}
-          disabled={!occurrenceCount || searching}
-        />
-        <SearchTool
-          label="切换平铺结果"
-          icon="list"
-          pressed={!grouped}
-          onClick={() => setGrouped(!grouped)}
-          disabled={!groups.length}
-        />
-        <SearchTool
-          label="折叠所有搜索结果"
-          icon="collapse"
-          onClick={() => setCollapsed(new Set(groups.map((group) => group.path)))}
-          disabled={!groups.length || !grouped}
-        />
-      </div>
-    </div>
+      ? t("{0} 个结果，{1} 个文件", { "0": occurrenceCount, "1": groups.length })
+      : t("搜索项目中的代码与文本");
+  const actions = (
+    <>
+      <SearchTool
+        label={t("刷新搜索")}
+        icon="refresh"
+        onClick={() => setRun((value) => value + 1)}
+        disabled={!query || searching}
+      />
+      <SearchTool
+        label={t("清空搜索")}
+        icon="clear-search"
+        onClick={() => {
+          setQuery("");
+          inputRef.current?.focus();
+        }}
+        disabled={!query}
+      />
+      <SearchTool
+        label={t("在编辑器中打开搜索")}
+        icon="new-file"
+        onClick={onOpenEditor}
+        disabled={!occurrenceCount || searching}
+      />
+      <SearchTool
+        label={t("切换平铺结果")}
+        icon="list"
+        pressed={!grouped}
+        onClick={() => setGrouped(!grouped)}
+        disabled={!groups.length}
+      />
+      <SearchTool
+        label={t("折叠所有搜索结果")}
+        icon="collapse"
+        onClick={() => setCollapsed(new Set(groups.map((group) => group.path)))}
+        disabled={!groups.length || !grouped}
+      />
+    </>
   );
   const controls = (
     <div className="code-search-controls">
       <div className="code-query-row">
         <button
           className="code-replace-toggle"
-          aria-label={replaceOpen ? "隐藏替换" : "显示替换"}
+          aria-label={replaceOpen ? t("隐藏替换") : t("显示替换")}
           aria-expanded={replaceOpen}
           onClick={() => setReplaceOpen(!replaceOpen)}
         >
@@ -534,10 +581,10 @@ export function useCodeSearch({
         <div className={`code-search-box ${error ? "has-error" : ""}`}>
           <input
             ref={inputRef}
-            aria-label="搜索项目内容"
+            aria-label={t("搜索项目内容")}
             aria-invalid={!!error}
             aria-describedby={error ? "code-search-error" : undefined}
-            placeholder="Search"
+            placeholder={t("搜索")}
             value={query}
             onChange={(event) => setQuery(event.target.value)}
             onKeyDown={(event) => {
@@ -549,20 +596,24 @@ export function useCodeSearch({
           />
           <div className="code-search-switches">
             <SearchToggle
-              label="区分大小写"
+              label={t("区分大小写")}
               pressed={caseSensitive}
               onClick={() => setCaseSensitive(!caseSensitive)}
             >
               Aa
             </SearchToggle>
             <SearchToggle
-              label="全字匹配"
+              label={t("全字匹配")}
               pressed={wholeWord}
               onClick={() => setWholeWord(!wholeWord)}
             >
               <span className="code-whole-word">ab</span>
             </SearchToggle>
-            <SearchToggle label="使用正则表达式" pressed={regex} onClick={() => setRegex(!regex)}>
+            <SearchToggle
+              label={t("使用正则表达式")}
+              pressed={regex}
+              onClick={() => setRegex(!regex)}
+            >
               <span className="code-regex">.*</span>
             </SearchToggle>
           </div>
@@ -571,13 +622,13 @@ export function useCodeSearch({
       <div className="code-replace-row" hidden={!replaceOpen}>
         <div className="code-search-box">
           <input
-            aria-label="替换内容"
-            placeholder="Replace"
+            aria-label={t("替换内容")}
+            placeholder={t("替换")}
             value={replaceText}
             onChange={(event) => setReplaceText(event.target.value)}
           />
           <SearchToggle
-            label="保留大小写"
+            label={t("保留大小写")}
             pressed={preserveCase}
             onClick={() => setPreserveCase(!preserveCase)}
           >
@@ -585,59 +636,63 @@ export function useCodeSearch({
           </SearchToggle>
         </div>
         <SearchTool
-          label="预览全部替换"
+          label={t("预览全部替换")}
           icon="replace-all"
           disabled={!occurrenceCount || searching || replacementBusy || results?.truncated}
           onClick={() => void previewReplacement()}
         />
       </div>
-      <div className="code-search-details-toggle">
-        <button
-          aria-label="搜索详细条件"
-          title="包含与排除文件"
-          aria-expanded={detailsOpen}
-          onClick={() => setDetailsOpen(!detailsOpen)}
-        >
-          <Icon name="more" size={17} />
-        </button>
-      </div>
-      <div className="code-search-details" hidden={!detailsOpen}>
-        <label>
-          包含文件
-          <input
-            aria-label="搜索路径包含"
-            placeholder="例如 src/ 或 *.json"
-            value={include}
-            onChange={(event) => setInclude(event.target.value)}
-          />
-        </label>
-        <label>
-          排除文件
-          <input
-            aria-label="搜索路径排除"
-            placeholder="例如 expected/, *.lock"
-            value={exclude}
-            onChange={(event) => setExclude(event.target.value)}
-          />
-        </label>
-        {regex && <p>正则替换支持 $1、$&#123;name&#125; 和 \n。</p>}
+      <div className={`code-search-details-area ${detailsOpen ? "is-expanded" : ""}`}>
+        <div className="code-search-details-toggle">
+          <button
+            aria-label={t("搜索详细条件")}
+            title={t("包含与排除文件")}
+            aria-expanded={detailsOpen}
+            onClick={() => setDetailsOpen(!detailsOpen)}
+          >
+            <Icon name="more" size={17} />
+          </button>
+        </div>
+        <div className="code-search-details" hidden={!detailsOpen}>
+          <label>
+            {t("包含文件")}
+            <input
+              aria-label={t("搜索路径包含")}
+              placeholder={t("例如 src/ 或 *.json")}
+              value={include}
+              onChange={(event) => setInclude(event.target.value)}
+            />
+          </label>
+          <label>
+            {t("排除文件")}
+            <input
+              aria-label={t("搜索路径排除")}
+              placeholder={t("例如 expected/, *.lock")}
+              value={exclude}
+              onChange={(event) => setExclude(event.target.value)}
+            />
+          </label>
+          {regex && <p>{t("正则替换支持 $1、${name} 和 \\n。")}</p>}
+        </div>
       </div>
     </div>
   );
   const notices = (
     <>
-      {results?.matches.length === 0 && !searching && <p className="core-hint">没有匹配结果。</p>}
+      {results?.matches.length === 0 && !searching && (
+        <p className="core-hint">{t("没有匹配结果。")}</p>
+      )}
       {results && (results.truncated || results.skipped > 0) && (
         <p className="core-hint">
-          {results.truncated ? "结果达到上限，请缩小范围。" : ""}
-          {results.skipped ? `已跳过 ${results.skipped} 个大文件或不可读文本。` : ""}
+          {results.truncated ? t("结果达到上限，请缩小范围。") : ""}
+          {results.skipped ? t("已跳过 {0} 个大文件或不可读文本。", { "0": results.skipped }) : ""}
         </p>
       )}
-      {dirty && <p className="core-hint">未保存的编辑不参与磁盘搜索。</p>}
+      {dirty && <p className="core-hint">{t("未保存的编辑不参与磁盘搜索。")}</p>}
     </>
   );
   return {
-    header,
+    actions,
     sidebar: (
       <div className="code-search-panel">
         {controls}
@@ -646,7 +701,7 @@ export function useCodeSearch({
           {!!occurrenceCount && !searching && (
             <>
               <span aria-hidden="true">·</span>
-              <button onClick={onOpenEditor}>在编辑器中打开</button>
+              <button onClick={onOpenEditor}>{t("在编辑器中打开")}</button>
             </>
           )}
         </div>
@@ -665,14 +720,15 @@ export function useCodeSearch({
       </div>
     ),
     editor: (
-      <section className="code-search-editor" aria-label="搜索结果编辑器">
+      <section className="code-search-editor" aria-label={t("搜索结果编辑器")}>
         <div className="core-document-header">
           <span>
-            搜索：{query || "（空）"} · {status}
+            {t("搜索：")}
+            {query || t("（空）")} · {status}
           </span>
           <div>
-            <button onClick={() => setRun((value) => value + 1)}>刷新</button>
-            <button onClick={reset}>新建搜索</button>
+            <button onClick={() => setRun((value) => value + 1)}>{t("刷新")}</button>
+            <button onClick={reset}>{t("新建搜索")}</button>
           </div>
         </div>
         <div className="code-search-editor-results">

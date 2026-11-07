@@ -81,6 +81,12 @@ export type GitDiff = {
   title?: string;
   historical?: boolean;
 };
+export function gitPathInProject(path: string, projectPrefix?: string): string | undefined {
+  if (!projectPrefix) return path;
+  const directory = projectPrefix + "/";
+  return path.startsWith(directory) ? path.slice(directory.length) : undefined;
+}
+
 export function gitGroups(status?: GitStatus) {
   const entries = status?.entries ?? [];
   return {
@@ -88,7 +94,7 @@ export function gitGroups(status?: GitStatus) {
     changes: entries.filter((entry) => entry.worktree !== " "),
   };
 }
-/** DOM textarea offsets use UTF-16; backend search columns count Unicode code points. */
+/** Editor offsets use UTF-16; backend search columns count Unicode code points. */
 export function sourceOffset(content: string, line: number, column: number): number {
   const lines = content.split("\n");
   const index = Math.min(Math.max(0, line - 1), lines.length - 1);

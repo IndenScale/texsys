@@ -1,4 +1,4 @@
-import React, { Component, useCallback, useEffect, useRef, useState } from "react";
+import React, { Component, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { Icon, Empty } from "./ui";
 import {
@@ -11,12 +11,19 @@ import {
   type StudioChrome,
 } from "./sdk";
 import { CoreWorkspaceProvider, WorkbenchSurface } from "./CoreWorkspace";
+import { DEFAULT_SIDEBAR_WIDTH } from "./atomstudio/layoutSizing";
+import {
+  readLayoutPreferences,
+  writeLayoutPreferences,
+  type LayoutPreferences,
+} from "./layout-preferences";
 import { CommandCenter } from "./CommandCenter";
 import { AnimatedPresence } from "./AnimatedPresence";
 import { ToolbarButton } from "./ToolbarButton";
 import { ApplicationMenuBar } from "./ApplicationMenuBar";
 import type { SearchScope } from "./search";
 import { studioMenus } from "./menus";
+import { t, useLocale, getLocale, localizeError } from "./i18n";
 import "./studio.css";
 
 const token =
@@ -31,7 +38,8 @@ async function api<T>(path: string, body?: unknown): Promise<T> {
     body: body === undefined ? undefined : JSON.stringify(body),
   });
   const data = await response.json();
-  if (!response.ok) throw new Error(data.error ?? `Request failed: ${response.status}`);
+  if (!response.ok)
+    throw new Error(localizeError(data.error ?? `Request failed: ${response.status}`));
   return data as T;
 }
 
@@ -46,8 +54,9 @@ class WorkbenchBoundary extends Component<
   render() {
     return this.state.error
       ? (this.props.fallback ?? (
-          <Empty title="工作台暂时无法显示">
-            {this.state.error}。请刷新项目，检查输入和插件诊断。
+          <Empty title={t("工作台暂时无法显示")}>
+            {this.state.error}
+            {t("。请刷新项目，检查输入和插件诊断。")}
           </Empty>
         ))
       : this.props.children;
@@ -85,14 +94,14 @@ function TaskPanel({
         if (valid) setLog(value);
       })
       .catch(() => {
-        if (valid) setLog("日志暂时不可读。");
+        if (valid) setLog(t("日志暂时不可读。"));
       });
     return () => {
       valid = false;
     };
   }, [job?.id, job?.state, state.jobs]);
   return (
-    <section className="task-panel" aria-label="后台任务">
+    <section className="task-panel" aria-label={t("后台任务")}>
       <div className="task-drawer-body">
         <div className="task-list">
           {state.jobs.length ? (
@@ -104,40 +113,41 @@ function TaskPanel({
               >
                 <span className={`status-dot ${item.state}`} />
                 <span>
-                  {labels[item.action] ?? item.action}
+                  {t(labels[item.action]) ?? item.action}
                   <small>
-                    {new Date(item.created_at).toLocaleTimeString("zh-CN")} · {item.id.slice(0, 8)}
+                    {new Date(item.created_at).toLocaleTimeString(getLocale())} ·{" "}
+                    {item.id.slice(0, 8)}
                   </small>
                 </span>
-                <em>{labels[item.state] ?? item.state}</em>
+                <em>{t(labels[item.state]) ?? item.state}</em>
               </button>
             ))
           ) : (
-            <p className="muted">尚未提交任务。已启用的扩展可在这里显示运行记录。</p>
+            <p className="muted">{t("尚未提交任务。已启用的扩展可在这里显示运行记录。")}</p>
           )}
         </div>
         {job && (
           <div className="task-detail">
             <div className="task-summary">
               <span className={`tag ${job.result?.status ?? job.state}`}>
-                {labels[job.state] ?? job.state}
+                {t(labels[job.state]) ?? job.state}
               </span>
               {job.result && (
                 <span>
-                  工程结论：<strong>{labels[job.result.status] ?? job.result.status}</strong>
+                  {t("工程结论：")}
+                  <strong>{t(labels[job.result.status]) ?? job.result.status}</strong>
                 </span>
               )}
               <span className={job.current ? "muted" : "warning-text"}>
-                {job.current ? "输入与当前项目一致" : "历史输入版本"}
+                {job.current ? t("输入与当前项目一致") : t("历史输入版本")}
               </span>
               {job.state === "completed" && (
                 <button className="small-button" onClick={() => openResult(job)}>
-                  打开
                   {job.action === "simulate"
-                    ? "工况结果"
+                    ? t("打开工况结果")
                     : job.action === "check"
-                      ? "检查问题"
-                      : "图纸成果"}
+                      ? t("打开检查问题")
+                      : t("打开图纸成果")}
                   <Icon name="arrow" size={14} />
                 </button>
               )}
@@ -148,20 +158,20 @@ function TaskPanel({
                     try {
                       await api(`/api/jobs/${job.id}/cancel`, {});
                       await refresh();
-                      notify("任务已取消");
+                      notify(t("任务已取消"));
                     } catch (error) {
                       notify(String(error), true);
                     }
                   }}
                 >
-                  取消任务
+                  {t("取消任务")}
                 </button>
               )}
             </div>
             {(job.message || job.result?.message) && (
               <p className="error-text">{job.message ?? job.result?.message}</p>
             )}
-            <pre>{log || "正在准备执行日志…"}</pre>
+            <pre>{log || t("正在准备执行日志…")}</pre>
           </div>
         )}
       </div>
@@ -175,7 +185,7 @@ function initialLayout(): StudioLayout {
     inspectorOpen: false,
     bottomOpen: false,
     bottomTab: "problems",
-    sidebarWidth: 248,
+    sidebarWidth: DEFAULT_SIDEBAR_WIDTH,
     inspectorWidth: 320,
     bottomHeight: 260,
   };
@@ -184,13 +194,17 @@ function initialLayout(): StudioLayout {
 const macKeys = /Mac|iPhone|iPad/.test(navigator.platform);
 
 function Studio({ plugins, chrome }: { plugins: WorkbenchPlugin[]; chrome: StudioChrome }) {
+  const locale = useLocale();
+  useEffect(() => {
+    document.documentElement.lang = locale;
+  }, [locale]);
   const [fileRequest, setFileRequest] = useState<{ path: string; token: number }>();
+  const [settingsRequest, setSettingsRequest] = useState(0);
   const [activityRequest, setActivityRequest] = useState<{
     id: "explorer" | "search" | "scm";
     token: number;
   }>();
   const [state, setState] = useState<StudioState>();
-  const [active, setActive] = useState("");
   const [commandOpen, setCommandOpen] = useState(false);
   const [commandScope, setCommandScope] = useState<SearchScope>("all");
   const [files, setFiles] = useState<ProjectFile[]>([]);
@@ -227,8 +241,15 @@ function Studio({ plugins, chrome }: { plugins: WorkbenchPlugin[]; chrome: Studi
     Record<string, { canBack: boolean; canForward: boolean }>
   >({});
   const [menu, setMenu] = useState<"project" | "discipline" | null>(null);
-  const [layouts, setLayouts] = useState<Record<string, StudioLayout>>({});
   const [defaultLayout] = useState(initialLayout);
+  const [workbench, setWorkbench] = useState<LayoutPreferences & { project: string }>({
+    project: "",
+    discipline: "",
+    layouts: {},
+  });
+  const { discipline: active, layouts, project } = workbench;
+  const setActive = (discipline: string) =>
+    setWorkbench((previous) => ({ ...previous, discipline }));
   const [taskId, setTaskId] = useState<string>();
   const [taskResult, setTaskResult] = useState<{ job: StudioJob; token: number }>();
   const [navigation, setNavigation] = useState<
@@ -249,7 +270,19 @@ function Studio({ plugins, chrome }: { plugins: WorkbenchPlugin[]; chrome: Studi
       const next = await api<StudioState>("/api/state");
       if (mounted.current) {
         setState(next);
-        setActive((previous) => previous || next.plugins[0]?.id || "");
+        setWorkbench((previous) => {
+          const project = next.project.path;
+          const preferences =
+            previous.project === project
+              ? previous
+              : { project, ...readLayoutPreferences(project, defaultLayout) };
+          const discipline = next.plugins.some(({ id }) => id === preferences.discipline)
+            ? preferences.discipline
+            : (next.plugins[0]?.id ?? "");
+          return discipline === preferences.discipline
+            ? preferences
+            : { ...preferences, discipline };
+        });
         setError("");
       }
     } catch (error) {
@@ -257,7 +290,10 @@ function Studio({ plugins, chrome }: { plugins: WorkbenchPlugin[]; chrome: Studi
     } finally {
       refreshing.current = false;
     }
-  }, []);
+  }, [defaultLayout]);
+  useEffect(() => {
+    if (project) writeLayoutPreferences(project, { discipline: active, layouts });
+  }, [project, active, layouts]);
   useEffect(() => {
     mounted.current = true;
     void refresh();
@@ -280,9 +316,15 @@ function Studio({ plugins, chrome }: { plugins: WorkbenchPlugin[]; chrome: Studi
     return () => window.removeEventListener("keydown", handler);
   }, []);
   const updateLayout = (id: string, patch: Partial<StudioLayout>) =>
-    setLayouts((previous) => ({
+    setWorkbench((previous) => ({
       ...previous,
-      [id]: { ...(previous[id] ?? defaultLayout), ...patch },
+      layouts: {
+        ...previous.layouts,
+        [id]: {
+          ...(Object.hasOwn(previous.layouts, id) ? previous.layouts[id] : defaultLayout),
+          ...patch,
+        },
+      },
     }));
   const layout = layouts[active] ?? defaultLayout;
   const available = plugins.filter((plugin) =>
@@ -355,7 +397,16 @@ function Studio({ plugins, chrome }: { plugins: WorkbenchPlugin[]; chrome: Studi
         break;
     }
   };
-  const menuItems = studioMenus.flatMap((group) =>
+  const localizedMenus = useMemo(
+    () =>
+      studioMenus.map((group) => ({
+        ...group,
+        label: t(group.label),
+        items: group.items.map((item) => ({ ...item, label: t(item.label) })),
+      })),
+    [locale],
+  );
+  const menuItems = localizedMenus.flatMap((group) =>
     group.items.map((item) => ({
       ...item,
       group: group.label,
@@ -457,15 +508,15 @@ function Studio({ plugins, chrome }: { plugins: WorkbenchPlugin[]; chrome: Studi
     branch?.kind === "branch"
       ? branch.name
       : branch?.kind === "detached"
-        ? `游离 ${branch.name}`
+        ? t("游离 {0}", { "0": branch.name })
         : branch?.kind === "unversioned"
-          ? "无版本库"
-          : "分支不可用";
+          ? t("无版本库")
+          : t("分支不可用");
   return (
     <div className="studio-app">
       <header
         className={`studio-titlebar ${chrome.nativeMenu ? "has-native-menu" : "has-app-menu"} window-controls-${chrome.windowControls}`}
-        aria-label="窗口标题栏"
+        aria-label={t("窗口标题栏")}
       >
         <div className="titlebar-leading">
           {chrome.windowControls === "left" && (
@@ -473,7 +524,7 @@ function Studio({ plugins, chrome }: { plugins: WorkbenchPlugin[]; chrome: Studi
           )}
           {!chrome.nativeMenu && (
             <ApplicationMenuBar
-              groups={studioMenus}
+              groups={localizedMenus}
               commands={menuItems}
               invoke={invokeCommand}
               onOpen={() => {
@@ -483,11 +534,11 @@ function Studio({ plugins, chrome }: { plugins: WorkbenchPlugin[]; chrome: Studi
               dismiss={commandOpen || menu !== null}
             />
           )}
-          <div className="titlebar-controls" role="toolbar" aria-label="导航与布局">
-            <div className="titlebar-control-group" role="group" aria-label="文档导航">
+          <div className="titlebar-controls" role="toolbar" aria-label={t("导航与布局")}>
+            <div className="titlebar-control-group" role="group" aria-label={t("文档导航")}>
               <ToolbarButton
-                aria-label="后退"
-                tooltip="后退"
+                aria-label={t("后退")}
+                tooltip={t("后退")}
                 shortcut={macKeys ? ["⌘", "["] : ["Alt", "←"]}
                 disabled={!historyState.canBack}
                 onClick={() => requestNavigation("navigation.back")}
@@ -495,8 +546,8 @@ function Studio({ plugins, chrome }: { plugins: WorkbenchPlugin[]; chrome: Studi
                 <Icon name="back" size={18} />
               </ToolbarButton>
               <ToolbarButton
-                aria-label="前进"
-                tooltip="前进"
+                aria-label={t("前进")}
+                tooltip={t("前进")}
                 shortcut={macKeys ? ["⌘", "]"] : ["Alt", "→"]}
                 disabled={!historyState.canForward}
                 onClick={() => requestNavigation("navigation.forward")}
@@ -504,10 +555,10 @@ function Studio({ plugins, chrome }: { plugins: WorkbenchPlugin[]; chrome: Studi
                 <Icon name="forward" size={18} />
               </ToolbarButton>
             </div>
-            <div className="titlebar-control-group" role="group" aria-label="面板布局">
+            <div className="titlebar-control-group" role="group" aria-label={t("面板布局")}>
               <ToolbarButton
-                aria-label="切换资源面板"
-                tooltip="显示/隐藏资源面板"
+                aria-label={t("切换资源面板")}
+                tooltip={t("显示/隐藏资源面板")}
                 shortcut={[macKeys ? "⌘" : "Ctrl", "\\"]}
                 aria-pressed={layout.sidebarOpen}
                 onClick={() => updateLayout(active, { sidebarOpen: !layout.sidebarOpen })}
@@ -515,16 +566,16 @@ function Studio({ plugins, chrome }: { plugins: WorkbenchPlugin[]; chrome: Studi
                 <Icon name="sidebar" size={18} expanded={layout.sidebarOpen} />
               </ToolbarButton>
               <ToolbarButton
-                aria-label="切换底部面板"
-                tooltip="显示/隐藏底部面板"
+                aria-label={t("切换底部面板")}
+                tooltip={t("显示/隐藏底部面板")}
                 aria-pressed={layout.bottomOpen}
                 onClick={() => updateLayout(active, { bottomOpen: !layout.bottomOpen })}
               >
                 <Icon name="bottom-panel" size={18} expanded={layout.bottomOpen} />
               </ToolbarButton>
               <ToolbarButton
-                aria-label="切换属性面板"
-                tooltip="显示/隐藏属性面板"
+                aria-label={t("切换属性面板")}
+                tooltip={t("显示/隐藏属性面板")}
                 aria-pressed={layout.inspectorOpen}
                 onClick={() => updateLayout(active, { inspectorOpen: !layout.inspectorOpen })}
               >
@@ -534,7 +585,7 @@ function Studio({ plugins, chrome }: { plugins: WorkbenchPlugin[]; chrome: Studi
           </div>
         </div>
         <CommandCenter
-          project={state?.project.name ?? "打开项目中"}
+          project={state?.project.name ?? t("打开项目中")}
           disabled={!state}
           open={commandOpen}
           focusRequest={commandFocusRequest}
@@ -552,17 +603,35 @@ function Studio({ plugins, chrome }: { plugins: WorkbenchPlugin[]; chrome: Studi
           filesTruncated={filesTruncated}
           onFile={openFile}
         />
-        <div className="window-caption-reserve" aria-hidden="true" />
+        <div className="titlebar-trailing">
+          <ToolbarButton
+            className="settings-trigger"
+            aria-label={t("设置")}
+            tooltip={t("设置")}
+            disabled={!state}
+            onClick={() => {
+              setMenu(null);
+              closeCommands();
+              setSettingsRequest((request) => request + 1);
+            }}
+          >
+            <Icon name="settings" size={18} />
+          </ToolbarButton>
+          {chrome.windowControls === "right" && (
+            <div className="window-caption-reserve" aria-hidden="true" />
+          )}
+        </div>
       </header>
       <main className="studio-workspace">
         {error && (
           <div className="connection-error" role="alert">
-            项目连接异常：{error}
-            <button onClick={() => void refresh()}>重试</button>
+            {t("项目连接异常：")}
+            {error}
+            <button onClick={() => void refresh()}>{t("重试")}</button>
           </div>
         )}
         {!state ? (
-          <Empty title="正在打开工作空间">读取项目、专业和运行记录。</Empty>
+          <Empty title={t("正在打开工作空间")}>{t("读取项目、专业和运行记录。")}</Empty>
         ) : (
           <CoreWorkspaceProvider
             state={state}
@@ -570,8 +639,10 @@ function Studio({ plugins, chrome }: { plugins: WorkbenchPlugin[]; chrome: Studi
             refresh={refresh}
             notify={notify}
             changeLayout={(patch) => updateLayout(active, patch)}
+            sidebarActivity={layout.sidebarActivity}
             fileRequest={fileRequest}
             activityRequest={activityRequest}
+            settingsRequest={settingsRequest}
             navigationRequest={navigation[active]}
             onNavigationState={reportCoreHistory}
             hasDomain={available.length > 0}
@@ -601,7 +672,9 @@ function Studio({ plugins, chrome }: { plugins: WorkbenchPlugin[]; chrome: Studi
                           layout={layouts[id] ?? defaultLayout}
                           change={(patch) => updateLayout(id, patch)}
                         >
-                          <Empty title="专业预览暂时无法显示">请检查项目输入和插件诊断。</Empty>
+                          <Empty title={t("专业预览暂时无法显示")}>
+                            {t("请检查项目输入和插件诊断。")}
+                          </Empty>
                         </WorkbenchSurface>
                       }
                     >
@@ -652,32 +725,32 @@ function Studio({ plugins, chrome }: { plugins: WorkbenchPlugin[]; chrome: Studi
           </CoreWorkspaceProvider>
         )}
       </main>
-      <footer className="studio-statusbar" aria-label="工作空间状态">
+      <footer className="studio-statusbar" aria-label={t("工作空间状态")}>
         <div className="project-context context-item">
           <button
             className="context-button"
             aria-haspopup="menu"
-            aria-label="当前项目"
+            aria-label={t("当前项目")}
             aria-expanded={menu === "project"}
             title={state?.project.path}
             onClick={() => setMenu(menu === "project" ? null : "project")}
           >
             <Icon name="folder" size={16} />
-            <span>{state?.project.name ?? "打开项目中"}</span>
+            <span>{state?.project.name ?? t("打开项目中")}</span>
             <Icon name="chevron" size={13} />
           </button>
           <AnimatedPresence show={menu === "project"}>
             <button
               className="menu-backdrop"
-              aria-label="关闭项目菜单"
+              aria-label={t("关闭项目菜单")}
               onClick={() => setMenu(null)}
             />
-            <div className="context-menu" role="menu" aria-label="项目菜单">
+            <div className="context-menu" role="menu" aria-label={t("项目菜单")}>
               <p>{state?.project.name}</p>
               <small className="context-path">{state?.project.path}</small>
               <button role="menuitem" onClick={() => requestNavigation("overview")}>
                 <Icon name="folder" size={16} />
-                项目概览
+                {t("项目概览")}
               </button>
               <button
                 role="menuitem"
@@ -687,11 +760,11 @@ function Studio({ plugins, chrome }: { plugins: WorkbenchPlugin[]; chrome: Studi
                 }}
               >
                 <Icon name="refresh" size={16} />
-                读取外部修改
+                {t("读取外部修改")}
               </button>
               <button role="menuitem" onClick={() => requestNavigation("capabilities")}>
                 <Icon name="info" size={16} />
-                专业能力与范围
+                {t("专业能力与范围")}
               </button>
             </div>
           </AnimatedPresence>
@@ -701,21 +774,21 @@ function Studio({ plugins, chrome }: { plugins: WorkbenchPlugin[]; chrome: Studi
           <button
             className="context-button"
             aria-haspopup="menu"
-            aria-label="当前专业"
+            aria-label={t("当前专业")}
             aria-expanded={menu === "discipline"}
             onClick={() => setMenu(menu === "discipline" ? null : "discipline")}
           >
-            <span>{current?.manifest.discipline ?? "通用编辑"}</span>
+            <span>{t(current?.manifest.discipline) ?? t("通用编辑")}</span>
             <Icon name="chevron" size={13} />
           </button>
           <AnimatedPresence show={menu === "discipline"}>
             <button
               className="menu-backdrop"
-              aria-label="关闭专业菜单"
+              aria-label={t("关闭专业菜单")}
               onClick={() => setMenu(null)}
             />
-            <div className="context-menu" role="menu" aria-label="专业菜单">
-              <p>专业工作台</p>
+            <div className="context-menu" role="menu" aria-label={t("专业菜单")}>
+              <p>{t("专业工作台")}</p>
               {available.map((plugin) => (
                 <button
                   key={plugin.manifest.id}
@@ -726,7 +799,7 @@ function Studio({ plugins, chrome }: { plugins: WorkbenchPlugin[]; chrome: Studi
                   }}
                 >
                   <Icon name="grid" size={16} />
-                  <span>{plugin.manifest.discipline}</span>
+                  <span>{t(plugin.manifest.discipline)}</span>
                   {plugin.manifest.id === active && <Icon name="tick" size={14} />}
                 </button>
               ))}
@@ -736,8 +809,10 @@ function Studio({ plugins, chrome }: { plugins: WorkbenchPlugin[]; chrome: Studi
         <span className="context-separator">/</span>
         <div
           className="branch-context"
-          aria-label="当前分支"
-          title={branch?.kind === "branch" ? `项目 Git 分支：${branch.name}` : branchLabel}
+          aria-label={t("当前分支")}
+          title={
+            branch?.kind === "branch" ? t("项目 Git 分支：{0}", { "0": branch.name }) : branchLabel
+          }
         >
           <Icon name="branch" size={15} />
           <span>{branchLabel}</span>
@@ -746,21 +821,27 @@ function Studio({ plugins, chrome }: { plugins: WorkbenchPlugin[]; chrome: Studi
         <span className="statusbar-spacer" />
         <span className="statusbar-connection" title={state?.project.path}>
           <i className={error ? "offline-dot" : "online-dot"} />
-          {error ? "连接中断" : "本地"}
+          {error ? t("连接中断") : t("本地")}
         </span>
-        {current && <span className="statusbar-review">概念设计 · 待工程审核</span>}
+        {current && <span className="statusbar-review">{t("概念设计 · 待工程审核")}</span>}
         <span className="statusbar-revision" title={state?.project.revision}>
-          {state ? `修订 ${state.project.revision.slice(7, 15)}` : "读取中"}
+          {state ? t("修订 {0}", { "0": state.project.revision.slice(7, 15) }) : t("读取中")}
         </span>
         <button className="statusbar-runs" onClick={() => showTasks()}>
-          {running ? `${running} 个任务运行中` : `${state?.jobs.length ?? 0} 次运行`}
+          {running
+            ? t("{0} 个任务运行中", { "0": running })
+            : t("{0} 次运行", { "0": state?.jobs.length ?? 0 })}
         </button>
       </footer>
       <AnimatedPresence show={!!toast}>
         <div className={`studio-toast ${toast?.error ? "error" : ""}`} role="status">
           <Icon name={toast?.error ? "info" : "check"} />
           {toast?.message}
-          <button className="icon-button" aria-label="关闭提示" onClick={() => setToast(undefined)}>
+          <button
+            className="icon-button"
+            aria-label={t("关闭提示")}
+            onClick={() => setToast(undefined)}
+          >
             <Icon name="close" size={14} />
           </button>
         </div>

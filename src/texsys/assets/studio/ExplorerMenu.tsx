@@ -1,3 +1,4 @@
+import { t } from "./i18n";
 import React, { useEffect, useRef } from "react";
 import { Icon } from "./ui";
 
@@ -25,12 +26,12 @@ export function ExplorerMenu({
   }, []);
   return (
     <>
-      <button className="core-menu-backdrop" aria-label="关闭 Explorer 菜单" onClick={close} />
+      <button className="core-menu-backdrop" aria-label={t("关闭资源管理器菜单")} onClick={close} />
       <div
         ref={ref}
         className="core-explorer-menu"
         role="menu"
-        aria-label="Explorer 操作"
+        aria-label={t("资源管理器操作")}
         style={{
           left: Math.max(4, Math.min(x, window.innerWidth - 196)),
           top: Math.max(4, Math.min(y, window.innerHeight - 220)),
@@ -62,12 +63,12 @@ export function ExplorerMenu({
       >
         {(
           [
-            ["create", "新建文件…", "new-file"],
-            ["mkdir", "新建文件夹…", "new-folder"],
-            ["refresh", "刷新", "refresh"],
-            ["collapse", "折叠所有文件夹", "collapse"],
-            ["rename", "重命名…", "edit"],
-            ["delete", "删除…", "trash"],
+            ["create", t("新建文件…"), "new-file"],
+            ["mkdir", t("新建文件夹…"), "new-folder"],
+            ["refresh", t("刷新"), "refresh"],
+            ["collapse", t("折叠所有文件夹"), "collapse"],
+            ["rename", t("重命名…"), "edit"],
+            ["delete", t("删除…"), "trash"],
           ] as const
         ).map(([action, label, icon]) => (
           <button

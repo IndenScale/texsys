@@ -1,12 +1,11 @@
 /* Editor chrome stays quiet; source, previews and changes share the same document space. */
 .core-sidebar {
-  --tree-base: 8px;
+  --tree-base: var(--navigator-gutter);
   --tree-indent: 8px;
   --tree-twistie-size: 16px;
   --tree-icon-size: 16px;
   --tree-guide-color: #d1dade;
   --tree-active-guide-color: #81999e;
-  --explorer-label-inset: 26px;
   height: 100%;
   min-height: 0;
   display: flex;
@@ -16,7 +15,7 @@
 .core-heading {
   height: 36px;
   flex-shrink: 0;
-  padding: 0 12px 0 var(--explorer-label-inset, 20px);
+  padding: 0 12px 0 var(--space-5);
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -27,6 +26,9 @@
   font-weight: 550;
   color: var(--ui-text);
   white-space: nowrap;
+}
+.navigator-heading > .core-tools {
+  flex-shrink: 0;
 }
 .core-tools {
   display: flex;
@@ -77,7 +79,7 @@
 }
 .core-project-tools {
   flex-shrink: 0;
-  margin-right: 7px;
+  margin-right: var(--navigator-end);
 }
 .core-file-tree {
   padding: 0 0 10px;
@@ -198,33 +200,6 @@
   font-size: 10px;
   color: var(--ui-text-muted);
 }
-.core-scm-summary {
-  display: flex;
-  gap: 7px;
-  align-items: center;
-  padding: 8px 12px 0;
-  font-size: 12px;
-}
-.core-scm-summary strong {
-  font-weight: 500;
-}
-.core-scm-summary > span {
-  font-size: 10px;
-  color: var(--ui-text-muted);
-}
-.core-commit {
-  padding: 10px;
-  display: flex;
-  flex-direction: column;
-  gap: 7px;
-}
-.core-commit textarea {
-  width: 100%;
-  min-height: 54px;
-  resize: vertical;
-  border-radius: 3px;
-  font-size: 12px;
-}
 .core-primary {
   display: inline-flex;
   justify-content: center;
@@ -242,7 +217,7 @@
 .core-change-row {
   display: flex;
   align-items: center;
-  padding-right: 6px;
+  padding-right: var(--navigator-end);
 }
 .core-change-row > button:first-child {
   display: flex;
@@ -294,35 +269,106 @@
   min-height: 0;
   min-width: 0;
   display: grid;
-  grid-template-rows: 36px minmax(0, 1fr);
+  grid-template-rows: var(--editor-tab-height) minmax(0, 1fr);
   background: white;
 }
 .core-document-tabs {
+  --tab-corner: 6px;
+  --tab-surface: var(--ui-context-chrome);
   display: flex;
+  gap: var(--space-1);
   overflow-x: auto;
   overflow-y: hidden;
+  scrollbar-width: thin;
   min-width: 0;
+  padding-inline-end: var(--tab-corner);
   background: var(--ui-workspace-chrome);
-  border-bottom: 1px solid var(--ui-chrome-divider);
 }
 .core-file-tabs {
   display: flex;
   flex-shrink: 0;
   min-width: 0;
 }
+.core-file-tabs:empty {
+  display: none;
+}
 .core-file-tab {
   display: flex;
   gap: 4px;
   align-items: center;
-  border-right: 1px solid var(--ui-chrome-divider);
-  border-top: 2px solid transparent;
   padding: 0 4px 0 10px;
   max-width: 230px;
+  color: var(--ui-text-muted);
   font-size: 12px;
 }
-.core-file-tab.active {
-  border-top-color: #087f72;
-  background: white;
+.core-document-tabs :is(.core-file-tab, .page-tab) {
+  position: relative;
+  isolation: isolate;
+  margin-top: var(--space-1);
+  border-radius: var(--tab-corner) var(--tab-corner) 0 0;
+}
+.core-document-tabs
+  :is(.core-file-tab:not(.active), .core-domain-tabs.inactive .page-tab, .page-tab:not(.is-focused))
+  .page-tab__action {
+  background: transparent;
+}
+.core-document-tabs
+  :is(
+    .core-file-tab:not(.active),
+    .core-domain-tabs.inactive .page-tab,
+    .page-tab:not(.is-focused)
+  ):is(:hover, :has(:focus-visible))::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  inset: 0 2px var(--space-1);
+  border-radius: var(--tab-corner);
+  background: var(--ui-control-hover);
+  pointer-events: none;
+}
+.core-document-tabs
+  :is(.core-file-tab.active, .core-domain-tabs:not(.inactive) .page-tab.is-focused) {
+  z-index: 1;
+  background: var(--tab-surface);
+  color: var(--ui-text);
+}
+/* The lower corners flare out into the document header. */
+.core-document-tabs
+  :is(.core-file-tab.active, .core-domain-tabs:not(.inactive) .page-tab.is-focused)::before,
+.core-document-tabs
+  :is(.core-file-tab.active, .core-domain-tabs:not(.inactive) .page-tab.is-focused)::after {
+  content: "";
+  position: absolute;
+  bottom: 0;
+  width: var(--tab-corner);
+  height: var(--tab-corner);
+  background: radial-gradient(
+    circle at var(--tab-corner-origin) top,
+    transparent calc(var(--tab-corner) - 0.5px),
+    var(--tab-surface) var(--tab-corner)
+  );
+  pointer-events: none;
+}
+.core-document-tabs
+  :is(.core-file-tab.active, .core-domain-tabs:not(.inactive) .page-tab.is-focused)::before {
+  --tab-corner-origin: left;
+  right: 100%;
+}
+.core-document-tabs
+  :is(.core-file-tab.active, .core-domain-tabs:not(.inactive) .page-tab.is-focused)::after {
+  --tab-corner-origin: right;
+  left: 100%;
+}
+.core-file-tabs > .core-file-tab.active:first-child,
+.core-file-tabs:empty + .core-domain-tabs:not(.inactive) .page-tab.is-focused:first-child {
+  border-start-start-radius: 0;
+}
+.core-document-tabs .core-file-tabs > .core-file-tab.active:first-child::before,
+.core-file-tabs:empty + .core-domain-tabs:not(.inactive) .page-tab.is-focused:first-child::before {
+  content: none;
+}
+.core-document-tabs button[role="tab"]:focus-visible {
+  outline-offset: -2px;
 }
 .core-file-tab > button[role="tab"] {
   display: flex;
@@ -341,12 +387,12 @@
   flex-shrink: 0;
   min-width: 0;
 }
-.core-domain-tabs.inactive .page-tab.is-focused {
-  background: transparent;
-  border-top-color: transparent;
+.core-domain-tabs .page-tabs {
+  overflow: visible;
 }
 .core-surface-content,
 .core-document-content,
+.core-editor-page,
 .core-domain-content {
   min-width: 0;
   min-height: 0;
@@ -395,45 +441,9 @@
   grid-template-rows: 35px minmax(0, 1fr) 24px;
 }
 .core-code-editor {
-  display: flex;
+  min-width: 0;
   min-height: 0;
   overflow: hidden;
-}
-.core-code-gutter {
-  white-space: pre;
-  width: 57px;
-  flex-shrink: 0;
-  padding: 12px 12px 12px 0;
-  overflow: hidden;
-  text-align: right;
-  color: #95a1a9;
-  user-select: none;
-  background: #fbfcfc;
-  font:
-    12px/21px ui-monospace,
-    SFMono-Regular,
-    Menlo,
-    Consolas,
-    monospace;
-}
-.core-code-editor textarea {
-  flex: 1;
-  min-width: 0;
-  height: 100%;
-  resize: none;
-  border: 0;
-  border-radius: 0;
-  padding: 12px 16px;
-  outline-offset: -2px;
-  white-space: pre;
-  tab-size: 2;
-  color: #263b46;
-  font:
-    12px/21px ui-monospace,
-    SFMono-Regular,
-    Menlo,
-    Consolas,
-    monospace;
 }
 .core-editor-status {
   display: flex;
@@ -595,13 +605,6 @@
   overflow-wrap: anywhere;
   line-height: 1.6;
 }
-.core-domain-tabs.inactive .page-tab.is-focused::before {
-  display: none;
-}
-.core-document-tabs {
-  scrollbar-width: thin;
-}
-
 .core-compare-dialog {
   width: min(1000px, calc(100vw - 32px));
 }
@@ -657,7 +660,7 @@
     monospace;
   letter-spacing: -1px;
 }
-.core-file-icon.file-json {
+.core-file-icon:is(.file-json, .file-css, .file-package) {
   color: #a57921;
 }
 .core-file-icon.file-markdown {
@@ -748,96 +751,306 @@
   font-family: inherit;
 }
 
-/* Source control uses two independently scrollable panes, like the editor explorer. */
+/* Source Control shares the workbench card, controls, and palette. */
+.core-sidebar[data-activity="scm"] {
+  --scm-start: 20px;
+  --scm-end: 12px;
+  font-size: 13px;
+}
+.core-sidebar[data-activity="scm"] > .navigator-heading {
+  height: 34px;
+  padding-inline: var(--scm-start) var(--scm-end);
+  color: inherit;
+  font-size: 13px;
+}
+.core-sidebar[data-activity="scm"] :is(button, textarea):focus-visible {
+  outline-offset: -1px;
+}
+.core-sidebar[data-activity="scm"] .core-tool {
+  width: 24px;
+  height: 22px;
+  padding: 3px;
+}
 .core-scm:not([hidden]) {
   display: flex;
   flex-direction: column;
   overflow: hidden;
 }
+.core-scm :is(.core-hint, .core-error) {
+  padding-inline: var(--scm-start) var(--scm-end);
+  margin-block: 4px 6px;
+}
 .scm-working {
-  flex: 1 1 50%;
-  min-height: 120px;
-  overflow: auto;
-}
-.scm-scope {
-  margin: 5px 12px 0;
-  font-size: 11px;
-  overflow-wrap: anywhere;
-}
-.core-commit textarea {
-  min-height: 46px;
-  max-height: 160px;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
 }
 .scm-section-heading {
   display: flex;
   align-items: center;
-  min-height: 29px;
-  padding: 0 7px;
-  gap: 4px;
+  flex: none;
+  min-height: 22px;
+  padding-inline: 2px var(--scm-end);
+}
+.scm-changes-heading {
+  min-height: 27px;
+}
+.scm-changes-heading:has(> .scm-section-toggle:focus-visible) {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+  border-radius: 4px;
+}
+.scm-changes-heading > .scm-section-toggle:focus-visible {
+  outline: none;
+}
+.scm-heading-tools {
+  display: flex;
+  align-items: center;
 }
 .scm-section-toggle {
   display: flex;
   flex: 1;
   min-width: 0;
   align-items: center;
+  gap: 3px;
+  min-height: inherit;
+  padding: 0;
   text-align: left;
-  gap: 5px;
-  padding: 4px 0;
-  font-size: 12px;
+}
+.scm-section-toggle > svg {
+  width: 16px;
+}
+.scm-section-toggle[aria-expanded="false"] > svg {
+  transform: rotate(-90deg);
 }
 .scm-section-toggle strong {
   font-weight: 550;
 }
-.scm-section-toggle small {
+.scm-group-heading {
+  padding-left: 11px;
+}
+.scm-group-heading strong {
+  font-weight: 500;
+}
+.scm-count {
   margin-left: auto;
-  background: var(--ui-control-hover);
   padding: 0 6px;
-  border-radius: 10px;
+  border-radius: 9px;
+  background: var(--ui-control-hover);
+  color: var(--ui-text);
   font-size: 11px;
+  font-weight: 500;
+  line-height: 18px;
+  font-variant-numeric: tabular-nums;
 }
-.core-change-row > button:first-child {
-  padding: 4px 3px 4px 18px;
+.scm-group-heading > .core-tool {
+  display: none;
 }
-.core-change-row > button:first-child > span:not(.core-file-icon) {
+.scm-group-heading:is(:hover, :focus-within) > .core-tool {
+  display: inline-flex;
+  margin-left: 3px;
+}
+.core-commit {
+  --scm-control-height: 28px;
+  flex: none;
+  display: grid;
+  gap: 8px;
+  padding: 0 var(--scm-end) 4px var(--scm-start);
+}
+.scm-message {
+  display: flex;
+  align-items: flex-start;
+  min-width: 0;
+  min-height: var(--scm-control-height);
+  gap: 4px;
+  padding: 2px 1px;
+  border: 1px solid var(--ui-border);
+  border-radius: 5px;
+  background: var(--ui-canvas);
+}
+.scm-message:focus-within {
+  border-color: var(--ui-proof);
+}
+.scm-message textarea {
+  flex: 1 1 0;
+  min-width: 0;
+  min-height: 22px;
+  max-height: 100px;
+  padding: 2px 4px 2px 5px;
+  border: 0;
+  resize: none;
+  field-sizing: content;
+  background: transparent;
+  color: inherit;
+  line-height: 18px;
+}
+.core-sidebar[data-activity="scm"] .scm-message textarea:focus-visible {
+  outline: none;
+}
+.scm-message textarea:placeholder-shown {
+  field-sizing: fixed;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.scm-message textarea::placeholder {
+  color: var(--ui-text-muted);
+}
+.scm-generate {
+  flex: none;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border-radius: 5px;
+}
+.scm-commit-split {
+  display: flex;
+  min-height: var(--scm-control-height);
+  border-radius: 5px;
+  overflow: hidden;
+}
+.scm-commit-submit {
   flex: 1;
+  gap: 3px;
+  padding-block: 0;
+  border-radius: 0;
+  font-size: 13px;
+  font-weight: 500;
+}
+.scm-commit-menu-trigger {
+  position: relative;
+  flex: 0 0 26px;
+  padding: 0;
+  border-radius: 0;
+}
+.scm-commit-menu-trigger::before {
+  content: "";
+  position: absolute;
+  top: 5px;
+  bottom: 5px;
+  left: 0;
+  border-left: 1px solid #ffffff62;
+}
+.scm-commit-hint,
+.scm-clean {
+  margin: 0;
+  color: var(--ui-text-muted);
+  font-size: 12px;
+}
+.scm-clean {
+  padding: 6px var(--scm-end) 8px var(--scm-start);
+}
+.scm-file-list {
+  overflow: auto;
+  min-height: 0;
+  scrollbar-width: thin;
+}
+.scm-group-rows {
+  position: relative;
+}
+.scm-group-rows::before {
+  content: "";
+  position: absolute;
+  z-index: 1;
+  inset: 0 auto 0 16px;
+  width: 1px;
+  background: var(--tree-guide-color);
+  pointer-events: none;
+}
+.core-scm .core-change-row {
+  min-height: 22px;
+  padding-right: var(--scm-end);
+}
+.core-scm .core-change-row > button:first-child {
+  min-height: 22px;
+  padding: 0 2px 0 17px;
+  gap: 7px;
+  font-size: 13px;
+}
+.scm-graph-row:hover {
+  background: var(--ui-control-hover);
+}
+.core-scm .core-change-row:has([aria-current="true"]),
+.scm-graph-row[aria-current="true"] {
+  background: var(--ui-surface-active);
+}
+.core-scm .core-change-row .scm-file-label {
+  display: flex;
+  align-items: baseline;
+  min-width: 0;
+  gap: 5px;
+}
+.scm-file-label > :is(span, small) {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.scm-file-label > span {
+  flex: 0 1 auto;
+}
+.scm-file-label > small {
+  flex: 1 4 0;
+  margin-left: 0;
+  color: var(--ui-text-muted);
+  font-size: 12px;
 }
 .scm-row-tools {
   display: none;
-  flex-shrink: 0;
+  flex: none;
 }
-.core-change-row:hover .scm-row-tools,
-.core-change-row:focus-within .scm-row-tools {
+.core-sidebar[data-activity="scm"] .scm-row-tools > .core-tool {
+  width: 20px;
+  height: 22px;
+  padding: 2px;
+}
+.core-change-row:is(:hover, :focus-within, :has([aria-current="true"])) .scm-row-tools {
   display: flex;
 }
-.core-change-row .core-git-code {
-  width: 20px;
-  flex-shrink: 0;
+.core-scm .core-git-code {
+  width: 16px;
+  flex: none;
+  padding: 0;
   text-align: center;
+  font:
+    600 12px/1 system-ui,
+    sans-serif;
 }
-.core-git-code.code-\? {
-  color: #208168;
+.scm-menu {
+  inset: auto;
+  margin: 3px 0 0;
+  width: 146px;
+  color: var(--ui-text);
 }
+.scm-menu > button {
+  gap: 5px;
+  min-height: 24px;
+  padding: 2px 8px;
+  white-space: nowrap;
+}
+.scm-menu-check {
+  display: flex;
+  width: 15px;
+}
+
 .scm-graph {
   --scm-lane-0: #3689d3;
   --scm-lane-1: #b277c6;
   --scm-lane-2: #20947f;
   --scm-lane-3: #bd882e;
-  flex: 1 1 50%;
-  min-height: 120px;
+  flex: 1 0 min(32%, 176px);
+  min-height: 0;
   display: flex;
   flex-direction: column;
   border-top: 1px solid var(--ui-border);
 }
 .scm-graph.collapsed {
   flex: 0 0 auto;
-  min-height: 0;
+}
+.scm-working[data-changes-visible="true"] + .scm-graph.collapsed {
+  margin-top: auto;
 }
 .scm-graph > .scm-section-heading {
   flex-shrink: 0;
-}
-.scm-graph-scope {
-  color: var(--ui-text-muted);
-  font-size: 10px;
 }
 .scm-graph-list {
   overflow: auto;
@@ -848,36 +1061,32 @@
   display: flex;
   align-items: center;
   width: 100%;
-  height: 29px;
-  gap: 5px;
+  height: 24px;
   text-align: left;
-  padding: 0 9px 0 5px;
+  padding: 0 var(--navigator-end) 0 calc(var(--navigator-gutter) - 2px);
   font-size: 12px;
 }
 .scm-graph-row svg path {
   fill: none;
   stroke-width: 1.4;
 }
-.scm-graph-row:hover,
-.scm-graph-row.selected {
-  background: var(--ui-control-hover);
-}
 .scm-commit-subject {
-  min-width: 50px;
+  min-width: 0;
   flex: 1;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.scm-commit-author {
-  max-width: 65px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  color: var(--ui-text-muted);
-  font-size: 10px;
+.scm-commit-refs {
+  display: flex;
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: 32%;
+  margin-inline-start: 6px;
+  gap: 3px;
 }
 .scm-ref {
+  min-width: 0;
   max-width: 100px;
   white-space: nowrap;
   overflow: hidden;
@@ -887,7 +1096,6 @@
   border-radius: 8px;
   padding: 1px 6px;
   font-size: 10px;
-  flex-shrink: 0;
 }
 .scm-load-more {
   width: 100%;
@@ -896,26 +1104,12 @@
   font-size: 11px;
 }
 @media (hover: none) {
-  .scm-row-tools {
+  .scm-row-tools,
+  .scm-group-heading > .core-tool {
     display: flex;
   }
 }
-.scm-scope-select {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 4px 12px;
-  font-size: 11px;
-  color: var(--ui-text-muted);
-}
-.scm-scope-select select {
-  min-width: 0;
-  flex: 1;
-  font-size: 11px;
-  padding: 3px;
-}
-
-.activity-bar > button[aria-label="源代码管理"] .activity-badge {
+.activity-bar > button[data-activity-id="scm"] .activity-badge {
   width: auto;
   min-width: 14px;
   height: 14px;

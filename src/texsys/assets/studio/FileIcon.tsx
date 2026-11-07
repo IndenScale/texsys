@@ -5,7 +5,7 @@ import { Icon } from "./ui";
 export function FileIcon({ path, size = 16 }: { path: string; size?: number }) {
   const name = path.split("/").pop()?.toLowerCase() ?? "";
   const extension = name.split(".").pop();
-  const kind = ["tsx", "jsx"].includes(extension ?? "")
+  const family = ["tsx", "jsx"].includes(extension ?? "")
     ? "react"
     : extension === "ts"
       ? "typescript"
@@ -26,6 +26,12 @@ export function FileIcon({ path, size = 16 }: { path: string; size?: number }) {
                     : ["png", "jpg", "jpeg", "svg", "webp"].includes(extension ?? "")
                       ? "image"
                       : "file";
+  const kind =
+    name === "package.json" || name === "package-lock.json"
+      ? "package"
+      : extension === "css"
+        ? "css"
+        : family;
   return (
     <span
       className={`core-file-icon file-${kind}`}
@@ -48,6 +54,25 @@ export function FileIcon({ path, size = 16 }: { path: string; size?: number }) {
           <ellipse cx="12" cy="12" rx="11" ry="4" transform="rotate(120 12 12)" />
           <circle cx="12" cy="12" r="1.7" fill="currentColor" />
         </svg>
+      ) : kind === "package" ? (
+        <svg width={size} height={size} viewBox="0 0 24 24" aria-hidden="true">
+          <path
+            d="M12 1 22 7v10l-10 6-10-6V7Z"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.5"
+          />
+          <text
+            x="12"
+            y="16"
+            textAnchor="middle"
+            fontSize="10"
+            fontWeight="600"
+            fill="currentColor"
+          >
+            JS
+          </text>
+        </svg>
       ) : kind === "git" ? (
         <Icon name="branch" size={size} />
       ) : kind === "markdown" ? (
@@ -57,7 +82,7 @@ export function FileIcon({ path, size = 16 }: { path: string; size?: number }) {
       ) : (
         <Icon
           name={
-            kind === "json"
+            kind === "json" || kind === "css"
               ? "braces"
               : kind === "config"
                 ? "file-config"

@@ -1,6 +1,12 @@
 import React from "react";
 
 const paths: Record<string, React.ReactNode> = {
+  settings: (
+    <>
+      <path d="m10 3-.6 2.4-2 .9-2.2-.7-2 3.4 1.7 1.7v2.6l-1.7 1.7 2 3.4 2.3-.7 2 .9L10 21h4l.6-2.4 2-.9 2.2.7 2-3.4-1.7-1.7v-2.6l1.7-1.7-2-3.4-2.3.7-2-.9L14 3Z" />
+      <circle cx="12" cy="12" r="3" />
+    </>
+  ),
   "clear-search": (
     <>
       <path d="M3 5h18M3 10h14M3 15h9m3-1 6 6m0-6-6 6" />
@@ -152,6 +158,11 @@ const paths: Record<string, React.ReactNode> = {
     </>
   ),
   chevron: <path d="m8 10 4 4 4-4" />,
+  "scm-chevron": <path d="m5 9 7 7 7-7" />,
+  "scm-open-file": <path d="M9 4h7l5 5v11H9M16 4v5h5M9 7H3v6m0 0 3-3m-3 3-2-3" />,
+  sparkles: (
+    <path d="M10 2c0 5-2 7-7 8 5 1 7 3 7 8 1-5 3-7 8-8-5-1-7-3-8-8Zm9 12c0 3-1 4-4 5 3 0 4 1 4 4 1-3 2-4 5-4-3-1-4-2-5-5Z" />
+  ),
   search: (
     <>
       <circle cx="10" cy="10" r="6" />

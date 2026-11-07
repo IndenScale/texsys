@@ -255,7 +255,10 @@ export function resolveGraphic(
   };
 }
 
-export function engineeringLabels(node: DiagramNode): string[] {
+export function engineeringLabels(
+  node: DiagramNode,
+  translate: (message: string) => string = (message) => message,
+): string[] {
   const names: Record<string, string> = {
     cooling_kw: "制冷量",
     capacity_kw: "容量",
@@ -276,7 +279,9 @@ export function engineeringLabels(node: DiagramNode): string[] {
   for (const [key, title] of Object.entries(names)) {
     const binding = node.parameters[key];
     if (binding && binding.value !== undefined)
-      labels.push(`${title} ${binding.value} ${binding.unit === "1" ? "" : binding.unit}`.trim());
+      labels.push(
+        `${translate(title)} ${binding.value} ${binding.unit === "1" ? "" : binding.unit}`.trim(),
+      );
   }
   return labels.slice(0, 2);
 }

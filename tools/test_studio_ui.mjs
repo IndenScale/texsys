@@ -172,7 +172,7 @@ test("text-only diagnostics do not fabricate an object location; incomplete repo
 });
 
 const { tabNavigationIndex } = load("src/texsys/assets/studio/atomstudio/WorkspaceTabs.tsx");
-const { panelSizeFromContainerPointer } = load(
+const { panelSizeFromContainerPointer, panelSizeFromPointer } = load(
   "src/texsys/assets/studio/atomstudio/layoutSizing.ts",
 );
 const { hasResizeIntent, snapPanelDrag } = load(
@@ -185,20 +185,85 @@ test("imported tabs wrap keyboard focus and tolerate empty groups", () => {
   assert.equal(tabNavigationIndex(0, "End", 3), 2);
   assert.equal(tabNavigationIndex(0, "End", 0), -1);
 });
-test("panel edge snap has hysteresis and stays stable near either threshold", () => {
-  assert.deepEqual(snapPanelDrag(47, false, 208), { collapsed: true, value: 0 });
-  assert.deepEqual(snapPanelDrag(60, true, 208), { collapsed: true, value: 0 });
-  assert.deepEqual(snapPanelDrag(73, true, 208), { collapsed: false, value: 73 });
-  assert.deepEqual(snapPanelDrag(60, false, 208), { collapsed: false, value: 60 });
-  assert.deepEqual(snapPanelDrag(250, false, 208), { collapsed: false, value: 250 });
+test("dragging below the minimum previews collapse and crossing back restores the panel", () => {
+  assert.deepEqual(snapPanelDrag(208, 208), { collapsed: false, value: 208 });
+  assert.deepEqual(snapPanelDrag(207, 208), { collapsed: true, value: 0 });
+  assert.deepEqual(snapPanelDrag(0, 208), { collapsed: true, value: 0 });
+  assert.deepEqual(snapPanelDrag(208, 208), { collapsed: false, value: 208 });
+  assert.deepEqual(snapPanelDrag(250, 208), { collapsed: false, value: 250 });
 });
 test("imported resizing respects panel edges, clamp and dismissal intent", () => {
+  assert.equal(panelSizeFromPointer(320, 100, 105, 0, 500, 1), 325);
+  assert.equal(panelSizeFromPointer(320, 100, 105, 0, 500), 315);
+  assert.equal(panelSizeFromPointer(320, 100, 420, 0, 500, 1), 500);
+  assert.equal(panelSizeFromPointer(320, 100, 420, 0, 500), 0);
   assert.equal(panelSizeFromContainerPointer(330, 100, 900, true, 208, 500), 230);
   assert.equal(panelSizeFromContainerPointer(600, 100, 900, false, 280, 500), 300);
   assert.equal(panelSizeFromContainerPointer(120, 100, 900, true, 208, 500), 208);
   assert.equal(panelSizeFromContainerPointer(120, 100, 900, false, 280, 500), 500);
   assert.equal(hasResizeIntent(100, 101), false);
   assert.equal(hasResizeIntent(100, 120), true);
+});
+
+const { readLayoutPreferences, writeLayoutPreferences } = load(
+  "src/texsys/assets/studio/layout-preferences.ts",
+);
+test("layout preferences keep project and discipline state separate and tolerate invalid storage", (t) => {
+  const descriptor = Object.getOwnPropertyDescriptor(globalThis, "localStorage");
+  t.after(() => {
+    if (descriptor) Object.defineProperty(globalThis, "localStorage", descriptor);
+    else delete globalThis.localStorage;
+  });
+  const stored = new Map();
+  Object.defineProperty(globalThis, "localStorage", {
+    configurable: true,
+    value: {
+      getItem: (key) => stored.get(key) ?? null,
+      setItem: (key, value) => stored.set(key, value),
+    },
+  });
+  const defaults = {
+    sidebarOpen: true,
+    sidebarWidth: 320,
+    inspectorOpen: false,
+    inspectorWidth: 320,
+    bottomOpen: false,
+    bottomTab: "problems",
+    bottomHeight: 260,
+  };
+  const saved = {
+    discipline: "texsys:hvac",
+    layouts: {
+      "texsys:hvac": {
+        ...defaults,
+        sidebarOpen: false,
+        sidebarActivity: "components",
+        sidebarWidth: 367,
+        inspectorOpen: true,
+        inspectorWidth: 371,
+        bottomOpen: true,
+        bottomTab: "tasks",
+        bottomHeight: 297,
+      },
+      "": { ...defaults, sidebarActivity: "search" },
+    },
+  };
+  writeLayoutPreferences("/example/a", saved);
+  assert.deepEqual(readLayoutPreferences("/example/a", defaults), saved);
+  assert.deepEqual(readLayoutPreferences("/example/b", defaults), { discipline: "", layouts: {} });
+
+  saved.layouts["texsys:hvac"].sidebarWidth = "wide";
+  writeLayoutPreferences("/example/a", saved);
+  assert.equal(
+    readLayoutPreferences("/example/a", defaults).layouts["texsys:hvac"].sidebarWidth,
+    320,
+  );
+  assert.equal(
+    readLayoutPreferences("/example/a", defaults).layouts["texsys:hvac"].bottomTab,
+    "tasks",
+  );
+  stored.set([...stored.keys()][0], "{incomplete");
+  assert.deepEqual(readLayoutPreferences("/example/a", defaults), { discipline: "", layouts: {} });
 });
 
 const { visitDocument, stepDocument } = load("src/texsys/assets/studio/navigation.ts");
@@ -286,7 +351,7 @@ test("file search ranks exact names and filters case-insensitive path terms", ()
   assert.equal(filterFiles(files, "missing-unique-filename").length, 0);
 });
 
-const { visibleFileTree, gitGroups, sourceOffset, commitGraph } = load(
+const { visibleFileTree, gitGroups, gitPathInProject, sourceOffset, commitGraph } = load(
   "src/texsys/assets/studio/workspace-model.ts",
 );
 test("Explorer preserves empty directories and expands ancestors without duplicating them", () => {
@@ -313,6 +378,13 @@ test("Source Control shows partially staged files in both change groups", () => 
     gitGroups({ entries: [{ path: "new", index: "?", worktree: "?" }] }).staged.length,
     0,
   );
+});
+test("Repository change paths can only open files inside the current project", () => {
+  const project = "examples/hvac";
+  assert.equal(gitPathInProject("src/model.json"), "src/model.json");
+  assert.equal(gitPathInProject("examples/hvac/src/model.json", project), "src/model.json");
+  assert.equal(gitPathInProject("examples/hvac-other/src/model.json", project), undefined);
+  assert.equal(gitPathInProject("src/model.json", project), undefined);
 });
 test("Search navigation converts Unicode code point columns to textarea UTF-16 offsets", () => {
   const text = "heading\n😀 Pump pump\n";
@@ -376,4 +448,85 @@ test("Code Search highlights Unicode offsets without splitting surrogate pairs",
     segments.filter((segment) => segment.match).map((segment) => segment.text),
     ["test", "test"],
   );
+});
+
+test("search preview removes source indentation without changing Unicode match columns", () => {
+  const match = { column: 7, end_column: 12, offset: 6, length: 5 };
+  const line = { path: "model", line: 3, text: "  \t😀  valve", matches: [match], count: 1 };
+  const segments = searchLineSegments(line, { trimIndent: true });
+  assert.equal(segments.map((segment) => segment.text).join(""), "😀  valve");
+  assert.equal(segments.find((segment) => segment.match).match, match);
+  assert.equal(match.column, 7);
+  assert.equal(line.text, "  \t😀  valve");
+});
+
+test("search preview preserves whitespace that is itself a match", () => {
+  const line = {
+    path: "model",
+    line: 1,
+    text: "  valve",
+    count: 1,
+    matches: [{ column: 1, end_column: 3, offset: 0, length: 2 }],
+  };
+  assert.equal(searchLineSegments(line, { trimIndent: true })[0].text, "  ");
+  assert.equal(
+    searchLineSegments(line)
+      .map((segment) => segment.text)
+      .join(""),
+    "  valve",
+  );
+});
+
+const { parseLocale, translate, getLocale, setLocale, t, localizeError } = load(
+  "src/texsys/assets/studio/i18n.ts",
+);
+const { englishMessages } = load("src/texsys/assets/studio/messages.ts");
+
+test("locale selection accepts supported values and defaults malformed preferences to Chinese", () => {
+  assert.equal(parseLocale(null), "zh-CN");
+  assert.equal(parseLocale("fr"), "zh-CN");
+  assert.equal(parseLocale("zh-CN"), "zh-CN");
+  assert.equal(parseLocale("en"), "en");
+});
+
+test("translations preserve identifiers, literal replacement text, and optional fallbacks", () => {
+  assert.equal(translate("zh-CN", "文件资源管理器"), "文件资源管理器");
+  assert.equal(translate("en", "文件资源管理器"), "Explorer");
+  assert.equal(translate("en", "源代码管理"), "Source Control");
+  assert.equal(translate("en", "搜索"), "Search");
+  assert.equal(
+    translate("en", "关闭 {0}", { 0: "$& ${path} 设备.json" }),
+    "Close $& ${path} 设备.json",
+  );
+  assert.equal(translate("en", "自定义模型-01"), "自定义模型-01");
+  for (const identifier of ["__proto__", "constructor", "toString"]) {
+    assert.equal(translate("en", identifier), identifier);
+  }
+  assert.equal(translate("en", "关闭 {0}"), "Close {0}");
+  assert.equal(t(undefined), undefined);
+});
+
+test("language changes work without browser storage and error details keep their original paths", () => {
+  const previous = getLocale();
+  try {
+    setLocale("en");
+    assert.equal(getLocale(), "en");
+    assert.equal(t("设置"), "Settings");
+    assert.equal(
+      localizeError("正则表达式无效：unterminated group"),
+      "Invalid regular expression: unterminated group",
+    );
+    setLocale("zh-CN");
+    assert.equal(t("设置"), "设置");
+  } finally {
+    setLocale(previous);
+  }
+});
+
+test("English catalog retains all interpolation placeholders and contains no Chinese interface copy", () => {
+  const placeholders = (text) => [...text.matchAll(/\{(\w+)\}/g)].map((match) => match[1]).sort();
+  for (const [source, translated] of Object.entries(englishMessages)) {
+    assert.deepEqual(placeholders(translated), placeholders(source), source);
+    assert.equal(/[\u3400-\u9fff]/.test(translated), false, source);
+  }
 });

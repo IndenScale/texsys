@@ -1,3 +1,4 @@
+import { t, getLocale } from "../../../../../src/texsys/assets/studio/i18n";
 import type {
   Binding,
   Diagram,
@@ -90,12 +91,12 @@ export function unitLabel(unit: string): string {
 }
 export function bindingValue(binding?: Binding, key = ""): string {
   if (!binding || !["known", "assumed"].includes(binding.state) || binding.value === undefined)
-    return bindingLabels[binding?.state ?? "missing"] ?? binding?.state ?? "缺失";
+    return t(bindingLabels[binding?.state ?? "missing"]) ?? binding?.state ?? t("缺失");
   if (key === "check_valve" && binding.unit === "1" && [0, 1].includes(binding.value))
-    return binding.value ? "有" : "无";
-  const numeric = binding.value.toLocaleString("zh-CN", { maximumSignificantDigits: 6 });
+    return binding.value ? t("有") : t("无");
+  const numeric = binding.value.toLocaleString(getLocale(), { maximumSignificantDigits: 6 });
   if (key === "efficiency" && binding.unit === "1")
-    return `${(binding.value * 100).toLocaleString("zh-CN", { maximumSignificantDigits: 6 })}%`;
+    return `${(binding.value * 100).toLocaleString(getLocale(), { maximumSignificantDigits: 6 })}%`;
   return `${numeric}${unitLabel(binding.unit) ? " " + unitLabel(binding.unit) : ""}`;
 }
 
@@ -157,13 +158,13 @@ export function issuesFor(data: Data): Issue[] {
         current: report.current,
         title:
           entry.id === "visual-review"
-            ? "图纸待人工复核"
-            : String(entry.rule ?? entry.id ?? "模型检查项"),
+            ? t("图纸待人工复核")
+            : String(entry.rule ?? entry.id ?? t("模型检查项")),
         detail:
           entry.id === "visual-review"
-            ? "尚未记录图纸人工复核，工程审核仍待完成。"
-            : String(entry.message ?? entry.impact ?? "待复核"),
-        origin: report.kind === "studio-check.json" ? "模型检查" : "图纸检查",
+            ? t("尚未记录图纸人工复核，工程审核仍待完成。")
+            : String(entry.message ?? entry.impact ?? t("待复核")),
+        origin: report.kind === "studio-check.json" ? t("模型检查") : t("图纸检查"),
         object:
           data.source && typeof reference === "string"
             ? instanceFromRef(data.source, reference)
@@ -175,9 +176,9 @@ export function issuesFor(data: Data): Issue[] {
         id: report.path,
         status: report.data.status,
         current: report.current,
-        title: "检查结论待处理",
-        detail: "此报告没有对象级诊断，请查看报告或后台任务日志。",
-        origin: "模型检查",
+        title: t("检查结论待处理"),
+        detail: t("此报告没有对象级诊断，请查看报告或后台任务日志。"),
+        origin: t("模型检查"),
       });
   }
   for (const run of data.runs)
@@ -191,21 +192,28 @@ export function issuesFor(data: Data): Issue[] {
         title:
           variable && assertion.variable
             ? variableName(assertion.variable, variable)
-            : (assertion.message ?? "工况约束待处理"),
+            : (assertion.message ?? t("工况约束待处理")),
         detail:
           [
             assertion.actual === undefined
               ? ""
-              : `极值 ${assertion.actual.toFixed(3)} ${unitLabel(assertion.unit ?? "")}`,
+              : t("极值 {0} {1}", {
+                  "0": assertion.actual.toFixed(3),
+                  "1": unitLabel(assertion.unit ?? ""),
+                }),
             assertion.value === undefined
               ? ""
-              : `要求 ${assertion.operator} ${assertion.value} ${unitLabel(assertion.unit ?? "")}`,
+              : t("要求 {0} {1} {2}", {
+                  "0": assertion.operator,
+                  "1": assertion.value,
+                  "2": unitLabel(assertion.unit ?? ""),
+                }),
           ]
             .filter(Boolean)
             .join("；") ||
           assertion.message ||
-          "查看工况结果",
-        origin: `${scenarioNames[run.result.scenario] ?? run.result.scenario} / ${backendName(run.result)}`,
+          t("查看工况结果"),
+        origin: `${t(scenarioNames[run.result.scenario]) ?? run.result.scenario} / ${backendName(run.result)}`,
         object:
           data.source && variable ? instanceFromRef(data.source, variable.semantic_ref) : undefined,
         runPath: run.path,

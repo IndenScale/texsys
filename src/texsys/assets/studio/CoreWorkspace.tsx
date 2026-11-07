@@ -1,3 +1,4 @@
+import { t } from "./i18n";
 import React, {
   createContext,
   useCallback,
@@ -11,7 +12,7 @@ import { ActivityBar, WorkbenchLayout } from "./atomstudio/Layout";
 import { Empty, Icon } from "./ui";
 import type { FilePreview, StudioLayout, StudioState, WorkbenchProps } from "./sdk";
 import {
-  sourceOffset,
+  gitPathInProject,
   visibleFileTree,
   type FileListing,
   type GitDiff,
@@ -25,9 +26,14 @@ import { ExplorerTree } from "./ExplorerTree";
 import { FileIcon } from "./FileIcon";
 import { ExplorerMenu, type ExplorerAction } from "./ExplorerMenu";
 import "./workspace.css";
-import { SourceControl } from "./SourceControl";
+import { ScmMenu, SourceControl } from "./SourceControl";
+import { SourceEditor, type SourceModels } from "./SourceEditor";
+import { Settings } from "./Settings";
 
 type Activity = "explorer" | "search" | "scm";
+function isCoreActivity(id: string): id is Activity {
+  return id === "explorer" || id === "search" || id === "scm";
+}
 type Document = {
   path: string;
   saved: string;
@@ -37,7 +43,7 @@ type Document = {
   loading?: boolean;
   error?: string;
   location?: SearchMatch;
-  position?: number;
+  cursorLine?: number;
 };
 type FileRequest = {
   path: string;
@@ -48,7 +54,7 @@ type FileRequest = {
 };
 type Core = {
   activity: Activity | null;
-  select: (id: Activity | null) => void;
+  select: (id: Activity) => void;
   sidebar: ReactNode;
   editor: ReactNode;
   tabs: ReactNode;
@@ -66,6 +72,11 @@ const coreItems = [
   { id: "search", label: "搜索", icon: <Icon name="search" size={19} /> },
   { id: "scm", label: "源代码管理", icon: <Icon name="branch" size={19} /> },
 ];
+const coreSidebarTitles: Record<Activity, string> = {
+  explorer: "文件资源管理器",
+  search: "搜索",
+  scm: "源代码管理",
+};
 function Tool({
   label,
   icon,
@@ -74,7 +85,7 @@ function Tool({
 }: {
   label: string;
   icon: string;
-  onClick: () => void;
+  onClick: React.MouseEventHandler<HTMLButtonElement>;
   disabled?: boolean;
 }) {
   return (
@@ -133,8 +144,10 @@ export function CoreWorkspaceProvider({
   refresh,
   notify,
   changeLayout,
+  sidebarActivity = "explorer",
   fileRequest,
   activityRequest,
+  settingsRequest,
   navigationRequest,
   onNavigationState,
   hasDomain,
@@ -145,14 +158,17 @@ export function CoreWorkspaceProvider({
   refresh: WorkbenchProps["refresh"];
   notify: WorkbenchProps["notify"];
   changeLayout: WorkbenchProps["changeLayout"];
+  sidebarActivity?: string;
   fileRequest?: FileRequest;
   activityRequest?: { id: Activity; token: number };
+  settingsRequest?: number;
   navigationRequest?: WorkbenchProps["navigationRequest"];
   onNavigationState?: (next: { active: boolean; canBack: boolean; canForward: boolean }) => void;
   hasDomain: boolean;
   children: ReactNode;
 }) {
-  const [activity, setActivity] = useState<Activity | null>("explorer");
+  const coreActivity = isCoreActivity(sidebarActivity) ? sidebarActivity : null;
+  const activity = coreActivity ?? "explorer";
   const [listing, setListing] = useState<FileListing>(emptyListing),
     [listingError, setListingError] = useState("");
   const [loadingFiles, setLoadingFiles] = useState(false);
@@ -163,12 +179,16 @@ export function CoreWorkspaceProvider({
   const [documents, setDocuments] = useState<Document[]>([]),
     [activePath, setActivePath] = useState<string | null>(null);
   const [documentActive, setDocumentActive] = useState(true);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [settingsActive, setSettingsActive] = useState(false);
   const [searchEditorActive, setSearchEditorActive] = useState(false);
   const [searchDocumentOpen, setSearchDocumentOpen] = useState(false);
   const [history, setHistory] = useState<DocumentHistory>({ entries: [], index: -1 });
   const [busy, setBusy] = useState(false);
   const [searchGeneration, setSearchGeneration] = useState(0);
-  const [gitScope, setGitScope] = useState("project");
+  const [gitScope, setGitScope] = useState<"project" | "repository">("repository");
+  const [gitRefreshGeneration, setGitRefreshGeneration] = useState(0);
+  const [gitGraphExpanded, setGitGraphExpanded] = useState<boolean>();
   const [gitStatus, setGitStatus] = useState<GitStatus>(),
     [gitError, setGitError] = useState("");
   const [message, setMessage] = useState(""),
@@ -185,21 +205,34 @@ export function CoreWorkspaceProvider({
   const [formError, setFormError] = useState("");
   const [closePath, setClosePath] = useState<string>();
   const [diskComparison, setDiskComparison] = useState<{ path: string; file: FilePreview }>();
-  const editor = useRef<HTMLTextAreaElement>(null),
-    gutter = useRef<HTMLDivElement>(null),
-    searchInput = useRef<HTMLInputElement>(null);
+  const searchInput = useRef<HTMLInputElement>(null);
+  const [sourceModels] = useState<SourceModels>(() => new Map());
+  useEffect(() => {
+    const paths = new Set(documents.map(({ path }) => path));
+    for (const [path, { model }] of sourceModels) {
+      if (!paths.has(path)) {
+        model.dispose();
+        sourceModels.delete(path);
+      }
+    }
+  }, [documents, sourceModels]);
+  useEffect(
+    () => () => {
+      for (const { model } of sourceModels.values()) model.dispose();
+      sourceModels.clear();
+    },
+    [sourceModels],
+  );
   const documentsRef = useRef(documents);
   documentsRef.current = documents;
   const active = documents.find((item) => item.path === activePath);
   const dirty = documents.some((item) => item.content !== item.saved);
   const select = useCallback(
-    (id: Activity | null) => {
-      setActivity(id);
-      changeLayout({ sidebarOpen: true });
-    },
+    (id: Activity) => changeLayout({ sidebarOpen: true, sidebarActivity: id }),
     [changeLayout],
   );
   const activateDomain = useCallback(() => {
+    setSettingsActive(false);
     setDocumentActive(false);
     setSearchEditorActive(false);
     setDiffActive(false);
@@ -263,6 +296,7 @@ export function CoreWorkspaceProvider({
     return () => window.removeEventListener("beforeunload", handler);
   }, [dirty]);
   const openFile = async (path: string, location?: FileRequest, recordHistory = true) => {
+    setSettingsActive(false);
     if (recordHistory) setHistory((previous) => visitDocument(previous, path));
     setSearchEditorActive(false);
     setRootOpen(true);
@@ -293,7 +327,7 @@ export function CoreWorkspaceProvider({
       : undefined;
     const existing = documentsRef.current.find((item) => item.path === path);
     if (existing && existing.content !== existing.saved) {
-      if (target) notify("文件有未保存的编辑，已打开文件；请保存后再按磁盘搜索结果定位。");
+      if (target) notify(t("文件有未保存的编辑，已打开文件；请保存后再按磁盘搜索结果定位。"));
       return;
     }
     setDocuments((previous) =>
@@ -332,14 +366,15 @@ export function CoreWorkspaceProvider({
   };
   useEffect(() => {
     onNavigationState?.({
-      active: documentActive,
-      canBack: history.index > 0,
-      canForward: history.index < history.entries.length - 1,
+      active: documentActive || settingsActive,
+      canBack: !settingsActive && history.index > 0,
+      canForward: !settingsActive && history.index < history.entries.length - 1,
     });
-  }, [documentActive, history.index, history.entries.length, onNavigationState]);
+  }, [documentActive, settingsActive, history.index, history.entries.length, onNavigationState]);
   useEffect(() => {
     if (
       !documentActive ||
+      settingsActive ||
       !navigationRequest ||
       !["navigation.back", "navigation.forward"].includes(navigationRequest.command)
     )
@@ -353,32 +388,17 @@ export function CoreWorkspaceProvider({
     if (fileRequest) void openFile(fileRequest.path, fileRequest);
   }, [fileRequest?.token]);
   useEffect(() => {
+    if (!settingsRequest) return;
+    setSettingsOpen(true);
+    setSettingsActive(true);
+  }, [settingsRequest]);
+  useEffect(() => {
     if (activityRequest) {
       select(activityRequest.id);
       if (activityRequest.id === "search")
         requestAnimationFrame(() => searchInput.current?.focus());
     }
   }, [activityRequest?.token]);
-  useEffect(() => {
-    if (!active?.location || active.loading || !documentActive || diffActive || searchEditorActive)
-      return;
-    const node = editor.current;
-    if (!node) return;
-    const location = active.location;
-    const start = sourceOffset(active.content, location.line, location.column);
-    const end = sourceOffset(active.content, location.line, location.end_column);
-    node.focus();
-    node.setSelectionRange(start, Math.max(start, end));
-    node.scrollTop = Math.max(0, (location.line - 4) * 21);
-    if (gutter.current) gutter.current.scrollTop = node.scrollTop;
-  }, [
-    active?.path,
-    active?.loading,
-    active?.location,
-    documentActive,
-    diffActive,
-    searchEditorActive,
-  ]);
   const saveFile = async (path = activePath): Promise<boolean> => {
     const document = documentsRef.current.find((item) => item.path === path);
     if (!document || document.loading || document.reason || document.error) return false;
@@ -397,7 +417,7 @@ export function CoreWorkspaceProvider({
             : item,
         ),
       );
-      notify("文件已保存");
+      notify(t("文件已保存"));
       await reload();
       return true;
     } catch (error) {
@@ -410,7 +430,7 @@ export function CoreWorkspaceProvider({
   const compareDisk = async (path: string) => {
     try {
       const file = await api<FilePreview>(`/api/file?path=${encodeURIComponent(path)}`);
-      if (!file.previewable) throw new Error(file.reason ?? "磁盘版本无法作为文本读取。");
+      if (!file.previewable) throw new Error(file.reason ?? t("磁盘版本无法作为文本读取。"));
       setDiskComparison({ path, file });
     } catch (error) {
       notify(String(error), true);
@@ -474,7 +494,7 @@ export function CoreWorkspaceProvider({
     if (
       documentsRef.current.some((item) => item.path === form.path && item.content !== item.saved)
     ) {
-      setFormError("请先保存或关闭该文件的未保存编辑。");
+      setFormError(t("请先保存或关闭该文件的未保存编辑。"));
       return;
     }
     setBusy(true);
@@ -486,7 +506,7 @@ export function CoreWorkspaceProvider({
         listing.files.some((file) => file.path === form.path)
       ) {
         const file = await api<FilePreview>(`/api/file?path=${encodeURIComponent(form.path)}`);
-        if (!file.version) throw new Error("无法读取文件版本，请刷新后重试。");
+        if (!file.version) throw new Error(t("无法读取文件版本，请刷新后重试。"));
         version = file.version;
       }
       await api("/api/file", {
@@ -535,16 +555,14 @@ export function CoreWorkspaceProvider({
       });
       setGitStatus(next);
       if (action === "discard" && entry) {
-        const path = gitStatus?.project_prefix
-          ? entry.path.startsWith(gitStatus.project_prefix + "/")
-            ? entry.path.slice(gitStatus.project_prefix.length + 1)
-            : null
-          : entry.path;
-        setDocuments((previous) => previous.filter((item) => item.path !== path));
+        const path = gitPathInProject(entry.path, next.project_prefix);
+        if (path !== undefined) {
+          setDocuments((previous) => previous.filter((item) => item.path !== path));
+        }
       }
       if (action === "commit") {
         setMessage("");
-        notify("已创建本地提交");
+        notify(t("已创建本地提交"));
       }
       // An open diff describes the previous index/worktree; close it after a mutation.
       setDiffActive(false);
@@ -558,7 +576,8 @@ export function CoreWorkspaceProvider({
       setBusy(false);
     }
   };
-  const openDiff = async (entry: GitEntry, staged: boolean) => {
+  const openScmDiff = async (url: string) => {
+    setSettingsActive(false);
     setSearchEditorActive(false);
     const sequence = ++diffSequence.current;
     setDocumentActive(true);
@@ -567,9 +586,7 @@ export function CoreWorkspaceProvider({
     setDiffError("");
     setDiffLoading(true);
     try {
-      const result = await api<GitDiff>(
-        `/api/scm/diff?${new URLSearchParams({ path: entry.path, staged: String(staged), scope: gitScope })}`,
-      );
+      const result = await api<GitDiff>(url);
       if (sequence === diffSequence.current) setDiff(result);
     } catch (error) {
       if (sequence === diffSequence.current) setDiffError(String(error));
@@ -584,6 +601,7 @@ export function CoreWorkspaceProvider({
     inputRef: searchInput,
     onOpenFile: (path, match) => void openFile(path, match ? { ...match, token: 0 } : undefined),
     onOpenEditor: () => {
+      setSettingsActive(false);
       setSearchDocumentOpen(true);
       setSearchEditorActive(true);
       setDocumentActive(true);
@@ -598,7 +616,11 @@ export function CoreWorkspaceProvider({
     hasDirtyFile: (path) =>
       documentsRef.current.some((item) => item.path === path && item.content !== item.saved),
     dirty,
-    gitEntries: gitStatus?.entries ?? [],
+    gitEntries:
+      gitStatus?.entries.flatMap((entry) => {
+        const path = gitPathInProject(entry.path, gitStatus.project_prefix);
+        return path === undefined ? [] : [{ ...entry, path }];
+      }) ?? [],
     notify,
   });
   const tree = visibleFileTree(listing, expanded);
@@ -623,44 +645,77 @@ export function CoreWorkspaceProvider({
   useEffect(() => {
     setExplorerMenu(undefined);
   }, [activity]);
-  const headings = { explorer: "Explorer", search: "搜索", scm: "源代码管理" };
+  const refreshScm = () => {
+    void readGit();
+    setGitRefreshGeneration((value) => value + 1);
+  };
+  const changeScmScope = (scope: "project" | "repository") => {
+    if (scope === gitScope) return;
+    gitReadSequence.current += 1;
+    diffSequence.current += 1;
+    setGitStatus(undefined);
+    setGitScope(scope);
+    setDiffActive(false);
+  };
+  const sidebarActions =
+    activity === "search" ? (
+      codeSearch.actions
+    ) : activity === "explorer" ? (
+      <button
+        className="core-tool"
+        aria-label={t("资源管理器更多操作")}
+        title={t("更多操作")}
+        aria-haspopup="menu"
+        aria-expanded={!!explorerMenu}
+        onClick={(event) => {
+          if (explorerMenu) setExplorerMenu(undefined);
+          else {
+            const rect = event.currentTarget.getBoundingClientRect();
+            setExplorerMenu({ x: rect.right - 188, y: rect.bottom + 3, path: selected });
+          }
+        }}
+      >
+        <Icon name="more" size={18} />
+      </button>
+    ) : activity === "scm" ? (
+      <ScmMenu
+        label={t("源码管理范围")}
+        title={`${t("管理范围")} · ${t(gitScope === "project" ? "当前项目" : "整个仓库")}`}
+        items={[
+          {
+            label: t("当前项目"),
+            checked: gitScope === "project",
+            reason: gitScope === "project" ? gitStatus?.scope : undefined,
+            run: busy || !gitStatus?.available ? undefined : () => changeScmScope("project"),
+          },
+          {
+            label: t("整个仓库"),
+            checked: gitScope === "repository",
+            reason: gitStatus?.repository,
+            run: busy || !gitStatus?.available ? undefined : () => changeScmScope("repository"),
+          },
+          ...(gitStatus?.available
+            ? []
+            : [{ label: t("刷新源代码管理"), run: busy ? undefined : refreshScm }]),
+        ]}
+      />
+    ) : (
+      <Tool label={t("刷新资源")} icon="refresh" disabled={busy} onClick={() => void reload()} />
+    );
   const sidebar = (
-    <div className="core-sidebar">
-      {activity === "search" ? (
-        codeSearch.header
-      ) : (
-        <div className="core-heading">
-          <strong>{activity ? headings[activity] : ""}</strong>
-          {activity === "explorer" ? (
-            <button
-              className="core-tool"
-              aria-label="Explorer 更多操作"
-              title="更多操作"
-              aria-haspopup="menu"
-              aria-expanded={!!explorerMenu}
-              onClick={(event) => {
-                if (explorerMenu) setExplorerMenu(undefined);
-                else {
-                  const rect = event.currentTarget.getBoundingClientRect();
-                  setExplorerMenu({ x: rect.right - 188, y: rect.bottom + 3, path: selected });
-                }
-              }}
-            >
-              <Icon name="more" size={18} />
-            </button>
-          ) : (
-            <Tool label="刷新资源" icon="refresh" disabled={busy} onClick={() => void reload()} />
-          )}
-        </div>
-      )}
+    <div className="core-sidebar" data-activity={activity}>
+      <div className="navigator-heading">
+        <strong title={t(coreSidebarTitles[activity])}>{t(coreSidebarTitles[activity])}</strong>
+        <div className="core-tools">{sidebarActions}</div>
+      </div>
       <section
         className="core-resource"
         hidden={activity !== "explorer"}
-        aria-label="文件资源管理器内容"
+        aria-label={t("文件资源管理器内容")}
       >
         <div className="core-project-row" data-expanded={rootOpen}>
           <button
-            aria-label={`项目 ${state.project.name}`}
+            aria-label={t("项目 {0}", { "0": state.project.name })}
             className="core-project-root"
             title={state.project.name}
             onClick={() => setRootOpen(!rootOpen)}
@@ -674,23 +729,28 @@ export function CoreWorkspaceProvider({
           <div
             className="core-tools core-project-tools"
             role="toolbar"
-            aria-label="项目文件操作"
+            aria-label={t("项目文件操作")}
             hidden={!rootOpen}
           >
             <Tool
-              label="新建文件"
+              label={t("新建文件")}
               icon="new-file"
               onClick={() => startForm("create")}
               disabled={busy}
             />
             <Tool
-              label="新建文件夹"
+              label={t("新建文件夹")}
               icon="new-folder"
               onClick={() => startForm("mkdir")}
               disabled={busy}
             />
-            <Tool label="刷新资源" icon="refresh" onClick={() => void reload()} disabled={busy} />
-            <Tool label="全部折叠" icon="collapse" onClick={() => setExpanded(new Set())} />
+            <Tool
+              label={t("刷新资源")}
+              icon="refresh"
+              onClick={() => void reload()}
+              disabled={busy}
+            />
+            <Tool label={t("全部折叠")} icon="collapse" onClick={() => setExpanded(new Set())} />
           </div>
         </div>
         {listingError && (
@@ -698,7 +758,7 @@ export function CoreWorkspaceProvider({
             {listingError}
           </p>
         )}
-        {loadingFiles && !listing.files.length && <p className="core-hint">正在读取文件…</p>}
+        {loadingFiles && !listing.files.length && <p className="core-hint">{t("正在读取文件…")}</p>}
         {rootOpen && (
           <ExplorerTree
             entries={tree}
@@ -726,22 +786,24 @@ export function CoreWorkspaceProvider({
             remove={() => startForm("delete")}
           />
         )}
-        {listing.truncated && <p className="core-hint">文件列表达到上限，部分文件未显示。</p>}
+        {listing.truncated && (
+          <p className="core-hint">{t("文件列表达到上限，部分文件未显示。")}</p>
+        )}
         {!loadingFiles && !listing.files.length && !listing.directories.length && (
-          <p className="core-hint">项目中尚无文件，可在上方新建。</p>
+          <p className="core-hint">{t("项目中尚无文件，可在上方新建。")}</p>
         )}
       </section>
       <section
         className="core-resource core-search"
         hidden={activity !== "search"}
-        aria-label="全文搜索内容"
+        aria-label={t("全文搜索内容")}
       >
         {codeSearch.sidebar}
       </section>
       <section
         className="core-resource core-scm"
         hidden={activity !== "scm"}
-        aria-label="源代码管理内容"
+        aria-label={t("源代码管理内容")}
       >
         {gitError && (
           <p className="core-error" role="alert">
@@ -749,43 +811,40 @@ export function CoreWorkspaceProvider({
           </p>
         )}
         {!gitStatus ? (
-          <p className="core-hint">正在读取 Git 状态…</p>
+          <p className="core-hint">{t("正在读取 Git 状态…")}</p>
         ) : !gitStatus.available ? (
           <div className="core-scm-empty">
             <Icon name="branch" size={26} />
-            <p>{gitStatus.reason}</p>
+            <p>{t(gitStatus.reason)}</p>
             <button className="core-primary" disabled={busy} onClick={() => void scmAction("init")}>
-              初始化 Git 仓库
+              {t("初始化 Git 仓库")}
             </button>
           </div>
         ) : (
           <>
             <SourceControl
-              scope={gitScope}
-              changeScope={(scope) => {
-                gitReadSequence.current += 1;
-                setGitStatus(undefined);
-                setGitScope(scope);
-                setDiffActive(false);
-              }}
               status={gitStatus}
+              active={activity === "scm"}
+              activeDiff={diffActive && !settingsActive ? diff : undefined}
               busy={busy}
               dirty={dirty}
               message={message}
               setMessage={setMessage}
               action={scmAction}
-              openDiff={openDiff}
+              openDiff={(entry, staged) =>
+                openScmDiff(
+                  `/api/scm/diff?${new URLSearchParams({ path: entry.path, staged: String(staged), scope: gitScope })}`,
+                )
+              }
               openFile={openFile}
               api={api}
-              refresh={readGit}
-              openCommit={(result) => {
-                diffSequence.current += 1;
-                setDiff(result);
-                setDiffActive(true);
-                setDocumentActive(true);
-                setDiffLoading(false);
-                setDiffError("");
-              }}
+              refreshGeneration={gitRefreshGeneration}
+              refresh={refreshScm}
+              graphExpanded={gitGraphExpanded ?? gitStatus.entries.length === 0}
+              setGraphExpanded={setGitGraphExpanded}
+              openCommit={(id) =>
+                openScmDiff(`/api/scm/commit?${new URLSearchParams({ id, scope: gitScope })}`)
+              }
             />
           </>
         )}
@@ -801,27 +860,37 @@ export function CoreWorkspaceProvider({
             role="dialog"
             aria-modal="true"
             aria-label={
-              { create: "新建文件", mkdir: "新建文件夹", rename: "重命名", delete: "删除文件" }[
-                form.action
-              ]
+              {
+                create: t("新建文件"),
+                mkdir: t("新建文件夹"),
+                rename: t("重命名"),
+                delete: t("删除文件"),
+              }[form.action]
             }
             onSubmit={(event) => void submitFileOperation(event)}
           >
             <strong>
               {
-                { create: "新建文件", mkdir: "新建文件夹", rename: "重命名", delete: "删除文件" }[
-                  form.action
-                ]
+                {
+                  create: t("新建文件"),
+                  mkdir: t("新建文件夹"),
+                  rename: t("重命名"),
+                  delete: t("删除文件"),
+                }[form.action]
               }
             </strong>
             {form.action === "delete" ? (
-              <p>删除“{form.path}”？此操作会移除磁盘上的文件或空文件夹。</p>
+              <p>
+                {t("删除“")}
+                {form.path}
+                {t("”？此操作会移除磁盘上的文件或空文件夹。")}
+              </p>
             ) : (
               <label>
-                项目相对路径
+                {t("项目相对路径")}
                 <input
                   autoFocus
-                  aria-label="文件路径"
+                  aria-label={t("文件路径")}
                   value={form.value}
                   onChange={(event) => setForm({ ...form, value: event.target.value })}
                 />
@@ -832,13 +901,13 @@ export function CoreWorkspaceProvider({
             </p>
             <div className="core-dialog-actions">
               <button type="button" onClick={() => setForm(undefined)} disabled={busy}>
-                取消
+                {t("取消")}
               </button>
               <button
                 className="core-primary"
                 disabled={busy || (form.action !== "delete" && !form.value.trim())}
               >
-                {form.action === "delete" ? "删除" : "确定"}
+                {form.action === "delete" ? t("删除") : t("确定")}
               </button>
             </div>
           </form>
@@ -846,12 +915,20 @@ export function CoreWorkspaceProvider({
       )}
       {closePath && (
         <div className="core-dialog-backdrop">
-          <div className="core-dialog" role="dialog" aria-modal="true" aria-label="保存文件更改">
-            <strong>保存文件更改？</strong>
-            <p>{closePath} 有未保存的编辑。</p>
+          <div
+            className="core-dialog"
+            role="dialog"
+            aria-modal="true"
+            aria-label={t("保存文件更改")}
+          >
+            <strong>{t("保存文件更改？")}</strong>
+            <p>
+              {closePath}
+              {t("有未保存的编辑。")}
+            </p>
             <div className="core-dialog-actions">
-              <button onClick={() => setClosePath(undefined)}>取消</button>
-              <button onClick={() => closeDocument(closePath, true)}>放弃更改</button>
+              <button onClick={() => setClosePath(undefined)}>{t("取消")}</button>
+              <button onClick={() => closeDocument(closePath, true)}>{t("放弃更改")}</button>
               <button
                 className="core-primary"
                 disabled={busy}
@@ -859,7 +936,7 @@ export function CoreWorkspaceProvider({
                   if (await saveFile(closePath)) closeDocument(closePath, true);
                 }}
               >
-                保存并关闭
+                {t("保存并关闭")}
               </button>
             </div>
           </div>
@@ -871,32 +948,37 @@ export function CoreWorkspaceProvider({
             className="core-dialog core-compare-dialog"
             role="dialog"
             aria-modal="true"
-            aria-label="比较磁盘版本"
+            aria-label={t("比较磁盘版本")}
           >
-            <strong>比较磁盘版本 · {diskComparison.path}</strong>
+            <strong>
+              {t("比较磁盘版本 ·")}
+              {diskComparison.path}
+            </strong>
             <div className="core-compare-columns">
               <label>
-                当前编辑
+                {t("当前编辑")}
                 <textarea
                   readOnly
-                  aria-label="比较当前编辑"
+                  aria-label={t("比较当前编辑")}
                   value={documents.find((item) => item.path === diskComparison.path)?.content ?? ""}
                 />
               </label>
               <label>
-                磁盘内容
+                {t("磁盘内容")}
                 <textarea
                   readOnly
-                  aria-label="比较磁盘内容"
+                  aria-label={t("比较磁盘内容")}
                   value={diskComparison.file.content ?? ""}
                 />
               </label>
             </div>
             <p>
-              可以采用磁盘内容，或保留当前编辑并更新保存基准。保留编辑后，仍需点击保存才会写入文件。
+              {t(
+                "可以采用磁盘内容，或保留当前编辑并更新保存基准。保留编辑后，仍需点击保存才会写入文件。",
+              )}
             </p>
             <div className="core-dialog-actions">
-              <button onClick={() => setDiskComparison(undefined)}>关闭</button>
+              <button onClick={() => setDiskComparison(undefined)}>{t("关闭")}</button>
               <button
                 onClick={() => {
                   setDocuments((previous) =>
@@ -915,7 +997,7 @@ export function CoreWorkspaceProvider({
                   setDiskComparison(undefined);
                 }}
               >
-                采用磁盘内容
+                {t("采用磁盘内容")}
               </button>
               <button
                 className="core-primary"
@@ -935,7 +1017,7 @@ export function CoreWorkspaceProvider({
                   setDiskComparison(undefined);
                 }}
               >
-                保留编辑并更新保存基准
+                {t("保留编辑并更新保存基准")}
               </button>
             </div>
           </div>
@@ -947,7 +1029,7 @@ export function CoreWorkspaceProvider({
     <div
       className="core-file-tabs"
       role="tablist"
-      aria-label="文件文档"
+      aria-label={t("工作区文档")}
       onKeyDown={(event) => {
         if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
         const nodes = Array.from(
@@ -968,17 +1050,22 @@ export function CoreWorkspaceProvider({
     >
       {documents.map((document) => (
         <div
-          className={`core-file-tab ${documentActive && !diffActive && !searchEditorActive && activePath === document.path ? "active" : ""}`}
+          className={`core-file-tab ${documentActive && !settingsActive && !diffActive && !searchEditorActive && activePath === document.path ? "active" : ""}`}
           key={document.path}
         >
           <button
             role="tab"
-            tabIndex={activePath === document.path ? 0 : -1}
+            tabIndex={!settingsActive && activePath === document.path ? 0 : -1}
             aria-selected={
-              documentActive && !diffActive && !searchEditorActive && activePath === document.path
+              documentActive &&
+              !settingsActive &&
+              !diffActive &&
+              !searchEditorActive &&
+              activePath === document.path
             }
             title={document.path}
             onClick={() => {
+              setSettingsActive(false);
               setSearchEditorActive(false);
               setHistory((previous) => visitDocument(previous, document.path));
               setActivePath(document.path);
@@ -988,31 +1075,37 @@ export function CoreWorkspaceProvider({
           >
             <FileIcon path={document.path} />
             <span>{document.path.split("/").pop()}</span>
-            {document.content !== document.saved && <span className="core-dirty" title="未保存" />}
+            {document.content !== document.saved && (
+              <span className="core-dirty" title={t("未保存")} />
+            )}
           </button>
           <Tool
-            label={`关闭 ${document.path}`}
+            label={t("关闭 {0}", { "0": document.path })}
             icon="close"
             onClick={() => closeDocument(document.path)}
           />
         </div>
       ))}
       {searchDocumentOpen && (
-        <div className={`core-file-tab ${documentActive && searchEditorActive ? "active" : ""}`}>
+        <div
+          className={`core-file-tab ${documentActive && !settingsActive && searchEditorActive ? "active" : ""}`}
+        >
           <button
             role="tab"
-            aria-selected={documentActive && searchEditorActive}
+            aria-selected={documentActive && !settingsActive && searchEditorActive}
+            tabIndex={documentActive && !settingsActive && searchEditorActive ? 0 : -1}
             onClick={() => {
+              setSettingsActive(false);
               setSearchEditorActive(true);
               setDocumentActive(true);
               setDiffActive(false);
             }}
           >
             <Icon name="search" size={14} />
-            <span>搜索结果</span>
+            <span>{t("搜索结果")}</span>
           </button>
           <Tool
-            label="关闭搜索结果"
+            label={t("关闭搜索结果")}
             icon="close"
             onClick={() => {
               setSearchDocumentOpen(false);
@@ -1022,28 +1115,74 @@ export function CoreWorkspaceProvider({
         </div>
       )}
       {diffActive && (
-        <div className="core-file-tab active">
-          <span>差异 · {diff?.path.split("/").pop() ?? "读取中"}</span>
-          <Tool label="关闭差异" icon="close" onClick={() => setDiffActive(false)} />
+        <div className={`core-file-tab ${settingsActive ? "" : "active"}`}>
+          <button
+            role="tab"
+            aria-selected={!settingsActive}
+            tabIndex={settingsActive ? -1 : 0}
+            onClick={() => {
+              setSettingsActive(false);
+              setDocumentActive(true);
+              setSearchEditorActive(false);
+            }}
+          >
+            <span>
+              {t("差异 ·")}
+              {diff?.path.split("/").pop() ?? t("读取中")}
+            </span>
+          </button>
+          <Tool label={t("关闭差异")} icon="close" onClick={() => setDiffActive(false)} />
+        </div>
+      )}
+      {settingsOpen && (
+        <div className={`core-file-tab ${settingsActive ? "active" : ""}`}>
+          <button
+            role="tab"
+            aria-selected={settingsActive}
+            tabIndex={settingsActive ? 0 : -1}
+            onClick={() => setSettingsActive(true)}
+          >
+            <Icon name="settings" size={14} />
+            <span>{t("设置")}</span>
+          </button>
+          <Tool
+            label={t("关闭设置")}
+            icon="close"
+            onClick={(event) => {
+              const tabStrip = event.currentTarget.closest(".core-document-tabs");
+              setSettingsOpen(false);
+              setSettingsActive(false);
+              requestAnimationFrame(() => {
+                const target = tabStrip?.querySelector<HTMLElement>(
+                  '[role="tab"][aria-selected="true"]',
+                );
+                (target ?? document.querySelector<HTMLElement>(".settings-trigger"))?.focus();
+              });
+            }}
+          />
         </div>
       )}
     </div>
   );
+  const diffTitle = diff?.historical
+    ? t("提交 {0} · 所选范围差异", { 0: diff.path })
+    : (diff?.title ?? (diff?.staged ? t("已暂存 ↔ HEAD") : t("工作区 ↔ 暂存区")));
+  const diffProjectPath =
+    diff && !diff.historical ? gitPathInProject(diff.path, gitStatus?.project_prefix) : undefined;
   const editorContent = searchEditorActive ? (
     codeSearch.editor
   ) : diffActive ? (
-    <section className="core-diff-document" aria-label="Git 差异">
+    <section className="core-diff-document" aria-label={t("Git 差异")}>
       <div className="core-document-header">
         <span>
-          {diff?.path}{" "}
-          {diff ? `· ${diff.title ?? (diff.staged ? "已暂存 ↔ HEAD" : "工作区 ↔ 暂存区")}` : ""}
+          {diff?.path} {diff ? `· ${diffTitle}` : ""}
         </span>
-        {diff && !diff.historical && gitScope === "project" && (
-          <button onClick={() => void openFile(diff.path)}>打开文件</button>
+        {diffProjectPath !== undefined && (
+          <button onClick={() => void openFile(diffProjectPath)}>{t("打开文件")}</button>
         )}
       </div>
       {diffLoading ? (
-        <p className="core-hint">正在读取差异…</p>
+        <p className="core-hint">{t("正在读取差异…")}</p>
       ) : diffError ? (
         <p className="core-error">{diffError}</p>
       ) : (
@@ -1066,40 +1205,40 @@ export function CoreWorkspaceProvider({
                     {line || " "}
                   </div>
                 ))
-              : "没有文本差异。文件可能仅有权限变更。"}
+              : t("没有文本差异。文件可能仅有权限变更。")}
           </pre>
-          {diff?.truncated && <p className="core-hint">差异超过 1 MiB，显示已截断。</p>}
+          {diff?.truncated && <p className="core-hint">{t("差异超过 1 MiB，显示已截断。")}</p>}
         </>
       )}
     </section>
   ) : !active ? (
     <div className="core-welcome">
       <Icon name="files" size={38} />
-      <h2>打开文件，开始编辑</h2>
-      <p>从文件资源管理器选择文件，或使用 ⌘ / Ctrl + P 快速打开。</p>
+      <h2>{t("打开文件，开始编辑")}</h2>
+      <p>{t("从文件资源管理器选择文件，或使用 ⌘ / Ctrl + P 快速打开。")}</p>
       {hasDomain && (
         <button className="core-primary" onClick={activateDomain}>
-          打开专业预览
+          {t("打开专业预览")}
         </button>
       )}
     </div>
   ) : active.loading ? (
-    <Empty title="正在打开文件">{active.path}</Empty>
+    <Empty title={t("正在打开文件")}>{active.path}</Empty>
   ) : active.error || active.reason ? (
-    <Empty title={active.error ? "文件读取失败" : "暂不支持编辑此文件"}>
-      {active.error ?? active.reason}
+    <Empty title={active.error ? t("文件读取失败") : t("暂不支持编辑此文件")}>
+      {t(active.error ?? active.reason)}
       <button
         onClick={() => {
           void rereadFile(active.path);
         }}
       >
-        重新读取
+        {t("重新读取")}
       </button>
     </Empty>
   ) : (
-    <section className="core-text-document" aria-label={`编辑 ${active.path}`}>
+    <section className="core-text-document" aria-label={t("编辑 {0}", { "0": active.path })}>
       <div className="core-document-header">
-        <nav className="core-breadcrumb" aria-label="文件路径" title={active.path}>
+        <nav className="core-breadcrumb" aria-label={t("文件路径")} title={active.path}>
           {active.path.split("/").map((part, index, parts) => (
             <React.Fragment key={index}>
               {index > 0 && (
@@ -1138,16 +1277,16 @@ export function CoreWorkspaceProvider({
         </nav>
         <div>
           <span className="core-save-state">
-            {active.content !== active.saved ? "未保存" : "已保存"}
+            {active.content !== active.saved ? t("未保存") : t("已保存")}
           </span>
           <Tool
-            label="与磁盘内容比较"
+            label={t("与磁盘内容比较")}
             icon="compare"
             disabled={busy}
             onClick={() => void compareDisk(active.path)}
           />
           <Tool
-            label="重新读取文件"
+            label={t("重新读取文件")}
             icon="refresh"
             disabled={busy || active.content !== active.saved}
             onClick={() => {
@@ -1159,62 +1298,42 @@ export function CoreWorkspaceProvider({
             disabled={busy || active.content === active.saved}
             onClick={() => void saveFile()}
           >
-            保存
+            {t("保存")}
           </button>
         </div>
       </div>
-      <div className="core-code-editor">
-        <div className="core-code-gutter" ref={gutter} aria-hidden="true">
-          {Array.from({ length: active.content.split("\n").length }, (_, index) => index + 1).join(
-            "\n",
-          )}
-        </div>
-        <textarea
-          key={active.path}
-          ref={editor}
-          aria-label="文件内容"
-          value={active.content}
-          spellCheck={false}
-          wrap="off"
-          onScroll={(event) => {
-            if (gutter.current) gutter.current.scrollTop = event.currentTarget.scrollTop;
-          }}
-          onSelect={(event) => {
-            const position = event.currentTarget.selectionStart;
-            setDocuments((previous) =>
-              previous.map((item) => (item.path === active.path ? { ...item, position } : item)),
-            );
-          }}
-          onChange={(event) => {
-            const value = event.target.value;
-            setDocuments((previous) =>
-              previous.map((item) =>
-                item.path === active.path ? { ...item, content: value, location: undefined } : item,
-              ),
-            );
-          }}
-          onKeyDown={(event) => {
-            if (event.key === "Tab") {
-              event.preventDefault();
-              const target = event.currentTarget,
-                start = target.selectionStart,
-                end = target.selectionEnd;
-              const content = active.content.slice(0, start) + "  " + active.content.slice(end);
-              setDocuments((previous) =>
-                previous.map((item) =>
-                  item.path === active.path ? { ...item, content, location: undefined } : item,
-                ),
-              );
-              requestAnimationFrame(() => target.setSelectionRange(start + 2, start + 2));
-            }
-          }}
-        />
-      </div>
+      <SourceEditor
+        path={active.path}
+        value={active.content}
+        models={sourceModels}
+        visible={documentActive && !settingsActive}
+        location={active.location}
+        onChange={(content) => {
+          setDocuments((previous) =>
+            previous.map((item) =>
+              item.path === active.path && item.content !== content
+                ? { ...item, content, location: undefined }
+                : item,
+            ),
+          );
+        }}
+        onCursorLine={(cursorLine) => {
+          setDocuments((previous) =>
+            previous.map((item) =>
+              item.path === active.path && (item.cursorLine ?? 1) !== cursorLine
+                ? { ...item, cursorLine }
+                : item,
+            ),
+          );
+        }}
+      />
       <div className="core-editor-status">
         <span>UTF-8 · {active.path.split(".").pop()?.toUpperCase()}</span>
         <span>
-          行 {active.content.slice(0, active.position ?? 0).split("\n").length} ·{" "}
-          {active.content.split("\n").length} 行
+          {t("行 {0} · 共 {1} 行", {
+            0: active.cursorLine ?? 1,
+            1: active.content.split("\n").length,
+          })}
         </span>
       </div>
     </section>
@@ -1222,40 +1341,47 @@ export function CoreWorkspaceProvider({
   const inspector = (
     <section className="core-file-properties">
       <div className="core-heading">
-        <strong>文件属性</strong>
+        <strong>{t("文件属性")}</strong>
       </div>
       {active && !diffActive && !searchEditorActive ? (
         <dl>
-          <dt>路径</dt>
+          <dt>{t("路径")}</dt>
           <dd>{active.path}</dd>
-          <dt>编码</dt>
+          <dt>{t("编码")}</dt>
           <dd>UTF-8</dd>
-          <dt>状态</dt>
+          <dt>{t("状态")}</dt>
           <dd>
             {active.loading
-              ? "读取中"
+              ? t("读取中")
               : active.reason
-                ? "不可编辑"
+                ? t("不可编辑")
                 : active.content !== active.saved
-                  ? "未保存"
-                  : "已保存"}
+                  ? t("未保存")
+                  : t("已保存")}
           </dd>
-          <dt>行数</dt>
+          <dt>{t("行数")}</dt>
           <dd>{active.content.split("\n").length}</dd>
         </dl>
       ) : (
-        <p className="core-hint">选择文件后查看属性。</p>
+        <p className="core-hint">{t("选择文件后查看属性。")}</p>
       )}
     </section>
   );
   const value: Core = {
-    activity,
+    activity: coreActivity,
     select,
     sidebar,
-    editor: editorContent,
+    editor: (
+      <>
+        <div className="core-editor-page" hidden={settingsActive}>
+          {editorContent}
+        </div>
+        {settingsActive && <Settings />}
+      </>
+    ),
     tabs,
     inspector,
-    documentActive,
+    documentActive: documentActive || settingsActive,
     activateDomain,
     hasDomain,
     changeCount: gitStatus?.entries.length ?? 0,
@@ -1324,18 +1450,25 @@ export function WorkbenchSurface({
     })),
     ...activityItems.map((item, index) => ({ ...item, extensionStart: index === 0 })),
   ];
+  const extensionActivity =
+    activeActivity ||
+    activityItems.find(({ id }) => id === layout.sidebarActivity)?.id ||
+    activityItems[0]?.id ||
+    "";
+  const activeActivityId = core.activity ?? (extensionActivity || "explorer");
+  const showCoreSidebar = isCoreActivity(activeActivityId);
   return (
     <WorkbenchLayout
       layout={layout}
       change={change}
       activity={
         <ActivityBar
-          active={core.activity ?? activeActivity}
+          active={activeActivityId}
           items={items}
           select={(id) => {
-            if (["explorer", "search", "scm"].includes(id)) core.select(id as Activity);
+            if (isCoreActivity(id)) core.select(id);
             else {
-              core.select(null);
+              change({ sidebarOpen: true, sidebarActivity: id });
               onActivity?.(id);
             }
           }}
@@ -1343,10 +1476,10 @@ export function WorkbenchSurface({
       }
       sidebar={
         <>
-          <div className="core-sidebar-slot" hidden={!core.activity}>
+          <div className="core-sidebar-slot" hidden={!showCoreSidebar}>
             {core.sidebar}
           </div>
-          <div className="core-sidebar-slot" hidden={!!core.activity}>
+          <div className="core-sidebar-slot" hidden={showCoreSidebar}>
             {sidebar}
           </div>
         </>

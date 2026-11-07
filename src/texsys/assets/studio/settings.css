@@ -1,0 +1,123 @@
+.settings-page {
+  height: 100%;
+  min-width: 0;
+  overflow: auto;
+  container-type: inline-size;
+  background: var(--ui-context-chrome);
+  color: var(--ui-text);
+}
+.settings-layout {
+  display: grid;
+  grid-template-columns: 168px minmax(0, 1fr);
+  gap: 40px;
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: 44px 40px;
+}
+.settings-navigation-title {
+  padding: 0 12px;
+  margin: 0 0 20px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ui-text-muted);
+}
+.settings-category {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 36px;
+  padding: 8px 12px;
+  text-align: left;
+  border-radius: 5px;
+  background: var(--ui-control-hover);
+  font-weight: 550;
+}
+.settings-category > svg {
+  flex-shrink: 0;
+  color: var(--ui-icon-muted);
+}
+.settings-content {
+  min-width: 0;
+}
+.settings-content > h1 {
+  margin: 0 0 24px;
+  font-size: 24px;
+  line-height: 1.3;
+  font-weight: 600;
+}
+.settings-card {
+  padding: 24px;
+  border: 1px solid var(--ui-border);
+  border-radius: 9px;
+  background: var(--ui-canvas);
+}
+.settings-card-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+}
+.settings-card-description {
+  min-width: 0;
+}
+.settings-card h2 {
+  margin: 0 0 7px;
+  font-size: 15px;
+  line-height: 1.5;
+  font-weight: 600;
+}
+.settings-card p {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.7;
+  color: var(--ui-text-muted);
+}
+.settings-card select {
+  flex: 0 0 176px;
+  width: 176px;
+  max-width: 100%;
+}
+.settings-card > .settings-card-note {
+  padding-top: 18px;
+  margin-top: 22px;
+  border-top: 1px solid var(--ui-context-divider);
+  font-size: 12px;
+}
+@container (max-width: 760px) {
+  .settings-layout {
+    grid-template-columns: 136px minmax(0, 1fr);
+    gap: 24px;
+    padding: 32px 24px;
+  }
+  .settings-card-row {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 16px;
+  }
+  .settings-card select {
+    flex-basis: auto;
+  }
+}
+@container (max-width: 520px) {
+  .settings-layout {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 28px;
+    padding: 24px 20px;
+  }
+  .settings-navigation-title {
+    margin-bottom: 12px;
+    padding-left: 0;
+  }
+  .settings-category {
+    width: auto;
+    min-width: 120px;
+  }
+  .settings-content > h1 {
+    font-size: 22px;
+    margin-bottom: 18px;
+  }
+  .settings-card {
+    padding: 20px;
+  }
+}

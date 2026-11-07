@@ -1,3 +1,4 @@
+import { t, getLocale, useLocale } from "../../../../../src/texsys/assets/studio/i18n";
 import {
   WorkbenchSurface,
   useCoreWorkspace,
@@ -135,29 +136,29 @@ function IssueRows({ issues, locate }: { issues: Issue[]; locate: (issue: Issue)
       {issues.map((issue) => (
         <div className={`issue-row ${issue.current ? "" : "historical"}`} key={issue.id}>
           <span className={`tag ${issue.status}`}>
-            {({ error: "错误", warning: "警告" } as Record<string, string>)[issue.status] ??
-              labels[issue.status] ??
-              "待处理"}
+            {({ error: t("错误"), warning: t("警告") } as Record<string, string>)[issue.status] ??
+              t(labels[issue.status]) ??
+              t("待处理")}
           </span>
           <div className="issue-text">
             <strong>{issue.title}</strong>
             <p>{issue.detail}</p>
             <small>
               {issue.origin}
-              {!issue.current && " · 历史输入"}
+              {!issue.current && t(" · 历史输入")}
             </small>
           </div>
           {issue.runPath || issue.object ? (
             <button
               className="small-button"
               onClick={() => locate(issue)}
-              aria-label={`定位问题 ${issue.title} ${issue.origin}`}
+              aria-label={t("定位问题 {0} {1}", { "0": issue.title, "1": issue.origin })}
             >
               <Icon name="fit" size={14} />
-              定位
+              {t("定位")}
             </button>
           ) : (
-            <span className="muted issue-unlocated">无对象定位</span>
+            <span className="muted issue-unlocated">{t("无对象定位")}</span>
           )}
         </div>
       ))}
@@ -179,6 +180,7 @@ function Workspace({
   navigationRequest,
   onNavigationState,
 }: WorkbenchProps & { data: Data }) {
+  const locale = useLocale();
   const core = useCoreWorkspace();
   const activateDomain = core?.activateDomain;
   const source = data.source!;
@@ -187,7 +189,8 @@ function Workspace({
   const [view, setView] = useState<View>("design");
   const [filePath, setFilePath] = useState("");
   const [history, setHistory] = useState<DocumentHistory<View>>({ entries: ["design"], index: 0 });
-  const [activity, setActivity] = useState("system");
+  const activity =
+    ["components", "analysis", "outputs"].find((id) => id === layout.sidebarActivity) ?? "system";
   const [documents, setDocuments] = useState<View[]>(["design"]);
   const [selection, setSelection] = useState<Selection | undefined>(() =>
     entries[0] ? { kind: "instance", id: entries[0][0] } : undefined,
@@ -234,7 +237,7 @@ function Workspace({
     run = runs[runIndex];
   const safeFrame = run ? Math.max(0, Math.min(playback.frame, run.result.time_s.length - 1)) : 0;
   const busy = state.jobs.some((item) => item.state === "running");
-  const issues = useMemo(() => issuesFor(data), [data]);
+  const issues = useMemo(() => issuesFor(data), [data, locale]);
   const currentIssues = issues.filter((item) => item.current);
   const visibleIssues = issues.filter(
     (item) =>
@@ -247,7 +250,7 @@ function Workspace({
     ([id, definition]) => id !== source.root && !definition.instances,
   );
   const filtered = entries.filter(([name, item]) =>
-    `${name} ${item.component} ${names[item.component] ?? ""}`
+    `${name} ${item.component} ${t(names[item.component]) ?? ""}`
       .toLowerCase()
       .includes(search.toLowerCase()),
   );
@@ -267,7 +270,7 @@ function Workspace({
   const choose = (next: Selection, reveal = true) => {
     if (hasDraft && (next.id !== selection?.id || next.kind !== selection?.kind)) {
       setInspectorOpen(true);
-      notify("请先保存或放弃右侧的参数草稿，再切换对象。", true);
+      notify(t("请先保存或放弃右侧的参数草稿，再切换对象。"), true);
       return false;
     }
     setSelection(next);
@@ -303,7 +306,7 @@ function Workspace({
       token: previous.token + 1,
     }));
     setLastFocus(
-      `${object ?? "约束"} · ${location.reason} ${target.result.time_s[location.index]} s`,
+      `${object ?? t("约束")} · ${location.reason} ${target.result.time_s[location.index]} s`,
     );
     openView("simulation");
   };
@@ -363,7 +366,7 @@ function Workspace({
     if (requested.action === "simulate") {
       const index = runs.findIndex((item) => item.path.includes(`/jobs/${requested.id}/`));
       if (index >= 0) chooseRun(index);
-      else notify("此运行结果已由较新结果替代，可在任务日志中查看原运行记录。");
+      else notify(t("此运行结果已由较新结果替代，可在任务日志中查看原运行记录。"));
       openView("simulation");
     } else openView(requested.action === "check" ? "checks" : "outputs");
   }, [taskResult?.token]);
@@ -373,8 +376,7 @@ function Workspace({
       if (target.matches("input,textarea,select") || target.isContentEditable) return;
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
         event.preventDefault();
-        changeLayout({ sidebarOpen: true });
-        setActivity("system");
+        changeLayout({ sidebarOpen: true, sidebarActivity: "system" });
         requestAnimationFrame(() => searchInput.current?.focus());
       }
       if ((event.metaKey || event.ctrlKey) && event.key === "\\") {
@@ -429,7 +431,7 @@ function Workspace({
       });
       setUndo({ operation: response.undo, revision: response.revision });
       await refresh();
-      notify("参数已保存。请更新受影响的图纸、检查与仿真结果。");
+      notify(t("参数已保存。请更新受影响的图纸、检查与仿真结果。"));
     } finally {
       setSaving(false);
     }
@@ -446,7 +448,7 @@ function Workspace({
         options: action === "simulate" ? { scenario, backend } : {},
       });
       await refresh();
-      notify(`${labels[action]}已启动，可继续查看设计。`);
+      notify(t("{0}已启动，可继续查看设计。", { "0": t(labels[action]) }));
     } catch (error) {
       notify(error instanceof Error ? error.message : String(error), true);
     } finally {
@@ -461,20 +463,20 @@ function Workspace({
       const response = await fetch(`/api/artifact?path=${encodeURIComponent(path)}`, {
         headers: { "X-Tex-Studio-Token": token },
       });
-      if (!response.ok) throw new Error("无法读取导出文件");
+      if (!response.ok) throw new Error(t("无法读取导出文件"));
       download(await response.blob(), name);
-      notify(`已导出 ${name}`);
+      notify(t("已导出 {0}", { "0": name }));
     } catch (error) {
       notify(String(error), true);
     }
   };
   const exportEquipment = () => {
     const rows = [
-      ["实例", "器件类型", "配置"],
+      [t("实例"), t("器件类型"), t("配置")],
       ...entries.map(([name, item]) => [
         name,
         item.component,
-        Object.keys(item.parameters ?? {}).length ? "实例覆盖" : "继承配置",
+        Object.keys(item.parameters ?? {}).length ? t("实例覆盖") : t("继承配置"),
       ]),
     ];
     download(
@@ -482,7 +484,7 @@ function Workspace({
         rows
           .map((row) => row.map((cell) => `"${cell.replaceAll('"', '""')}"`).join(","))
           .join("\n"),
-      `${source.root}-设备表.csv`,
+      t("{0}-设备表.csv", { "0": source.root }),
       "text/csv;charset=utf-8",
     );
   };
@@ -514,19 +516,19 @@ function Workspace({
     setPlayback((previous) => ({ ...previous, playing: false }));
   };
   const activityItems = [
-    { id: "system", label: "系统对象", icon: <Icon name="system" size={18} /> },
-    { id: "components", label: "器件类型库", icon: <Icon name="cube" size={18} /> },
+    { id: "system", label: t("系统对象"), icon: <Icon name="system" size={18} /> },
+    { id: "components", label: t("器件类型库"), icon: <Icon name="cube" size={18} /> },
     {
       id: "analysis",
-      label: "工况与分析",
+      label: t("工况与分析"),
       icon: <Icon name="chart" size={18} />,
       count: currentIssues.length,
     },
-    { id: "outputs", label: "成果文件", icon: <Icon name="download" size={18} /> },
+    { id: "outputs", label: t("成果文件"), icon: <Icon name="download" size={18} /> },
   ];
   const sidebar = (
     <>
-      <div className="resource-heading">
+      <div className="navigator-heading">
         <strong>{activityItems.find((item) => item.id === activity)?.label}</strong>
         <span>
           {activity === "system"
@@ -549,15 +551,15 @@ function Workspace({
             <Icon name="search" size={15} />
             <input
               ref={searchInput}
-              aria-label="搜索设备"
-              placeholder="搜索设备或类型…"
+              aria-label={t("搜索设备")}
+              placeholder={t("搜索设备或类型…")}
               value={search}
               onChange={(event) => setSearch(event.target.value)}
             />
             {search && (
               <button
                 className="icon-button"
-                aria-label="清除设备搜索"
+                aria-label={t("清除设备搜索")}
                 onClick={() => setSearch("")}
               >
                 <Icon name="close" size={13} />
@@ -599,20 +601,20 @@ function Workspace({
                   </span>
                   <span>
                     <strong>{id}</strong>
-                    <small>{names[instance.component] ?? instance.component}</small>
+                    <small>{t(names[instance.component]) ?? instance.component}</small>
                   </span>
                   {issues.some((item) => item.current && item.object === id) && (
-                    <span className="object-issue-dot" title="此对象有待处理问题" />
+                    <span className="object-issue-dot" title={t("此对象有待处理问题")} />
                   )}
                 </button>
               ))}
-              {!filtered.length && <p className="tree-empty">没有匹配设备</p>}
+              {!filtered.length && <p className="tree-empty">{t("没有匹配设备")}</p>}
             </div>
           )}
 
           <button className="resource-open-view" onClick={() => openView("equipment")}>
             <Icon name="table" size={15} />
-            打开设备表
+            {t("打开设备表")}
             <Icon name="arrow" size={14} />
           </button>
         </section>
@@ -620,8 +622,8 @@ function Workspace({
           <label className="equipment-search">
             <Icon name="search" size={15} />
             <input
-              aria-label="搜索器件类型"
-              placeholder="搜索器件类型…"
+              aria-label={t("搜索器件类型")}
+              placeholder={t("搜索器件类型…")}
               value={librarySearch}
               onChange={(event) => setLibrarySearch(event.target.value)}
             />
@@ -629,7 +631,7 @@ function Workspace({
           <div className="resource-list">
             {types
               .filter(([id]) =>
-                `${id} ${names[id] ?? ""}`.toLowerCase().includes(librarySearch.toLowerCase()),
+                `${id} ${t(names[id]) ?? ""}`.toLowerCase().includes(librarySearch.toLowerCase()),
               )
               .map(([id]) => (
                 <button
@@ -641,7 +643,7 @@ function Workspace({
                 >
                   <Icon name="cube" size={16} />
                   <span>
-                    <strong>{names[id] ?? id}</strong>
+                    <strong>{t(names[id]) ?? id}</strong>
                     <small>{id}</small>
                   </span>
                 </button>
@@ -649,7 +651,7 @@ function Workspace({
           </div>
         </section>
         <section className="resource-page" hidden={activity !== "analysis"}>
-          <div className="resource-section-label">工况配置</div>
+          <div className="resource-section-label">{t("工况配置")}</div>
           <div className="resource-list">
             {data.scenarios.map((item) => (
               <button
@@ -661,16 +663,18 @@ function Workspace({
               >
                 <Icon name="chart" size={16} />
                 <span>
-                  <strong>{scenarioNames[item.id] ?? item.id}</strong>
+                  <strong>{t(scenarioNames[item.id]) ?? item.id}</strong>
                   <small>
-                    {item.duration_s} s · {item.events} 个事件
+                    {item.duration_s} s · {item.events}
+                    {t("个事件")}
                   </small>
                 </span>
               </button>
             ))}
           </div>
           <div className="resource-section-label">
-            计算结果 <span>{runs.length}</span>
+            {t("计算结果")}
+            <span>{runs.length}</span>
           </div>
           <div className="resource-list">
             {runs.map((item, index) => (
@@ -684,9 +688,9 @@ function Workspace({
               >
                 <Icon name="chart" size={16} />
                 <span>
-                  <strong>{scenarioNames[item.result.scenario] ?? item.result.scenario}</strong>
+                  <strong>{t(scenarioNames[item.result.scenario]) ?? item.result.scenario}</strong>
                   <small>
-                    {backendName(item.result)} · {item.current ? "当前输入" : "历史输入"}
+                    {backendName(item.result)} · {item.current ? t("当前输入") : t("历史输入")}
                   </small>
                 </span>
               </button>
@@ -694,7 +698,8 @@ function Workspace({
           </div>
           <button className="resource-open-view" onClick={() => openView("checks")}>
             <Icon name="check" size={15} />
-            检查与问题<span className="resource-count">{currentIssues.length}</span>
+            {t("检查与问题")}
+            <span className="resource-count">{currentIssues.length}</span>
           </button>
         </section>
         <section className="resource-page" hidden={activity !== "outputs"}>
@@ -704,15 +709,17 @@ function Workspace({
                 <Icon name="file" size={16} />
                 <span>
                   <strong>{item.name}</strong>
-                  <small>{item.current ? "当前输入" : "历史输入"}</small>
+                  <small>{item.current ? t("当前输入") : t("历史输入")}</small>
                 </span>
               </button>
             ))}
           </div>
-          {!data.exports.length && <p className="resource-hint">生成图纸后在这里查看成果文件。</p>}
+          {!data.exports.length && (
+            <p className="resource-hint">{t("生成图纸后在这里查看成果文件。")}</p>
+          )}
           <button className="resource-open-view" onClick={() => openView("outputs")}>
             <Icon name="download" size={15} />
-            成果与导出
+            {t("成果与导出")}
             <Icon name="arrow" size={14} />
           </button>
         </section>
@@ -723,12 +730,12 @@ function Workspace({
               <Icon name="code" size={16} />
               <span>
                 <strong>{data.source_path.split("/").pop()}</strong>
-                <small>系统模型 · 只读视图</small>
+                <small>{t("系统模型 · 只读视图")}</small>
               </span>
             </button>
             <button onClick={() => openView("overview")}>
               <Icon name="folder" size={16} />
-              <span>项目概览</span>
+              <span>{t("项目概览")}</span>
             </button>
           </div>
         </section>
@@ -737,20 +744,20 @@ function Workspace({
   );
   const tabs = (
     <WorkspaceTabStrip
-      label="打开的文档"
+      label={t("打开的文档")}
       tabs={documents.map((id) => ({
         id,
         label:
           id === "file"
-            ? (filePath.split("/").pop() ?? "文件预览")
+            ? (filePath.split("/").pop() ?? t("文件预览"))
             : id === "design"
               ? source.root
-              : info(id).label,
+              : t(info(id).label),
         icon: info(id).icon,
         focused: view === id && !core?.documentActive,
         dirty: hasDraft && ["design", "equipment", "source"].includes(id),
-        dirtyLabel: "有未保存参数",
-        action: { label: `关闭文档 ${info(id).label}`, icon: "close" },
+        dirtyLabel: t("有未保存参数"),
+        action: { label: t("关闭文档 {0}", { "0": t(info(id).label) }), icon: "close" },
       }))}
       onSelect={(id) => openView(id as View)}
       onAction={(id) => closeDocument(id as View)}
@@ -760,15 +767,21 @@ function Workspace({
     <>
       <select
         className="editor-view-select"
-        aria-label="当前编辑视图"
+        aria-label={t("当前编辑视图")}
         value={["design", "equipment", "source"].includes(view) ? view : "other"}
         onChange={(event) => openView(event.target.value as View)}
       >
-        <option value="design">{source.root} · 图纸</option>
-        <option value="equipment">{source.root} · 设备表</option>
-        <option value="source">{source.root} · 源数据</option>
+        <option value="design">
+          {source.root} {t("· 图纸")}
+        </option>
+        <option value="equipment">
+          {source.root} {t("· 设备表")}
+        </option>
+        <option value="source">
+          {source.root} {t("· 源数据")}
+        </option>
         {!["design", "equipment", "source"].includes(view) && (
-          <option value="other">{info(view).label}</option>
+          <option value="other">{t(info(view).label)}</option>
         )}
       </select>
       {view === "design" && (
@@ -776,12 +789,12 @@ function Workspace({
           <span className="context-separator">/</span>
           <select
             className="editor-view-select drawing-view-select"
-            aria-label="图纸类型"
+            aria-label={t("图纸类型")}
             value={drawingView}
             onChange={(event) => setDrawingView(event.target.value)}
           >
-            <option value="schematic">原理图</option>
-            <option value="system">系统图</option>
+            <option value="schematic">{t("原理图")}</option>
+            <option value="system">{t("系统图")}</option>
           </select>
         </>
       )}
@@ -793,24 +806,24 @@ function Workspace({
         <div className="drawing-context-tools">
           <div className="design-mode">
             <select
-              aria-label="画布显示模式"
+              aria-label={t("画布显示模式")}
               value={overlay ? "results" : "design"}
               onChange={(event) => {
                 setOverlay(event.target.value === "results");
                 setPlayback((previous) => ({ ...previous, playing: false }));
               }}
             >
-              <option value="design">设计参数</option>
+              <option value="design">{t("设计参数")}</option>
               <option value="results" disabled={!runs.length}>
-                结果叠加
+                {t("结果叠加")}
               </option>
             </select>
           </div>
           <div className="drawing-tools">
             <button
               className="icon-button"
-              aria-label="接口标记"
-              title="接口标记"
+              aria-label={t("接口标记")}
+              title={t("接口标记")}
               aria-pressed={debug}
               onClick={() => setDebug(!debug)}
             >
@@ -818,7 +831,7 @@ function Workspace({
             </button>
             <button
               className="icon-button"
-              aria-label="缩小图纸"
+              aria-label={t("缩小图纸")}
               onClick={() => setZoom(Math.max(0.4, zoom - 0.2))}
             >
               −
@@ -826,15 +839,15 @@ function Workspace({
             <output>{Math.round(zoom * 100)}%</output>
             <button
               className="icon-button"
-              aria-label="放大图纸"
+              aria-label={t("放大图纸")}
               onClick={() => setZoom(Math.min(4, zoom + 0.2))}
             >
               ＋
             </button>
             <button
               className="icon-button"
-              title="适合图面"
-              aria-label="适合图面"
+              title={t("适合图面")}
+              aria-label={t("适合图面")}
               onClick={() => {
                 drawingCamera.fit();
               }}
@@ -848,14 +861,14 @@ function Workspace({
         {hasDraft && (
           <button className="draft-status" onClick={() => setInspectorOpen(true)}>
             <span className="draft-dot" />
-            参数未保存
+            {t("参数未保存")}
           </button>
         )}
         {undo && (
           <button
             className="icon-button"
-            title="撤销上次参数修改"
-            aria-label="撤销上次参数修改"
+            title={t("撤销上次参数修改")}
+            aria-label={t("撤销上次参数修改")}
             disabled={saving || hasDraft}
             onClick={() =>
               void save(undo.operation, undo.revision).catch((error) => notify(String(error), true))
@@ -868,21 +881,21 @@ function Workspace({
           <>
             <button
               className="small-button"
-              title="检查模型"
+              title={t("检查模型")}
               disabled={!canRun}
               onClick={() => void submit("check")}
             >
               <Icon name="check" size={15} />
-              检查模型
+              {t("检查模型")}
             </button>
             <button
               className="primary-button"
-              title="生成图纸"
+              title={t("生成图纸")}
               disabled={!canRun}
               onClick={() => void submit("build")}
             >
               <Icon name="layers" size={15} />
-              生成图纸
+              {t("生成图纸")}
             </button>
           </>
         )}
@@ -893,7 +906,7 @@ function Workspace({
             onClick={() => void submit("check")}
           >
             <Icon name="check" size={15} />
-            运行模型检查
+            {t("运行模型检查")}
           </button>
         )}
         {view === "outputs" && (
@@ -903,7 +916,7 @@ function Workspace({
             onClick={() => void submit("build")}
           >
             <Icon name="layers" size={15} />
-            更新图纸
+            {t("更新图纸")}
           </button>
         )}
         {view === "source" && (
@@ -912,7 +925,7 @@ function Workspace({
             onClick={() => download(JSON.stringify(source, null, 2) + "\n", "system.sdl.json")}
           >
             <Icon name="download" size={15} />
-            导出模型
+            {t("导出模型")}
           </button>
         )}
       </div>
@@ -922,20 +935,20 @@ function Workspace({
     <>
       <div className="bottom-panel-header">
         <InlineTabStrip
-          label="底部工具"
+          label={t("底部工具")}
           tabs={[
             {
               id: "problems",
-              label: `问题 ${currentIssues.length}`,
+              label: t("问题 {0}", { "0": currentIssues.length }),
               focused: layout.bottomTab === "problems",
             },
-            { id: "tasks", label: "任务与日志", focused: layout.bottomTab === "tasks" },
+            { id: "tasks", label: t("任务与日志"), focused: layout.bottomTab === "tasks" },
           ]}
           onSelect={(id) => changeLayout({ bottomTab: id as "problems" | "tasks" })}
         />
         {layout.bottomTab === "problems" && (
           <button className="text-button" onClick={() => openView("checks")}>
-            完整检查
+            {t("完整检查")}
             <Icon name="arrow" size={13} />
           </button>
         )}
@@ -944,7 +957,7 @@ function Workspace({
         {currentIssues.length ? (
           <IssueRows issues={currentIssues} locate={locateIssue} />
         ) : (
-          <p className="resource-hint">当前没有待处理问题。检查范围见“检查与问题”。</p>
+          <p className="resource-hint">{t("当前没有待处理问题。检查范围见“检查与问题”。")}</p>
         )}
       </div>
       <div className="bottom-panel-content" hidden={layout.bottomTab !== "tasks"}>
@@ -959,10 +972,6 @@ function Workspace({
         change={changeLayout}
         activityItems={activityItems}
         activeActivity={activity}
-        onActivity={(id) => {
-          setActivity(id);
-          changeLayout({ sidebarOpen: true });
-        }}
         tabs={tabs}
         sidebar={sidebar}
         bottom={bottom}
@@ -994,7 +1003,7 @@ function Workspace({
           <div
             id="hvac-document-panel"
             role="tabpanel"
-            aria-label={info(view).label}
+            aria-label={t(info(view).label)}
             className={`workbench-content view-${view}`}
             ref={contentViewport}
             onScroll={(event) => {
@@ -1009,45 +1018,54 @@ function Workspace({
                   <Icon name="system" size={30} />
                   <div>
                     <h2>{state.project.name}</h2>
-                    <p>暖通系统设计 · 本地项目</p>
+                    <p>{t("暖通系统设计 · 本地项目")}</p>
                   </div>
-                  <span className="tag warning">概念设计</span>
+                  <span className="tag warning">{t("概念设计")}</span>
                 </div>
                 <p className="project-location">{state.project.path}</p>
                 <section className="continue-design">
                   <div>
-                    <h3>继续设计 {source.root}</h3>
+                    <h3>
+                      {t("继续设计")}
+                      {source.root}
+                    </h3>
                     <p>
-                      {entries.length} 个设备 ·{" "}
-                      {source.components[source.root]?.connections?.length ?? 0} 条连接 ·{" "}
-                      {types.length} 类器件
+                      {entries.length}
+                      {t("个设备 ·")} {source.components[source.root]?.connections?.length ?? 0}
+                      {t("条连接 ·")} {types.length}
+                      {t("类器件")}
                     </p>
                   </div>
                   <button className="primary-button" onClick={() => openView("design")}>
-                    打开系统图
+                    {t("打开系统图")}
                     <Icon name="arrow" size={15} />
                   </button>
                 </section>
-                <h3>项目工作</h3>
+                <h3>{t("项目工作")}</h3>
                 <div className="project-work-list">
                   {[
-                    ["equipment", "核对设备与参数", "查看实例覆盖、继承与参数依据"],
+                    ["equipment", t("核对设备与参数"), t("查看实例覆盖、继承与参数依据")],
                     [
                       "simulation",
-                      "运行与分析工况",
-                      `${data.scenarios.length} 个工况配置，${runs.filter((item) => item.current).length} 份当前结果`,
+                      t("运行与分析工况"),
+                      t("{0} 个工况配置，{1} 份当前结果", {
+                        "0": data.scenarios.length,
+                        "1": runs.filter((item) => item.current).length,
+                      }),
                     ],
                     [
                       "checks",
-                      "处理检查问题",
+                      t("处理检查问题"),
                       currentIssues.length
-                        ? `${currentIssues.length} 个当前问题待处理`
-                        : "查看检查与工况约束；未运行不代表通过",
+                        ? t("{0} 个当前问题待处理", { "0": currentIssues.length })
+                        : t("查看检查与工况约束；未运行不代表通过"),
                     ],
                     [
                       "outputs",
-                      "整理成果",
-                      `${data.exports.filter((item) => item.current).length} 份当前图纸文件`,
+                      t("整理成果"),
+                      t("{0} 份当前图纸文件", {
+                        "0": data.exports.filter((item) => item.current).length,
+                      }),
                     ],
                   ].map(([id, title, detail]) => (
                     <button key={id} onClick={() => openView(id as View)}>
@@ -1060,7 +1078,7 @@ function Workspace({
                     </button>
                   ))}
                 </div>
-                <h3>最近运行</h3>
+                <h3>{t("最近运行")}</h3>
                 <div className="recent-jobs">
                   {state.jobs
                     .filter((item) => item.plugin === "texsys:hvac")
@@ -1068,12 +1086,12 @@ function Workspace({
                     .map((item) => (
                       <button key={item.id} onClick={() => showTasks(item.id)}>
                         <Icon name="terminal" size={17} />
-                        <span>{labels[item.action]}</span>
-                        <time>{new Date(item.created_at).toLocaleString("zh-CN")}</time>
-                        <span className={`tag ${item.state}`}>{labels[item.state]}</span>
+                        <span>{t(labels[item.action])}</span>
+                        <time>{new Date(item.created_at).toLocaleString(getLocale())}</time>
+                        <span className={`tag ${item.state}`}>{t(labels[item.state])}</span>
                       </button>
                     ))}
-                  {!state.jobs.length && <p className="muted">尚未运行检查、出图或仿真。</p>}
+                  {!state.jobs.length && <p className="muted">{t("尚未运行检查、出图或仿真。")}</p>}
                 </div>
               </div>
             )}
@@ -1082,38 +1100,40 @@ function Workspace({
                 {drawing && !drawing.current && (
                   <div className="stale-banner">
                     <Icon name="clock" size={16} />
-                    <span>当前显示历史图纸。源模型已变化，请重新生成。</span>
+                    <span>{t("当前显示历史图纸。源模型已变化，请重新生成。")}</span>
                     <button disabled={!canRun} onClick={() => void submit("build")}>
-                      更新图纸
+                      {t("更新图纸")}
                     </button>
                   </div>
                 )}
                 {overlay && run && (
                   <div className="overlay-context">
                     <Icon name="chart" size={16} />
-                    <strong>结果叠加</strong>
+                    <strong>{t("结果叠加")}</strong>
                     <select
-                      aria-label="叠加工况"
+                      aria-label={t("叠加工况")}
                       value={runIndex}
                       onChange={(event) => chooseRun(Number(event.target.value))}
                     >
                       {runs.map((item, i) => (
                         <option key={item.path} value={i}>
-                          {scenarioNames[item.result.scenario] ?? item.result.scenario} /{" "}
+                          {t(scenarioNames[item.result.scenario]) ?? item.result.scenario} /{" "}
                           {backendName(item.result)}
                         </option>
                       ))}
                     </select>
                     <span>{run.result.time_s[safeFrame]} s</span>
                     <span className={`tag ${run.current && drawing?.current ? "info" : "warning"}`}>
-                      {run.current && drawing?.current ? "当前输入版本" : "历史结果 · 不叠加到图面"}
+                      {run.current && drawing?.current
+                        ? t("当前输入版本")
+                        : t("历史结果 · 不叠加到图面")}
                     </span>
                     <button className="text-button" onClick={() => openView("simulation")}>
-                      完整分析
+                      {t("完整分析")}
                     </button>
                     <button
                       className="icon-button"
-                      aria-label="退出结果叠加"
+                      aria-label={t("退出结果叠加")}
                       onClick={() => {
                         setOverlay(false);
                         setPlayback((previous) => ({ ...previous, playing: false }));
@@ -1154,27 +1174,31 @@ function Workspace({
                         />
                       </div>
                       <div className="canvas-caption">
-                        <span>连接视图 · 图面无物理比例</span>
+                        <span>{t("连接视图 · 图面无物理比例")}</span>
                         <span>
-                          {diagram.nodes.length} 个设备 / {diagram.edges.length} 条连接
+                          {diagram.nodes.length}
+                          {t("个设备 /")}
+                          {diagram.edges.length}
+                          {t("条连接")}
                         </span>
                       </div>
                     </div>
                   </div>
                 ) : (
                   <Empty
-                    title="从系统模型生成图纸"
+                    title={t("从系统模型生成图纸")}
                     action={
                       <button
                         className="primary-button"
                         disabled={!canRun}
                         onClick={() => void submit("build")}
                       >
-                        生成第一张图纸
+                        {t("生成第一张图纸")}
                       </button>
                     }
                   >
-                    已读取 {entries.length} 个设备。生成系统图和原理图后，可以选择设备查看参数。
+                    {t("已读取")} {entries.length}
+                    {t("个设备。生成系统图和原理图后，可以选择设备查看参数。")}
                   </Empty>
                 )}
                 {overlay && run && (
@@ -1186,11 +1210,11 @@ function Workspace({
                       }
                     >
                       <Icon name={playback.playing ? "pause" : "play"} size={15} />
-                      {playback.playing ? "暂停" : "播放"}
+                      {playback.playing ? t("暂停") : t("播放")}
                     </button>
                     <input
                       type="range"
-                      aria-label="叠加时间"
+                      aria-label={t("叠加时间")}
                       min="0"
                       max={run.result.time_s.length - 1}
                       value={safeFrame}
@@ -1210,27 +1234,28 @@ function Workspace({
             {view === "equipment" && (
               <div className="data-view">
                 <div className="view-intro">
-                  <p>{info(view).description}</p>
+                  <p>{t(info(view).description)}</p>
                   <button className="small-button" onClick={exportEquipment}>
                     <Icon name="download" size={15} />
-                    导出设备表
+                    {t("导出设备表")}
                   </button>
                 </div>
                 <div className="table-summary">
                   <span>
-                    {filtered.length} / {entries.length} 个设备
+                    {filtered.length} / {entries.length}
+                    {t("个设备")}
                   </span>
-                  <span>点击设备编辑实例参数</span>
+                  <span>{t("点击设备编辑实例参数")}</span>
                 </div>
                 <div className="table-scroll">
                   <table className="equipment-table">
                     <thead>
                       <tr>
-                        <th>设备实例</th>
-                        <th>器件类型</th>
-                        <th>主要参数</th>
-                        <th>配置</th>
-                        <th>定位</th>
+                        <th>{t("设备实例")}</th>
+                        <th>{t("器件类型")}</th>
+                        <th>{t("主要参数")}</th>
+                        <th>{t("配置")}</th>
+                        <th>{t("定位")}</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -1259,17 +1284,17 @@ function Workspace({
                               </button>
                             </td>
                             <td>
-                              <span>{names[item.component] ?? item.component}</span>
+                              <span>{t(names[item.component]) ?? item.component}</span>
                               <small>{item.component}</small>
                             </td>
                             <td>
                               {key ? (
                                 <>
-                                  <small>{parameterTitles[key] ?? key}</small>
+                                  <small>{t(parameterTitles[key]) ?? key}</small>
                                   <strong>{bindingValue(params[key], key)}</strong>
                                 </>
                               ) : (
-                                "未定义"
+                                t("未定义")
                               )}
                             </td>
                             <td>
@@ -1277,14 +1302,14 @@ function Workspace({
                                 className={`tag ${Object.keys(item.parameters ?? {}).length ? "info" : "neutral"}`}
                               >
                                 {Object.keys(item.parameters ?? {}).length
-                                  ? "实例覆盖"
-                                  : "继承配置"}
+                                  ? t("实例覆盖")
+                                  : t("继承配置")}
                               </span>
                             </td>
                             <td>
                               <button
                                 className="text-button"
-                                aria-label={`图中定位 ${id}`}
+                                aria-label={t("图中定位 {0}", { "0": id })}
                                 onClick={() => {
                                   if (choose({ kind: "instance", id }, false)) {
                                     openView("design");
@@ -1292,7 +1317,7 @@ function Workspace({
                                   }
                                 }}
                               >
-                                图中定位
+                                {t("图中定位")}
                               </button>
                             </td>
                           </tr>
@@ -1300,21 +1325,23 @@ function Workspace({
                       })}
                     </tbody>
                   </table>
-                  {!filtered.length && <Empty title="没有匹配设备">调整左侧的设备搜索条件。</Empty>}
+                  {!filtered.length && (
+                    <Empty title={t("没有匹配设备")}>{t("调整左侧的设备搜索条件。")}</Empty>
+                  )}
                 </div>
               </div>
             )}
             {view === "components" && (
               <div className="data-view">
                 <div className="view-intro">
-                  <p>{info(view).description}</p>
-                  <span className="tag neutral">类型只读</span>
+                  <p>{t(info(view).description)}</p>
+                  <span className="tag neutral">{t("类型只读")}</span>
                 </div>
                 <label className="library-search">
                   <Icon name="search" size={16} />
                   <input
-                    aria-label="搜索器件类型"
-                    placeholder="搜索类型名称或标识…"
+                    aria-label={t("搜索器件类型")}
+                    placeholder={t("搜索类型名称或标识…")}
                     value={librarySearch}
                     onChange={(event) => setLibrarySearch(event.target.value)}
                   />
@@ -1322,7 +1349,7 @@ function Workspace({
                 <div className="component-list">
                   {types
                     .filter(([id]) =>
-                      `${id} ${names[id] ?? ""}`
+                      `${id} ${t(names[id]) ?? ""}`
                         .toLowerCase()
                         .includes(librarySearch.toLowerCase()),
                     )
@@ -1344,7 +1371,7 @@ function Workspace({
                             {representative && graphic ? (
                               <svg
                                 viewBox={`-20 -15 ${graphic.width + 40} ${graphic.height + 40}`}
-                                aria-label={names[id] ?? id}
+                                aria-label={t(names[id]) ?? id}
                               >
                                 <EngineeringSymbol node={{ ...representative, graphic }} />
                               </svg>
@@ -1353,26 +1380,33 @@ function Workspace({
                             )}
                           </span>
                           <span className="component-identity">
-                            <strong>{names[id] ?? id}</strong>
+                            <strong>{t(names[id]) ?? id}</strong>
                             <small>{id}</small>
                           </span>
                           <span className="component-facts">
-                            {Object.keys(definition.ports ?? {}).length} 个接口
+                            {Object.keys(definition.ports ?? {}).length}
+                            {t("个接口")}
                             <span>
-                              {Object.keys(definition.behavior?.parameters ?? {}).length} 个默认参数
+                              {Object.keys(definition.behavior?.parameters ?? {}).length}
+                              {t("个默认参数")}
                             </span>
                           </span>
-                          <span className="tag neutral">{count} 个实例</span>
+                          <span className="tag neutral">
+                            {count}
+                            {t("个实例")}
+                          </span>
                           <Icon name="chevron" size={16} />
                         </button>
                       );
                     })}
                   {!types.some(([id]) =>
-                    `${id} ${names[id] ?? ""}`.toLowerCase().includes(librarySearch.toLowerCase()),
-                  ) && <Empty title="没有匹配类型">调整类型名称或标识。</Empty>}
+                    `${id} ${t(names[id]) ?? ""}`
+                      .toLowerCase()
+                      .includes(librarySearch.toLowerCase()),
+                  ) && <Empty title={t("没有匹配类型")}>{t("调整类型名称或标识。")}</Empty>}
                 </div>
                 <p className="section-note">
-                  此库展示当前模型内的类型。类型创建和性能模型编辑尚未接入。
+                  {t("此库展示当前模型内的类型。类型创建和性能模型编辑尚未接入。")}
                 </p>
               </div>
             )}
@@ -1380,29 +1414,29 @@ function Workspace({
               <div className="data-view simulation-view">
                 <div className="simulation-config">
                   <label>
-                    运行工况
+                    {t("运行工况")}
                     <select
-                      aria-label="运行工况"
+                      aria-label={t("运行工况")}
                       value={scenario}
                       onChange={(event) => setScenario(event.target.value)}
                     >
-                      <option value="all">全部工况</option>
+                      <option value="all">{t("全部工况")}</option>
                       {data.scenarios.map((item) => (
                         <option key={item.id} value={item.id}>
-                          {scenarioNames[item.id] ?? item.id}
+                          {t(scenarioNames[item.id]) ?? item.id}
                         </option>
                       ))}
                     </select>
                   </label>
                   <label>
-                    求解后端
+                    {t("求解后端")}
                     <select
-                      aria-label="求解后端"
+                      aria-label={t("求解后端")}
                       value={backend}
                       onChange={(event) => setBackend(event.target.value)}
                     >
-                      <option value="scipy">SciPy / 集总动态</option>
-                      <option value="openmodelica">OpenModelica / 外部求解器</option>
+                      <option value="scipy">{t("SciPy / 集总动态")}</option>
+                      <option value="openmodelica">{t("OpenModelica / 外部求解器")}</option>
                     </select>
                   </label>
                   <button
@@ -1411,19 +1445,22 @@ function Workspace({
                     onClick={() => void submit("simulate")}
                   >
                     <Icon name="play" size={15} />
-                    {busy ? "任务运行中" : "运行仿真"}
+                    {busy ? t("任务运行中") : t("运行仿真")}
                   </button>
                 </div>
-                {!data.scenarios.length && <p className="section-note">当前项目没有工况配置。</p>}
+                {!data.scenarios.length && (
+                  <p className="section-note">{t("当前项目没有工况配置。")}</p>
+                )}
                 {run ? (
                   <>
                     <div className="analysis-heading">
                       <div>
                         <span className={`tag ${run.current ? "info" : "warning"}`}>
-                          {run.current ? "当前输入版本" : "历史结果 · 源模型已变化"}
+                          {run.current ? t("当前输入版本") : t("历史结果 · 源模型已变化")}
                         </span>
                         <span className={`tag ${run.result.status}`}>
-                          工程结论：{labels[run.result.status] ?? run.result.status}
+                          {t("工程结论：")}
+                          {t(labels[run.result.status]) ?? run.result.status}
                         </span>
                       </div>
                       <button
@@ -1436,7 +1473,7 @@ function Workspace({
                         }
                       >
                         <Icon name="download" size={14} />
-                        导出本次结果
+                        {t("导出本次结果")}
                       </button>
                     </div>
                     {lastFocus && (
@@ -1451,11 +1488,11 @@ function Workspace({
                             setLocateToken((previous) => previous + 1);
                           }}
                         >
-                          在图面查看
+                          {t("在图面查看")}
                         </button>
                         <button
                           className="icon-button"
-                          aria-label="关闭定位提示"
+                          aria-label={t("关闭定位提示")}
                           onClick={() => setLastFocus("")}
                         >
                           <Icon name="close" size={14} />
@@ -1465,25 +1502,31 @@ function Workspace({
                     {runPanel}
                     <div className="analysis-footnote">
                       <span>
-                        {run.result.time_s.length} 个采样点 ·{" "}
-                        {Object.keys(run.result.variables).length} 个变量 ·{" "}
-                        {run.result.events.length} 个事件
+                        {run.result.time_s.length}
+                        {t("个采样点 ·")} {Object.keys(run.result.variables).length}
+                        {t("个变量 ·")} {run.result.events.length}
+                        {t("个事件")}
                       </span>
-                      <span>求解完成与工程约束通过分别记录。</span>
+                      <span>{t("求解完成与工程约束通过分别记录。")}</span>
                     </div>
                   </>
                 ) : (
-                  <Empty title="选择工况，运行第一次仿真">
-                    求解结束后显示曲线、回放与约束问题。配置与源模型均按运行时输入保存。
+                  <Empty title={t("选择工况，运行第一次仿真")}>
+                    {t("求解结束后显示曲线、回放与约束问题。配置与源模型均按运行时输入保存。")}
                   </Empty>
                 )}
                 <details className="scenario-details">
-                  <summary>工况配置 · {data.scenarios.length} 个</summary>
+                  <summary>
+                    {t("工况配置 ·")}
+                    {data.scenarios.length}
+                    {t("个")}
+                  </summary>
                   {data.scenarios.map((item) => (
                     <div key={item.id}>
-                      <strong>{scenarioNames[item.id] ?? item.id}</strong>
+                      <strong>{t(scenarioNames[item.id]) ?? item.id}</strong>
                       <span>
-                        {item.duration_s} s · {item.events} 个输入变化时刻
+                        {item.duration_s} s · {item.events}
+                        {t("个输入变化时刻")}
                       </span>
                       <code>{item.path}</code>
                     </div>
@@ -1494,27 +1537,30 @@ function Workspace({
             {view === "checks" && (
               <div className="data-view">
                 <div className="view-intro">
-                  <p>{info(view).description}</p>
-                  <span>{currentIssues.length} 个当前问题</span>
+                  <p>{t(info(view).description)}</p>
+                  <span>
+                    {currentIssues.length}
+                    {t("个当前问题")}
+                  </span>
                 </div>
                 <div className="issue-filters">
                   <label>
                     <Icon name="search" size={15} />
                     <input
-                      aria-label="搜索检查问题"
-                      placeholder="搜索设备、规则或工况…"
+                      aria-label={t("搜索检查问题")}
+                      placeholder={t("搜索设备、规则或工况…")}
                       value={issueSearch}
                       onChange={(event) => setIssueSearch(event.target.value)}
                     />
                   </label>
                   <select
-                    aria-label="问题版本范围"
+                    aria-label={t("问题版本范围")}
                     value={issueScope}
                     onChange={(event) => setIssueScope(event.target.value)}
                   >
-                    <option value="current">当前输入</option>
-                    <option value="historical">历史输入</option>
-                    <option value="all">全部版本</option>
+                    <option value="current">{t("当前输入")}</option>
+                    <option value="historical">{t("历史输入")}</option>
+                    <option value="all">{t("全部版本")}</option>
                   </select>
                 </div>
                 {visibleIssues.length ? (
@@ -1523,42 +1569,47 @@ function Workspace({
                   <div className="check-clear">
                     <Icon name="check" size={26} />
                     <div>
-                      <strong>{issueSearch ? "没有匹配问题" : "此范围内没有待处理问题"}</strong>
+                      <strong>
+                        {issueSearch ? t("没有匹配问题") : t("此范围内没有待处理问题")}
+                      </strong>
                       <p>
                         {!data.reports.length && !runs.length
-                          ? "尚未运行模型检查或工况验证。"
-                          : "结果仅覆盖已运行的模型检查与工况约束，不代表全部工程条件已接受。"}
+                          ? t("尚未运行模型检查或工况验证。")
+                          : t("结果仅覆盖已运行的模型检查与工况约束，不代表全部工程条件已接受。")}
                       </p>
                     </div>
                   </div>
                 )}
-                <h3 className="section-heading">检查记录</h3>
+                <h3 className="section-heading">{t("检查记录")}</h3>
                 <div className="report-list">
                   {data.reports.map((report) => (
                     <div key={report.path}>
                       <Icon name="check" size={18} />
                       <span>
                         <strong>
-                          {report.kind === "studio-check.json" ? "模型静态检查" : "图纸构建检查"}
+                          {report.kind === "studio-check.json"
+                            ? t("模型静态检查")
+                            : t("图纸构建检查")}
                         </strong>
                         <small>
-                          {report.current ? "当前输入版本" : "历史输入版本"}
-                          {report.data.files !== undefined && ` · ${report.data.files} 份文件`}
+                          {report.current ? t("当前输入版本") : t("历史输入版本")}
+                          {report.data.files !== undefined &&
+                            t(" · {0} 份文件", { "0": report.data.files })}
                         </small>
                       </span>
                       <span className={`tag ${report.data.status}`}>
-                        {labels[report.data.status] ?? report.data.status}
+                        {t(labels[report.data.status]) ?? report.data.status}
                       </span>
                       <button
                         className="text-button"
                         onClick={() => void exportArtifact(report.path, report.kind)}
                       >
-                        导出报告
+                        {t("导出报告")}
                       </button>
                     </div>
                   ))}
                   {!data.reports.length && (
-                    <p className="muted">尚无模型检查报告，可在右上角运行模型检查。</p>
+                    <p className="muted">{t("尚无模型检查报告，可在右上角运行模型检查。")}</p>
                   )}
                 </div>
               </div>
@@ -1567,12 +1618,12 @@ function Workspace({
               <div className="source-view">
                 <div className="source-heading">
                   <code>{data.source_path}</code>
-                  <span className="tag neutral">只读</span>
+                  <span className="tag neutral">{t("只读")}</span>
                   <label>
                     <Icon name="search" size={15} />
                     <input
-                      aria-label="查找源数据"
-                      placeholder="高亮匹配内容…"
+                      aria-label={t("查找源数据")}
+                      placeholder={t("高亮匹配内容…")}
                       value={sourceSearch}
                       onChange={(event) => setSourceSearch(event.target.value)}
                     />
@@ -1580,9 +1631,12 @@ function Workspace({
                 </div>
                 <div className="source-context">
                   {selection
-                    ? `已定位${selection.kind === "type" ? "类型" : "实例"} ${selection.id}`
-                    : "从左侧选择设备定位源数据"}{" "}
-                  · 参数保存会更新此文件
+                    ? t("已定位{0} {1}", {
+                        "0": selection.kind === "type" ? t("类型") : t("实例"),
+                        "1": selection.id,
+                      })
+                    : t("从左侧选择设备定位源数据")}{" "}
+                  {t("· 参数保存会更新此文件")}
                 </div>
                 <div className="source-lines" ref={sourceViewport}>
                   {sourceLines.map((line, index) => (
@@ -1601,41 +1655,44 @@ function Workspace({
             {view === "outputs" && (
               <div className="data-view">
                 <div className="view-intro">
-                  <p>{info(view).description}</p>
-                  <span className="tag warning">待工程审核</span>
+                  <p>{t(info(view).description)}</p>
+                  <span className="tag warning">{t("待工程审核")}</span>
                 </div>
                 <section className="output-section">
-                  <h2>设计资料</h2>
+                  <h2>{t("设计资料")}</h2>
                   <div className="output-row">
                     <Icon name="code" size={20} />
                     <div>
-                      <strong>系统模型</strong>
+                      <strong>{t("系统模型")}</strong>
                       <small>{data.source_path}</small>
                     </div>
-                    <span className="tag info">当前源数据</span>
+                    <span className="tag info">{t("当前源数据")}</span>
                     <button
                       className="small-button"
                       onClick={() =>
                         download(JSON.stringify(source, null, 2) + "\n", "system.sdl.json")
                       }
                     >
-                      导出 JSON
+                      {t("导出 JSON")}
                     </button>
                   </div>
                   <div className="output-row">
                     <Icon name="table" size={20} />
                     <div>
-                      <strong>设备表</strong>
-                      <small>{entries.length} 个设备实例</small>
+                      <strong>{t("设备表")}</strong>
+                      <small>
+                        {entries.length}
+                        {t("个设备实例")}
+                      </small>
                     </div>
-                    <span className="tag info">当前源数据</span>
+                    <span className="tag info">{t("当前源数据")}</span>
                     <button className="small-button" onClick={exportEquipment}>
-                      导出 CSV
+                      {t("导出 CSV")}
                     </button>
                   </div>
                 </section>
                 <section className="output-section">
-                  <h2>图纸文件</h2>
+                  <h2>{t("图纸文件")}</h2>
                   {data.exports.map((item) => (
                     <div className="output-row" key={item.path}>
                       <Icon name="layers" size={20} />
@@ -1644,33 +1701,34 @@ function Workspace({
                         <small title={item.path}>{item.path}</small>
                       </div>
                       <span className={`tag ${item.current ? "info" : "warning"}`}>
-                        {item.current ? "当前输入版本" : "历史输入"}
+                        {item.current ? t("当前输入版本") : t("历史输入")}
                       </span>
                       <button
                         className="small-button"
                         onClick={() => void exportArtifact(item.path, item.name)}
                       >
-                        导出
+                        {t("导出")}
                       </button>
                     </div>
                   ))}
                   {!data.exports.length && (
-                    <p className="muted">尚无图纸文件。点击“更新图纸”生成。</p>
+                    <p className="muted">{t("尚无图纸文件。点击“更新图纸”生成。")}</p>
                   )}
                 </section>
                 <section className="output-section">
-                  <h2>工况结果</h2>
+                  <h2>{t("工况结果")}</h2>
                   {runs.map((item, index) => (
                     <div className="output-row" key={item.path}>
                       <Icon name="chart" size={20} />
                       <div>
                         <strong>
-                          {scenarioNames[item.result.scenario] ?? item.result.scenario} /{" "}
+                          {t(scenarioNames[item.result.scenario]) ?? item.result.scenario} /{" "}
                           {backendName(item.result)}
                         </strong>
                         <small>
-                          {item.current ? "当前输入版本" : "历史输入版本"} · 工程结论：
-                          {labels[item.result.status] ?? item.result.status}
+                          {item.current ? t("当前输入版本") : t("历史输入版本")}
+                          {t("· 工程结论：")}
+                          {t(labels[item.result.status]) ?? item.result.status}
                         </small>
                       </div>
                       <button
@@ -1680,7 +1738,7 @@ function Workspace({
                           openView("simulation");
                         }}
                       >
-                        打开分析
+                        {t("打开分析")}
                       </button>
                       <button
                         className="small-button"
@@ -1691,53 +1749,61 @@ function Workspace({
                           )
                         }
                       >
-                        导出 JSON
+                        {t("导出 JSON")}
                       </button>
                     </div>
                   ))}
                   {!runs.length && (
-                    <p className="muted">尚无工况结果。前往“工况与结果”运行仿真。</p>
+                    <p className="muted">{t("尚无工况结果。前往“工况与结果”运行仿真。")}</p>
                   )}
                 </section>
                 <p className="section-note">
-                  导出保留当前文件的输入版本和工程状态。正式提资发布尚未接入。
+                  {t("导出保留当前文件的输入版本和工程状态。正式提资发布尚未接入。")}
                 </p>
               </div>
             )}
             {view === "capabilities" && (
               <div className="data-view">
                 <div className="view-intro">
-                  <p>HVAC 本地工作台 · 当前能力</p>
+                  <p>{t("HVAC 本地工作台 · 当前能力")}</p>
                   <span className="tag neutral">0.1.0</span>
                 </div>
                 <div className="capability-list">
                   {[
-                    ["系统与实例参数", "系统图、原理图、设备表、实例参数覆盖与恢复继承", "已接入"],
                     [
-                      "器件类型",
-                      "查看项目内类型定义、默认参数、接口和使用实例；类型定义只读",
-                      "有限支持",
+                      t("系统与实例参数"),
+                      t("系统图、原理图、设备表、实例参数覆盖与恢复继承"),
+                      t("已接入"),
                     ],
                     [
-                      "仿真与约束",
-                      "SciPy 动态求解、外部 OpenModelica、曲线与时间回放、约束定位",
-                      "已接入",
+                      t("器件类型"),
+                      t("查看项目内类型定义、默认参数、接口和使用实例；类型定义只读"),
+                      t("有限支持"),
                     ],
                     [
-                      "检查与成果",
-                      "模型检查、图纸构建、版本关联与历史结果标记、文件导出",
-                      "已接入",
+                      t("仿真与约束"),
+                      t("SciPy 动态求解、外部 OpenModelica、曲线与时间回放、约束定位"),
+                      t("已接入"),
                     ],
-                    ["拓扑与类型创建", "放置设备、编辑连接和创建器件类型", "未接入"],
-                    ["架构搜索与物理布局", "候选生成、优化求解、空间布局与物理管线路由", "未接入"],
-                    ["正式提资与协同", "提资发布、接收、跨专业采用及远程账户", "未接入"],
+                    [
+                      t("检查与成果"),
+                      t("模型检查、图纸构建、版本关联与历史结果标记、文件导出"),
+                      t("已接入"),
+                    ],
+                    [t("拓扑与类型创建"), t("放置设备、编辑连接和创建器件类型"), t("未接入")],
+                    [
+                      t("架构搜索与物理布局"),
+                      t("候选生成、优化求解、空间布局与物理管线路由"),
+                      t("未接入"),
+                    ],
+                    [t("正式提资与协同"), t("提资发布、接收、跨专业采用及远程账户"), t("未接入")],
                   ].map(([title, description, status]) => (
                     <div key={title}>
                       <span>
                         <strong>{title}</strong>
                         <p>{description}</p>
                       </span>
-                      <span className={`tag ${status === "已接入" ? "pass" : "neutral"}`}>
+                      <span className={`tag ${status === t("已接入") ? "pass" : "neutral"}`}>
                         {status}
                       </span>
                     </div>
@@ -1757,7 +1823,9 @@ function HvacWorkbench(props: WorkbenchProps) {
   if (!data || data.error || !data.source)
     return (
       <WorkbenchSurface layout={props.layout} change={props.changeLayout}>
-        <Empty title="无法读取暖通预览">{data?.error ?? "当前项目没有可用的系统模型。"}</Empty>
+        <Empty title={t("无法读取暖通预览")}>
+          {data?.error ?? t("当前项目没有可用的系统模型。")}
+        </Empty>
       </WorkbenchSurface>
     );
   return <Workspace {...props} data={data} />;

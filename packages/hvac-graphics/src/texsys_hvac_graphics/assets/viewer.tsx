@@ -1,3 +1,4 @@
+import { t, useLocale } from "../../../../../src/texsys/assets/studio/i18n";
 import React, { useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { DiagramSvg, EngineeringSymbol, parameterTitles } from "./graphics";
@@ -19,6 +20,7 @@ const names: Record<string, string> = {
 };
 
 function App() {
+  useLocale();
   const [selected, setSelected] = useState<string | undefined>(payload.document.nodes[0]?.id);
   const [tab, setTab] = useState("diagram");
   const [debug, setDebug] = useState(false);
@@ -67,24 +69,24 @@ function App() {
     <div className="workbench">
       <header className="app-header">
         <strong>TexSys</strong>
-        <span>暖通系统设计</span>
-        <nav aria-label="工作视图">
+        <span>{t("暖通系统设计")}</span>
+        <nav aria-label={t("工作视图")}>
           <button className={tab === "diagram" ? "active" : ""} onClick={() => setTab("diagram")}>
-            系统图纸
+            {t("系统图纸")}
           </button>
           <button className={tab === "symbols" ? "active" : ""} onClick={() => setTab("symbols")}>
-            工程图元
+            {t("工程图元")}
           </button>
         </nav>
-        <span className="draft-state">概念设计 · 待审核</span>
+        <span className="draft-state">{t("概念设计 · 待审核")}</span>
       </header>
       <div className="workspace-heading">
         <div>
-          <h1>{tab === "diagram" ? payload.document.title : "参数化工程图元"}</h1>
+          <h1>{tab === "diagram" ? payload.document.title : t("参数化工程图元")}</h1>
           <p>
             {tab === "diagram"
-              ? "沿管路查看系统，选择设备检查参数与依据。"
-              : "轮廓、接管与标注锚点由同一几何函数计算。"}
+              ? t("沿管路查看系统，选择设备检查参数与依据。")
+              : t("轮廓、接管与标注锚点由同一几何函数计算。")}
           </p>
         </div>
         <div className="toolbar">
@@ -94,13 +96,13 @@ function App() {
               checked={debug}
               onChange={(event) => setDebug(event.target.checked)}
             />
-            显示诊断标记
+            {t("显示诊断标记")}
           </label>
-          <button onClick={() => setZoom(Math.max(0.4, zoom - 0.2))} aria-label="缩小">
+          <button onClick={() => setZoom(Math.max(0.4, zoom - 0.2))} aria-label={t("缩小")}>
             −
           </button>
           <output>{Math.round(zoom * 100)}%</output>
-          <button onClick={() => setZoom(Math.min(2, zoom + 0.2))} aria-label="放大">
+          <button onClick={() => setZoom(Math.min(2, zoom + 0.2))} aria-label={t("放大")}>
             ＋
           </button>
           <button
@@ -109,14 +111,14 @@ function App() {
               setSelected(undefined);
             }}
           >
-            适合图面
+            {t("适合图面")}
           </button>
         </div>
       </div>
       <main className="workspace">
         <section
           className="drawing-area"
-          aria-label={tab === "diagram" ? "系统图纸画布" : "图元预览画布"}
+          aria-label={tab === "diagram" ? t("系统图纸画布") : t("图元预览画布")}
         >
           {tab === "diagram" ? (
             <>
@@ -153,14 +155,14 @@ function App() {
             </>
           ) : (
             <div className="symbol-gallery">
-              <div className="symbol-list" aria-label="图元类型">
+              <div className="symbol-list" aria-label={t("图元类型")}>
                 {payload.document.nodes.map((item) => (
                   <button
                     key={item.id}
                     className={item.id === selected ? "selected" : ""}
                     onClick={() => setSelected(item.id)}
                   >
-                    {names[item.component] ?? item.component}
+                    {t(names[item.component]) ?? item.component}
                     <small>{item.label}</small>
                   </button>
                 ))}
@@ -170,7 +172,7 @@ function App() {
                   <svg
                     viewBox={`-20 -15 ${geometry.width + 40} ${geometry.height + 40}`}
                     role="img"
-                    aria-label="参数化图元预览"
+                    aria-label={t("参数化图元预览")}
                   >
                     <EngineeringSymbol node={{ ...node, graphic: geometry }} />
                     {geometry.ports.map((port) => (
@@ -204,7 +206,7 @@ function App() {
                         fontSize="8"
                         fill="#617887"
                       >
-                        {engineeringLabels(node).join("　")}
+                        {engineeringLabels(node, t).join("　")}
                       </text>
                     )}
                   </svg>
@@ -215,26 +217,27 @@ function App() {
           <div className="drawing-footer">
             <span>
               {payload.document.spatial_state === "connectivity-only"
-                ? "连接视图 · 无物理比例"
-                : "工程视图"}
+                ? t("连接视图 · 无物理比例")
+                : t("工程视图")}
             </span>
-            <span>模型与图纸身份关联</span>
+            <span>{t("模型与图纸身份关联")}</span>
           </div>
         </section>
-        <aside className="inspector" aria-label="设备详情">
+        <aside className="inspector" aria-label={t("设备详情")}>
           {node ? (
             <>
               <div className="inspector-title">
-                <span>{names[node.component] ?? node.component}</span>
+                <span>{t(names[node.component]) ?? node.component}</span>
                 <h2>{node.label}</h2>
               </div>
               {tab === "symbols" && (
                 <section>
-                  <h3>图形参数</h3>
+                  <h3>{t("图形参数")}</h3>
                   <label className="field">
-                    图元横向比例<output>{stretch.toFixed(2)}</output>
+                    {t("图元横向比例")}
+                    <output>{stretch.toFixed(2)}</output>
                     <input
-                      aria-label="图元横向比例"
+                      aria-label={t("图元横向比例")}
                       type="range"
                       min="0.75"
                       max="2"
@@ -244,37 +247,37 @@ function App() {
                     />
                   </label>
                   <label className="field">
-                    标注层次
+                    {t("标注层次")}
                     <select value={detail} onChange={(event) => setDetail(event.target.value)}>
-                      <option value="system">系统图</option>
-                      <option value="schematic">原理图</option>
+                      <option value="system">{t("系统图")}</option>
+                      <option value="schematic">{t("原理图")}</option>
                     </select>
                   </label>
-                  <p className="hint">图形比例只改变呈现，不改变设备性能与物理尺寸。</p>
+                  <p className="hint">{t("图形比例只改变呈现，不改变设备性能与物理尺寸。")}</p>
                 </section>
               )}
               <section>
-                <h3>工程参数</h3>
+                <h3>{t("工程参数")}</h3>
                 {Object.entries(node.parameters).length ? (
                   <dl>
                     {Object.entries(node.parameters).map(([key, binding]) => (
                       <div key={key}>
-                        <dt>{parameterTitles[key] ?? key}</dt>
+                        <dt>{t(parameterTitles[key]) ?? key}</dt>
                         <dd>
                           {binding.value === undefined
                             ? binding.state
                             : `${binding.value} ${binding.unit}`}
-                          <small>{binding.state === "assumed" ? "假设" : binding.state}</small>
+                          <small>{binding.state === "assumed" ? t("假设") : binding.state}</small>
                         </dd>
                       </div>
                     ))}
                   </dl>
                 ) : (
-                  <p className="hint">此对象未绑定行为参数。</p>
+                  <p className="hint">{t("此对象未绑定行为参数。")}</p>
                 )}
               </section>
               <details>
-                <summary>来源与模型引用</summary>
+                <summary>{t("来源与模型引用")}</summary>
                 <p className="semantic-ref">{node.semantic_ref}</p>
                 {Object.entries(node.parameters).map(([key, binding]) => (
                   <p key={key}>
@@ -284,12 +287,13 @@ function App() {
                   </p>
                 ))}
                 <p>
-                  图元解析：{node.symbol.level}，
-                  {node.symbol.presentation_exact ? "精确图元" : "概念族图元"}
+                  {t("图元解析：")}
+                  {node.symbol.level}，
+                  {node.symbol.presentation_exact ? t("精确图元") : t("概念族图元")}
                 </p>
               </details>
               <section>
-                <h3>接管</h3>
+                <h3>{t("接管")}</h3>
                 <ul className="port-list">
                   {(tab === "symbols" ? geometry?.ports : node.ports)?.map((port) => (
                     <li key={port.id}>
@@ -302,8 +306,8 @@ function App() {
             </>
           ) : (
             <div className="empty-selection">
-              <h2>选择设备</h2>
-              <p>在图上选择冷机、泵或其他设备，查看参数与依据。</p>
+              <h2>{t("选择设备")}</h2>
+              <p>{t("在图上选择冷机、泵或其他设备，查看参数与依据。")}</p>
             </div>
           )}
         </aside>

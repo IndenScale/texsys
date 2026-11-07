@@ -1,3 +1,4 @@
+import { t } from "./i18n";
 import React, { type CSSProperties } from "react";
 import { FileIcon } from "./FileIcon";
 import { Icon } from "./ui";
@@ -38,7 +39,7 @@ export function ExplorerTree({
     <div
       className="core-file-tree"
       role="tree"
-      aria-label="项目文件"
+      aria-label={t("项目文件")}
       onKeyDown={(event) => {
         if (event.key === "F2" && selectedEntry) {
           event.preventDefault();
@@ -132,7 +133,7 @@ export function ExplorerTree({
               {entry.directory ? <Icon name="folder" size={16} /> : <FileIcon path={entry.path} />}
             </span>
             <span className="core-entry-name">{entry.name}</span>
-            {dirtyPaths.has(entry.path) && <span className="core-dirty" title="未保存" />}
+            {dirtyPaths.has(entry.path) && <span className="core-dirty" title={t("未保存")} />}
           </button>
         );
       })}

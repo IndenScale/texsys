@@ -1,3 +1,4 @@
+import { t, getLocale } from "../../../../../src/texsys/assets/studio/i18n";
 import React, { useEffect, useState } from "react";
 import type { Simulation, SimulationVariable } from "./types";
 
@@ -22,22 +23,23 @@ export function variableName(key: string, variable: SimulationVariable): string 
   const role =
     variable.role === "outlet-temperature"
       ? key.includes("#chilled")
-        ? "冷冻侧出口温度"
+        ? t("冷冻侧出口温度")
         : key.includes("#cooling")
-          ? "冷却侧出口温度"
-          : "出口温度"
+          ? t("冷却侧出口温度")
+          : t("出口温度")
       : variable.role === "mass-flow"
-        ? "质量流量"
-        : "输入功率";
+        ? t("质量流量")
+        : t("输入功率");
   const side =
     variable.role === "mass-flow"
       ? key.includes("#chilled")
-        ? "冷冻侧"
+        ? t("冷冻侧")
         : key.includes("#cooling")
-          ? "冷却侧"
+          ? t("冷却侧")
           : ""
       : "";
-  return `${object} · ${side}${role} (${variable.unit === "degC" ? "°C" : variable.unit})`;
+  const description = [side, role].filter(Boolean).join(getLocale() === "en" ? " " : "");
+  return `${object} · ${description} (${variable.unit === "degC" ? "°C" : variable.unit})`;
 }
 
 function Plot({
@@ -66,7 +68,7 @@ function Plot({
   const y = (value: number) => 125 - ((value - low) / (high - low)) * 100;
   const points = result.time_s.map((time, i) => `${x(time)},${y(values[i])}`).join(" ");
   return (
-    <svg viewBox="0 0 900 155" role="img" aria-label="动态响应曲线">
+    <svg viewBox="0 0 900 155" role="img" aria-label={t("动态响应曲线")}>
       {[0, 0.5, 1].map((fraction) => (
         <g key={fraction}>
           <line
@@ -104,12 +106,19 @@ function Plot({
             strokeDasharray="4 4"
           />
           <text x={x(event.time_s) + 5} y="18" fontSize="9" fill="#9b641d">
-            工况变化
+            {t("工况变化")}
           </text>
         </g>
       ))}
       {limits.map((limit, i) => (
-        <g key={i} aria-label={`约束 ${limit.operator} ${limit.value} ${limit.unit}`}>
+        <g
+          key={i}
+          aria-label={t("约束 {0} {1} {2}", {
+            "0": limit.operator,
+            "1": limit.value,
+            "2": limit.unit,
+          })}
+        >
           <line
             x1="60"
             x2="820"
@@ -119,7 +128,8 @@ function Plot({
             strokeDasharray="5 4"
           />
           <text x="816" y={y(limit.value!) - 5} textAnchor="end" fontSize="10" fill="#a64a35">
-            约束 {limit.operator} {limit.value} {limit.unit === "degC" ? "°C" : limit.unit}
+            {t("约束")}
+            {limit.operator} {limit.value} {limit.unit === "degC" ? "°C" : limit.unit}
           </text>
         </g>
       ))}
@@ -182,24 +192,24 @@ export function RunPanel({
     if (focus?.variable && result.variables[focus.variable]) setChoice(focus.variable);
   }, [focus?.variable, focus?.token]);
   const key = result.variables[choice] ? choice : candidates[0]?.[0];
-  if (!key) return <section className="run-panel">此工况没有可回放的物理变量。</section>;
+  if (!key) return <section className="run-panel">{t("此工况没有可回放的物理变量。")}</section>;
   return (
-    <section className="run-panel" aria-label="动态工况与时序回放">
+    <section className="run-panel" aria-label={t("动态工况与时序回放")}>
       <div className="run-heading">
         <div>
-          <strong>动态响应</strong>
+          <strong>{t("动态响应")}</strong>
           <span className={`run-state ${result.status}`}>
             {result.status === "pass"
-              ? "约束检查通过"
+              ? t("约束检查通过")
               : result.status === "fail"
-                ? "存在约束未满足"
-                : "结果待确认"}
+                ? t("存在约束未满足")
+                : t("结果待确认")}
           </span>
         </div>
         <label>
-          工况
+          {t("工况")}
           <select
-            aria-label="动态工况"
+            aria-label={t("动态工况")}
             value={runIndex}
             onChange={(event) => {
               setRunIndex(Number(event.target.value));
@@ -209,16 +219,16 @@ export function RunPanel({
           >
             {runs.map((run, i) => (
               <option key={`${run.scenario}:${backendName(run)}:${i}`} value={i}>
-                {scenarioNames[run.scenario] ?? run.scenario}
+                {t(scenarioNames[run.scenario]) ?? run.scenario}
                 {backendName(run) ? ` / ${backendName(run)}` : ""}
               </option>
             ))}
           </select>
         </label>
         <label>
-          变量
+          {t("变量")}
           <select
-            aria-label="显示变量"
+            aria-label={t("显示变量")}
             value={key}
             onChange={(event) => {
               setChoice(event.target.value);
@@ -235,17 +245,17 @@ export function RunPanel({
       </div>
       <Plot result={result} variableKey={key} index={index} />
       <div className="playback">
-        <button onClick={() => setPlaying(!playing)}>{playing ? "暂停" : "播放"}</button>
+        <button onClick={() => setPlaying(!playing)}>{playing ? t("暂停") : t("播放")}</button>
         <button
           onClick={() => {
             setIndex(0);
             setPlaying(false);
           }}
         >
-          回到初始
+          {t("回到初始")}
         </button>
         <input
-          aria-label="仿真时间"
+          aria-label={t("仿真时间")}
           type="range"
           min="0"
           max={result.time_s.length - 1}
@@ -256,7 +266,7 @@ export function RunPanel({
             setPlaying(false);
           }}
         />
-        <output aria-label="当前仿真时间">{result.time_s[index].toFixed(0)} s</output>
+        <output aria-label={t("当前仿真时间")}>{result.time_s[index].toFixed(0)} s</output>
         <button
           onClick={() => {
             const next = result.events.find((event) => event.time_s > result.time_s[index]);
@@ -268,15 +278,16 @@ export function RunPanel({
             setPlaying(false);
           }}
         >
-          下一事件
+          {t("下一事件")}
         </button>
       </div>
       <details className="run-checks" open={onLocateAssertion ? true : undefined}>
-        <summary>守恒与性能检查</summary>
+        <summary>{t("守恒与性能检查")}</summary>
         <div>
-          质量残差 {result.checks.mass_residual_kg_s.toExponential(2)} kg/s；能量残差{" "}
-          {result.checks.energy_residual_w.toExponential(2)} W；积分能量误差{" "}
-          {result.checks.integrated_energy_error_j.toExponential(2)} J。
+          {t("质量残差")}
+          {result.checks.mass_residual_kg_s.toExponential(2)}
+          {t("kg/s；能量残差")} {result.checks.energy_residual_w.toExponential(2)}
+          {t("W；积分能量误差")} {result.checks.integrated_energy_error_j.toExponential(2)} J。
         </div>
         {result.assertions.map((assertion, i) => (
           <div
@@ -285,26 +296,34 @@ export function RunPanel({
           >
             <p>
               {assertion.status === "pass"
-                ? "通过"
+                ? t("通过")
                 : assertion.status === "fail"
-                  ? "未满足"
-                  : "待确认"}
+                  ? t("未满足")
+                  : t("待确认")}
               ：
               {assertion.variable && result.variables[assertion.variable]
                 ? variableName(assertion.variable, result.variables[assertion.variable])
                 : (assertion.message ?? assertion.variable)}
               {assertion.actual !== undefined &&
-                `；极值 ${assertion.actual.toFixed(3)} ${assertion.unit === "degC" ? "°C" : (assertion.unit ?? "")}`}
+                t("；极值 {0} {1}", {
+                  "0": assertion.actual.toFixed(3),
+                  "1": assertion.unit === "degC" ? "°C" : (assertion.unit ?? ""),
+                })}
               {assertion.value !== undefined &&
-                `；要求 ${assertion.operator} ${assertion.value} ${assertion.unit === "degC" ? "°C" : (assertion.unit ?? "")}`}
+                t("；要求 {0} {1} {2}", {
+                  "0": assertion.operator,
+                  "1": assertion.value,
+                  "2": assertion.unit === "degC" ? "°C" : (assertion.unit ?? ""),
+                })}
             </p>
             {onLocateAssertion && assertion.variable && result.variables[assertion.variable] && (
               <button
                 className="small-button"
                 onClick={() => onLocateAssertion(i)}
-                aria-label={`定位约束 ${i + 1}`}
+                aria-label={t("定位约束 {0}", { "0": i + 1 })}
               >
-                定位{assertion.status === "fail" ? "越限" : "极值"}
+                {t("定位")}
+                {assertion.status === "fail" ? t("越限") : t("极值")}
               </button>
             )}
           </div>

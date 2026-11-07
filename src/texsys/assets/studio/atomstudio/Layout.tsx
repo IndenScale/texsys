@@ -1,9 +1,16 @@
+import { t } from "../i18n";
 /* SPDX-License-Identifier: MIT
  * Slot composition adapted from AtomStudio App/Workspace layout.
  * Product data and panel contents are supplied by Tex Studio disciplines.
  */
 import React, { type ReactNode } from "react";
-import { ResizeHandle } from "./ResizeHandle";
+import { HeightResizeHandle, WidthResizeHandle } from "./ResizeHandle";
+import {
+  DEFAULT_SIDEBAR_WIDTH,
+  MIN_BOTTOM_HEIGHT,
+  MIN_INSPECTOR_WIDTH,
+  MIN_SIDEBAR_WIDTH,
+} from "./layoutSizing";
 import type { StudioLayout } from "../sdk";
 import "./editor-shell.css";
 import "./layout.css";
@@ -25,93 +32,110 @@ export function WorkbenchLayout({
   bottom: ReactNode;
   children: ReactNode;
 }) {
-  const sidebarMax = Math.max(208, Math.floor(window.innerWidth * 0.4));
-  const inspectorMax = Math.max(280, Math.floor(window.innerWidth * 0.45));
+  const navigator = React.useRef<HTMLElement>(null);
+  const bottomPanel = React.useRef<HTMLElement>(null);
+  const inspectorPanel = React.useRef<HTMLElement>(null);
+  const [{ width, height }, setViewport] = React.useState(() => ({
+    width: window.innerWidth,
+    height: window.innerHeight,
+  }));
+  React.useEffect(() => {
+    const resize = () => setViewport({ width: window.innerWidth, height: window.innerHeight });
+    window.addEventListener("resize", resize);
+    return () => window.removeEventListener("resize", resize);
+  }, []);
+  const sidebarMax = Math.max(MIN_SIDEBAR_WIDTH, width <= 760 ? width : Math.floor(width * 0.4));
+  const inspectorMax = Math.max(MIN_INSPECTOR_WIDTH, Math.floor(width * 0.45));
+  const bottomMax = Math.max(MIN_BOTTOM_HEIGHT, Math.floor(height * 0.6));
   return (
     <div
-      className={`workbench-layout ${layout.sidebarOpen ? "" : "is-sidebar-collapsed"} ${layout.inspectorOpen ? "" : "is-inspector-collapsed"} ${layout.bottomOpen ? "is-bottom-open" : ""}`}
+      className={`workbench-layout ${layout.sidebarOpen ? "" : "is-sidebar-collapsed"} ${layout.inspectorOpen ? "" : "is-inspector-hidden"} ${layout.bottomOpen ? "is-bottom-open" : ""}`}
       style={
         {
           "--sidebar-width": `${layout.sidebarWidth}px`,
+          "--sidebar-min-width": `${MIN_SIDEBAR_WIDTH}px`,
           "--right-panel-width": `${layout.inspectorWidth}px`,
+          "--inspector-min-width": `${MIN_INSPECTOR_WIDTH}px`,
           "--bottom-panel-height": `${layout.bottomHeight}px`,
+          "--bottom-min-height": `${MIN_BOTTOM_HEIGHT}px`,
         } as React.CSSProperties
       }
     >
-      <nav className="workbench-activity" aria-label="工作区入口">
-        {activity}
-      </nav>
-      <aside
-        id="studio-resource-panel"
-        className="workbench-navigator"
-        aria-label="资源浏览器"
-        inert={!layout.sidebarOpen}
-        aria-hidden={!layout.sidebarOpen}
-      >
-        <div className="workbench-navigator-content">{sidebar}</div>
-      </aside>
-      <ResizeHandle
-        class="sidebar-layout-resizer"
-        label="调整资源面板宽度"
-        orientation="vertical"
-        styleProperty="--sidebar-width"
-        styleTarget="parent"
+      <div className="workbench-side workbench-card">
+        <nav className="workbench-activity" aria-label={t("工作区入口")}>
+          {activity}
+        </nav>
+        <aside
+          id="studio-resource-panel"
+          ref={navigator}
+          className="workbench-navigator"
+          aria-label={t("资源浏览器")}
+          inert={!layout.sidebarOpen}
+          aria-hidden={!layout.sidebarOpen}
+        >
+          <div className="workbench-navigator-content">{sidebar}</div>
+        </aside>
+      </div>
+      <WidthResizeHandle
+        className="sidebar-layout-resizer"
+        label={t("调整资源面板宽度")}
+        panelRef={navigator}
+        previewProperty="--sidebar-preview-width"
         value={layout.sidebarWidth}
-        min={208}
+        min={MIN_SIDEBAR_WIDTH}
         max={sidebarMax}
-        defaultValue={248}
-        growthDirection="forward"
-        panelOpen={layout.sidebarOpen}
-        onOpen={() => change({ sidebarOpen: true })}
-        onDismiss={() => change({ sidebarOpen: false })}
-        onChange={(sidebarWidth) => change({ sidebarWidth })}
-        onCommit={(sidebarWidth, sidebarOpen) => change({ sidebarWidth, sidebarOpen })}
+        defaultValue={DEFAULT_SIDEBAR_WIDTH}
+        grows="right"
+        mode="collapse"
+        open={layout.sidebarOpen}
+        onClose={() => change({ sidebarOpen: false })}
+        onChange={(sidebarWidth) => change({ sidebarOpen: true, sidebarWidth })}
       />
       <div className="workbench-stage">
-        <main className="workbench-editor">{children}</main>
-        <ResizeHandle
-          class="bottom-panel-layout-resizer"
-          label="调整底部面板高度"
-          orientation="horizontal"
-          styleProperty="--bottom-panel-height"
-          styleTarget="parent"
+        <main className="workbench-editor workbench-card">{children}</main>
+        <HeightResizeHandle
+          className="bottom-panel-layout-resizer"
+          label={t("调整底部面板高度")}
+          panelRef={bottomPanel}
+          previewProperty="--bottom-preview-height"
           value={layout.bottomHeight}
-          min={144}
-          max={Math.max(144, Math.floor(window.innerHeight * 0.6))}
+          min={MIN_BOTTOM_HEIGHT}
+          max={bottomMax}
           defaultValue={260}
-          panelOpen={layout.bottomOpen}
-          onOpen={() => change({ bottomOpen: true })}
-          onDismiss={() => change({ bottomOpen: false })}
+          grows="up"
+          mode="hide"
+          open={layout.bottomOpen}
+          onClose={() => change({ bottomOpen: false })}
           onChange={(bottomHeight) => change({ bottomHeight })}
-          onCommit={(bottomHeight, bottomOpen) => change({ bottomHeight, bottomOpen })}
         />
         <section
-          className="workbench-bottom"
-          aria-label="底部面板"
+          ref={bottomPanel}
+          className="workbench-bottom workbench-card"
+          aria-label={t("底部面板")}
           inert={!layout.bottomOpen}
           aria-hidden={!layout.bottomOpen}
         >
           {bottom}
         </section>
       </div>
-      <ResizeHandle
-        class="right-panel-layout-resizer"
-        label="调整属性面板宽度"
-        orientation="vertical"
-        styleProperty="--right-panel-width"
-        styleTarget="parent"
+      <WidthResizeHandle
+        className="right-panel-layout-resizer"
+        label={t("调整属性面板宽度")}
+        panelRef={inspectorPanel}
+        previewProperty="--inspector-preview-width"
         value={layout.inspectorWidth}
-        min={280}
+        min={MIN_INSPECTOR_WIDTH}
         max={inspectorMax}
         defaultValue={320}
-        panelOpen={layout.inspectorOpen}
-        onOpen={() => change({ inspectorOpen: true })}
-        onDismiss={() => change({ inspectorOpen: false })}
+        grows="left"
+        mode="hide"
+        open={layout.inspectorOpen}
+        onClose={() => change({ inspectorOpen: false })}
         onChange={(inspectorWidth) => change({ inspectorWidth })}
-        onCommit={(inspectorWidth, inspectorOpen) => change({ inspectorWidth, inspectorOpen })}
       />
       <aside
-        className="workbench-inspector"
+        ref={inspectorPanel}
+        className="workbench-inspector workbench-card"
         inert={!layout.inspectorOpen}
         aria-hidden={!layout.inspectorOpen}
       >
@@ -137,7 +161,7 @@ export function ActivityBar({
       className="activity-bar"
       role="tablist"
       aria-orientation="vertical"
-      aria-label="资源 Activity"
+      aria-label={t("资源入口")}
       onKeyDown={(event) => {
         if (!["ArrowUp", "ArrowDown", "Home", "End"].includes(event.key)) return;
         const tabs = Array.from(
@@ -160,11 +184,12 @@ export function ActivityBar({
         <button
           key={item.id}
           role="tab"
+          data-activity-id={item.id}
           className={item.extensionStart ? "extension-start" : undefined}
           aria-selected={item.id === active}
           aria-controls="studio-resource-panel"
-          aria-label={item.label}
-          title={item.label}
+          aria-label={t(item.label)}
+          title={t(item.label)}
           tabIndex={item.id === active ? 0 : -1}
           onClick={() => select(item.id)}
         >

@@ -1,3 +1,4 @@
+import { t } from "./i18n";
 import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import type { CommandItem, MenuGroup } from "./menus";
@@ -255,7 +256,7 @@ export function ApplicationMenuBar({
       ref={root}
       className="application-menu-bar"
       role="menubar"
-      aria-label="应用菜单"
+      aria-label={t("应用菜单")}
       onBlur={(event) => {
         const target = event.relatedTarget as Node | null;
         if (
@@ -273,7 +274,7 @@ export function ApplicationMenuBar({
             {group.label}
           </span>
         ))}
-        <span className="application-menu-trigger">更多</span>
+        <span className="application-menu-trigger">{t("更多")}</span>
       </div>
       {topIds.map((id) => (
         <button
@@ -284,7 +285,7 @@ export function ApplicationMenuBar({
           }}
           className="application-menu-trigger"
           role="menuitem"
-          aria-label={id === MORE ? "更多菜单" : undefined}
+          aria-label={id === MORE ? t("更多菜单") : undefined}
           aria-haspopup="menu"
           aria-expanded={openId === id}
           tabIndex={id === tabStop ? 0 : -1}
@@ -313,7 +314,7 @@ export function ApplicationMenuBar({
             }
           }}
         >
-          {id === MORE ? "更多" : groups.find((group) => group.id === id)?.label}
+          {id === MORE ? t("更多") : groups.find((group) => group.id === id)?.label}
         </button>
       ))}
       {createPortal(
@@ -325,7 +326,7 @@ export function ApplicationMenuBar({
               role="menu"
               aria-label={
                 openId === MORE
-                  ? "更多应用菜单"
+                  ? t("更多应用菜单")
                   : groups.find((group) => group.id === openId)?.label
               }
               style={position}

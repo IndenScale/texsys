@@ -1,3 +1,4 @@
+import { t } from "./i18n";
 import React, { useEffect, useState } from "react";
 import type { FilePreview, WorkbenchProps } from "./sdk";
 import { Empty, Icon } from "./ui";
@@ -25,19 +26,19 @@ export function FileDocument({ path, api }: { path: string; api: WorkbenchProps[
       <header>
         <Icon name="code" size={15} />
         <span title={path}>{path}</span>
-        <span className="file-readonly">只读</span>
+        <span className="file-readonly">{t("只读")}</span>
       </header>
       {error ? (
-        <Empty title="无法打开文件">{error}</Empty>
+        <Empty title={t("无法打开文件")}>{error}</Empty>
       ) : !file ? (
-        <Empty title="读取文件中" />
+        <Empty title={t("读取文件中")} />
       ) : !file.previewable ? (
-        <Empty title="无法文本预览">{file.reason}</Empty>
+        <Empty title={t("无法文本预览")}>{t(file.reason)}</Empty>
       ) : (
         <div
           className="file-document-code"
           role="region"
-          aria-label={`文件内容 ${path}`}
+          aria-label={t("文件内容 {0}", { "0": path })}
           tabIndex={0}
         >
           <pre>
@@ -54,7 +55,7 @@ export function FileDocument({ path, api }: { path: string; api: WorkbenchProps[
               ))}
           </pre>
           {(file.content?.split("\n").length ?? 0) > 5000 && (
-            <p className="file-preview-limit">仅预览前 5000 行。</p>
+            <p className="file-preview-limit">{t("仅预览前 5000 行。")}</p>
           )}
         </div>
       )}

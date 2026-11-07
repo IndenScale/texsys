@@ -1,3 +1,4 @@
+import { t } from "../../../../../src/texsys/assets/studio/i18n";
 import React, { useEffect, useRef, useState } from "react";
 import { Empty, Icon } from "../../../../../src/texsys/assets/studio/ui";
 import { parameterTitles } from "../../../../hvac-graphics/src/texsys_hvac_graphics/assets/graphics";
@@ -106,12 +107,12 @@ export function Inspector({
     }
   };
   return (
-    <aside className="hvac-inspector" aria-label="对象属性">
+    <aside className="hvac-inspector" aria-label={t("对象属性")}>
       <header className="inspector-heading">
-        <strong>{isType ? "器件类型" : "实例属性"}</strong>
+        <strong>{isType ? t("器件类型") : t("实例属性")}</strong>
       </header>
       {!name || !definition ? (
-        <Empty title="选择一个对象">从系统浏览器、图面或器件库选择对象。</Empty>
+        <Empty title={t("选择一个对象")}>{t("从系统浏览器、图面或器件库选择对象。")}</Empty>
       ) : (
         <>
           <div className="object-identity">
@@ -119,30 +120,30 @@ export function Inspector({
               <Icon name={type?.includes("Pipe") ? "system" : "cube"} size={24} />
             </span>
             <div>
-              <h2>{isType ? (names[type!] ?? type) : name}</h2>
-              <p>{isType ? type : (names[type!] ?? type)}</p>
+              <h2>{isType ? (t(names[type!]) ?? type) : name}</h2>
+              <p>{isType ? type : (t(names[type!]) ?? type)}</p>
             </div>
-            <span className="tag neutral">{isType ? "类型" : "实例"}</span>
+            <span className="tag neutral">{isType ? t("类型") : t("实例")}</span>
           </div>
           {isType ? (
-            <p className="inspector-context">默认定义 · 只读。选择下方实例可修改其参数。</p>
+            <p className="inspector-context">{t("默认定义 · 只读。选择下方实例可修改其参数。")}</p>
           ) : (
             <div className="inspector-shortcuts">
               <button onClick={() => onLocate("design")}>
                 <Icon name="fit" size={14} />
-                图中定位
+                {t("图中定位")}
               </button>
               <button onClick={() => onLocate("source")}>
                 <Icon name="code" size={14} />
-                查看源数据
+                {t("查看源数据")}
               </button>
             </div>
           )}
-          <div className="inspector-tabs" role="tablist" aria-label="对象信息">
+          <div className="inspector-tabs" role="tablist" aria-label={t("对象信息")}>
             {[
-              ["parameters", isType ? "默认参数" : "参数"],
-              ["ports", "接口"],
-              ["basis", "依据"],
+              ["parameters", isType ? t("默认参数") : t("参数")],
+              ["ports", t("接口")],
+              ["basis", t("依据")],
             ].map(([id, title]) => (
               <button
                 key={id}
@@ -175,33 +176,36 @@ export function Inspector({
                       setError("");
                     }}
                   >
-                    ‹ {dirty ? "放弃修改，返回参数" : "返回参数列表"}
+                    ‹ {dirty ? t("放弃修改，返回参数") : t("返回参数列表")}
                   </button>
-                  <h3>{parameterTitles[parameter] ?? parameter}</h3>
+                  <h3>{t(parameterTitles[parameter]) ?? parameter}</h3>
                   <p className="field-help">
-                    当前值 {bindingValue(params[parameter], parameter)} ·{" "}
-                    {instance?.parameters?.[parameter] ? "实例覆盖" : "继承自器件"}
+                    {t("当前值")}
+                    {bindingValue(params[parameter], parameter)} ·{" "}
+                    {instance?.parameters?.[parameter] ? t("实例覆盖") : t("继承自器件")}
                   </p>
                   <fieldset disabled={busy}>
                     <label>
-                      {parameter === "efficiency" && binding.unit === "1" ? "数值（0–1）" : "数值"}
+                      {parameter === "efficiency" && binding.unit === "1"
+                        ? t("数值（0–1）")
+                        : t("数值")}
                       {parameter === "check_valve" && binding.unit === "1" ? (
                         <select
-                          aria-label="参数数值"
+                          aria-label={t("参数数值")}
                           value={binding.value ?? ""}
                           disabled={!["known", "assumed"].includes(binding.state)}
                           onChange={(event) => setField("value", Number(event.target.value))}
                         >
                           <option value="" disabled>
-                            请选择
+                            {t("请选择")}
                           </option>
-                          <option value="1">有</option>
-                          <option value="0">无</option>
+                          <option value="1">{t("有")}</option>
+                          <option value="0">{t("无")}</option>
                         </select>
                       ) : (
                         <input
                           autoFocus
-                          aria-label="参数数值"
+                          aria-label={t("参数数值")}
                           type="number"
                           step="any"
                           required={["known", "assumed"].includes(binding.state)}
@@ -218,18 +222,18 @@ export function Inspector({
                     </label>
                     <div className="field-pair">
                       <label>
-                        单位
+                        {t("单位")}
                         <input
-                          aria-label="参数单位"
+                          aria-label={t("参数单位")}
                           required
                           value={binding.unit}
                           onChange={(event) => setField("unit", event.target.value)}
                         />
                       </label>
                       <label>
-                        数据状态
+                        {t("数据状态")}
                         <select
-                          aria-label="参数状态"
+                          aria-label={t("参数状态")}
                           value={binding.state}
                           onChange={(event) => setField("state", event.target.value)}
                         >
@@ -242,16 +246,16 @@ export function Inspector({
                             "failed",
                           ].map((state) => (
                             <option key={state} value={state}>
-                              {bindingLabels[state]}
+                              {t(bindingLabels[state])}
                             </option>
                           ))}
                         </select>
                       </label>
                     </div>
                     <label>
-                      依据与来源
+                      {t("依据与来源")}
                       <textarea
-                        aria-label="参数依据"
+                        aria-label={t("参数依据")}
                         required
                         rows={4}
                         value={binding.source}
@@ -261,12 +265,13 @@ export function Inspector({
                   </fieldset>
                   {dirty && (
                     <div className="edit-impact">
-                      保存为 {name} 的实例覆盖。已有图纸、检查和仿真结果将需要更新。
+                      {t("保存为")} {name}
+                      {t("的实例覆盖。已有图纸、检查和仿真结果将需要更新。")}
                     </div>
                   )}
                   {dirty && base !== revision && (
                     <p className="warning-text" role="alert">
-                      源文件已有新修订。当前草稿已保留；保存时会检查冲突。
+                      {t("源文件已有新修订。当前草稿已保留；保存时会检查冲突。")}
                     </p>
                   )}
                   {error && (
@@ -277,7 +282,7 @@ export function Inspector({
                   <div className="editor-actions">
                     <button type="submit" className="primary-button" disabled={busy || !dirty}>
                       <Icon name="save" size={15} />
-                      {busy ? "保存中…" : "保存参数"}
+                      {busy ? t("保存中…") : t("保存参数")}
                     </button>
                     {instance?.parameters?.[parameter] && (
                       <button
@@ -286,7 +291,7 @@ export function Inspector({
                         disabled={busy}
                         onClick={() => void submit(true)}
                       >
-                        恢复继承
+                        {t("恢复继承")}
                       </button>
                     )}
                   </div>
@@ -294,8 +299,11 @@ export function Inspector({
               ) : (
                 <>
                   <div className="inspector-section-heading">
-                    <h3>{isType ? "类型默认值" : "工程参数"}</h3>
-                    <span>{Object.keys(params).length} 项</span>
+                    <h3>{isType ? t("类型默认值") : t("工程参数")}</h3>
+                    <span>
+                      {Object.keys(params).length}
+                      {t("项")}
+                    </span>
                   </div>
                   <div className="parameter-list">
                     {Object.entries(params).map(([key, item]) => (
@@ -309,33 +317,33 @@ export function Inspector({
                           setBase(revision);
                           setError("");
                         }}
-                        aria-label={`${parameterTitles[key] ?? key} ${bindingValue(item, key)} ${bindingLabels[item.state]}`}
+                        aria-label={`${t(parameterTitles[key]) ?? key} ${bindingValue(item, key)} ${t(bindingLabels[item.state])}`}
                       >
                         <span className="parameter-title">
-                          {parameterTitles[key] ?? key}
+                          {t(parameterTitles[key]) ?? key}
                           <small>
                             {instance?.parameters?.[key]
-                              ? "实例覆盖"
+                              ? t("实例覆盖")
                               : isType
-                                ? "类型默认"
-                                : "继承"}
+                                ? t("类型默认")
+                                : t("继承")}
                           </small>
                         </span>
                         <span className="parameter-value">
                           <strong>{bindingValue(item, key)}</strong>
                           <em className={`binding-state ${item.state}`}>
-                            {bindingLabels[item.state] ?? item.state}
+                            {t(bindingLabels[item.state]) ?? item.state}
                           </em>
                         </span>
                       </button>
                     ))}
                   </div>
                   {!Object.keys(params).length && (
-                    <p className="section-note">此对象尚未定义行为参数。</p>
+                    <p className="section-note">{t("此对象尚未定义行为参数。")}</p>
                   )}
                   {isType && (
                     <section className="type-instances">
-                      <h3>使用此类型的实例</h3>
+                      <h3>{t("使用此类型的实例")}</h3>
                       {Object.entries(source.components[source.root]?.instances ?? {})
                         .filter(([, item]) => item.component === type)
                         .map(([id]) => (
@@ -347,7 +355,7 @@ export function Inspector({
                         ))}
                       {!Object.values(source.components[source.root]?.instances ?? {}).some(
                         (item) => item.component === type,
-                      ) && <p>当前系统没有此类型的实例。</p>}
+                      ) && <p>{t("当前系统没有此类型的实例。")}</p>}
                     </section>
                   )}
                 </>
@@ -355,35 +363,38 @@ export function Inspector({
             {tab === "ports" && (
               <>
                 <div className="inspector-section-heading">
-                  <h3>接口与介质</h3>
-                  <span>{Object.keys(definition.ports ?? {}).length} 个</span>
+                  <h3>{t("接口与介质")}</h3>
+                  <span>
+                    {Object.keys(definition.ports ?? {}).length}
+                    {t("个")}
+                  </span>
                 </div>
                 <div className="port-detail-list">
                   {Object.entries(definition.ports ?? {}).map(([key, port]) => (
                     <div key={key}>
                       <span className={`medium-dot ${port.kind}`} />
                       <strong>{key}</strong>
-                      <span>{mediumNames[port.kind] ?? port.kind}</span>
-                      <small>{port.direction === "inout" ? "双向" : port.direction}</small>
+                      <span>{t(mediumNames[port.kind]) ?? port.kind}</span>
+                      <small>{port.direction === "inout" ? t("双向") : port.direction}</small>
                     </div>
                   ))}
                 </div>
-                <p className="section-note">连接关系由系统模型维护。</p>
+                <p className="section-note">{t("连接关系由系统模型维护。")}</p>
               </>
             )}
             {tab === "basis" && (
               <div className="basis-details">
-                <h3>模型来源</h3>
+                <h3>{t("模型来源")}</h3>
                 <code>{sourcePath}</code>
                 <p>{isType ? type : `${type} → ${name}`}</p>
-                <h3>行为定义</h3>
-                <code>{definition.behavior?.reference ?? "未绑定行为"}</code>
+                <h3>{t("行为定义")}</h3>
+                <code>{definition.behavior?.reference ?? t("未绑定行为")}</code>
                 <p>{definition.behavior?.source}</p>
-                <h3>参数依据</h3>
+                <h3>{t("参数依据")}</h3>
                 {Object.entries(params).map(([key, item]) => (
                   <div key={key}>
-                    <strong>{parameterTitles[key] ?? key}</strong>
-                    <p>{item.source || "未提供"}</p>
+                    <strong>{t(parameterTitles[key]) ?? key}</strong>
+                    <p>{item.source || t("未提供")}</p>
                   </div>
                 ))}
               </div>
@@ -393,12 +404,12 @@ export function Inspector({
             {dirty ? (
               <button className="text-button" onClick={() => setTab("parameters")}>
                 <span className="draft-dot" />
-                未保存参数 · 返回修改
+                {t("未保存参数 · 返回修改")}
               </button>
             ) : (
               <>
                 <Icon name={isType ? "cube" : "check"} size={14} />
-                <span>{isType ? "类型定义只读" : "参数已保存"}</span>
+                <span>{isType ? t("类型定义只读") : t("参数已保存")}</span>
               </>
             )}
           </footer>

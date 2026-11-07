@@ -1,3 +1,4 @@
+import { t } from "./i18n";
 import React, { useEffect, useLayoutEffect, useRef, useState, type RefObject } from "react";
 import { filterCommands, type CommandItem } from "./menus";
 import { filterFiles, type SearchScope } from "./search";
@@ -75,7 +76,7 @@ export function CommandCenter({
           .map((file) => ({
             id: `file:${file.path}`,
             label: file.name,
-            group: "文件",
+            group: t("文件"),
             icon: "file",
             file,
           }))
@@ -162,7 +163,7 @@ export function CommandCenter({
         aria-hidden={open}
         tabIndex={open ? -1 : 0}
         className="command-center-button"
-        aria-label="打开搜索"
+        aria-label={t("打开搜索")}
         aria-haspopup="listbox"
         aria-controls="studio-command-list"
         aria-expanded={open}
@@ -174,7 +175,7 @@ export function CommandCenter({
         </span>
         <span className="command-center-affordance" aria-hidden="true">
           <Icon name="search" size={16} />
-          <span>搜索文件或运行命令…</span>
+          <span>{t("搜索文件或运行命令…")}</span>
           <Keycaps keys={shortcut} />
         </span>
       </button>
@@ -184,7 +185,7 @@ export function CommandCenter({
           <input
             ref={input}
             role="combobox"
-            aria-label="搜索文件或命令"
+            aria-label={t("搜索文件或命令")}
             aria-expanded={open}
             aria-autocomplete="list"
             aria-describedby="command-center-instructions"
@@ -194,10 +195,10 @@ export function CommandCenter({
             spellCheck={false}
             placeholder={
               scope === "files"
-                ? "搜索文件…"
+                ? t("搜索文件…")
                 : scope === "commands"
-                  ? "搜索或运行命令…"
-                  : "搜索文件或运行命令…"
+                  ? t("搜索或运行命令…")
+                  : t("搜索文件或运行命令…")
             }
             value={query}
             onChange={(event) => {
@@ -233,14 +234,14 @@ export function CommandCenter({
         </div>
         <div className="command-panel" inert={!open} aria-hidden={!open}>
           <span id="command-center-instructions" className="sr-only">
-            上下方向键选择，Enter 执行或打开文件，Esc 关闭。底部标签切换搜索范围。
+            {t("上下方向键选择，Enter 执行或打开文件，Esc 关闭。底部标签切换搜索范围。")}
           </span>
           <div
             ref={list}
             id="studio-command-list"
             className="command-panel-list"
             role="listbox"
-            aria-label="搜索结果"
+            aria-label={t("搜索结果")}
           >
             {matches.map((item, position) => (
               <button
@@ -281,22 +282,22 @@ export function CommandCenter({
                 </span>
               </button>
             ))}
-            {scope !== "commands" && filesLoading && <p role="status">正在读取项目文件…</p>}
+            {scope !== "commands" && filesLoading && <p role="status">{t("正在读取项目文件…")}</p>}
             {scope !== "commands" && filesError && <p role="alert">{filesError}</p>}
             {!matches.length && (scope === "commands" || (!filesLoading && !filesError)) && (
-              <p role="status">没有匹配的结果</p>
+              <p role="status">{t("没有匹配的结果")}</p>
             )}
             {scope !== "commands" && filesTruncated && (
-              <p className="search-limit">仅索引前 5000 个项目文件。</p>
+              <p className="search-limit">{t("仅索引前 5000 个项目文件。")}</p>
             )}
           </div>
           <footer className="command-scopes" onPointerDown={(event) => event.preventDefault()}>
             <InlineTabStrip
-              label="搜索范围"
+              label={t("搜索范围")}
               tabs={[
-                { id: "all", label: "全部", focused: scope === "all" },
-                { id: "commands", label: "命令", focused: scope === "commands" },
-                { id: "files", label: "文件", focused: scope === "files" },
+                { id: "all", label: t("全部"), focused: scope === "all" },
+                { id: "commands", label: t("命令"), focused: scope === "commands" },
+                { id: "files", label: t("文件"), focused: scope === "files" },
               ]}
               onSelect={(id) => {
                 setSelected(0);

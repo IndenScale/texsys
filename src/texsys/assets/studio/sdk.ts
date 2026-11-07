@@ -8,6 +8,7 @@ export type StudioChrome = {
 
 export type StudioLayout = {
   sidebarOpen: boolean;
+  sidebarActivity?: string;
   inspectorOpen: boolean;
   bottomOpen: boolean;
   bottomTab: "problems" | "tasks";

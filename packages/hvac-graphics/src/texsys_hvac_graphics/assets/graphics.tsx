@@ -1,5 +1,7 @@
+import { t } from "../../../../../src/texsys/assets/studio/i18n";
 import React from "react";
 import type { Diagram, DiagramNode, Point, Primitive } from "./types";
+import { engineeringLabels } from "./symbols";
 
 export const FONT = 'Arial, "PingFang SC", "Noto Sans CJK SC", sans-serif';
 export const parameterTitles: Record<string, string> = {
@@ -50,6 +52,8 @@ const equipmentNames: Record<string, string> = {
   Chiller: "冷水机组",
   ChilledWaterPump: "冷冻水泵",
   CoolingWaterPump: "冷却水泵",
+  ChilledPipe: "冷冻水管段",
+  CoolingPipe: "冷却水管段",
   Pump: "循环泵",
   CoolingTower: "冷却塔",
   CoolingLoad: "用冷负荷",
@@ -111,6 +115,7 @@ export function DiagramSvg({
 }) {
   const page = document.pages[0];
   const header = 92;
+  const title = document.title.replace(/暖通(?:系统图|原理图)$/, (suffix) => t(suffix));
   return (
     <svg
       xmlns="http://www.w3.org/2000/svg"
@@ -118,10 +123,10 @@ export function DiagramSvg({
       width={page.width}
       height={page.height + header}
       role={onSelect ? "group" : "img"}
-      aria-label={document.title}
+      aria-label={title}
       style={{ fontFamily: FONT, background: "white" }}
     >
-      <title>{document.title}</title>
+      <title>{title}</title>
       <metadata>
         {JSON.stringify({
           model_digest: document.model_digest,
@@ -149,24 +154,24 @@ export function DiagramSvg({
         ))}
       </defs>
       <text x="24" y="28" fontSize="20" fill="#173247" fontWeight="600">
-        {document.title}
+        {title}
       </text>
       <text x="24" y="50" fontSize="11" fill="#586b79">
-        {document.deliverable === "schematic" ? "组成 · 拓扑 · 行为参数" : "组成 · 连接拓扑"}
-        　｜　概念数据 / 待工程审核　｜　图面位置不代表物理布置
+        {document.deliverable === "schematic" ? t("组成 · 拓扑 · 行为参数") : t("组成 · 连接拓扑")}
+        {t("｜ 概念数据 / 待工程审核 ｜ 图面位置不代表物理布置")}
       </text>
       <g transform="translate(24 69)">
         {Object.entries(document.media).map(([medium, color], index) => (
           <g key={medium} transform={`translate(${index * 145} 0)`}>
             <line x1="0" y1="0" x2="27" y2="0" stroke={color} strokeWidth="2" />
             <text x="34" y="4" fontSize="11" fill="#455a6b">
-              {mediumNames[medium] ?? medium}
+              {t(mediumNames[medium]) ?? medium}
             </text>
           </g>
         ))}
         {document.behavior_state !== "defined" && (
           <text x="360" y="4" fontSize="11" fill="#a33c21">
-            行为缺失：当前按系统图表达
+            {t("行为缺失：当前按系统图表达")}
           </text>
         )}
       </g>
@@ -203,6 +208,7 @@ export function DiagramSvg({
         {document.nodes.map((node) => {
           const graphic = node.graphic!;
           const temperature = temperatures?.[node.semantic_ref];
+          const localizedLabels = engineeringLabels(node, t);
           return (
             <g
               key={node.id}
@@ -213,7 +219,7 @@ export function DiagramSvg({
               onClick={onSelect ? () => onSelect(node.id) : undefined}
               role={onSelect ? "button" : undefined}
               tabIndex={onSelect ? 0 : undefined}
-              aria-label={`${equipmentNames[node.component] ?? node.component} ${node.label}`}
+              aria-label={`${t(equipmentNames[node.component]) ?? node.component} ${node.label}`}
               onKeyDown={
                 onSelect
                   ? (event) => {
@@ -254,7 +260,7 @@ export function DiagramSvg({
                   fontSize="10"
                   fill="#5b6f7e"
                 >
-                  {node.engineering_labels?.join("　")}
+                  {(localizedLabels.length ? localizedLabels : node.engineering_labels)?.join("　")}
                 </text>
               )}
               {node.ports.map((port) => (

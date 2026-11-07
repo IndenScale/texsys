@@ -18,6 +18,13 @@ from .search import replacement
 from .source_control import source_diff, source_operation, source_status, source_history, source_commit_diff, repository
 
 ASSETS = Path(__file__).parents[1] / "assets" / "studio"
+FRONTEND_ASSETS = {
+  "/studio.js": "text/javascript",
+  "/studio.css": "text/css",
+  "/studio-editor-worker.js": "text/javascript",
+  "/studio-json-worker.js": "text/javascript",
+  "/studio-codicon.ttf": "font/ttf",
+}
 
 
 def compile_frontend(runtime: StudioRuntime):
@@ -93,10 +100,10 @@ def create_server(runtime: StudioRuntime, port=8710, frontend=None, token=None):
       if parsed.path == "/favicon.ico":
         self._send(204, b"", "image/x-icon")
         return
-      if parsed.path in {"/studio.js", "/studio.css"}:
+      if parsed.path in FRONTEND_ASSETS:
         file = frontend / parsed.path[1:]
         if file.is_file():
-          self._send(200, file.read_bytes(), "text/javascript" if file.suffix == ".js" else "text/css")
+          self._send(200, file.read_bytes(), FRONTEND_ASSETS[parsed.path])
         else:
           self._send(404, {"error": "Frontend asset missing."})
         return
@@ -267,6 +274,10 @@ export default defineConfig({{
     if open_browser:
       import webbrowser
       webbrowser.open(url)
+    def forward_output():
+      for output in process.stdout:
+        print(output, end="", flush=True)
+    threading.Thread(target=forward_output, daemon=True).start()
     process.wait()
   except KeyboardInterrupt:
     pass
