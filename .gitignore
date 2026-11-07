@@ -6,6 +6,7 @@ refs/
 
 # 代理/编辑器临时附件
 .kimi-attachments/
+.kimi-tmp/
 .idea/
 .vscode/*
 !.vscode/settings.json
