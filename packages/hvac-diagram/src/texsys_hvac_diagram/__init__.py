@@ -65,6 +65,7 @@ def project(model: dict, source: str, profile: str) -> dict:
   if not nodes:
     raise ValueError("System schematic requires at least one root instance.")
   connections = component.get("connections", [])
+  edge_ids = {}
   seen = set()
   for index, connection in enumerate(connections):
     pair = (connection["from"], connection["to"])
@@ -77,12 +78,14 @@ def project(model: dict, source: str, profile: str) -> dict:
     b = sdl["components"][component["instances"][target_instance]["component"]]["ports"][target_port]
     semantic_ref = f"{root_name}:{pair[0]}~{pair[1]}"
     identifier = f"edge:{semantic_ref}"
+    if "id" in connection:
+      edge_ids[connection["id"]] = identifier
     edges.append({"id": identifier, "semantic_ref": semantic_ref, "source": f"port:{root_name}.{pair[0]}",
                   "target": f"port:{root_name}.{pair[1]}", "medium": a["kind"],
                   "directed": a["direction"] == "out" and b["direction"] == "in", "page": "page:1"})
     source_map[identifier] = {"file": source, "path": f"components.{root_name}.connections[{index}]"}
   edges.sort(key=lambda e: e["id"])
-  return {"schema_version": 1, "target": "hvac:system-schematic", "profile": profile,
+  document = {"schema_version": 1, "target": "hvac:system-schematic", "profile": profile,
           "view": model["view"], "source": source, "model_digest": model.get("physical_model_digest") or digest(sdl),
           "title": f"{root_name} · 暖通" + ("系统图" if missing or model["view"] == "system" else "原理图"),
           "deliverable": "system-diagram" if missing or model["view"] == "system" else "schematic",
@@ -99,6 +102,16 @@ def project(model: dict, source: str, profile: str) -> dict:
                                   "ports": sorted((p["id"], p["semantic_ref"], p["kind"], p["direction"])
                                                   for n in nodes for p in n["ports"]),
                                   "edges": sorted((e["semantic_ref"], e["source"], e["target"]) for e in edges)}}
+  if "nets" in component:
+    networks = []
+    for name, net in sorted(component["nets"].items()):
+      reference = f"{root_name}.{name}"
+      identifier = f"net:{reference}"
+      networks.append({"id": identifier, "semantic_ref": reference, "kind": net["kind"],
+                       "edges": sorted(edge_ids[member] for member in net["connections"])})
+      source_map[identifier] = {"file": source, "path": f"components.{root_name}.nets.{name}"}
+    document["nets"] = networks
+  return document
 
 
 def _asset(root: Path, relative: str, allowed: tuple[Path, ...]) -> Path:
@@ -174,6 +187,10 @@ class HvacDiagramPackage(TexsysPackage):
     result_paths = context.scope.get("results", [])
     if not isinstance(result_paths, list) or not all(isinstance(item, str) for item in result_paths):
       raise ValueError("scope.results must be an array of fixed scenario result paths.")
+
+    def finite(value):
+      return type(value) in {int, float} and math.isfinite(value)
+
     for relative in result_paths:
       result_path = _asset(context.root, relative, (context.build_path,))
       result = json.loads(result_path.read_text(encoding="utf-8"))
@@ -184,7 +201,6 @@ class HvacDiagramPackage(TexsysPackage):
       if not scenario_path.is_file() or file_digest(scenario_path) != scenario_source.get("digest"):
         raise ValueError(f"Scenario result is stale: {relative}")
       times = result.get("time_s", [])
-      finite = lambda value: type(value) in {int, float} and math.isfinite(value)
       if not isinstance(times, list) or not times or not all(finite(t) for t in times) or any(b <= a for a, b in zip(times, times[1:])):
         raise ValueError(f"Scenario result has no valid time series: {relative}")
       variables = result.get("variables")

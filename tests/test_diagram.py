@@ -73,6 +73,35 @@ def test_schematic_has_both_loops_all_ports_and_deterministic_exports(project):
   assert all(p.read_bytes() == data for p, data in sources.items())
 
 
+def test_build_recreates_network_projection_from_direct_file_edit(project):
+  def add_networks(d):
+    d["schema_version"] = 2
+    root = d["components"][d["root"]]
+    for index, connection in enumerate(root["connections"]):
+      connection["id"] = f"link-{index}"
+    root["nets"] = {
+      "CHW": {"kind": "chilled-water", "connections": ["link-0", "link-1", "link-2"]},
+      "CW": {"kind": "cooling-water", "connections": ["link-3", "link-4", "link-5"]},
+    }
+
+  mutate(project, add_networks)
+  shutil.rmtree(project / "build")
+  args = ["build", "-p", str(project), "--scope", '{"view":"system"}']
+  built = runner.invoke(app, args)
+  assert built.exit_code == 0, built.output
+  diagram = load(project)
+  edges = {edge["id"]: edge for edge in diagram["edges"]}
+  assert {net["id"] for net in diagram["nets"]} == {"net:ColdStation.CHW", "net:ColdStation.CW"}
+  for net in diagram["nets"]:
+    assert len(net["edges"]) == 3
+    assert {edges[edge]["medium"] for edge in net["edges"]} == {net["kind"]}
+    assert diagram["source_map"][net["id"]]["file"] == "src/system.sdl.json"
+  first = (project / "build/hvac/system/system.json").read_bytes()
+  shutil.rmtree(project / "build")
+  assert runner.invoke(app, args).exit_code == 0
+  assert (project / "build/hvac/system/system.json").read_bytes() == first
+
+
 def test_missing_behavior_degrades_without_fake_schematic(project):
   mutate(project, lambda d: d["components"]["Chiller"].pop("behavior"))
   assert build_project(project).status == "pass"

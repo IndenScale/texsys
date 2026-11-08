@@ -50,7 +50,7 @@ uv run texsys build -p examples/hvac-system-schematic --target hvac:system-schem
 | `system.html`       | `system-viewer` | React 离线工作台：图元参数预览、设备详情、运行曲线与时间回放 |
 | `system-check.json` | `system-check`  | diagnostic；语义／版面检查、回退、降级、人工审核与未决项     |
 
-DiagramDocument 含 target、profile、view、模型摘要、单页、节点、端口、连接、分组／注记空集合、source map、expected projection、图元和后端证据。图面 ID 由根身份、实例身份、端口名、连接端点组成，与坐标及数组顺序分离。连接以端点对寻址；显式 Net 等更完整网络语义见 OQ-3，不伪造已实现的 Net。
+DiagramDocument 含 target、profile、view、模型摘要、单页、节点、端口、连接、分组／注记空集合、source map、expected projection、图元和后端证据。图面 ID 由根身份、实例身份、端口名、连接端点组成，与坐标及数组顺序分离。连接以端点对寻址。若 SDL 声明显式网络，`nets` 记录 `net:<根部件>.<网络名>`、介质类型和成员图面连接 ID，`source_map` 同时记录网络及连接的源位置。
 
 通用 diagram 包维护投影契约、overlay、几何／语义检查和 draw.io 序列化；hvac-diagram 投影专业事实，hvac-graphics 的 TypeScript 函数解析专业几何，React 复用同一数据渲染 SVG／HTML。diagram-elk 只解析和验证锁定的 ELK 后端；坐标与路由执行与共享几何在同一 Node 进程中完成，避免重复 worker 协议。
 

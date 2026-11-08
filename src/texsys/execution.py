@@ -7,7 +7,7 @@ from pathlib import Path
 import tomllib
 from typing import Any
 
-from texsys.dependencies import lock_project
+from texsys.dependencies import LOCK_NAME, lock_project
 from texsys.evidence import file_digest, write_json
 from texsys.formal import lint_project
 from texsys.hooks import load_hooks, run_hook
@@ -42,6 +42,10 @@ def _manifest(root: Path) -> dict[str, Any]:
 
 def _input_digests(root: Path, source: str, assets: str) -> list[dict[str, str]]:
   result: list[dict[str, str]] = []
+  for name in ("texsys.toml", "texsys.lock"):
+    path = root / name
+    if path.is_file():
+      result.append({"path": name, "digest": file_digest(path)})
   for directory in (source, assets):
     for path in sorted((root / directory).rglob("*")):
       if path.is_file() and path.name != ".gitkeep":
@@ -88,8 +92,13 @@ def build_project(
   scope: dict[str, Any] | None = None,
 ) -> ExecutionResult:
   root = path.expanduser().resolve()
+  manifest_path = root / "texsys.toml"
+  manifest_digest = file_digest(manifest_path) if manifest_path.is_file() else None
   project = _project(root)
+  input_records = _input_digests(root, project.source, project.assets)
   manifest = _manifest(root)
+  if input_records[:1] != [{"path": "texsys.toml", "digest": manifest_digest}] or file_digest(manifest_path) != manifest_digest:
+    raise ProjectError("texsys.toml changed while preparing the build. Retry with a stable input revision.")
   packages = installed_packages()
   selection = resolve_targets(packages, manifest, targets, profile, scope)
 
@@ -97,15 +106,18 @@ def build_project(
   if lint.status != "pass":
     raise ProjectError(f"Cannot build while lint status is {lint.status}; run texsys lint.")
   dependencies = manifest.get("dependencies", {})
-  if isinstance(dependencies, dict) and dependencies:
+  lock_path = root / LOCK_NAME
+  verify_lock = dependencies != {} or lock_path.exists() or lock_path.is_symlink()
+  if verify_lock:
     lock_project(root, check=True)
+  if _input_digests(root, project.source, project.assets) != input_records:
+    raise ProjectError("Project inputs changed while preparing the build. Retry with a stable input revision.")
 
   artifact_records: list[dict[str, Any]] = []
   target_records: list[dict[str, Any]] = []
   generated: set[Path] = set()
   statuses: set[str] = set()
   build_root = (root / project.build).resolve()
-  input_records = _input_digests(root, project.source, project.assets)
   authority_paths = (
     root / project.source,
     root / project.assets,
@@ -198,6 +210,17 @@ def build_project(
     if status != "pass":
       break
 
+  build_diagnostics = []
+  try:
+    if _input_digests(root, project.source, project.assets) != input_records:
+      raise ProjectError("Project inputs changed during the build.")
+    if verify_lock:
+      lock_project(root, check=True)
+  except (OSError, ProjectError) as error:
+    statuses.add("error")
+    build_diagnostics.append({"rule": "E_INPUT_CHANGED", "status": "error", "message": str(error)})
+    for record in artifact_records:
+      record["partial"] = True
   status = _combined_status(statuses)
   selected_packages = {
     (item.definition.package_name, item.definition.package_version) for item in selection.resolved
@@ -224,6 +247,7 @@ def build_project(
         {"name": name, "version": version} for name, version in sorted(selected_packages)
       ],
       "inputs": input_records,
+      "diagnostics": build_diagnostics,
       "targets": target_records,
       "artifacts": sorted(
         artifact_records, key=lambda item: (item["path"], item["target"], item["id"])

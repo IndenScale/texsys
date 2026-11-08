@@ -6,10 +6,11 @@ import pytest
 from typer.testing import CliRunner
 
 from texsys.cli import app
+from texsys.dependencies import add_dependency, lock_project
 from texsys.evidence import write_json
 from texsys.execution import build_project
 from texsys.packages import TexsysPackage
-from texsys.project import ProjectError
+from texsys.project import ProjectError, initialize_project
 from texsys.targets import Artifact, TargetDefinition, TargetResult
 
 runner = CliRunner()
@@ -81,6 +82,46 @@ def test_explicit_target_builds_only_selected_contract(tmp_path: Path, monkeypat
   assert report["artifacts"][0]["id"] == "data"
   assert report["artifacts"][0]["partial"] is False
   assert report["packages"] == [{"name": "fake", "version": "1.2.3"}]
+
+
+def test_build_reports_input_changes_and_marks_outputs_partial(tmp_path, monkeypatch):
+  root = copied_project(tmp_path)
+
+  def build(context):
+    write_json(context.build_path / "data.json", {"value": 1})
+    (context.root / "assets/changed.txt").write_text("external edit")
+    return TargetResult("pass", (Artifact("data", "build/data.json"),))
+
+  package = FakePackage((TargetDefinition("demo:a", "fake", "1.2.3", build),))
+  monkeypatch.setattr("texsys.execution.installed_packages", lambda: (package,))
+  result = build_project(root, ("demo:a",))
+  report = json.loads(result.report.read_text())
+  assert result.status == report["status"] == "error"
+  assert report["diagnostics"][0]["rule"] == "E_INPUT_CHANGED"
+  assert report["artifacts"][0]["partial"] is True
+  assert {item["path"] for item in report["inputs"]} >= {"texsys.toml", "src/system.sdl.json"}
+
+
+def test_build_rejects_old_lock_after_direct_removal_of_all_dependencies(tmp_path, monkeypatch):
+  root = copied_project(tmp_path)
+  package = tmp_path / "local-package"
+  initialize_project(package)
+  package_manifest = package / "texsys.toml"
+  package_manifest.write_text(package_manifest.read_text().replace(
+    'name = "local-package"', 'name = "local-package"\nversion = "1"',
+  ))
+  project_manifest = root / "texsys.toml"
+  initial_manifest = project_manifest.read_bytes()
+  add_dependency(root, package)
+  project_manifest.write_bytes(initial_manifest)
+
+  target = FakePackage((definition("demo:a", []),))
+  monkeypatch.setattr("texsys.execution.installed_packages", lambda: (target,))
+  with pytest.raises(ProjectError, match="out of date"):
+    build_project(root, ("demo:a",))
+
+  lock_project(root)
+  assert build_project(root, ("demo:a",)).status == "pass"
 
 
 def test_default_targets_resolve_dependencies_once_in_order(tmp_path: Path, monkeypatch) -> None:

@@ -57,3 +57,5 @@ CLI 的 profile 和 scope 覆盖清单值。target 声明自己的 profile 集�
 - 每个产物的 target、artifact ID、类型、路径、摘要及 partial 状态。
 
 证据不包含开始时间、结束时间、进程 ID 或运行耗时。权威输入、依赖锁和后端版本不变时，权威产物和证据应保持确定性。构建 `pass` 只表示所选 target 及 profile、scope 闭环，不表示整个项目、采购、现场验收或现实运维已经完成。
+
+`build/` 可以从空目录或缺失状态重建。构建前后核对清单、锁文件、源文件、资产及锁定依赖的内容。若执行期间检测到输入变化，构建报告 `E_INPUT_CHANGED`，本次产物标记为 `partial`。CLI 构建读取工作目录，需保持输入稳定。后台 Studio 任务使用固定输入副本。

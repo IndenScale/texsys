@@ -86,6 +86,30 @@ def test_lint_rejects_duplicate_json_keys(tmp_path: Path) -> None:
   assert "Duplicate JSON key" in diagnostic["message"]
 
 
+@pytest.mark.parametrize(("mutation", "rule"), [
+  (lambda loop: loop["nets"]["CHW"]["connections"].append("missing"), "L011"),
+  (lambda loop: loop["nets"]["CHW"]["connections"].append("feed"), "L012"),
+  (lambda loop: loop["nets"].update(CW={"kind": "water", "connections": ["feed"]}), "L012"),
+  (lambda loop: loop["nets"]["CHW"].update(kind="air"), "L013"),
+  (lambda loop: loop["connections"].append({"id": "feed", "from": "second.outlet", "to": "first.inlet"}), "L010"),
+])
+def test_explicit_network_reports_invalid_members(tmp_path, mutation, rule):
+  root = make_project(tmp_path)
+  document = valid_document()
+  document["schema_version"] = 2
+  loop = document["components"]["Loop"]
+  loop["connections"][0]["id"] = "feed"
+  loop["nets"] = {"CHW": {"kind": "water", "connections": ["feed"]}}
+  write_document(root, document)
+  assert runner.invoke(app, ["lint", "--json", "-p", str(root)]).exit_code == 0
+
+  mutation(loop)
+  write_document(root, document)
+  result = runner.invoke(app, ["lint", "--json", "-p", str(root)])
+  assert result.exit_code == 1
+  assert rule in {item["rule"] for item in json.loads(result.output)["diagnostics"]}
+
+
 def test_format_check_and_diff_do_not_modify_input(tmp_path: Path) -> None:
   root = make_project(tmp_path)
   source = write_document(root, valid_document())

@@ -1,5 +1,6 @@
 """Static checks and deterministic formatting for the SDL JSON exchange subset."""
 
+from collections import Counter
 from dataclasses import dataclass
 import difflib
 import json
@@ -119,8 +120,9 @@ def _check_schema(data: Any, file: str) -> tuple[Diagnostic, ...]:
   unknown = set(data) - {"schema_version", "root", "components"}
   if unknown:
     fail(f"Unknown document fields: {', '.join(sorted(unknown))}.")
-  if type(data.get("schema_version")) is not int or data["schema_version"] != 1:
-    fail("schema_version must be 1.", "schema_version")
+  version = data.get("schema_version")
+  if type(version) is not int or version not in (1, 2):
+    fail("schema_version must be 1 or 2.", "schema_version")
   if not _valid_identifier(data.get("root")):
     fail("root must be a valid component identifier.", "root")
   components = data.get("components")
@@ -135,7 +137,10 @@ def _check_schema(data: Any, file: str) -> tuple[Diagnostic, ...]:
     if not isinstance(component, dict):
       fail("Component must be an object.", component_path)
       continue
-    unknown = set(component) - {"ports", "instances", "connections", "behavior"}
+    fields = {"ports", "instances", "connections", "behavior"}
+    if version == 2 and component_name == data.get("root"):
+      fields.add("nets")
+    unknown = set(component) - fields
     if unknown:
       fail(f"Unknown component fields: {', '.join(sorted(unknown))}.", component_path)
 
@@ -204,13 +209,29 @@ def _check_schema(data: Any, file: str) -> tuple[Diagnostic, ...]:
         if not isinstance(connection, dict):
           fail("Connection must be an object.", connection_path)
           continue
-        unknown = set(connection) - {"from", "to"}
+        unknown = set(connection) - ({"from", "to", "id"} if version == 2 else {"from", "to"})
         if unknown:
           fail(f"Unknown connection fields: {', '.join(sorted(unknown))}.", connection_path)
+        if "id" in connection and not _valid_identifier(connection["id"]):
+          fail("Connection id must be a valid identifier.", f"{connection_path}.id")
         for endpoint in ("from", "to"):
           value = connection.get(endpoint)
           if not isinstance(value, str) or len(value.split(".")) != 2:
             fail("Endpoint must have the form instance.port.", f"{connection_path}.{endpoint}")
+    if "nets" in fields:
+      nets = component.get("nets", {})
+      if not isinstance(nets, dict):
+        fail("nets must be an object.", f"{component_path}.nets")
+        continue
+      for name, net in sorted(nets.items()):
+        path = f"{component_path}.nets.{name}"
+        if not _valid_identifier(name) or not isinstance(net, dict) or set(net) != {"kind", "connections"}:
+          fail("A named Net requires a valid identifier, kind and connections.", path)
+          continue
+        if not isinstance(net["kind"], str) or not net["kind"].strip():
+          fail("Net kind must be a non-empty string.", f"{path}.kind")
+        if not isinstance(net["connections"], list) or not all(map(_valid_identifier, net["connections"])):
+          fail("Net connections must be an array of connection identifiers.", f"{path}.connections")
   return tuple(diagnostics)
 
 
@@ -286,6 +307,12 @@ def _check_semantics(data: Any, file: str) -> tuple[Diagnostic, ...]:
       continue
 
     connection_counts: dict[tuple[str, str], int] = {}
+    connection_ids = Counter(c["id"] for c in connections if "id" in c)
+    for name, count in sorted(connection_ids.items()):
+      if count > 1:
+        diagnostics.append(Diagnostic("L010", "fail", file, "Duplicate Connection identifier.",
+                                      f"components.{component_name}.connections.{name}"))
+    connection_kinds: dict[str, str] = {}
     for index, connection in enumerate(connections):
       if not isinstance(connection, dict):
         continue
@@ -347,6 +374,8 @@ def _check_semantics(data: Any, file: str) -> tuple[Diagnostic, ...]:
             connection_path,
           )
         )
+      elif "id" in connection:
+        connection_kinds[connection["id"]] = source[2]["kind"]
       pair = (source[2].get("direction"), target[2].get("direction"))
       if pair not in _ALLOWED_DIRECTION_PAIRS:
         diagnostics.append(
@@ -358,6 +387,22 @@ def _check_semantics(data: Any, file: str) -> tuple[Diagnostic, ...]:
             connection_path,
           )
         )
+
+    owners: dict[str, str] = {}
+    for name, net in sorted(component.get("nets", {}).items()):
+      for member, count in sorted(Counter(net["connections"]).items()):
+        path = f"components.{component_name}.nets.{name}.connections"
+        if member not in connection_ids:
+          diagnostics.append(Diagnostic("L011", "fail", file, f"Unknown Connection: {member}", path))
+          continue
+        if count > 1:
+          diagnostics.append(Diagnostic("L012", "fail", file, f"Repeated Net member: {member}", path))
+        previous = owners.setdefault(member, name)
+        if previous != name:
+          diagnostics.append(Diagnostic("L012", "fail", file, f"Connection {member} also belongs to Net {previous}.", path))
+        kind = connection_kinds.get(member)
+        if connection_ids[member] == 1 and kind is not None and kind != net["kind"]:
+          diagnostics.append(Diagnostic("L013", "fail", file, f"Connection {member} has kind {kind}, expected {net['kind']}.", path))
 
     for (instance_name, port_name), count in sorted(connection_counts.items()):
       instance = instances[instance_name]
@@ -392,6 +437,8 @@ def lint_project(path: Path) -> LintResult:
   for name in ("source", "assets", "build"):
     relative = getattr(project, name)
     target = root / relative
+    if name == "build" and not target.exists() and not target.is_symlink():
+      continue  # Generated output can be recreated from the design inputs.
     if not target.is_dir():
       diagnostics.append(
         Diagnostic("P002", "fail", relative, f"Project layout directory is missing: {relative}")

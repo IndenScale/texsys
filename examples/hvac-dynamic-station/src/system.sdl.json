@@ -268,38 +268,47 @@
       "connections": [
         {
           "from": "P-CHW-01.outlet",
+          "id": "chilled-pump-to-chiller",
           "to": "CH-01.chilled-in"
         },
         {
           "from": "CH-01.chilled-out",
+          "id": "chilled-chiller-to-pipe",
           "to": "PIPE-CHW-01.inlet"
         },
         {
           "from": "PIPE-CHW-01.outlet",
+          "id": "chilled-pipe-to-load",
           "to": "LOAD-01.inlet"
         },
         {
           "from": "LOAD-01.outlet",
+          "id": "chilled-load-to-valve",
           "to": "V-01.inlet"
         },
         {
           "from": "V-01.outlet",
+          "id": "chilled-valve-to-pump",
           "to": "P-CHW-01.inlet"
         },
         {
           "from": "P-CW-01.outlet",
+          "id": "cooling-pump-to-chiller",
           "to": "CH-01.cooling-in"
         },
         {
           "from": "CH-01.cooling-out",
+          "id": "cooling-chiller-to-tower",
           "to": "CT-01.inlet"
         },
         {
           "from": "CT-01.outlet",
+          "id": "cooling-tower-to-pipe",
           "to": "PIPE-CW-01.inlet"
         },
         {
           "from": "PIPE-CW-01.outlet",
+          "id": "cooling-pipe-to-pump",
           "to": "P-CW-01.inlet"
         }
       ],
@@ -327,6 +336,27 @@
         },
         "V-01": {
           "component": "Valve"
+        }
+      },
+      "nets": {
+        "CHW": {
+          "connections": [
+            "chilled-chiller-to-pipe",
+            "chilled-load-to-valve",
+            "chilled-pipe-to-load",
+            "chilled-pump-to-chiller",
+            "chilled-valve-to-pump"
+          ],
+          "kind": "chilled-water"
+        },
+        "CW": {
+          "connections": [
+            "cooling-chiller-to-tower",
+            "cooling-pipe-to-pump",
+            "cooling-pump-to-chiller",
+            "cooling-tower-to-pipe"
+          ],
+          "kind": "cooling-water"
         }
       }
     },
@@ -619,5 +649,5 @@
     }
   },
   "root": "ColdStation",
-  "schema_version": 1
+  "schema_version": 2
 }

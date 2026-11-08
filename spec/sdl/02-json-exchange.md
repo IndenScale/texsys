@@ -8,7 +8,7 @@
 
 | 字段             | 类型             | 含义                        |
 | ---------------- | ---------------- | --------------------------- |
-| `schema_version` | 整数，当前为 `1` | 交换模式版本                |
+| `schema_version` | 整数，`1` 或 `2` | 交换模式版本                |
 | `root`           | 字符串           | 顶层 Component 名称         |
 | `components`     | 对象             | 以名称索引的 Component 定义 |
 
@@ -40,7 +40,7 @@ Instance 是 `instances` 对象中的成员，必须通过 `component` 引用已
 }
 ```
 
-Connection 是 `connections` 数组中的对象，只包含 `from` 和 `to`。端点使用 `instance.port` 形式，引用当前 Component 内部实例的 Port：
+Connection 是 `connections` 数组中的对象。端点 `from` 和 `to` 使用 `instance.port` 形式，引用当前 Component 内部实例的 Port：
 
 ```json
 {
@@ -57,7 +57,22 @@ Connection 是 `connections` 数组中的对象，只包含 `from` 和 `to`。�
 - 同一 Port 的连接数不得超过 `max_connections`；
 - 不允许把一个 Port 连接到自身。
 
-当前不支持跨文件 Component 引用、显式 Net／Net 匿名推导、通用参数表达式、Placement 和约束求解；缺失这些能力不得被解释为对应语义无效。下节定义的是有限标量行为参数子集。
+当前交换表示覆盖单文件 Component 引用和有限标量行为参数。匿名 Net、Placement 和约束求解属于后续交换能力。
+
+## 显式网络（v2）
+
+v2 在 Connection 上允许可选的 `id`。同一 Component 下的 Connection 标识必须唯一。根 Component 可以用 `nets` 声明具名网络。以下网络引用当前 Component 内已有的 Connection 标识。
+
+```json
+{
+  "connections": [{ "id": "pump-to-load", "from": "pump.outlet", "to": "load.inlet" }],
+  "nets": {
+    "CHW": { "kind": "chilled-water", "connections": ["pump-to-load"] }
+  }
+}
+```
+
+`kind` 必须与每个成员连接两端的端口类型一致。每个连接最多属于一个 Net，成员标识不得重复。成员顺序不影响网络归属。空成员列表表示已命名但尚未连接的网络。求解器仍按端口、连接和设备行为计算水力接点与支路。v1 保持原有格式，Connection 只允许 `from` 和 `to`。
 
 ## 行为定义与参数绑定
 
