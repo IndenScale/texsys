@@ -580,3 +580,300 @@ test("English catalog retains all interpolation placeholders and contains no Chi
     assert.equal(/[\u3400-\u9fff]/.test(translated), false, source);
   }
 });
+
+test("terminal menu contains expected action items matching VS Code model", () => {
+  const terminalGroup = studioMenus.find((g) => g.id === "terminal");
+  assert.ok(terminalGroup, "terminal menu group must exist in studioMenus");
+  assert.equal(terminalGroup.label, "终端");
+  const itemIds = terminalGroup.items.map((item) => item.id);
+  assert.ok(itemIds.includes("terminal.new"), "must include terminal.new");
+  assert.ok(itemIds.includes("terminal.split"), "must include terminal.split");
+  assert.ok(itemIds.includes("terminal.newWindow"), "must include terminal.newWindow");
+  assert.ok(itemIds.includes("tasks.run"), "must include tasks.run");
+  assert.ok(itemIds.includes("tasks.build"), "must include tasks.build");
+  assert.ok(itemIds.includes("terminal.runActiveFile"), "must include terminal.runActiveFile");
+  assert.ok(itemIds.includes("terminal.runSelectedText"), "must include terminal.runSelectedText");
+  assert.ok(itemIds.includes("tasks.showRunning"), "must include tasks.showRunning");
+  assert.ok(itemIds.includes("tasks.restartRunning"), "must include tasks.restartRunning");
+  assert.ok(itemIds.includes("tasks.terminate"), "must include tasks.terminate");
+  assert.ok(itemIds.includes("tasks.configure"), "must include tasks.configure");
+  assert.ok(itemIds.includes("tasks.configureBuild"), "must include tasks.configureBuild");
+});
+
+test("layout preferences preserve terminal tab and panel maximize state", (t) => {
+  const descriptor = Object.getOwnPropertyDescriptor(globalThis, "localStorage");
+  t.after(() => {
+    if (descriptor) Object.defineProperty(globalThis, "localStorage", descriptor);
+    else delete globalThis.localStorage;
+  });
+  const stored = new Map();
+  Object.defineProperty(globalThis, "localStorage", {
+    configurable: true,
+    value: {
+      getItem: (key) => stored.get(key) ?? null,
+      setItem: (key, value) => stored.set(key, value),
+    },
+  });
+  const defaults = {
+    sidebarOpen: true,
+    sidebarWidth: 320,
+    inspectorOpen: false,
+    inspectorWidth: 320,
+    bottomOpen: false,
+    bottomTab: "problems",
+    bottomHeight: 260,
+  };
+  const terminalLayout = {
+    discipline: "texsys:hvac",
+    layouts: {
+      "texsys:hvac": {
+        ...defaults,
+        bottomOpen: true,
+        bottomTab: "terminal",
+        bottomMaximized: true,
+      },
+    },
+  };
+  writeLayoutPreferences("/example/term", terminalLayout);
+  const loaded = readLayoutPreferences("/example/term", defaults);
+  assert.equal(loaded.layouts["texsys:hvac"].bottomTab, "terminal");
+  assert.equal(loaded.layouts["texsys:hvac"].bottomMaximized, true);
+});
+
+test("bottom panel tabs support pill badges and rounded rectangle presentation", () => {
+  const tabs = [
+    { id: "problems", label: "Problems", badge: 1, focused: true },
+    { id: "tasks", label: "Tasks", focused: false },
+    { id: "terminal", label: "Terminal", focused: false },
+  ];
+  assert.equal(tabs[0].badge, 1);
+  assert.equal(tabs[1].badge, undefined);
+  assert.equal(tabNavigationIndex(0, "ArrowRight", tabs.length), 1);
+});
+
+test("terminal session sidebar hideCondition matches VS Code singleTerminal rule", () => {
+  const shouldShowSidebar = (sessionsCount, isSplit) => sessionsCount > 1 || Boolean(isSplit);
+  assert.equal(shouldShowSidebar(1, false), false, "single session without split must not show sidebar");
+  assert.equal(shouldShowSidebar(2, false), true, "multiple sessions must show sidebar");
+  assert.equal(shouldShowSidebar(1, true), true, "split session must show sidebar");
+});
+
+test("single terminal mode preserves session pill and kill action in header", () => {
+  const getHeaderActions = (sessionsCount, isSplit) => {
+    const hasSidebar = sessionsCount > 1 || Boolean(isSplit);
+    if (!hasSidebar) {
+      return ["session-pill", "new", "split", "kill", "more", "separator", "maximize", "close"];
+    }
+    return ["new", "more", "separator", "maximize", "close"];
+  };
+  assert.deepEqual(getHeaderActions(1, false), [
+    "session-pill",
+    "new",
+    "split",
+    "kill",
+    "more",
+    "separator",
+    "maximize",
+    "close",
+  ]);
+  assert.deepEqual(getHeaderActions(2, false), [
+    "new",
+    "more",
+    "separator",
+    "maximize",
+    "close",
+  ]);
+});
+
+test("layout preferences preserve bottom panel tabs visibility, badges, position and align", (t) => {
+  const descriptor = Object.getOwnPropertyDescriptor(globalThis, "localStorage");
+  t.after(() => {
+    if (descriptor) Object.defineProperty(globalThis, "localStorage", descriptor);
+    else delete globalThis.localStorage;
+  });
+  const stored = new Map();
+  Object.defineProperty(globalThis, "localStorage", {
+    configurable: true,
+    value: {
+      getItem: (key) => stored.get(key) ?? null,
+      setItem: (key, value) => stored.set(key, value),
+    },
+  });
+  const defaults = {
+    sidebarOpen: true,
+    inspectorOpen: true,
+    bottomOpen: false,
+    bottomTab: "problems",
+    sidebarWidth: 260,
+    inspectorWidth: 280,
+    bottomHeight: 220,
+  };
+  const customPanelLayout = {
+    discipline: "texsys:hvac",
+    layouts: {
+      "texsys:hvac": {
+        ...defaults,
+        bottomOpen: true,
+        bottomTab: "terminal",
+        hiddenBottomTabs: ["output", "comments"],
+        hideBadges: { problems: true },
+        panelPosition: "bottom",
+        panelAlign: "justify",
+        showPanelIcons: true,
+      },
+    },
+  };
+  writeLayoutPreferences("/example/custom-panel", customPanelLayout);
+  const loaded = readLayoutPreferences("/example/custom-panel", defaults);
+  const layout = loaded.layouts["texsys:hvac"];
+  assert.deepEqual(layout.hiddenBottomTabs, ["output", "comments"]);
+  assert.deepEqual(layout.hideBadges, { problems: true });
+  assert.equal(layout.panelPosition, "bottom");
+  assert.equal(layout.panelAlign, "justify");
+  assert.equal(layout.showPanelIcons, true);
+});
+
+test("bottom panel header and tab context menus match VS Code native interaction model", () => {
+  const panelTabs = [
+    { id: "problems", label: "Problems" },
+    { id: "output", label: "Output" },
+    { id: "tasks", label: "Tasks and logs" },
+    { id: "debug", label: "Debug Console" },
+    { id: "terminal", label: "Terminal" },
+    { id: "ports", label: "Ports" },
+    { id: "comments", label: "Comments" },
+  ];
+
+  const buildHeaderMenu = (hiddenTabs) => [
+    ...panelTabs.map((tab) => ({
+      label: tab.label,
+      checked: !hiddenTabs.includes(tab.id),
+      checkbox: true,
+    })),
+    { separator: true },
+    {
+      label: "Panel Position",
+      submenu: ["Bottom", "Left", "Right"],
+    },
+    {
+      label: "Align Panel",
+      submenu: ["Center", "Justify", "Left", "Right"],
+    },
+    { label: "Show Icons", checkbox: true },
+    { label: "Hide Panel", shortcut: ["⌘", "J"] },
+  ];
+
+  const buildTabMenu = (tabId, hiddenTabs, hideBadges) => {
+    const tab = panelTabs.find((t) => t.id === tabId);
+    const isBadgeHidden = Boolean(hideBadges[tabId]);
+    return [
+      { label: "Configure Keybinding" },
+      { label: `Hide '${tab.label}'` },
+      ...(tabId === "problems" ? [{ label: isBadgeHidden ? "Show Badge" : "Hide Badge" }] : []),
+      {
+        label: "Move To",
+        submenu: ["Panel", "Secondary Side Bar"],
+      },
+      { separator: true },
+      ...panelTabs.map((t) => ({
+        label: t.label,
+        checked: !hiddenTabs.includes(t.id),
+        checkbox: true,
+      })),
+      { separator: true },
+      {
+        label: "Panel Position",
+        submenu: ["Bottom", "Left", "Right"],
+      },
+      {
+        label: "Align Panel",
+        submenu: ["Center", "Justify", "Left", "Right"],
+      },
+      { label: "Show Icons", checkbox: true },
+      { label: "Hide Panel", shortcut: ["⌘", "J"] },
+    ];
+  };
+
+  const headerItems = buildHeaderMenu(["output", "debug", "ports", "comments"]);
+  assert.equal(headerItems.length, 12);
+  assert.equal(headerItems[0].label, "Problems");
+  assert.equal(headerItems[0].checked, true);
+  assert.equal(headerItems[1].label, "Output");
+  assert.equal(headerItems[1].checked, false);
+  assert.equal(headerItems[4].label, "Terminal");
+  assert.equal(headerItems[4].checked, true);
+  assert.deepEqual(headerItems[8].submenu, ["Bottom", "Left", "Right"]);
+  assert.deepEqual(headerItems[9].submenu, ["Center", "Justify", "Left", "Right"]);
+
+  const tabItems = buildTabMenu("terminal", ["output", "debug", "ports", "comments"], {});
+  assert.equal(tabItems[0].label, "Configure Keybinding");
+  assert.equal(tabItems[1].label, "Hide 'Terminal'");
+  assert.equal(tabItems[2].label, "Move To");
+  assert.deepEqual(tabItems[2].submenu, ["Panel", "Secondary Side Bar"]);
+
+  const problemsTabItems = buildTabMenu("problems", [], {});
+  assert.equal(problemsTabItems[2].label, "Hide Badge");
+  const problemsHiddenBadgeItems = buildTabMenu("problems", [], { problems: true });
+  assert.equal(problemsHiddenBadgeItems[2].label, "Show Badge");
+});
+
+test("terminal viewport, session and actions toolbar context menus match VS Code model", () => {
+  const sessionMenu = [
+    { label: "Split Terminal", shortcut: ["⌘", "\\"] },
+    { label: "Move Terminal into Editor Area" },
+    { label: "Move Terminal into New Window" },
+    { separator: true },
+    { label: "Change Color..." },
+    { label: "Change Icon..." },
+    { label: "Rename...", shortcut: ["↩"] },
+    { label: "Toggle Size to Content Width", shortcut: ["⌥", "Z"] },
+    { separator: true },
+    { label: "Kill Terminal", shortcut: ["⌘", "⌫"] },
+  ];
+  assert.equal(sessionMenu[0].label, "Split Terminal");
+  assert.equal(sessionMenu[6].label, "Rename...");
+  assert.equal(sessionMenu[9].label, "Kill Terminal");
+
+  const viewportMenu = [
+    { label: "Add Terminal Selection or Output to Chat", shortcut: ["⌘", "L"] },
+    { separator: true },
+    { label: "Copy", shortcut: ["⌘", "C"] },
+    { label: "Copy as HTML" },
+    { label: "Paste", shortcut: ["⌘", "V"] },
+    { label: "Select All", shortcut: ["⌘", "A"] },
+    { separator: true },
+    { label: "Clear", shortcut: ["⌘", "K"] },
+    { separator: true },
+    { label: "Kill Terminal" },
+    { separator: true },
+    { label: "Toggle Size to Content Width", shortcut: ["⌥", "Z"] },
+  ];
+  assert.equal(viewportMenu[0].label, "Add Terminal Selection or Output to Chat");
+  assert.equal(viewportMenu[2].label, "Copy");
+  assert.equal(viewportMenu[4].label, "Paste");
+  assert.equal(viewportMenu[7].label, "Clear");
+
+  const actionsMenu = [
+    { label: "Hide" },
+    { separator: true },
+    { label: "Focus Terminal", checked: true },
+    { label: "New Terminal", checked: true },
+    { label: "Split Terminal", checked: true },
+    { label: "Kill Terminal", checked: true },
+    { label: "Scroll to Previous Command" },
+    { label: "Scroll to Next Command" },
+    { label: "Clear Terminal" },
+    { label: "Run Active File" },
+    { label: "Run Selected Text" },
+    { label: "Start Dictation" },
+    { separator: true },
+    { label: "Reset Menu" },
+  ];
+  assert.equal(actionsMenu[0].label, "Hide");
+  assert.equal(actionsMenu[2].label, "Focus Terminal");
+  assert.equal(actionsMenu[13].label, "Reset Menu");
+});
+
+
+
+

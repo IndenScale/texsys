@@ -33,10 +33,7 @@ import {
   type Selection,
 } from "./model";
 import { EditorArea } from "../../../../../src/texsys/assets/studio/atomstudio/EditorArea";
-import {
-  WorkspaceTabStrip,
-  InlineTabStrip,
-} from "../../../../../src/texsys/assets/studio/atomstudio/WorkspaceTabs";
+import { WorkspaceTabStrip } from "../../../../../src/texsys/assets/studio/atomstudio/WorkspaceTabs";
 import {
   visitDocument,
   stepDocument,
@@ -44,6 +41,7 @@ import {
   type DocumentHistory,
 } from "../../../../../src/texsys/assets/studio/navigation";
 import { FileDocument } from "../../../../../src/texsys/assets/studio/FileDocument";
+import { WorkbenchBottomPanel } from "../../../../../src/texsys/assets/studio/BottomPanel";
 import { useDrawingViewport } from "./drawingViewport";
 import "./workbench.css";
 
@@ -667,38 +665,25 @@ function Workspace({
     </>
   );
   const bottom = (
-    <>
-      <div className="bottom-panel-header">
-        <InlineTabStrip
-          label={t("底部工具")}
-          tabs={[
-            {
-              id: "problems",
-              label: t("问题 {0}", { "0": currentIssues.length }),
-              focused: layout.bottomTab === "problems",
-            },
-            { id: "tasks", label: t("任务与日志"), focused: layout.bottomTab === "tasks" },
-          ]}
-          onSelect={(id) => changeLayout({ bottomTab: id as "problems" | "tasks" })}
-        />
-        {layout.bottomTab === "problems" && (
-          <button className="text-button" onClick={() => openView("checks")}>
-            {t("完整检查")}
-            <Icon name="arrow" size={13} />
-          </button>
-        )}
-      </div>
-      <div className="bottom-panel-content" hidden={layout.bottomTab !== "problems"}>
-        {currentIssues.length ? (
+    <WorkbenchBottomPanel
+      layout={layout}
+      changeLayout={changeLayout}
+      problemsCount={currentIssues.length}
+      problemsContent={
+        currentIssues.length ? (
           <IssueRows issues={currentIssues} locate={locateIssue} />
         ) : (
           <p className="resource-hint">{t("当前没有待处理问题。检查范围见“检查与问题”。")}</p>
-        )}
-      </div>
-      <div className="bottom-panel-content" hidden={layout.bottomTab !== "tasks"}>
-        {taskPanel}
-      </div>
-    </>
+        )
+      }
+      openChecks={() => openView("checks")}
+      taskPanel={taskPanel}
+      project={state.project.name}
+      branch={state.project.branch?.name ?? "main"}
+      dirty={state.project.branch?.kind === "branch"}
+      api={api}
+      notify={notify}
+    />
   );
   return (
     <div className="hvac-workbench">

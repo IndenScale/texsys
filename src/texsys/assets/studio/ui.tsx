@@ -233,8 +233,41 @@ const paths: Record<string, React.ReactNode> = {
   ),
   terminal: (
     <>
-      <rect x="2" y="4" width="20" height="16" rx="2" />
-      <path d="m6 8 4 4-4 4m7 0h5" />
+      <rect x="2.5" y="4.5" width="19" height="15" rx="2.5" />
+      <path d="m6.5 8.5 3.5 3.5-3.5 3.5m5 0h4" />
+    </>
+  ),
+  "chevron-up": <path d="m6 14 6-6 6 6" />,
+  "chevron-down": <path d="m6 10 6 6 6-6" />,
+  "chevron-right": <path d="m9 6 6 6-6 6" />,
+  "chevron-left": <path d="m15 6-6 6 6 6" />,
+  "split-horizontal": (
+    <>
+      <rect x="3.5" y="3.5" width="17" height="17" rx="1.5" />
+      <path d="M12 3.5v17" />
+    </>
+  ),
+  "terminal-tab": (
+    <>
+      <path d="m4 8 3 3-3 3m4 0h4" />
+    </>
+  ),
+  "panel-maximize": (
+    <>
+      <path d="M3.5 8.5V3.5h5M15.5 3.5h5v5M3.5 15.5v5h5M20.5 15.5v5h-5" />
+      <rect x="7.5" y="7.5" width="9" height="9" rx="1.5" />
+    </>
+  ),
+  "panel-restore": (
+    <>
+      <path d="M8 3.5v4.5H3.5M16 3.5v4.5h4.5M8 20.5v-4.5H3.5M16 20.5v-4.5h4.5" />
+      <rect x="8" y="8" width="8" height="8" rx="1.5" />
+    </>
+  ),
+  warning: (
+    <>
+      <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+      <path d="M12 9v4M12 17h.01" />
     </>
   ),
   snow: (
@@ -250,11 +283,13 @@ const panelDividers: Record<string, { open: string; closed: string }> = {
 };
 export function Icon({
   name,
-  size = 18,
+  size = 16,
+  strokeWidth = 1.5,
   expanded = true,
 }: {
   name: string;
   size?: number;
+  strokeWidth?: number;
   expanded?: boolean;
 }) {
   const panel = panelDividers[name];
@@ -265,7 +300,7 @@ export function Icon({
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
-      strokeWidth="1.65"
+      strokeWidth={strokeWidth}
       strokeLinecap="round"
       strokeLinejoin="round"
       aria-hidden="true"

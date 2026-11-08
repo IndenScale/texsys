@@ -22,8 +22,10 @@ export type WorkspaceTab = {
 export type InlineTab = {
   id: string;
   label: string;
+  badge?: number | string;
   focused: boolean;
   disabled?: boolean;
+  icon?: string;
 };
 
 export type TabNavigationKey = "ArrowLeft" | "ArrowRight" | "Home" | "End";
@@ -54,17 +56,30 @@ function focusTabFromKeyboard(event: React.KeyboardEvent<HTMLDivElement>): void 
   tabs[nextIndex].click();
 }
 
+export function formatBadgeCount(badge: number | string, threshold = 999): string {
+  if (typeof badge === "number") {
+    if (badge <= 0) return "";
+    if (badge > threshold) return `${threshold}+`;
+    return String(badge);
+  }
+  return String(badge);
+}
+
 export function InlineTabStrip(props: {
   className?: string;
   label: string;
   tabs: InlineTab[];
+  showIcons?: boolean;
+  align?: "left" | "center" | "justify" | "right";
   onSelect: (id: string) => void;
+  onContextMenu?: (event: React.MouseEvent<HTMLElement>, id: string) => void;
 }): JSX.Element {
   return (
     <Stack
       className={`inline-tabs${props.className ? ` ${props.className}` : ""}`}
       role="tablist"
       aria-label={props.label}
+      data-align={props.align}
       onKeyDown={focusTabFromKeyboard}
     >
       {props.tabs.map((tab) => (
@@ -76,9 +91,27 @@ export function InlineTabStrip(props: {
           disabled={tab.disabled}
           tooltip={tab.label}
           onClick={() => props.onSelect(tab.id)}
+          onContextMenu={(event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            props.onContextMenu?.(event, tab.id);
+          }}
           key={tab.id}
         >
+          {props.showIcons && tab.icon && (
+            <span className="tab-icon" aria-hidden="true">
+              <Icon name={tab.icon} />
+            </span>
+          )}
           <Text>{tab.label}</Text>
+          {tab.badge !== undefined && tab.badge !== "" && (
+            <span
+              className="tab-badge"
+              title={typeof tab.badge === "number" ? String(tab.badge) : undefined}
+            >
+              {formatBadgeCount(tab.badge)}
+            </span>
+          )}
         </Button>
       ))}
     </Stack>

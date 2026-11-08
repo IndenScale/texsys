@@ -25,6 +25,7 @@ import { AnimatedPresence } from "./AnimatedPresence";
 import { ToolbarButton } from "./ToolbarButton";
 import { ApplicationMenuBar } from "./ApplicationMenuBar";
 import { NavigatorMenu } from "./NavigatorMenu";
+import { WorkbenchBottomPanel } from "./BottomPanel";
 import type { FileLocation, SearchScope } from "./search";
 import {
   closeDocumentCommand,
@@ -434,14 +435,106 @@ function Studio({ plugins, chrome }: { plugins: WorkbenchPlugin[]; chrome: Studi
             : document.documentElement.requestFullscreen()
         ).catch((error) => notify(String(error), true));
         break;
+      case "view.toggleMaximize":
+        updateLayout(active, {
+          bottomOpen: true,
+          bottomMaximized: !layout.bottomMaximized,
+        });
+        break;
+      case "view.terminal":
+        if (layout.bottomOpen && layout.bottomTab === "terminal") {
+          updateLayout(active, { bottomOpen: false });
+        } else {
+          updateLayout(active, { bottomOpen: true, bottomTab: "terminal" });
+        }
+        break;
+      case "view.problems":
+        if (layout.bottomOpen && layout.bottomTab === "problems") {
+          updateLayout(active, { bottomOpen: false });
+        } else {
+          updateLayout(active, { bottomOpen: true, bottomTab: "problems" });
+        }
+        break;
       case "navigation.back":
         if (historyState.canBack) requestNavigation(id);
         break;
       case "navigation.forward":
         if (historyState.canForward) requestNavigation(id);
         break;
+      case "terminal.new":
+        updateLayout(active, { bottomOpen: true, bottomTab: "terminal" });
+        window.dispatchEvent(new CustomEvent("texsys:terminal:new"));
+        break;
+      case "terminal.split":
+        updateLayout(active, { bottomOpen: true, bottomTab: "terminal" });
+        window.dispatchEvent(new CustomEvent("texsys:terminal:split"));
+        break;
+      case "terminal.newWindow":
+        updateLayout(active, { bottomOpen: true, bottomTab: "terminal" });
+        window.dispatchEvent(new CustomEvent("texsys:terminal:new"));
+        break;
+      case "terminal.runActiveFile":
+        updateLayout(active, { bottomOpen: true, bottomTab: "terminal" });
+        if (fileRequest?.path) {
+          window.dispatchEvent(
+            new CustomEvent("texsys:terminal:runCommand", {
+              detail: { command: `texsys check ${fileRequest.path}` },
+            }),
+          );
+        } else {
+          window.dispatchEvent(
+            new CustomEvent("texsys:terminal:runCommand", {
+              detail: { command: "texsys check" },
+            }),
+          );
+        }
+        break;
+      case "terminal.runSelectedText": {
+        const text = window.getSelection()?.toString()?.trim();
+        updateLayout(active, { bottomOpen: true, bottomTab: "terminal" });
+        if (text) {
+          window.dispatchEvent(
+            new CustomEvent("texsys:terminal:runCommand", {
+              detail: { command: text },
+            }),
+          );
+        }
+        break;
+      }
+      case "tasks.run":
+      case "tasks.showRunning":
       case "tasks.show":
         showTasks();
+        break;
+      case "tasks.build":
+        updateLayout(active, { bottomOpen: true, bottomTab: "terminal" });
+        window.dispatchEvent(
+          new CustomEvent("texsys:terminal:runCommand", {
+            detail: { command: "texsys build" },
+          }),
+        );
+        break;
+      case "tasks.restartRunning":
+        if (taskId) {
+          showTasks(taskId);
+        } else {
+          showTasks();
+        }
+        break;
+      case "tasks.terminate":
+        if (state) {
+          const runningJob = state.jobs.find((j) => j.state === "running");
+          if (runningJob) {
+            void api(`/api/jobs/${runningJob.id}/cancel`, {})
+              .then(() => refresh())
+              .then(() => notify(t("任务已取消")))
+              .catch((err) => notify(String(err), true));
+          }
+        }
+        break;
+      case "tasks.configure":
+      case "tasks.configureBuild":
+        setSettingsRequest((req) => req + 1);
         break;
       case "problems.show":
         updateLayout(active, { bottomOpen: true, bottomTab: "problems" });
@@ -483,24 +576,60 @@ function Studio({ plugins, chrome }: { plugins: WorkbenchPlugin[]; chrome: Studi
                   ? [macKeys ? "⌘" : "Ctrl", "\\"]
                   : item.id === "files.search"
                     ? [macKeys ? "⌘" : "Ctrl", "P"]
-                    : undefined,
+                    : item.id === "terminal.new"
+                      ? macKeys
+                        ? ["⌃", "⇧", "`"]
+                        : ["Ctrl", "Shift", "`"]
+                      : item.id === "terminal.split"
+                        ? [macKeys ? "⌘" : "Ctrl", "\\"]
+                        : item.id === "terminal.newWindow"
+                          ? macKeys
+                            ? ["⌃", "⌥", "⇧", "`"]
+                            : ["Ctrl", "Alt", "Shift", "`"]
+                          : item.id === "tasks.build"
+                            ? macKeys
+                              ? ["⇧", "⌘", "B"]
+                              : ["Ctrl", "Shift", "B"]
+                            : item.id === "view.toggleMaximize"
+                              ? macKeys
+                                ? ["⌥", "⌘", "J"]
+                                : ["Alt", "Ctrl", "J"]
+                              : item.id === "view.terminal"
+                                ? macKeys
+                                  ? ["⌃", "`"]
+                                  : ["Ctrl", "`"]
+                                : item.id === "view.problems"
+                                  ? macKeys
+                                    ? ["⇧", "⌘", "M"]
+                                    : ["Ctrl", "Shift", "M"]
+                                  : undefined,
       disabled:
         !state ||
         (item.id === "view.fullscreen" && !document.fullscreenEnabled) ||
         (item.id === closeDocumentCommand.id && !historyState.canClose) ||
         (item.id === "navigation.back" && !historyState.canBack) ||
         (item.id === "navigation.forward" && !historyState.canForward) ||
-        (item.id === "help.capabilities" && !current),
+        (item.id === "help.capabilities" && !current) ||
+        ((item.id === "tasks.showRunning" ||
+          item.id === "tasks.restartRunning" ||
+          item.id === "tasks.terminate") &&
+          running === 0),
       checked:
         item.id === "view.sidebar"
           ? layout.sidebarOpen
           : item.id === "view.bottom"
             ? layout.bottomOpen
-            : item.id === "view.inspector"
-              ? layout.inspectorOpen
-              : item.id === "view.fullscreen"
-                ? fullscreen
-                : undefined,
+            : item.id === "view.toggleMaximize"
+              ? layout.bottomMaximized
+              : item.id === "view.terminal"
+                ? layout.bottomOpen && layout.bottomTab === "terminal"
+                : item.id === "view.problems"
+                  ? layout.bottomOpen && layout.bottomTab === "problems"
+                  : item.id === "view.inspector"
+                    ? layout.inspectorOpen
+                    : item.id === "view.fullscreen"
+                      ? fullscreen
+                      : undefined,
     })),
   );
   useEffect(() => {
@@ -542,6 +671,30 @@ function Studio({ plugins, chrome }: { plugins: WorkbenchPlugin[]; chrome: Studi
       if ((event.metaKey || event.ctrlKey) && event.key === "\\") {
         event.preventDefault();
         invokeCommand("view.sidebar");
+        return;
+      }
+      if (event.ctrlKey && event.shiftKey && event.key === "`") {
+        event.preventDefault();
+        invokeCommand("terminal.new");
+        return;
+      }
+      if (event.ctrlKey && !event.shiftKey && event.key === "`") {
+        event.preventDefault();
+        invokeCommand("view.terminal");
+        return;
+      }
+      if ((event.metaKey || event.ctrlKey) && event.shiftKey && event.key.toLowerCase() === "b") {
+        event.preventDefault();
+        invokeCommand("tasks.build");
+        return;
+      }
+      if (
+        (macKeys ? event.metaKey && event.altKey : event.ctrlKey && event.altKey) &&
+        event.key.toLowerCase() === "j"
+      ) {
+        event.preventDefault();
+        invokeCommand("view.toggleMaximize");
+        return;
       }
       if (
         (event.altKey && event.key === "ArrowLeft") ||
@@ -781,11 +934,22 @@ function Studio({ plugins, chrome }: { plugins: WorkbenchPlugin[]; chrome: Studi
                 layout={layout}
                 change={(patch) => updateLayout(active, patch)}
                 bottom={
-                  <TaskPanel
-                    state={state}
-                    refresh={refresh}
+                  <WorkbenchBottomPanel
+                    layout={layout}
+                    changeLayout={(patch) => updateLayout(active, patch)}
+                    taskPanel={
+                      <TaskPanel
+                        state={state}
+                        refresh={refresh}
+                        notify={notify}
+                        openResult={() => {}}
+                      />
+                    }
+                    project={state.project.name}
+                    branch={state.project.branch?.name ?? "main"}
+                    dirty={state.project.branch?.kind === "branch"}
+                    api={api}
                     notify={notify}
-                    openResult={() => {}}
                   />
                 }
               />

@@ -76,7 +76,7 @@ export function readLayoutPreferences(project: string, defaults: StudioLayout): 
                       ? layout.bottomOpen
                       : defaults.bottomOpen,
                   bottomTab:
-                    layout.bottomTab === "tasks" || layout.bottomTab === "problems"
+                    typeof layout.bottomTab === "string" && layout.bottomTab
                       ? layout.bottomTab
                       : defaults.bottomTab,
                   sidebarWidth: dimension(
@@ -100,6 +100,32 @@ export function readLayoutPreferences(project: string, defaults: StudioLayout): 
                     hiddenActivities: layout.hiddenActivities.filter(
                       (id): id is string => typeof id === "string",
                     ),
+                  }),
+                  ...(Array.isArray(layout.hiddenBottomTabs) && {
+                    hiddenBottomTabs: layout.hiddenBottomTabs.filter(
+                      (id): id is string => typeof id === "string",
+                    ),
+                  }),
+                  ...(record(layout.hideBadges) && {
+                    hideBadges: Object.fromEntries(
+                      Object.entries(layout.hideBadges).filter(
+                        ([, v]) => typeof v === "boolean",
+                      ),
+                    ),
+                  }),
+                  ...(typeof layout.panelPosition === "string" &&
+                    ["bottom", "left", "right"].includes(layout.panelPosition) && {
+                      panelPosition: layout.panelPosition as "bottom" | "left" | "right",
+                    }),
+                  ...(typeof layout.panelAlign === "string" &&
+                    ["left", "center", "justify", "right"].includes(layout.panelAlign) && {
+                      panelAlign: layout.panelAlign as "left" | "center" | "justify" | "right",
+                    }),
+                  ...(typeof layout.showPanelIcons === "boolean" && {
+                    showPanelIcons: layout.showPanelIcons,
+                  }),
+                  ...(typeof layout.bottomMaximized === "boolean" && {
+                    bottomMaximized: layout.bottomMaximized,
                   }),
                 },
               ],

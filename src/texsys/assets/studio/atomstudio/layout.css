@@ -98,6 +98,16 @@
   );
   --bottom-gap: var(--workbench-gap);
 }
+.workbench-layout.is-bottom-maximized.is-bottom-open > .workbench-stage {
+  grid-template-rows: 0px 0px 1fr;
+}
+.workbench-layout.is-bottom-maximized > .workbench-stage > .bottom-panel-layout-resizer {
+  display: none;
+}
+.workbench-layout.is-bottom-maximized > .workbench-stage > .workbench-editor {
+  visibility: hidden;
+  pointer-events: none;
+}
 .workbench-bottom {
   grid-row: 3;
   display: flex;

@@ -4,6 +4,7 @@ import html
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import json
 import mimetypes
+import os
 from pathlib import Path
 import secrets
 import shutil
@@ -25,6 +26,35 @@ FRONTEND_ASSETS = {
   "/studio-json-worker.js": "text/javascript",
   "/studio-codicon.ttf": "font/ttf",
 }
+
+
+def run_terminal_command(root: Path, request: dict) -> dict:
+  command = request.get("command", "").strip()
+  cwd_rel = request.get("cwd", "")
+  cwd = (root / cwd_rel).resolve() if cwd_rel else root
+  if not cwd.is_relative_to(root) or not cwd.is_dir():
+    cwd = root
+  if not command:
+    return {"stdout": "", "stderr": "", "code": 0}
+  try:
+    completed = subprocess.run(
+      command,
+      shell=True,
+      cwd=str(cwd),
+      capture_output=True,
+      text=True,
+      timeout=30,
+      env={**os.environ, "GIT_TERMINAL_PROMPT": "0", "LC_ALL": "en_US.UTF-8"},
+    )
+    return {
+      "stdout": completed.stdout[-16384:],
+      "stderr": completed.stderr[-16384:],
+      "code": completed.returncode,
+    }
+  except subprocess.TimeoutExpired:
+    return {"stdout": "", "stderr": "Command timed out after 30 seconds.", "code": 124}
+  except Exception as error:
+    return {"stdout": "", "stderr": str(error), "code": 1}
 
 
 def compile_frontend(runtime: StudioRuntime):
@@ -190,6 +220,9 @@ def create_server(runtime: StudioRuntime, port=8710, frontend=None, token=None):
           result = runtime.submit(body)
         elif self.path.startswith("/api/jobs/") and self.path.endswith("/cancel"):
           result = runtime.cancel(self.path.split("/")[3])
+        elif self.path == "/api/terminal":
+          with runtime.lock:
+            result = run_terminal_command(runtime.root, body)
         else:
           self._send(404, {"error": "Unknown API route."})
           return

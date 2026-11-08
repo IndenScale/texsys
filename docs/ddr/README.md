@@ -40,3 +40,4 @@ ddr/NNNN-short-title.md
 | [0005](0005-studio-core-editor.md) | 集成 Monaco 源码编辑、Explorer 树对齐与根节点操作、外部修改比对 | 已接受 |
 | [0006](0006-studio-code-search.md) | 搜索替换双行组、整词／正则／大小写保持、Unicode 字符定位与行合并折叠 | 已接受 |
 | [0007](0007-studio-source-control.md) | 本地 Git 差异浏览、项目／仓库范围隔离、批量暂存与提交历史图 | 已接受 |
+| [0008](0008-studio-integrated-terminal-and-panel-system.md) | 对标 VS Code 的底部终端模块、面板控制与下拉菜单交互系统 | 已接受 |

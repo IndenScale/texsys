@@ -64,10 +64,9 @@
   width: max-content;
   min-width: min(188px, calc(100vw - 8px));
   max-width: calc(100vw - 8px);
-  max-height: calc(100vh - 8px);
   margin: 0;
   padding: 4px;
-  overflow: auto;
+  overflow: visible;
   background: var(--ui-canvas);
   border: 1px solid var(--ui-border);
   border-radius: var(--workbench-card-radius, 8px);
@@ -85,7 +84,8 @@
   text-align: left;
   font-size: 12px;
 }
-.navigator-menu > button:hover:not(:disabled) {
+.navigator-menu > button:hover:not(:disabled),
+.navigator-menu > button[aria-expanded="true"] {
   background: var(--ui-control-hover);
 }
 .navigator-menu > button:focus-visible {
@@ -98,6 +98,18 @@
 .navigator-menu-icon {
   display: flex;
   flex: 0 0 16px;
+}
+.navigator-menu-submenu-arrow {
+  margin-inline-start: auto;
+  padding-inline-start: 12px;
+  display: flex;
+  align-items: center;
+  color: var(--ui-text-muted);
+}
+.navigator-submenu {
+  position: fixed;
+  z-index: 10000;
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.22);
 }
 .navigator-menu:has(.keycap-wide) {
   --menu-key-width: 32px;

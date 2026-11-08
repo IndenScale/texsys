@@ -1,0 +1,738 @@
+/* Texsys Design System - Bottom Panel and Terminal styling */
+
+/* Panel Header */
+.bottom-panel-header {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 35px;
+  background: var(--ui-workspace-chrome, #f4f6f7);
+  border-bottom: 1px solid var(--border, var(--ui-chrome-divider, #dfe5e8));
+  padding: 0 10px;
+  user-select: none;
+  transition: background 150ms ease, border-color 150ms ease, color 150ms ease;
+}
+
+/* Panel Tabs (Rounded rectangles matching Texsys / AtomStudio Design System) */
+.bottom-panel-header .inline-tabs,
+.bottom-panel-header .bottom-tabs {
+  height: auto;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.bottom-panel-header .bottom-tabs[data-align="center"] {
+  justify-content: center;
+  flex: 1;
+}
+.bottom-panel-header .bottom-tabs[data-align="justify"] {
+  justify-content: space-between;
+  flex: 1;
+}
+.bottom-panel-header .bottom-tabs[data-align="right"] {
+  justify-content: flex-end;
+  flex: 1;
+}
+
+.bottom-panel-header .inline-tab {
+  height: 24px;
+  padding: 2px 8px;
+  border-radius: 4px;
+  color: var(--ui-text-muted, #657580);
+  font-size: 11.5px;
+  font-weight: 400;
+  line-height: 20px;
+  background: transparent;
+  border: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  cursor: pointer;
+  position: relative;
+  transition: background 120ms ease, color 120ms ease;
+  user-select: none;
+  outline: none;
+}
+
+.bottom-panel-header .inline-tab:hover {
+  background: var(--ui-control-hover, #e8edef);
+  color: var(--ui-text, #263b46);
+}
+
+.bottom-panel-header .inline-tab:focus {
+  outline: none;
+}
+
+.bottom-panel-header .inline-tab:focus-visible {
+  outline: 1px solid var(--accent, #087f72);
+  outline-offset: -1px;
+}
+
+.bottom-panel-header .inline-tab.is-focused {
+  background: #ffffff;
+  color: var(--ui-text, #263b46);
+  font-weight: 500;
+  box-shadow: 0 1px 2px rgba(24, 59, 66, 0.08);
+}
+
+.bottom-panel-header .inline-tab::after,
+.bottom-panel-header .inline-tab.is-focused::after {
+  display: none !important;
+}
+
+.bottom-panel-header .tab-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4.5px;
+  border-radius: 9999px;
+  font-size: 10px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  background: rgba(88, 110, 123, 0.16);
+  color: var(--ui-text, #263b46);
+  margin-inline-start: 4px;
+  box-sizing: border-box;
+  transition: background 120ms ease, color 120ms ease;
+}
+
+.bottom-panel-header .inline-tab.is-focused .tab-badge {
+  background: var(--accent, #087f72);
+  color: #ffffff;
+}
+
+/* Panel Header Right Action Controls */
+.bottom-panel-actions {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.bottom-panel-actions button:focus {
+  outline: none;
+}
+
+.bottom-panel-actions button:focus-visible {
+  outline: 1px solid var(--accent, #087f72);
+  outline-offset: -1px;
+}
+
+.panel-header-action,
+button.navigator-button.panel-header-action {
+  width: 28px !important;
+  min-width: 28px !important;
+  height: 28px !important;
+  padding: 0 !important;
+  border-radius: 4px !important;
+  border: none !important;
+  background: transparent !important;
+  color: var(--ui-text, #263b46) !important;
+  cursor: pointer !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  transition: background 100ms ease, color 100ms ease !important;
+}
+
+.panel-header-action:hover,
+button.navigator-button.panel-header-action:hover {
+  background: var(--ui-control-hover, #e8edef) !important;
+  color: var(--ui-text-strong, #111b20) !important;
+}
+
+.terminal-header-session-wrapper {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  margin-right: 2px;
+}
+
+/* Terminal Process Hover Details Card (Matching VS Code Image 2) */
+.terminal-hover-card {
+  position: absolute;
+  top: calc(100% + 5px);
+  left: 0;
+  z-index: 1000;
+  min-width: 250px;
+  max-width: 320px;
+  background: var(--ui-canvas, #ffffff);
+  border: 1px solid var(--border, #d5dfe5);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+  border-radius: 6px;
+  padding: 8px 12px;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-size: 11.5px;
+  line-height: 1.5;
+  color: var(--ui-text, #263b46);
+  pointer-events: auto;
+  user-select: text;
+  text-align: left;
+  animation: terminalHoverFadeIn 120ms ease;
+}
+
+@keyframes terminalHoverFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-2px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.terminal-hover-card::before {
+  content: "";
+  position: absolute;
+  top: -5px;
+  left: 20px;
+  width: 8px;
+  height: 8px;
+  background: var(--ui-canvas, #ffffff);
+  border-top: 1px solid var(--border, #d5dfe5);
+  border-left: 1px solid var(--border, #d5dfe5);
+  transform: rotate(45deg);
+}
+
+.terminal-sessions-sidebar .terminal-hover-card {
+  top: calc(100% + 4px);
+  right: 4px;
+  left: auto;
+}
+
+.terminal-sessions-sidebar .terminal-hover-card::before {
+  right: 40px;
+  left: auto;
+}
+
+.terminal-hover-title {
+  font-weight: 600;
+  font-size: 12px;
+  color: var(--ui-text, #263b46);
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+}
+
+.terminal-hover-divider {
+  height: 1px;
+  background: var(--border, #e8edef);
+  margin: 6px 0;
+}
+
+.terminal-hover-meta {
+  color: var(--ui-text-muted, #586e7b);
+  font-size: 11.5px;
+  line-height: 1.6;
+}
+
+.terminal-hover-meta span {
+  display: block;
+}
+
+.terminal-hover-status {
+  color: var(--ui-text, #263b46);
+  font-size: 11.5px;
+  margin: 2px 0;
+}
+
+.terminal-hover-actions {
+  display: flex;
+  gap: 12px;
+  margin-top: 6px;
+}
+
+.terminal-hover-link {
+  color: #0366d6;
+  text-decoration: none;
+  font-size: 11.5px;
+  cursor: pointer;
+  background: none;
+  border: none;
+  padding: 0;
+}
+
+.terminal-hover-link:hover {
+  text-decoration: underline;
+}
+
+.bottom-panel-actions .terminal-header-session,
+button.navigator-button.terminal-header-session {
+  width: auto !important;
+  min-width: 0 !important;
+  max-width: none !important;
+  flex-shrink: 0 !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 5px !important;
+  height: 28px !important;
+  padding: 0 6px !important;
+  border-radius: 4px !important;
+  background: transparent !important;
+  color: var(--ui-text-strong, #111b20) !important;
+  font-size: 12px !important;
+  font-weight: 400 !important;
+  border: none !important;
+  cursor: pointer !important;
+  transition: background 100ms ease, color 100ms ease !important;
+  user-select: none !important;
+}
+
+.bottom-panel-actions .terminal-header-session:hover,
+button.navigator-button.terminal-header-session:hover {
+  background: var(--ui-control-hover, #e8edef) !important;
+  color: var(--ui-text-strong, #111b20) !important;
+}
+
+.terminal-session-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--ui-text, #263b46);
+  line-height: 1;
+  flex-shrink: 0;
+  transition: color 100ms ease;
+}
+
+.terminal-header-session:hover .terminal-session-icon {
+  color: var(--ui-text-strong, #111b20);
+}
+
+.terminal-session-title {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1;
+  color: var(--ui-text-strong, #111b20);
+  transition: color 100ms ease;
+}
+
+.terminal-session-warning {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  color: var(--ui-attention, #b87503) !important;
+  line-height: 1 !important;
+  flex-shrink: 0 !important;
+  margin-left: -1px !important;
+}
+
+.terminal-session-warning svg {
+  display: block !important;
+}
+
+.panel-split-button {
+  display: inline-flex !important;
+  align-items: center !important;
+  height: 28px !important;
+  border-radius: 4px !important;
+  background: transparent !important;
+  margin-right: 2px !important;
+}
+
+.panel-split-button:hover {
+  background: var(--ui-control-hover, #e8edef) !important;
+}
+
+.panel-split-main {
+  width: 26px !important;
+  height: 28px !important;
+  padding: 0 !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  color: var(--ui-text, #263b46) !important;
+  border: none !important;
+  background: transparent !important;
+  cursor: pointer !important;
+  border-radius: 4px 0 0 4px !important;
+}
+
+.panel-split-chevron,
+button.navigator-button.panel-split-chevron {
+  width: 20px !important;
+  min-width: 20px !important;
+  height: 28px !important;
+  padding: 0 !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  color: var(--ui-text, #263b46) !important;
+  border: none !important;
+  background: transparent !important;
+  cursor: pointer !important;
+  border-radius: 0 4px 4px 0 !important;
+}
+
+.panel-split-main:hover,
+.panel-split-chevron:hover {
+  color: var(--ui-text-strong, #111b20) !important;
+}
+
+.panel-actions-separator {
+  width: 1px !important;
+  height: 16px !important;
+  background: var(--border, #c5d2d8) !important;
+  margin: 0 6px !important;
+  opacity: 1 !important;
+}
+
+/* Terminal Viewport (Harmonious Light Theme matching Texsys Design System) */
+.bottom-panel-content.terminal-tab-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+  padding: 0;
+  margin: 0;
+  background: var(--ui-canvas, #ffffff);
+}
+
+.terminal-panel-body {
+  flex: 1;
+  display: flex;
+  height: 100%;
+  width: 100%;
+  min-height: 0;
+  min-width: 0;
+  background: var(--ui-canvas, #ffffff);
+  color: var(--ui-text, #263b46);
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-size: 12px;
+  line-height: 1.45;
+  user-select: text;
+  position: relative;
+  border: none;
+  border-radius: 0;
+  margin: 0;
+  padding: 0;
+}
+
+.terminal-view-area {
+  flex: 1;
+  display: flex;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  position: relative;
+}
+
+.terminal-pane {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  height: 100%;
+  outline: none;
+  background: var(--ui-canvas, #ffffff);
+  position: relative;
+}
+
+.terminal-pane.is-split {
+  border-right: 1px solid var(--border, #d5dfe5);
+}
+
+.terminal-pane.is-split.is-focused::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  box-shadow: inset 0 0 0 1px var(--accent, #087f72);
+}
+
+.terminal-viewport {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 10px 14px;
+  min-height: 0;
+  cursor: text;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(0, 0, 0, 0.2) transparent;
+}
+
+.terminal-viewport::-webkit-scrollbar {
+  width: 10px;
+}
+
+.terminal-viewport::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.15);
+  border-radius: 5px;
+}
+
+.terminal-viewport::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.28);
+}
+
+.terminal-line {
+  white-space: pre-wrap;
+  word-break: break-all;
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 2px;
+}
+
+.terminal-system {
+  color: var(--accent, #087f72);
+  font-weight: 500;
+  margin-bottom: 6px;
+}
+
+.terminal-prompt-prefix {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 5px;
+  font-weight: 500;
+  user-select: none;
+}
+
+.term-dot {
+  color: var(--accent, #087f72);
+}
+
+.term-dot-circle {
+  color: var(--ui-icon-muted, #6e7f89);
+}
+
+.term-venv {
+  color: #0b7261;
+  font-weight: 500;
+}
+
+.term-arrow {
+  color: var(--ui-text-muted, #657580);
+}
+
+.term-folder {
+  color: #0366d6;
+  font-weight: 600;
+}
+
+.term-git {
+  color: var(--ui-text-muted, #657580);
+}
+
+.term-branch {
+  color: #1a7f37;
+  font-weight: 600;
+}
+
+.term-branch.is-dirty {
+  color: #cf222e;
+}
+
+.term-dirty {
+  color: #cf222e;
+  font-weight: bold;
+}
+
+.term-cmd-text {
+  color: var(--ui-text, #263b46);
+  font-weight: 500;
+}
+
+.terminal-output {
+  margin: 2px 0 6px 0;
+  padding: 0;
+  font-family: inherit;
+  font-size: inherit;
+  line-height: inherit;
+  color: var(--ui-text, #263b46);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.terminal-output.is-error {
+  color: #cf222e;
+}
+
+.terminal-input-row {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  min-height: 20px;
+}
+
+.terminal-input-wrapper {
+  flex: 1;
+  position: relative;
+  display: inline-flex;
+  align-items: baseline;
+  min-width: 60px;
+}
+
+.terminal-real-input {
+  width: 100%;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--ui-text, #263b46);
+  font-family: inherit;
+  font-size: inherit;
+  line-height: inherit;
+  padding: 0;
+  margin: 0;
+  caret-color: var(--accent, #087f72);
+}
+
+.terminal-real-input:focus {
+  outline: none;
+  border: none;
+}
+
+/* Terminal Layout Component: Sessions Sidebar on the Right (Matching VSCode Image 4 & 5) */
+.terminal-sessions-sidebar {
+  width: 180px;
+  flex-shrink: 0;
+  border-left: 1px solid var(--border, #d5dfe5);
+  background: var(--ui-workspace-chrome, #f4f6f7);
+  display: flex;
+  flex-direction: column;
+  padding: 6px 4px;
+  overflow-y: auto;
+  user-select: none;
+}
+
+.terminal-session-row {
+  display: flex;
+  align-items: center;
+  height: 28px;
+  padding: 0 8px;
+  margin: 1px 2px;
+  border-radius: 4px;
+  gap: 6px;
+  cursor: pointer;
+  color: var(--ui-text-muted, #657580);
+  font-size: 12px;
+  font-weight: 400;
+  transition: background 100ms ease, color 100ms ease;
+  position: relative;
+  outline: none;
+}
+
+.terminal-session-row:hover {
+  background: var(--ui-control-hover, #e8edef);
+  color: var(--ui-text, #263b46);
+}
+
+.terminal-session-row.is-active {
+  background: #ffffff;
+  color: var(--ui-text, #263b46);
+  font-weight: 500;
+  box-shadow: 0 1px 2px rgba(24, 59, 66, 0.08);
+}
+
+.terminal-tree-branch {
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Monaco, Consolas, monospace;
+  font-size: 13px;
+  line-height: 1;
+  color: #c59b27;
+  flex-shrink: 0;
+  width: 12px;
+}
+
+.terminal-row-icon {
+  display: inline-flex;
+  align-items: center;
+  color: var(--ui-text, #263b46);
+  flex-shrink: 0;
+  transition: color 100ms ease;
+}
+
+.terminal-session-row:hover .terminal-row-icon,
+.terminal-session-row.is-active .terminal-row-icon {
+  color: var(--ui-text-strong, #111b20);
+}
+
+.terminal-row-name {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  font-size: 12px;
+  font-weight: 400;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--ui-text-strong, #111b20);
+  transition: color 100ms ease;
+}
+
+.terminal-session-row.is-active .terminal-row-name {
+  font-weight: 400;
+}
+
+.terminal-row-warning {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--ui-attention, #b87503);
+  line-height: 1;
+  flex-shrink: 0;
+  margin-left: 2px;
+}
+
+.terminal-row-warning svg {
+  display: block;
+}
+
+.terminal-row-tools {
+  display: none;
+  align-items: center;
+  gap: 2px;
+  margin-left: auto;
+}
+
+.terminal-session-row:hover .terminal-row-tools {
+  display: flex;
+}
+
+.terminal-row-tool {
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border-radius: 4px;
+  border: none;
+  background: transparent;
+  color: var(--ui-text, #263b46);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 100ms ease, color 100ms ease;
+}
+
+.terminal-row-tool:hover {
+  background: var(--ui-control-hover, rgba(0, 0, 0, 0.08));
+  color: var(--ui-text-strong, #111b20);
+}
+
+/* Bottom Panel Empty Views */
+.bottom-panel-empty-view {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  min-height: 140px;
+  color: var(--ui-text-muted, #657580);
+  font-size: 13px;
+  background: var(--ui-canvas, #ffffff);
+}
+
+.bottom-panel-empty-text {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+
+.bottom-panel-empty-text p {
+  margin: 0;
+  font-size: 13px;
+  color: var(--ui-text-muted, #657580);
+}

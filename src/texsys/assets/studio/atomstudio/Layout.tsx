@@ -50,7 +50,7 @@ export function WorkbenchLayout({
   const bottomMax = Math.max(MIN_BOTTOM_HEIGHT, Math.floor(height * 0.6));
   return (
     <div
-      className={`workbench-layout ${layout.sidebarOpen ? "" : "is-sidebar-collapsed"} ${layout.inspectorOpen ? "" : "is-inspector-hidden"} ${layout.bottomOpen ? "is-bottom-open" : ""}`}
+      className={`workbench-layout ${layout.sidebarOpen ? "" : "is-sidebar-collapsed"} ${layout.inspectorOpen ? "" : "is-inspector-hidden"} ${layout.bottomOpen ? "is-bottom-open" : ""} ${layout.bottomOpen && layout.bottomMaximized ? "is-bottom-maximized" : ""}`}
       style={
         {
           "--sidebar-width": `${layout.sidebarWidth}px`,

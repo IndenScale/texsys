@@ -12,10 +12,16 @@ export type StudioLayout = {
   hiddenActivities?: string[];
   inspectorOpen: boolean;
   bottomOpen: boolean;
-  bottomTab: "problems" | "tasks";
+  bottomMaximized?: boolean;
+  bottomTab: "problems" | "tasks" | "terminal" | string;
   sidebarWidth: number;
   inspectorWidth: number;
   bottomHeight: number;
+  hiddenBottomTabs?: string[];
+  hideBadges?: Record<string, boolean>;
+  panelPosition?: "bottom" | "left" | "right";
+  panelAlign?: "left" | "center" | "justify" | "right";
+  showPanelIcons?: boolean;
 };
 
 export type PluginManifest = {
