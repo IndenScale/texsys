@@ -14,7 +14,7 @@ from typing import Any
 import tomlkit
 from tomlkit.toml_document import TOMLDocument
 
-from texsys.project import MANIFEST_NAME, ProjectError, inspect_project
+from texsys.project import MANIFEST_NAME, ProjectError, inspect_project, project_write_lock
 
 LOCK_NAME = "texsys.lock"
 LOCK_SCHEMA_VERSION = 1
@@ -253,18 +253,23 @@ def _atomic_write(path: Path, content: str) -> None:
 
 def lock_project(path: Path, check: bool = False) -> LockResult:
   root = path.expanduser().resolve()
-  result = resolve_dependencies(root)
   target = root / LOCK_NAME
   if check:
+    result = resolve_dependencies(root)
     try:
       current = target.read_text(encoding="utf-8")
     except OSError as error:
       raise ProjectError(f"Cannot read {target}: {error}") from error
     if current != result.text:
       raise ProjectError(f"Lock file is missing or out of date: {target}")
-  else:
+    return result
+  with project_write_lock(root):
+    before = _dependency_inputs(root)
+    result = resolve_dependencies(root)
+    if _dependency_inputs(root) != before:
+      raise ProjectError("Dependency inputs changed while resolving. Retry with stable inputs.")
     _atomic_write(target, result.text)
-  return result
+    return result
 
 
 def _read_lock(root: Path) -> tuple[str, tuple[LockedPackage, ...]]:
@@ -338,6 +343,11 @@ def _copy_package(package: LockedPackage, staging: Path) -> None:
 def sync_project(path: Path) -> tuple[LockedPackage, ...]:
   """Restore the locked dependency view without changing manifest or lock."""
   root = path.expanduser().resolve()
+  with project_write_lock(root):
+    return _sync_project(root)
+
+
+def _sync_project(root: Path) -> tuple[LockedPackage, ...]:
   project = inspect_project(root)
   if project is None:
     raise ProjectError(f"Project is not initialized: {root}")
@@ -388,74 +398,73 @@ def sync_project(path: Path) -> tuple[LockedPackage, ...]:
   return packages
 
 
-def add_dependency(path: Path, source: Path, version: str | None = None) -> LockResult:
-  root = path.expanduser().resolve()
+def _dependency_inputs(root: Path) -> tuple[bytes, bytes | None]:
   if inspect_project(root) is None:
     raise ProjectError(f"Project is not initialized: {root}")
+  lock = root / LOCK_NAME
+  return (root / MANIFEST_NAME).read_bytes(), lock.read_bytes() if lock.exists() else None
+
+
+def _publish_dependencies(root: Path, document: TOMLDocument, before: tuple[bytes, bytes | None]) -> LockResult:
+  result = resolve_dependencies(root, document)
+  if _dependency_inputs(root) != before:
+    raise ProjectError("Dependency inputs changed while resolving. Retry with stable inputs.")
+  changes = (
+    (root / MANIFEST_NAME, tomlkit.dumps(document), before[0]),
+    (root / LOCK_NAME, result.text, before[1]),
+  )
+  written = []
+  try:
+    for file, after, original in changes:
+      if after.encode("utf-8") != original:
+        _atomic_write(file, after)
+        written.append((file, after, original))
+    _sync_project(root)
+  except Exception:
+    for file, after, original in reversed(written):
+      if file.exists() and file.read_bytes() == after.encode("utf-8"):
+        if original is None:
+          file.unlink()
+        else:
+          _atomic_write(file, original.decode("utf-8"))
+    raise
+  return result
+
+
+def add_dependency(path: Path, source: Path, version: str | None = None) -> LockResult:
+  root = path.expanduser().resolve()
   source = source.expanduser().resolve()
   package_project = inspect_project(source)
   if package_project is None:
     raise ProjectError(f"Dependency is not initialized: {source}")
 
-  manifest = root / MANIFEST_NAME
-  original_manifest = manifest.read_text(encoding="utf-8")
-  document = tomlkit.parse(original_manifest)
-  dependencies = document.get("dependencies")
-  if dependencies is None:
-    dependencies = tomlkit.table()
-    document.add("dependencies", dependencies)
-  if not isinstance(dependencies, dict):
-    raise ProjectError("[dependencies] must be a table.")
-  declaration = tomlkit.inline_table()
-  declaration["path"] = _relative_path(root, source)
-  if version is not None:
-    if not version:
-      raise ProjectError("Dependency version must be a non-empty string.")
-    declaration["version"] = version
-  dependencies[package_project.name] = declaration
-
-  lock_target = root / LOCK_NAME
-  original_lock = lock_target.read_bytes() if lock_target.exists() else None
-  try:
-    result = resolve_dependencies(root, document)
-    _atomic_write(manifest, tomlkit.dumps(document))
-    _atomic_write(lock_target, result.text)
-    sync_project(root)
-  except Exception:
-    _atomic_write(manifest, original_manifest)
-    if original_lock is None:
-      lock_target.unlink(missing_ok=True)
-    else:
-      _atomic_write(lock_target, original_lock.decode("utf-8"))
-    raise
-  return result
+  with project_write_lock(root):
+    before = _dependency_inputs(root)
+    document = tomlkit.parse(before[0].decode("utf-8"))
+    dependencies = document.get("dependencies")
+    if dependencies is None:
+      dependencies = tomlkit.table()
+      document.add("dependencies", dependencies)
+    if not isinstance(dependencies, dict):
+      raise ProjectError("[dependencies] must be a table.")
+    declaration = tomlkit.inline_table()
+    declaration["path"] = _relative_path(root, source)
+    if version is not None:
+      if not version:
+        raise ProjectError("Dependency version must be a non-empty string.")
+      declaration["version"] = version
+    dependencies[package_project.name] = declaration
+    return _publish_dependencies(root, document, before)
 
 
 def remove_dependency(path: Path, name: str) -> LockResult:
   root = path.expanduser().resolve()
-  if inspect_project(root) is None:
-    raise ProjectError(f"Project is not initialized: {root}")
   _validate_name(name)
-  manifest = root / MANIFEST_NAME
-  original_manifest = manifest.read_text(encoding="utf-8")
-  document: TOMLDocument = tomlkit.parse(original_manifest)
-  dependencies = document.get("dependencies")
-  if not isinstance(dependencies, dict) or name not in dependencies:
-    raise ProjectError(f"Direct dependency does not exist: {name}")
-  del dependencies[name]
-
-  lock_target = root / LOCK_NAME
-  original_lock = lock_target.read_bytes() if lock_target.exists() else None
-  try:
-    result = resolve_dependencies(root, document)
-    _atomic_write(manifest, tomlkit.dumps(document))
-    _atomic_write(lock_target, result.text)
-    sync_project(root)
-  except Exception:
-    _atomic_write(manifest, original_manifest)
-    if original_lock is None:
-      lock_target.unlink(missing_ok=True)
-    else:
-      _atomic_write(lock_target, original_lock.decode("utf-8"))
-    raise
-  return result
+  with project_write_lock(root):
+    before = _dependency_inputs(root)
+    document = tomlkit.parse(before[0].decode("utf-8"))
+    dependencies = document.get("dependencies")
+    if not isinstance(dependencies, dict) or name not in dependencies:
+      raise ProjectError(f"Direct dependency does not exist: {name}")
+    del dependencies[name]
+    return _publish_dependencies(root, document, before)

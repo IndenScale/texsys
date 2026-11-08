@@ -116,3 +116,5 @@ Instance 可附带 `parameters`，结构相同，仅能覆盖所引用 Component
 `texsys lint` 检查项目布局、JSON 语法、上述模式和静态语义。诊断规则编号以 `P`、`S`、`L`、`E` 分别表示项目、语法／模式、语义和执行问题。
 
 `texsys format` 使用两个空格缩进、键排序和末尾换行。它只改变 JSON 呈现，不改变值。`fmt` 是等价别名，`--check` 和 `--diff` 不写文件。
+
+结构化写入使用同一套 SDL 校验规则，见 [SDL 批量编辑契约](03-design-edits.md)。

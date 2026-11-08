@@ -490,13 +490,16 @@ def _canonical_json(data: Any) -> str:
   return json.dumps(data, ensure_ascii=False, indent=2, sort_keys=True) + "\n"
 
 
-def _atomic_write(path: Path, content: str) -> None:
+def _atomic_write(path: Path, content: str, *, create_only: bool = False) -> None:
   descriptor, temporary_name = tempfile.mkstemp(prefix=f".{path.name}.", dir=path.parent)
   temporary = Path(temporary_name)
   try:
     with os.fdopen(descriptor, "w", encoding="utf-8", newline="\n") as stream:
       stream.write(content)
-    os.replace(temporary, path)
+    if create_only:
+      os.link(temporary, path)
+    else:
+      os.replace(temporary, path)
   finally:
     temporary.unlink(missing_ok=True)
 

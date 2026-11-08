@@ -1,5 +1,7 @@
 """Project scaffolding and read-only project inspection."""
 
+from collections.abc import Iterator
+from contextlib import contextmanager
 from dataclasses import dataclass
 import json
 from pathlib import Path, PurePosixPath
@@ -14,6 +16,22 @@ LOCK_FILES = ("texsys.lock", "uv.lock", "package-lock.json")
 
 class ProjectError(Exception):
   """A project operation cannot be completed safely."""
+
+
+@contextmanager
+def project_write_lock(root: Path) -> Iterator[None]:
+  """Serialize cooperating design and dependency writers for this project."""
+  lock = root / ".texsys-write.lock"
+  try:
+    lock.mkdir()
+  except FileExistsError as error:
+    raise ProjectError("Project write is locked (.texsys-write.lock). Retry after the writer exits.") from error
+  except OSError as error:
+    raise ProjectError(f"Cannot lock project for writing: {error}") from error
+  try:
+    yield
+  finally:
+    lock.rmdir()
 
 
 @dataclass(frozen=True)

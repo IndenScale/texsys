@@ -3,6 +3,7 @@
 from importlib.metadata import version as package_version
 import json
 from pathlib import Path
+import sys
 from typing import Annotated
 
 import typer
@@ -13,8 +14,9 @@ from texsys.dependencies import (
   remove_dependency,
   sync_project,
 )
+from texsys.editing import apply_edit, plan_edit, read_design
 from texsys.execution import build_project, evaluate_project, simulate_project, test_project
-from texsys.formal import format_project, lint_project
+from texsys.formal import _load_json, format_project, lint_project
 from texsys.project import (
   DEPENDENCY_FILES,
   LOCK_FILES,
@@ -30,6 +32,8 @@ app = typer.Typer(
   add_completion=False,
   no_args_is_help=True,
 )
+design_app = typer.Typer(help="Inspect, preview and apply SDL design edits.", no_args_is_help=True)
+app.add_typer(design_app, name="design")
 
 PathOption = Annotated[
   Path,
@@ -194,6 +198,48 @@ def sync_command(path: PathOption = Path(".")) -> None:
   except ProjectError as error:
     _print_error(error)
   typer.echo(f"Synced {len(packages)} package(s).")
+
+
+def _print_design_result(result: dict) -> None:
+  typer.echo(json.dumps(result, ensure_ascii=False, indent=2, sort_keys=True))
+  if result.get("status") in {"fail", "conflict", "error"}:
+    raise typer.Exit(code={"fail": 1, "conflict": 3, "error": 2}[result["status"]])
+
+
+@design_app.command("inspect")
+def inspect_design_command(path: PathOption = Path("."), source: str = "system.sdl.json") -> None:
+  """Return the current SDL document and input revision as JSON."""
+  try:
+    result = read_design(path, source)
+  except (OSError, ValueError, ProjectError) as error:
+    result = {"status": "error", "message": str(error)}
+  _print_design_result(result)
+
+
+def _run_design_edit(path: Path, request: str, plan: str | None) -> None:
+  try:
+    text = sys.stdin.read() if request == "-" else Path(request).read_text(encoding="utf-8")
+    payload = _load_json(text)
+    result = plan_edit(path, payload) if plan is None else apply_edit(path, payload, plan)
+  except (OSError, ValueError, ProjectError) as error:
+    result = {"status": "error", "message": str(error)}
+  _print_design_result(result)
+
+
+@design_app.command("plan")
+def plan_design_command(request: str, path: PathOption = Path(".")) -> None:
+  """Preview a JSON request from a file or - for stdin."""
+  _run_design_edit(path, request, None)
+
+
+@design_app.command("apply")
+def apply_design_command(
+  request: str,
+  plan: Annotated[str, typer.Option(help="Digest returned by design plan.")],
+  path: PathOption = Path("."),
+) -> None:
+  """Apply a previewed JSON request to the same input revision."""
+  _run_design_edit(path, request, plan)
 
 
 @app.command("lint")
