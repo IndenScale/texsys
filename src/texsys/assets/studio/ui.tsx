@@ -117,6 +117,12 @@ const paths: Record<string, React.ReactNode> = {
     </>
   ),
   folder: <path d="M3 7V5h6l2 2h10v13H3Z" />,
+  logo: (
+    <>
+      <path d="M3 3l4 4m0 0h7m-7 0v7" />
+      <path d="M13 13h8m-4 0v8" />
+    </>
+  ),
   system: (
     <>
       <rect x="3" y="3" width="6" height="6" rx="1" />

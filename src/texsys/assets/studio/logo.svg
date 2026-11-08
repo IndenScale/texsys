@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+  <!-- Top-left: Orthogonal 3D steel structure node flattened into 2D -->
+  <path d="M3 3l4 4m0 0h7m-7 0v7" />
+  <!-- Bottom-right: Geometric Letter T -->
+  <path d="M13 13h8m-4 0v8" />
+</svg>
+

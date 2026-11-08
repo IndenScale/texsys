@@ -1467,14 +1467,6 @@ export function CoreWorkspaceProvider({
           <Keycaps keys={macKeys ? ["⇧", "⌘", "F"] : ["Ctrl", "Shift", "F"]} />
         </div>
       </div>
-      {hasDomain && (
-        <EditorActionButton
-          label={t("打开专业预览")}
-          icon="system"
-          emphasis
-          onClick={activateDomain}
-        />
-      )}
     </div>
   ) : active.loading ? (
     <Empty title={t("正在打开文件")}>{active.path}</Empty>

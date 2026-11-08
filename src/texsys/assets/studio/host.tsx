@@ -336,6 +336,17 @@ function Studio({ plugins, chrome }: { plugins: WorkbenchPlugin[]; chrome: Studi
     if (project) writeLayoutPreferences(project, { discipline: active, layouts });
   }, [project, active, layouts]);
   useEffect(() => {
+    document.title = "Tex Studio";
+    let iconLink = document.querySelector<HTMLLinkElement>('link[rel~="icon"]');
+    if (!iconLink) {
+      iconLink = document.createElement("link");
+      iconLink.rel = "icon";
+      iconLink.type = "image/svg+xml";
+      document.head.appendChild(iconLink);
+    }
+    iconLink.href = "/favicon.svg";
+  }, []);
+  useEffect(() => {
     mounted.current = true;
     void refresh();
     const timer = setInterval(() => void refresh(), 2500);

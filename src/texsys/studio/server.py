@@ -1,6 +1,5 @@
 """Loopback-only Web host for plugin workbenches and the local task API."""
 
-import html
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import json
 import mimetypes
@@ -25,6 +24,7 @@ FRONTEND_ASSETS = {
   "/studio-editor-worker.js": "text/javascript",
   "/studio-json-worker.js": "text/javascript",
   "/studio-codicon.ttf": "font/ttf",
+  "/favicon.svg": "image/svg+xml",
 }
 
 
@@ -72,6 +72,8 @@ def compile_frontend(runtime: StudioRuntime):
                              text=True, capture_output=True, timeout=90)
   if completed.returncode:
     raise ProjectError(f"Studio frontend build failed: {completed.stderr[-3000:]}")
+  if (ASSETS / "favicon.svg").is_file():
+    shutil.copyfile(ASSETS / "favicon.svg", output / "favicon.svg")
   return output
 
 
@@ -122,13 +124,18 @@ def create_server(runtime: StudioRuntime, port=8710, frontend=None, token=None):
         page = ("<!doctype html><html lang=\"zh-CN\"><head><meta charset=\"utf-8\">"
                 '<meta name="viewport" content="width=device-width,initial-scale=1">'
                 f'<meta name="tex-studio-token" content="{token}">'
-                f"<title>Tex Studio — {html.escape(runtime.project.name)}</title>"
+                "<title>Tex Studio</title>"
+                '<link rel="icon" type="image/svg+xml" href="/favicon.svg">'
                 '<link rel="stylesheet" href="/studio.css"></head><body><div id="root"></div>'
                 '<script src="/studio.js" defer></script></body></html>')
         self._send(200, page.encode(), "text/html; charset=utf-8")
         return
-      if parsed.path == "/favicon.ico":
-        self._send(204, b"", "image/x-icon")
+      if parsed.path in {"/favicon.ico", "/favicon.svg"}:
+        favicon = (frontend / "favicon.svg") if (frontend / "favicon.svg").is_file() else (ASSETS / "favicon.svg")
+        if favicon.is_file():
+          self._send(200, favicon.read_bytes(), "image/svg+xml")
+        else:
+          self._send(204, b"", "image/svg+xml")
         return
       if parsed.path in FRONTEND_ASSETS:
         file = frontend / parsed.path[1:]
@@ -268,6 +275,8 @@ def serve_hmr(root: Path, port=8710, open_browser=False):
   api_thread.start()
   frontend = runtime.directory / "hmr"
   frontend.mkdir(parents=True, exist_ok=True)
+  if (ASSETS / "favicon.svg").is_file():
+    shutil.copyfile(ASSETS / "favicon.svg", frontend / "favicon.svg")
   entry = frontend / "main.tsx"
   imports = [f'import {{ startStudio }} from {json.dumps(str(ASSETS / "host.tsx"))};']
   imports.extend(f'import plugin{index} from {json.dumps(str(plugin.frontend))};'
@@ -278,7 +287,8 @@ def serve_hmr(root: Path, port=8710, open_browser=False):
     '<!doctype html><html lang="zh-CN"><head><meta charset="utf-8">'
     '<meta name="viewport" content="width=device-width,initial-scale=1">'
     f'<meta name="tex-studio-token" content="{token}">'
-    f'<title>Tex Studio — {html.escape(runtime.project.name)}</title></head>'
+    '<title>Tex Studio</title>'
+    '<link rel="icon" type="image/svg+xml" href="/favicon.svg"></head>'
     '<body><div id="root"></div><script type="module" src="/main.tsx"></script></body></html>')
   config = frontend / "vite.config.mjs"
   allowed = sorted({str(root_dir), *(str(plugin.frontend.parent) for plugin in runtime.plugins.values())})

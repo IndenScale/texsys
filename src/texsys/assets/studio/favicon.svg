@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <style>
+    .bg { fill: #f4f6f7; }
+    .icon { stroke: #15796e; }
+    @media (prefers-color-scheme: dark) {
+      .bg { fill: #1c252a; }
+      .icon { stroke: #2ec4b6; }
+    }
+  </style>
+  <rect class="bg" width="32" height="32" rx="7" />
+  <g class="icon" fill="none" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" transform="translate(4, 4)">
+    <rect x="3" y="3" width="6" height="6" rx="1" />
+    <rect x="15" y="15" width="6" height="6" rx="1" />
+    <path d="M9 6h9v9M6 9v9h9" />
+  </g>
+</svg>
+
