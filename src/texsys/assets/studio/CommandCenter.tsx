@@ -25,7 +25,8 @@ export function CommandCenter({
   focusRequest,
   returnFocus,
   commands,
-  viewCommands,
+  pickerCommands,
+  pickerTruncated,
   onOpen,
   onClose,
   invoke,
@@ -46,7 +47,8 @@ export function CommandCenter({
   focusRequest: number;
   returnFocus: RefObject<HTMLElement | null>;
   commands: CommandItem[];
-  viewCommands: CommandItem[];
+  pickerCommands: CommandItem[];
+  pickerTruncated: boolean;
   onOpen: () => void;
   onClose: () => void;
   invoke: (id: string) => void;
@@ -70,6 +72,8 @@ export function CommandCenter({
   const [query, setQuery] = useState(""),
     [selected, setSelected] = useState(0);
   const resultScope = query.trimStart().startsWith(">") ? "commands" : scope;
+  const pickerScope =
+    resultScope === "views" || resultScope === "objects" || resultScope === "references";
   const fileIndex =
     resultScope === "recent" ? new Map(files.map((file) => [file.path, file])) : undefined;
   const visibleFiles = fileIndex
@@ -79,16 +83,16 @@ export function CommandCenter({
       })
     : files;
   const fileQuery =
-    resultScope !== "commands" && resultScope !== "views"
-      ? parseFileQuery(visibleFiles, query)
-      : undefined;
+    resultScope !== "commands" && !pickerScope ? parseFileQuery(visibleFiles, query) : undefined;
   const location = fileQuery?.location;
   const matches: Result[] = [
-    ...(resultScope === "views"
-      ? filterCommands(viewCommands, query).map((command) => ({
-          ...command,
-          icon: command.icon ?? "arrow",
-        }))
+    ...(pickerScope
+      ? filterCommands(pickerCommands, query)
+          .slice(0, 100)
+          .map((command) => ({
+            ...command,
+            icon: command.icon ?? "arrow",
+          }))
       : []),
     ...(resultScope === "all" || resultScope === "commands"
       ? filterCommands(commands, query).map((command) => ({
@@ -131,7 +135,12 @@ export function CommandCenter({
   }, [project]);
   useLayoutEffect(() => {
     if (open) {
-      if (scope === "recent" || scope === "views") {
+      if (
+        scope === "recent" ||
+        scope === "views" ||
+        scope === "objects" ||
+        scope === "references"
+      ) {
         setQuery("");
         setSelected(0);
       } else if (scope !== "commands") setQuery((current) => current.replace(/^\s*>\s*/, ""));
@@ -227,15 +236,19 @@ export function CommandCenter({
             autoComplete="off"
             spellCheck={false}
             placeholder={
-              scope === "views"
-                ? t("搜索视图…")
-                : scope === "recent"
-                  ? t("搜索最近打开的文件…")
-                  : scope === "files"
-                    ? t("搜索文件…")
-                    : scope === "commands"
-                      ? t("搜索或运行命令…")
-                      : t("搜索文件或运行命令…")
+              scope === "objects"
+                ? t("搜索工程对象…")
+                : scope === "references"
+                  ? t("搜索使用位置…")
+                  : scope === "views"
+                    ? t("搜索视图…")
+                    : scope === "recent"
+                      ? t("搜索最近打开的文件…")
+                      : scope === "files"
+                        ? t("搜索文件…")
+                        : scope === "commands"
+                          ? t("搜索或运行命令…")
+                          : t("搜索文件或运行命令…")
             }
             value={query}
             onChange={(event) => {
@@ -332,6 +345,9 @@ export function CommandCenter({
                 {t(resultScope === "recent" && !query ? "没有最近打开的文件" : "没有匹配的结果")}
               </p>
             )}
+            {pickerScope && pickerTruncated && (
+              <p className="search-limit">{t("仅索引前 5000 个工程实例。")}</p>
+            )}
             {fileQuery && filesTruncated && (
               <p className="search-limit">{t("仅索引前 5000 个项目文件。")}</p>
             )}
@@ -344,6 +360,15 @@ export function CommandCenter({
                 { id: "commands", label: t("命令"), focused: resultScope === "commands" },
                 { id: "files", label: t("文件"), focused: resultScope === "files" },
                 { id: "recent", label: t("最近"), focused: resultScope === "recent" },
+                ...(scope === "objects" || scope === "references"
+                  ? [
+                      {
+                        id: scope,
+                        label: t(scope === "objects" ? "工程对象" : "使用位置"),
+                        focused: resultScope === scope,
+                      },
+                    ]
+                  : []),
                 ...(scope === "views"
                   ? [{ id: "views", label: t("视图"), focused: resultScope === "views" }]
                   : []),

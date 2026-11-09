@@ -28,6 +28,8 @@ import {
   issuesFor,
   names,
   sourceObjectLine,
+  modelObjects,
+  type ModelObject,
   type Data,
   type Issue,
   type Selection,
@@ -208,6 +210,9 @@ function Workspace({
   const [selection, setSelection] = useState<Selection | undefined>(() =>
     entries[0] ? { kind: "instance", id: entries[0][0] } : undefined,
   );
+  const [objectTarget, setObjectTarget] = useState<string>();
+  const objectIndex = useMemo(() => modelObjects(source), [source]);
+  const currentObject = objectIndex.objects.find((item) => item.id === objectTarget);
   const [search, setSearch] = useState("");
   const [drawingView, setDrawingView] = useState("schematic");
   const [overlay, setOverlay] = useState(false);
@@ -267,7 +272,18 @@ function Workspace({
       .includes(search.toLowerCase()),
   );
   const sourceLines = JSON.stringify(source, null, 2).split("\n");
-  const objectLine = sourceObjectLine(source, selection);
+  const objectLine = sourceObjectLine(source, currentObject?.selection ?? selection);
+  const selectedDefinition =
+    currentObject?.definition ??
+    (selection?.kind === "type"
+      ? selection.id
+      : selection
+        ? instances[selection.id]?.component
+        : undefined);
+  const objectDefinition =
+    selectedDefinition && Object.hasOwn(source.components, selectedDefinition)
+      ? selectedDefinition
+      : undefined;
   const openView = useCallback(
     (next: View) => {
       activateDomain?.();
@@ -286,10 +302,25 @@ function Workspace({
       return false;
     }
     setSelection(next);
+    setObjectTarget(undefined);
     if (next.id !== selection?.id || next.kind !== selection?.kind)
       setPlayback((previous) => ({ ...previous, variable: "", token: previous.token + 1 }));
     if (reveal) setInspectorOpen(true);
     return true;
+  };
+  const locateObject = (object: ModelObject) => {
+    if (hasDraft) {
+      setInspectorOpen(true);
+      notify(t("请先保存或放弃右侧的参数草稿，再切换对象。"), true);
+      return;
+    }
+    setSelection(
+      object.selection.owner && object.selection.owner !== source.root
+        ? undefined
+        : object.selection,
+    );
+    setObjectTarget(object.id);
+    openView("source");
   };
   const chooseRun = (index: number) => {
     if (!runs[index]) return;
@@ -364,7 +395,7 @@ function Workspace({
       sourceViewport.current
         ?.querySelector(`[data-line="${objectLine}"]`)
         ?.scrollIntoView({ block: "center" });
-  }, [view, selection?.id, objectLine]);
+  }, [view, selection?.id, objectLine, objectTarget]);
   useEffect(() => {
     if (view !== "design" || !locateToken) return;
     drawingCamera.locate(
@@ -389,8 +420,9 @@ function Workspace({
       canForward: history.index < history.entries.length - 1,
       canClose: documents.length > 0,
       canNavigateProblems: currentIssues.length > 0,
+      objectDefinition,
     });
-  }, [history, documents.length, currentIssues.length, onNavigationState]);
+  }, [history, documents.length, currentIssues.length, objectDefinition, onNavigationState]);
   useEffect(() => {
     core?.setDomainTabsOpen?.(documents.length > 0);
   }, [core?.setDomainTabsOpen, documents.length]);
@@ -405,6 +437,13 @@ function Workspace({
     if (command === "file.open" && navigationRequest.path) {
       setFilePath(navigationRequest.path);
       openView("file");
+    } else if (command === "objects.open" || command === "objects.definition") {
+      const target = objectIndex.objects.find((item) =>
+        command === "objects.open"
+          ? item.id === navigationRequest.path
+          : item.kind === "definition" && item.definition === navigationRequest.path,
+      );
+      if (target) locateObject(target);
     } else if (command === "navigation.nextIssue" || command === "navigation.previousIssue") {
       const index = currentIssues.findIndex((item) => item.id === issueCursor);
       const step = command === "navigation.nextIssue" ? 1 : -1;
@@ -1435,12 +1474,17 @@ function Workspace({
                   </label>
                 </div>
                 <div className="source-context">
-                  {selection
+                  {currentObject
                     ? t("已定位{0} {1}", {
-                        "0": selection.kind === "type" ? t("类型") : t("实例"),
-                        "1": selection.id,
+                        "0": currentObject.kind === "definition" ? t("定义") : t("实例"),
+                        "1": currentObject.label,
                       })
-                    : t("从左侧选择设备定位源数据")}{" "}
+                    : selection
+                      ? t("已定位{0} {1}", {
+                          "0": selection.kind === "type" ? t("类型") : t("实例"),
+                          "1": selection.id,
+                        })
+                      : t("从左侧选择设备定位源数据")}{" "}
                   {t("· 参数保存会更新此文件")}
                 </div>
                 <div className="source-lines" ref={sourceViewport}>
@@ -1653,6 +1697,10 @@ const plugin: WorkbenchPlugin = {
     ],
   },
   Workbench: HvacWorkbench,
+  objectIndex: (data) => {
+    const source = (data as Data | undefined)?.source;
+    return source ? modelObjects(source) : undefined;
+  },
   views: views
     .filter((view) => view.id !== "file")
     .map(({ id, label, icon, description }) => ({ id, label, icon, keywords: description })),

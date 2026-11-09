@@ -92,12 +92,20 @@ export type WorkbenchProps = {
     canForward: boolean;
     canClose?: boolean;
     canNavigateProblems?: boolean;
+    objectDefinition?: string;
   }) => void;
 };
+export type WorkbenchObject = MenuItem & {
+  kind: "definition" | "instance";
+  definition: string;
+};
+export type WorkbenchObjectIndex = { objects: WorkbenchObject[]; truncated: boolean };
+
 export type WorkbenchPlugin = {
   manifest: PluginManifest;
   Workbench: ComponentType<WorkbenchProps>;
   views?: readonly MenuItem[];
+  objectIndex?: (data: unknown) => WorkbenchObjectIndex | undefined;
 };
 
 export const labels: Record<string, string> = {

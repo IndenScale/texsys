@@ -312,7 +312,13 @@ function Studio({ plugins, chrome }: { plugins: WorkbenchPlugin[]; chrome: Studi
   const [historyStates, setHistoryStates] = useState<
     Record<
       string,
-      { canBack: boolean; canForward: boolean; canClose?: boolean; canNavigateProblems?: boolean }
+      {
+        canBack: boolean;
+        canForward: boolean;
+        canClose?: boolean;
+        canNavigateProblems?: boolean;
+        objectDefinition?: string;
+      }
     >
   >({});
   const [runCommands, setRunCommands] = useState<Record<string, readonly WorkbenchRunCommand[]>>(
@@ -433,16 +439,27 @@ function Studio({ plugins, chrome }: { plugins: WorkbenchPlugin[]; chrome: Studi
     state?.plugins.some((item) => item.id === plugin.manifest.id),
   );
   const current = available.find((plugin) => plugin.manifest.id === active);
+  const disciplineData = state?.data[active];
+  const objectIndex = useMemo(
+    () => current?.objectIndex?.(disciplineData),
+    [current, disciplineData],
+  );
+  const objectDefinition = coreHistory.active ? undefined : historyStates[active]?.objectDefinition;
+  const usageObjects = objectDefinition
+    ? (objectIndex?.objects ?? []).filter(
+        (item) => item.kind === "instance" && item.definition === objectDefinition,
+      )
+    : [];
   const activeRunCommands = current ? runCommands[active] : undefined;
   const running = state?.jobs.filter((job) => job.state === "running").length ?? 0;
   const showTasks = (id?: string) => {
     setTaskId(id);
     updateLayout(active, { bottomOpen: true, bottomTab: "tasks" });
   };
-  const requestNavigation = (command: string) => {
+  const requestNavigation = (command: string, path?: string) => {
     setNavigation((previous) => ({
       ...previous,
-      [active]: { command, token: (previous[active]?.token ?? 0) + 1 },
+      [active]: { command, path, token: (previous[active]?.token ?? 0) + 1 },
     }));
     setMenu(null);
   };
@@ -465,6 +482,10 @@ function Studio({ plugins, chrome }: { plugins: WorkbenchPlugin[]; chrome: Studi
     setMenu(null);
     if (isEditorMenuCommand(id)) {
       if (editorMenuEnabled[id]) setEditorMenuRequest({ id });
+      return;
+    }
+    if (id.startsWith("studio.object:")) {
+      requestNavigation("objects.open", id.slice("studio.object:".length));
       return;
     }
     const view = current?.views?.find((item) => "studio.view:" + item.id === id);
@@ -573,6 +594,15 @@ function Studio({ plugins, chrome }: { plugins: WorkbenchPlugin[]; chrome: Studi
         } else {
           updateLayout(active, { bottomOpen: true, bottomTab: "problems" });
         }
+        break;
+      case "objects.search":
+        if (objectIndex?.objects.length) openCommands("objects");
+        break;
+      case "objects.definition":
+        if (objectDefinition) requestNavigation(id, objectDefinition);
+        break;
+      case "objects.references":
+        if (usageObjects.length) openCommands("references");
         break;
       case "navigation.nextIssue":
       case "navigation.previousIssue":
@@ -694,6 +724,9 @@ function Studio({ plugins, chrome }: { plugins: WorkbenchPlugin[]; chrome: Studi
         !!activeRunCommands?.find((command) => command.id === item.id)?.disabled ||
         (item.id === "view.fullscreen" && !document.fullscreenEnabled) ||
         (item.id === "view.wordWrap" && !coreHistory.canEditSource) ||
+        (item.id === "objects.search" && !objectIndex?.objects.length) ||
+        (item.id === "objects.definition" && !objectDefinition) ||
+        (item.id === "objects.references" && !usageObjects.length) ||
         ((item.id === "navigation.nextIssue" || item.id === "navigation.previousIssue") &&
           !historyStates[active]?.canNavigateProblems) ||
         (item.id === "document.save" && !coreHistory.canSave) ||
@@ -827,7 +860,7 @@ function Studio({ plugins, chrome }: { plugins: WorkbenchPlugin[]; chrome: Studi
     commandOpen,
   ]);
   useEffect(() => {
-    if (!commandOpen || commandScope === "commands" || commandScope === "views") return;
+    if (!commandOpen || !["all", "files", "recent"].includes(commandScope)) return;
     let current = true;
     setFilesLoading(true);
     setFilesError("");
@@ -964,26 +997,40 @@ function Studio({ plugins, chrome }: { plugins: WorkbenchPlugin[]; chrome: Studi
           focusRequest={commandFocusRequest}
           returnFocus={commandOrigin}
           commands={menuItems.filter((item) => item.id !== "commands.open")}
-          viewCommands={[
-            ...menuItems
-              .filter((item) =>
-                [
-                  "workspace.explorer",
-                  "workspace.search",
-                  "workspace.scm",
-                  "view.problems",
-                  "view.terminal",
-                  "tasks.show",
-                ].includes(item.id),
-              )
-              .map((item) => ({ ...item, searchOnly: false })),
-            ...(current?.views ?? []).map((item) => ({
-              ...item,
-              id: "studio.view:" + item.id,
-              label: t(item.label),
-              group: t(current?.manifest.discipline) ?? t("视图"),
-            })),
-          ]}
+          pickerTruncated={
+            (commandScope === "objects" || commandScope === "references") &&
+            !!objectIndex?.truncated
+          }
+          pickerCommands={
+            commandScope === "objects" || commandScope === "references"
+              ? (commandScope === "references" ? usageObjects : (objectIndex?.objects ?? [])).map(
+                  (item) => ({
+                    ...item,
+                    id: "studio.object:" + item.id,
+                    group: t(item.kind === "instance" ? "实例" : "定义"),
+                  }),
+                )
+              : [
+                  ...menuItems
+                    .filter((item) =>
+                      [
+                        "workspace.explorer",
+                        "workspace.search",
+                        "workspace.scm",
+                        "view.problems",
+                        "view.terminal",
+                        "tasks.show",
+                      ].includes(item.id),
+                    )
+                    .map((item) => ({ ...item, searchOnly: false })),
+                  ...(current?.views ?? []).map((item) => ({
+                    ...item,
+                    id: "studio.view:" + item.id,
+                    label: t(item.label),
+                    group: t(current?.manifest.discipline) ?? t("视图"),
+                  })),
+                ]
+          }
           onOpen={() => openCommands("all")}
           onClose={closeCommands}
           invoke={invokeCommand}
@@ -1126,7 +1173,8 @@ function Studio({ plugins, chrome }: { plugins: WorkbenchPlugin[]; chrome: Studi
                             previous[id]?.canBack === next.canBack &&
                             previous[id]?.canForward === next.canForward &&
                             previous[id]?.canClose === next.canClose &&
-                            previous[id]?.canNavigateProblems === next.canNavigateProblems
+                            previous[id]?.canNavigateProblems === next.canNavigateProblems &&
+                            previous[id]?.objectDefinition === next.objectDefinition
                               ? previous
                               : { ...previous, [id]: next },
                           )

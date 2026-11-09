@@ -22,7 +22,7 @@ function load(source) {
 const { assertionLocation } = load(
   "packages/hvac-graphics/src/texsys_hvac_graphics/assets/analysis.ts",
 );
-const { bindingValue, instanceFromRef, issuesFor, sourceObjectLine } = load(
+const { bindingValue, instanceFromRef, issuesFor, modelObjects, sourceObjectLine } = load(
   "packages/studio-hvac/src/texsys_studio_hvac/assets/model.ts",
 );
 const source = {
@@ -71,6 +71,31 @@ test("source navigation distinguishes a type and instance with the same name", (
   assert.equal(lines[typeLine], '    "Pump": {');
   assert.equal(lines[instanceLine], '        "Pump": {');
   assert.equal(sourceObjectLine(data, { kind: "instance", id: "missing" }), -1);
+});
+
+test("model object navigation keeps reused nested instances distinct and locates their declaration", () => {
+  const data = {
+    root: "Station",
+    components: {
+      Station: { instances: { Left: { component: "Loop" }, Right: { component: "Loop" } } },
+      Loop: { instances: { Pump: { component: "PumpType" }, Cycle: { component: "Station" } } },
+      PumpType: {},
+    },
+  };
+  const { objects, truncated } = modelObjects(data);
+  const matches = objects.filter(
+    (item) => item.kind === "instance" && item.definition === "PumpType",
+  );
+  assert.deepEqual(
+    matches.map((item) => item.label),
+    ["Station.Left.Pump", "Station.Right.Pump"],
+  );
+  assert.notEqual(matches[0].id, matches[1].id);
+  assert.equal(truncated, false);
+  const lines = JSON.stringify(data, null, 2).split("\n");
+  for (const item of matches)
+    assert.equal(lines[sourceObjectLine(data, item.selection)], '        "Pump": {');
+  assert.equal(objects.filter((item) => item.kind === "instance").length, 6);
 });
 
 test("constraint location selects first violating sample, not event or largest value", () => {

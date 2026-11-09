@@ -4,6 +4,7 @@ import type {
   Diagram,
   Simulation,
 } from "../../../../hvac-graphics/src/texsys_hvac_graphics/assets/types";
+import type { WorkbenchObject } from "../../../../../src/texsys/assets/studio/sdk";
 import { labels } from "../../../../../src/texsys/assets/studio/sdk";
 import {
   backendName,
@@ -110,13 +111,56 @@ export function instanceFromRef(source: Source, reference?: string): string | un
     (id) => local === id || local.startsWith(id + ".") || local.startsWith(id + "#"),
   );
 }
-export function sourceObjectLine(source: Source, selection?: Selection): number {
+export type ModelObject = WorkbenchObject & {
+  selection: Selection & { owner?: string };
+};
+export function modelObjects(source: Source): { objects: ModelObject[]; truncated: boolean } {
+  const objects: ModelObject[] = Object.keys(source.components).map((definition) => ({
+    id: JSON.stringify(["definition", definition]),
+    label: definition,
+    icon: "cube",
+    kind: "definition",
+    definition,
+    selection: { kind: "type", id: definition },
+  }));
+  const limit = 5000;
+  let count = 0;
+  let truncated = false;
+  const ancestors = new Set<string>();
+  const visit = (owner: string, path: string[]) => {
+    if (ancestors.has(owner) || !Object.hasOwn(source.components, owner)) return;
+    ancestors.add(owner);
+    for (const [id, entry] of Object.entries(source.components[owner].instances ?? {})) {
+      if (count === limit) {
+        truncated = true;
+        break;
+      }
+      const occurrence = [...path, id];
+      count++;
+      objects.push({
+        id: JSON.stringify(["instance", ...occurrence]),
+        label: [source.root, ...occurrence].join("."),
+        keywords: entry.component,
+        icon: "system",
+        kind: "instance",
+        definition: entry.component,
+        selection: { kind: "instance", id, owner },
+      });
+      visit(entry.component, occurrence);
+      if (truncated) break;
+    }
+    ancestors.delete(owner);
+  };
+  visit(source.root, []);
+  return { objects, truncated };
+}
+export function sourceObjectLine(source: Source, selection?: ModelObject["selection"]): number {
   if (!selection) return -1;
   const lines = JSON.stringify(source, null, 2).split("\n");
   const path =
     selection.kind === "type"
       ? ["components", selection.id]
-      : ["components", source.root, "instances", selection.id];
+      : ["components", selection.owner ?? source.root, "instances", selection.id];
   let start = 0,
     end = lines.length;
   for (const [depth, key] of path.entries()) {
