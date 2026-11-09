@@ -43,21 +43,47 @@ def valid_document() -> dict:
   }
 
 
-def test_lint_reports_missing_root_component_and_instance_definition(tmp_path: Path) -> None:
+def test_check_reports_missing_root_component_and_instance_definition(tmp_path: Path) -> None:
   root = make_project(tmp_path)
   document = valid_document()
   document["root"] = "Missing"
   document["components"]["Loop"]["instances"]["first"]["component"] = "Absent"
   write_document(root, document)
 
-  result = runner.invoke(app, ["lint", "--json", "-p", str(root)])
+  result = runner.invoke(app, ["check", "--json", "-p", str(root)])
 
   assert result.exit_code == 1
   diagnostics = json.loads(result.output)["diagnostics"]
   assert {item["rule"] for item in diagnostics} >= {"L001", "L002"}
 
 
-def test_lint_rejects_undefined_port_and_self_connection(tmp_path: Path) -> None:
+def test_lint_reports_style_separately_from_check(tmp_path: Path) -> None:
+  root = make_project(tmp_path)
+  document = valid_document()
+  source = write_document(root, document)
+  args = ["--json", "-p", str(root)]
+  original = source.read_bytes()
+
+  assert runner.invoke(app, ["check", *args]).exit_code == 0
+  result = runner.invoke(app, ["lint", *args])
+  assert result.exit_code == 1
+  assert [item["rule"] for item in json.loads(result.output)["diagnostics"]] == ["F001"]
+  assert source.read_bytes() == original
+
+  document["root"] = "Missing"
+  source.write_text(json.dumps(document, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+  assert runner.invoke(app, ["lint", *args]).exit_code == 0
+  assert runner.invoke(app, ["check", *args]).exit_code == 1
+
+  source.write_text("{", encoding="utf-8")
+  result = runner.invoke(app, ["lint", *args])
+  assert result.exit_code == 3
+  assert [item["rule"] for item in json.loads(result.output)["diagnostics"]] == ["F000"]
+  check = runner.invoke(app, ["check", *args])
+  assert [item["rule"] for item in json.loads(check.output)["diagnostics"]] == ["S001"]
+
+
+def test_check_rejects_undefined_port_and_self_connection(tmp_path: Path) -> None:
   root = make_project(tmp_path)
   document = valid_document()
   document["components"]["Loop"]["connections"] = [
@@ -66,19 +92,19 @@ def test_lint_rejects_undefined_port_and_self_connection(tmp_path: Path) -> None
   ]
   write_document(root, document)
 
-  result = runner.invoke(app, ["lint", "--json", "-p", str(root)])
+  result = runner.invoke(app, ["check", "--json", "-p", str(root)])
 
   assert result.exit_code == 1
   rules = {item["rule"] for item in json.loads(result.output)["diagnostics"]}
   assert rules >= {"L004", "L006", "L007", "L008"}
 
 
-def test_lint_rejects_duplicate_json_keys(tmp_path: Path) -> None:
+def test_check_rejects_duplicate_json_keys(tmp_path: Path) -> None:
   root = make_project(tmp_path)
   source = root / "src" / "system.sdl.json"
   source.write_text('{"schema_version": 1, "schema_version": 1}')
 
-  result = runner.invoke(app, ["lint", "--json", "-p", str(root)])
+  result = runner.invoke(app, ["check", "--json", "-p", str(root)])
 
   assert result.exit_code == 1
   diagnostic = json.loads(result.output)["diagnostics"][0]
@@ -101,11 +127,11 @@ def test_explicit_network_reports_invalid_members(tmp_path, mutation, rule):
   loop["connections"][0]["id"] = "feed"
   loop["nets"] = {"CHW": {"kind": "water", "connections": ["feed"]}}
   write_document(root, document)
-  assert runner.invoke(app, ["lint", "--json", "-p", str(root)]).exit_code == 0
+  assert runner.invoke(app, ["check", "--json", "-p", str(root)]).exit_code == 0
 
   mutation(loop)
   write_document(root, document)
-  result = runner.invoke(app, ["lint", "--json", "-p", str(root)])
+  result = runner.invoke(app, ["check", "--json", "-p", str(root)])
   assert result.exit_code == 1
   assert rule in {item["rule"] for item in json.loads(result.output)["diagnostics"]}
 
@@ -153,23 +179,23 @@ def test_format_does_not_rewrite_invalid_json(tmp_path: Path) -> None:
   assert source.read_bytes() == original
 
 
-def test_lint_empty_initialized_project_passes(tmp_path: Path) -> None:
+def test_check_empty_initialized_project_passes(tmp_path: Path) -> None:
   root = make_project(tmp_path)
 
-  result = runner.invoke(app, ["lint", "--json", "-p", str(root)])
+  result = runner.invoke(app, ["check", "--json", "-p", str(root)])
 
   assert result.exit_code == 0
   assert json.loads(result.output) == {"status": "pass", "files": 0, "diagnostics": []}
 
 
 @pytest.mark.parametrize("direction", [[], {}])
-def test_lint_reports_invalid_direction_type(tmp_path: Path, direction: object) -> None:
+def test_check_reports_invalid_direction_type(tmp_path: Path, direction: object) -> None:
   root = make_project(tmp_path)
   document = valid_document()
   document["components"]["Pump"]["ports"]["inlet"]["direction"] = direction
   write_document(root, document)
 
-  result = runner.invoke(app, ["lint", "--json", "-p", str(root)])
+  result = runner.invoke(app, ["check", "--json", "-p", str(root)])
 
   assert result.exit_code == 1
   assert any(item["rule"] == "S002" for item in json.loads(result.output)["diagnostics"])

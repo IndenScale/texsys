@@ -1,11 +1,10 @@
 """HVAC Studio contribution, using existing engineering APIs and shared graphics."""
 
 import copy
-import json
 from pathlib import Path
 import tempfile
 
-from texsys.api import build, evaluate, lint
+from texsys.api import build, check, evaluate
 from texsys.evidence import file_digest, write_json
 from texsys.formal import _check_schema, _check_semantics, _load_json
 from texsys.project import ProjectError, inspect_project
@@ -136,7 +135,7 @@ class HvacWorkbench(StudioPlugin):
   def execute(self, root, action, options):
     project = inspect_project(root)
     if action == "check":
-      result = lint(root).as_dict()
+      result = check(root).as_dict()
       write_json(root / project.build / "studio-check.json", result)
       return {"status": result["status"], "diagnostics": result["diagnostics"]}
     result_paths, conclusions = [], []

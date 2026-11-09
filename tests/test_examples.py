@@ -16,11 +16,11 @@ PUBLIC_EXAMPLES = ("minimal", "hvac-cold-station", "hvac-system-schematic")
 def test_public_examples_match_reviewed_lint_baseline(name: str) -> None:
   root = EXAMPLES / name
 
-  result = runner.invoke(app, ["lint", "--json", "-p", str(root)])
+  result = runner.invoke(app, ["check", "--json", "-p", str(root)])
 
   assert result.exit_code == 0, result.output
   assert json.loads(result.output) == json.loads(
-    (root / "expected" / "lint.json").read_text()
+    (root / "expected" / "check.json").read_text()
   )
 
 
@@ -36,11 +36,11 @@ def test_public_examples_are_formatted(name: str) -> None:
 def test_invalid_example_matches_reviewed_diagnostics() -> None:
   root = EXAMPLES / "fixtures" / "invalid"
 
-  result = runner.invoke(app, ["lint", "--json", "-p", str(root)])
+  result = runner.invoke(app, ["check", "--json", "-p", str(root)])
 
   assert result.exit_code == 1
   assert json.loads(result.output) == json.loads(
-    (root / "expected" / "lint.json").read_text()
+    (root / "expected" / "check.json").read_text()
   )
 
 
@@ -48,11 +48,11 @@ def test_invalid_example_matches_reviewed_diagnostics() -> None:
 def test_large_example_is_a_deterministic_valid_project() -> None:
   root = EXAMPLES / "fixtures" / "large"
 
-  result = runner.invoke(app, ["lint", "--json", "-p", str(root)])
+  result = runner.invoke(app, ["check", "--json", "-p", str(root)])
 
   assert result.exit_code == 0, result.output
   assert json.loads(result.output) == json.loads(
-    (root / "expected" / "lint.json").read_text()
+    (root / "expected" / "check.json").read_text()
   )
   document = json.loads((root / "src" / "system.sdl.json").read_text())
   assert len(document["components"]["LargeLoop"]["instances"]) == 120

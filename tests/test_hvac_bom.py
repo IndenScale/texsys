@@ -183,7 +183,7 @@ def test_pending_value_is_rejected_instead_of_becoming_unknown_by_null(tmp_path:
   }
   write_v2(root, equipment)
 
-  result = runner.invoke(app, ["lint", "--json", "-p", str(root)])
+  result = runner.invoke(app, ["check", "--json", "-p", str(root)])
 
   assert result.exit_code == 1
   diagnostics = json.loads(result.output)["diagnostics"]

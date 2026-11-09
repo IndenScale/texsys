@@ -9,7 +9,7 @@ from typing import Any
 
 from texsys.dependencies import LOCK_NAME, lock_project
 from texsys.evidence import file_digest, write_json
-from texsys.formal import lint_project
+from texsys.formal import check_project
 from texsys.hooks import load_hooks, run_hook
 from texsys.packages import installed_packages
 from texsys.project import ProjectError, inspect_project
@@ -102,9 +102,9 @@ def build_project(
   packages = installed_packages()
   selection = resolve_targets(packages, manifest, targets, profile, scope)
 
-  lint = lint_project(root)
-  if lint.status != "pass":
-    raise ProjectError(f"Cannot build while lint status is {lint.status}; run texsys lint.")
+  check = check_project(root)
+  if check.status != "pass":
+    raise ProjectError(f"Cannot build while check status is {check.status}; run texsys check.")
   dependencies = manifest.get("dependencies", {})
   lock_path = root / LOCK_NAME
   verify_lock = dependencies != {} or lock_path.exists() or lock_path.is_symlink()
@@ -303,9 +303,9 @@ def evaluate_project(path: Path, scenario: str | Path, backend: str = "scipy") -
   source = (root / scenario).resolve()
   if not source.is_relative_to((root / project.assets).resolve()) or not source.is_file():
     raise ProjectError("Scenario must be an existing file inside the project assets directory.")
-  lint = lint_project(root)
-  if lint.status != "pass":
-    raise ProjectError(f"Cannot evaluate while lint status is {lint.status}; run texsys lint.")
+  check = check_project(root)
+  if check.status != "pass":
+    raise ProjectError(f"Cannot evaluate while check status is {check.status}; run texsys check.")
   manifest = _manifest(root)
   if manifest.get("dependencies"):
     lock_project(root, check=True)

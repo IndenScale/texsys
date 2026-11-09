@@ -113,7 +113,11 @@ Instance 可附带 `parameters`，结构相同，仅能覆盖所引用 Component
 
 ## 诊断与格式化
 
-`texsys lint` 检查项目布局、JSON 语法、上述模式和静态语义。诊断规则编号以 `P`、`S`、`L`、`E` 分别表示项目、语法／模式、语义和执行问题。
+`texsys check` 汇总项目布局检查、JSON 解析、SDL 模式与静态语义校验，以及已安装插件通过 `TexsysPackage.check()` 提供的检查。诊断规则编号以 `P`、`S`、`L`、`E` 分别表示项目、语法／模式、语义和执行问题。
+
+`texsys lint` 对项目源目录下可解析的 `.sdl.json` 文件检查规范 JSON 表示。风格差异报告 `F001`。无法评估风格的文件报告 `F000`，解析细节由 `texsys check` 报告。`lint` 只读，并按风格规则判定结果。
+
+两个命令均支持 `--json` 输出结构化诊断。退出码 `0`、`1`、`2`、`3` 分别表示通过、失败、执行错误和无法判断。Python 对应入口为 `texsys.api.check(path)` 和 `texsys.api.lint(path)`。
 
 `texsys format` 使用两个空格缩进、键排序和末尾换行。它只改变 JSON 呈现，不改变值。`fmt` 是等价别名，`--check` 和 `--diff` 不写文件。
 

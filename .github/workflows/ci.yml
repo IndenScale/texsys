@@ -46,10 +46,10 @@ jobs:
 
       - name: Verify public examples
         run: |
-          uv run texsys lint -p examples/minimal
-          uv run texsys lint -p examples/hvac-cold-station
-          uv run texsys lint -p examples/hvac-system-schematic
-          uv run texsys lint -p examples/hvac-dynamic-station
+          uv run texsys check -p examples/minimal
+          uv run texsys check -p examples/hvac-cold-station
+          uv run texsys check -p examples/hvac-system-schematic
+          uv run texsys check -p examples/hvac-dynamic-station
           uv run texsys format --check -p examples/hvac-dynamic-station
           uv run texsys lock --check -p examples/hvac-dynamic-station
           uv run texsys format --check -p examples/minimal

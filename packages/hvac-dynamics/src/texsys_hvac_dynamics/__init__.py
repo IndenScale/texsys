@@ -34,7 +34,7 @@ class HvacDynamicsPackage(TexsysPackage):
   name = "hvac-dynamics"
   version = "0.1.0"
 
-  def lint(self, root):
+  def check(self, root):
     if not has_physics(root):
       return ()
     try:

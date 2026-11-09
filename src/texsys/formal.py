@@ -51,7 +51,7 @@ class Diagnostic:
 
 
 @dataclass(frozen=True)
-class LintResult:
+class CheckResult:
   status: str
   files: int
   diagnostics: tuple[Diagnostic, ...]
@@ -422,15 +422,15 @@ def _check_semantics(data: Any, file: str) -> tuple[Diagnostic, ...]:
   return tuple(diagnostics)
 
 
-def lint_project(path: Path) -> LintResult:
+def check_project(path: Path) -> CheckResult:
   root = path.expanduser().resolve()
   diagnostics: list[Diagnostic] = []
   try:
     project = inspect_project(root)
   except ProjectError as error:
-    return LintResult("fail", 0, (Diagnostic("P001", "fail", "texsys.toml", str(error)),))
+    return CheckResult("fail", 0, (Diagnostic("P001", "fail", "texsys.toml", str(error)),))
   if project is None:
-    return LintResult(
+    return CheckResult(
       "fail", 0, (Diagnostic("P001", "fail", "texsys.toml", "Project is not initialized."),)
     )
 
@@ -470,24 +470,58 @@ def lint_project(path: Path) -> LintResult:
 
   try:
     for package in installed_packages():
-      diagnostics.extend(package.lint(root))
+      diagnostics.extend(package.check(root))
   except (ImportError, OSError, TypeError, ValueError) as error:
     diagnostics.append(Diagnostic("P003", "error", "texsys.toml", str(error)))
 
+  return CheckResult(_diagnostic_status(diagnostics), len(files), tuple(diagnostics))
+
+
+def _diagnostic_status(diagnostics: list[Diagnostic]) -> str:
   statuses = {item.status for item in diagnostics}
   if "error" in statuses:
-    status = "error"
-  elif "fail" in statuses:
-    status = "fail"
-  elif "indeterminate" in statuses:
-    status = "indeterminate"
-  else:
-    status = "pass"
-  return LintResult(status, len(files), tuple(diagnostics))
+    return "error"
+  if "fail" in statuses:
+    return "fail"
+  if "indeterminate" in statuses:
+    return "indeterminate"
+  return "pass"
 
 
 def _canonical_json(data: Any) -> str:
   return json.dumps(data, ensure_ascii=False, indent=2, sort_keys=True) + "\n"
+
+
+def lint_project(path: Path) -> CheckResult:
+  """Report SDL source style without modifying files or validating the model."""
+  project = inspect_project(path)
+  if project is None:
+    raise ProjectError(f"Project is not initialized: {path.expanduser().resolve()}")
+  if not (project.root / project.source).is_dir():
+    raise ProjectError("Source layout is not a directory.")
+
+  files = _source_files(project.root, project.source)
+  diagnostics: list[Diagnostic] = []
+  for source in files:
+    relative = _relative(project.root, source)
+    try:
+      original = source.read_text(encoding="utf-8")
+      canonical = _canonical_json(_load_json(original))
+    except ValueError:
+      diagnostics.append(Diagnostic(
+        "F000", "indeterminate", relative,
+        "Style could not be evaluated. Run texsys check for input diagnostics.",
+      ))
+      continue
+    except OSError as error:
+      diagnostics.append(Diagnostic("E001", "error", relative, str(error)))
+      continue
+    if original != canonical:
+      diagnostics.append(Diagnostic(
+        "F001", "fail", relative,
+        "SDL JSON does not use canonical formatting. Run texsys format.",
+      ))
+  return CheckResult(_diagnostic_status(diagnostics), len(files), tuple(diagnostics))
 
 
 def _atomic_write(path: Path, content: str, *, create_only: bool = False) -> None:

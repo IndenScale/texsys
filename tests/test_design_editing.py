@@ -56,7 +56,7 @@ def test_cli_batch_previews_and_atomically_creates_design(tmp_path):
   current = api.read_design(tmp_path)
   assert current["revision"] == result["revision"] != state["revision"]
   assert current["document"]["components"]["Loop"]["nets"]["Water"]["connections"] == ["feed"]
-  assert api.lint(tmp_path).status == "pass"
+  assert api.check(tmp_path).status == "pass"
   assert runner.invoke(app, apply_args, input=json.dumps(batch)).exit_code == 3
 
   update = request(tmp_path, [{"op": "set-net-members", "id": "Water", "connections": []}])

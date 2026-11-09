@@ -16,7 +16,7 @@ class HvacBomPackage(TexsysPackage):
   name = "hvac-bom"
   version = "0.1.0"
 
-  def lint(self, root: Path) -> tuple[Diagnostic, ...]:
+  def check(self, root: Path) -> tuple[Diagnostic, ...]:
     if not domain_path(root).is_file():
       return ()
     try:

@@ -33,7 +33,7 @@ name = "hvac-bom"
 version = "0.1.0"
 source = "path"
 path = "../../packages/hvac-bom"
-digest = "sha256:66424ca3d48ac81243d2904c97efc627b6bc51435936ab66afa980fd77cddd53"
+digest = "sha256:243665d6766e4f61fa43f061c0cf2a83a27b9cffb2900fabe30251dd829d3850"
 direct = true
 dependencies = ["bom", "hvac-dynamics", "hvac-equipment"]
 
@@ -51,7 +51,7 @@ name = "hvac-dynamics"
 version = "0.1.0"
 source = "path"
 path = "../../packages/hvac-dynamics"
-digest = "sha256:10ce6443b9def3419e128765e32910a8fbf93df0705d153fec974b450070cb35"
+digest = "sha256:3096dfb6ebab9b3f6ccb8e5a0e4266b701eab962629fe18e7addc2020ad6f95d"
 direct = true
 dependencies = []
 

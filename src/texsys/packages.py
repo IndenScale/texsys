@@ -11,7 +11,7 @@ class TexsysPackage:
   name = "unnamed"
   version = "0.0.0"
 
-  def lint(self, root: Path) -> tuple[Diagnostic, ...]:
+  def check(self, root: Path) -> tuple[Diagnostic, ...]:
     return ()
 
   def format(self, root: Path, check: bool = False, diff: bool = False) -> Any | None:

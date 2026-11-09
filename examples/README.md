@@ -19,6 +19,7 @@
 公开示例都可以通过：
 
 ```bash
+uv run texsys check -p examples/minimal
 uv run texsys lint -p examples/minimal
 uv run texsys format --check -p examples/hvac-cold-station
 ```

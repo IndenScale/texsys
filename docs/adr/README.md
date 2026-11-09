@@ -34,7 +34,7 @@ adr/NNNN-short-title.md
 | [0004](0004-uv-only-python-workflow.md)                                  | 统一使用 uv 管理 Python 环境与命令入口                      | 已接受                                 |
 | [0005](0005-executable-examples.md)                                      | 以可执行 examples 统一参考用例与端到端桩数据                | 已接受                                 |
 | [0006](0006-design-dependency-management.md)                             | 分离设计依赖的声明、锁定与同步                              | 已接受                                 |
-| [0007](0007-formal-checking-and-formatting.md)                           | 以 JSON 交换子集启动形式检查与格式化                        | 已接受                                 |
+| [0007](0007-formal-checking-and-formatting.md)                           | 以 JSON 交换子集启动形式检查与格式化                        | 已接受（0022 修订命令职责）            |
 | [0008](0008-six-stage-sysda-model.md)                                    | 采用六阶段 SysDA 模型并区分三类仿真                         | 已接受                                 |
 | [0009](0009-equipment-and-topology-refinement.md)                        | 建立设备与拓扑的分层映射规则                                | 已接受                                 |
 | [0010](0010-build-test-sim-and-package-boundaries.md)                    | 划分 build、test、sim 与领域包边界                          | 已接受（0011 补充）                    |
@@ -49,3 +49,4 @@ adr/NNNN-short-title.md
 | [0019](0019-first-executable-hvac-schematic-slice.md)                    | 以单页根网络启动 HVAC 原理图可执行切片                      | 已接受；0017／0018 的首个实现子集      |
 | [0020](0020-python-physics-and-typescript-engineering-graphics.md)       | Python 物理行为与 TypeScript/React 工程图元；清除旧草稿实现 | 已接受                                 |
 | [0021](0021-tex-studio-plugin-based-disciplinary-workbenches.md)         | Tex Studio 采用插件式多专业工作台架构                       | 已接受                                 |
+| [0022](0022-separate-project-check-and-style-lint.md)                    | 区分项目检查与源文件风格检查                                | 已接受                                 |

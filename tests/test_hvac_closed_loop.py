@@ -65,9 +65,9 @@ def test_hvac_closed_loop_is_real_and_deterministic(tmp_path: Path) -> None:
     path.name: path.read_bytes() for path in (root / "src").glob("*.json")
   }
 
-  lint = runner.invoke(app, ["lint", "--json", "-p", str(root)])
-  assert lint.exit_code == 0, lint.output
-  assert json.loads(lint.output)["status"] == "pass"
+  check = runner.invoke(app, ["check", "--json", "-p", str(root)])
+  assert check.exit_code == 0, check.output
+  assert json.loads(check.output)["status"] == "pass"
 
   first_build = runner.invoke(app, ["build", "-p", str(root)])
   assert first_build.exit_code == 0, first_build.output

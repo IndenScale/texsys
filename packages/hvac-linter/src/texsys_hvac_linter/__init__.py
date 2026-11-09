@@ -8,11 +8,11 @@ from texsys.packages import TexsysPackage
 from texsys_hvac_equipment.domain import domain_path, has_domain, load_system
 
 
-class HvacLinterPackage(TexsysPackage):
+class HvacStaticChecksPackage(TexsysPackage):
   name = "hvac-linter"
   version = "0.1.0"
 
-  def lint(self, root: Path) -> tuple[Diagnostic, ...]:
+  def check(self, root: Path) -> tuple[Diagnostic, ...]:
     if not has_domain(root):
       return ()
     try:
@@ -25,4 +25,4 @@ class HvacLinterPackage(TexsysPackage):
     return ()
 
 
-package = HvacLinterPackage()
+package = HvacStaticChecksPackage()

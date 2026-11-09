@@ -16,7 +16,7 @@ from texsys.dependencies import (
 )
 from texsys.editing import apply_edit, plan_edit, read_design
 from texsys.execution import build_project, evaluate_project, simulate_project, test_project
-from texsys.formal import _load_json, format_project, lint_project
+from texsys.formal import CheckResult, _load_json, check_project, format_project, lint_project
 from texsys.project import (
   DEPENDENCY_FILES,
   LOCK_FILES,
@@ -242,6 +242,22 @@ def apply_design_command(
   _run_design_edit(path, request, plan)
 
 
+@app.command("check")
+def check_command(
+  path: PathOption = Path("."),
+  json_output: Annotated[
+    bool,
+    typer.Option("--json", help="Emit machine-readable diagnostics."),
+  ] = False,
+) -> None:
+  """Check project structure, parse and validate SDL, and run domain checks."""
+  try:
+    result = check_project(path)
+  except ProjectError as error:
+    _print_error(error, code=2)
+  _print_check_result(result, json_output)
+
+
 @app.command("lint")
 def lint_command(
   path: PathOption = Path("."),
@@ -250,12 +266,15 @@ def lint_command(
     typer.Option("--json", help="Emit machine-readable diagnostics."),
   ] = False,
 ) -> None:
-  """Check project structure and SDL JSON exchange documents."""
+  """Report SDL source style issues without modifying files."""
   try:
     result = lint_project(path)
   except ProjectError as error:
     _print_error(error, code=2)
+  _print_check_result(result, json_output)
 
+
+def _print_check_result(result: CheckResult, json_output: bool) -> None:
   if json_output:
     typer.echo(json.dumps(result.as_dict(), ensure_ascii=False, indent=2, sort_keys=True))
   else:
@@ -344,7 +363,7 @@ def build_command(
     typer.Option("--scope", help="Override the selected target scope with a JSON object."),
   ] = None,
 ) -> None:
-  """Lint locked inputs and deterministically generate selected target artifacts."""
+  """Check locked inputs and deterministically generate selected target artifacts."""
   parsed_scope = None
   if scope is not None:
     try:

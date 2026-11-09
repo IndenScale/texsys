@@ -9,7 +9,7 @@ from typer.testing import CliRunner
 
 from texsys.cli import app
 from texsys.execution import build_project
-from texsys.formal import lint_project
+from texsys.formal import check_project
 from texsys_diagram import apply_overlay, check_document, digest, resolve_symbol
 CATALOG_VERSION = "test-fixture/1"
 CATALOG = {"family:ChilledWaterPump": {"id": "test-pump", "ports": {"inlet": {"kind": "chilled-water", "direction": "in"}, "outlet": {"kind": "chilled-water", "direction": "out"}}}}
@@ -125,7 +125,7 @@ def test_unknown_parameter_and_explicit_failure_have_distinct_states(project):
     p.pop("value")
     p["state"] = "unknown"
   mutate(project, unknown)
-  assert lint_project(project).status == "pass"
+  assert check_project(project).status == "pass"
   assert build_project(project).status == "pass"
   assert load(project)["behavior_state"] == "missing"
   mutate(project, lambda d: d["components"]["Chiller"]["behavior"]["parameters"]["cooling_kw"].update(state="failed"))
@@ -155,7 +155,7 @@ def test_instance_binding_and_reference_hash_are_projected(project):
 ])
 def test_invalid_behavior_bindings_fail_static_checks(project, change):
   mutate(project, change)
-  assert lint_project(project).status == "fail"
+  assert check_project(project).status == "fail"
 
 
 def test_symbol_resolution_does_not_lose_changed_ports():

@@ -16,6 +16,8 @@ def test_help() -> None:
   assert "--version" in result.output
   assert "init" in result.output
   assert "info" in result.output
+  assert "check" in result.output
+  assert "lint" in result.output
   assert "--install-completion" not in result.output
 
 
