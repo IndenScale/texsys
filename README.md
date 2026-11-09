@@ -104,6 +104,13 @@ uv run pre-commit run --all-files
 
 Shell 教程不得包含直接解释器或包安装器命令，包括通过兼容接口绕过 uv 项目工作流的写法。该约束由自定义 markdownlint 规则和 pre-commit 自动执行。
 
+Markdown 正文默认使用中文。`README_EN.md`、`CHANGELOG_EN.md` 等使用文件名后缀声明语言，`docs/en/` 使用目录声明语言，`AGENTS.md` 按例外使用英文。语言映射和识别阈值见 [文档语言配置](tools/doc-language.toml)。提交前检查暂存版本，PR／MR 检查合并基点到源分支提交之间新增或修改的 Markdown。整篇语言明显错配会阻止通过，个别段落的疑似错配只提示。
+
+```bash
+uv run --locked --only-group docs-lint tools/check_doc_language.py --staged
+uv run --locked --only-group docs-lint tools/check_doc_language.py --base main --head HEAD
+```
+
 ## 下一步（按优先级）
 
 1. 关闭阻塞性开放问题（见 open-questions 的"阻塞"列）。

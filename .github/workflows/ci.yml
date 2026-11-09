@@ -13,6 +13,8 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: ${{ github.event_name == 'pull_request' && '0' || '1' }}
 
       - name: Install uv
         uses: astral-sh/setup-uv@v6
@@ -26,6 +28,15 @@ jobs:
 
       - name: Synchronize locked Python environment
         run: uv sync --locked
+
+      - name: Check language of Markdown changed in the PR
+        if: github.event_name == 'pull_request'
+        env:
+          PR_BASE: ${{ github.event.pull_request.base.sha }}
+          PR_HEAD: ${{ github.event.pull_request.head.sha }}
+        run: |
+          uv run --locked --only-group docs-lint -m unittest discover -s tools -p test_doc_language.py
+          uv run --locked --only-group docs-lint tools/check_doc_language.py --base "$PR_BASE" --head "$PR_HEAD"
 
       - name: Install integrity-checked local Node tools
         run: uv run tools/sync_node_tools.py

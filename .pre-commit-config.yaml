@@ -7,6 +7,14 @@ repos:
         language: system
         types: [markdown]
         pass_filenames: true
+      - id: doc-language
+        name: Check language of staged Markdown
+        entry: uv run --locked --only-group docs-lint tools/check_doc_language.py --staged
+        language: system
+        types: [markdown]
+        pass_filenames: false
+        stages: [pre-commit]
+        verbose: true
       - id: ruff
         name: ruff
         entry: sh -c 'if [ -x .venv/bin/ruff ]; then exec .venv/bin/ruff check --force-exclude "$@"; elif command -v ruff >/dev/null 2>&1; then exec ruff check --force-exclude "$@"; else exec uv run ruff check --force-exclude "$@"; fi' --

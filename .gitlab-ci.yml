@@ -1,0 +1,11 @@
+doc-language:
+  image: ghcr.io/astral-sh/uv:0.12.19-python3.12-trixie
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+  variables:
+    GIT_DEPTH: "0"
+  script:
+    - >-
+      uv run --locked --only-group docs-lint tools/check_doc_language.py
+      --base "$CI_MERGE_REQUEST_DIFF_BASE_SHA"
+      --head "${CI_MERGE_REQUEST_SOURCE_BRANCH_SHA:-$CI_COMMIT_SHA}"
