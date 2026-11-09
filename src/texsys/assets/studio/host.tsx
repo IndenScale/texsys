@@ -485,33 +485,10 @@ function Studio({ plugins, chrome }: { plugins: WorkbenchPlugin[]; chrome: Studi
         window.dispatchEvent(new CustomEvent("texsys:terminal:new"));
         break;
       case "terminal.runActiveFile":
+      case "terminal.runSelectedText":
         updateLayout(active, { bottomOpen: true, bottomTab: "terminal" });
-        if (fileRequest?.path) {
-          window.dispatchEvent(
-            new CustomEvent("texsys:terminal:runCommand", {
-              detail: { command: `texsys check ${fileRequest.path}` },
-            }),
-          );
-        } else {
-          window.dispatchEvent(
-            new CustomEvent("texsys:terminal:runCommand", {
-              detail: { command: "texsys check" },
-            }),
-          );
-        }
+        window.dispatchEvent(new Event(`texsys:${id.replace(".", ":")}`));
         break;
-      case "terminal.runSelectedText": {
-        const text = window.getSelection()?.toString()?.trim();
-        updateLayout(active, { bottomOpen: true, bottomTab: "terminal" });
-        if (text) {
-          window.dispatchEvent(
-            new CustomEvent("texsys:terminal:runCommand", {
-              detail: { command: text },
-            }),
-          );
-        }
-        break;
-      }
       case "tasks.run":
       case "tasks.showRunning":
       case "tasks.show":
@@ -956,10 +933,8 @@ function Studio({ plugins, chrome }: { plugins: WorkbenchPlugin[]; chrome: Studi
                         openResult={() => {}}
                       />
                     }
-                    project={state.project.name}
-                    branch={state.project.branch?.name ?? "main"}
+                    key={state.project.path}
                     dirty={state.project.branch?.kind === "branch"}
-                    api={api}
                     notify={notify}
                   />
                 }

@@ -17,6 +17,7 @@ import "monaco-editor/languages/definitions/python/register.js";
 import "monaco-editor/languages/definitions/shell/register.js";
 import "monaco-editor/languages/definitions/yaml/register.js";
 import { t } from "./i18n";
+import { useUserPreferences } from "./user-preferences";
 import { sourceFileFormat, sourceOffset, type SearchMatch } from "./workspace-model";
 
 globalThis.MonacoEnvironment = {
@@ -41,6 +42,14 @@ type ModelState = {
   viewState: editor.ICodeEditorViewState | null;
 };
 export type SourceModels = Map<string, ModelState>;
+
+export function selectedSourceText(path: string, models: SourceModels) {
+  const model = models.get(path)?.model;
+  if (!model) return "";
+  const code = editor.getEditors().find((candidate) => candidate.getModel() === model);
+  const selection = code?.getSelection();
+  return selection ? model.getValueInRange(selection) : "";
+}
 
 export function SourceEditor({
   path,
@@ -69,19 +78,16 @@ export function SourceEditor({
   const callbacks = useRef({ onChange, onCursorLine });
   callbacks.current = { onChange, onCursorLine };
   const label = t("文件内容");
+  const { editorFontSize, editorWordWrap, editorLineNumbers, editorMinimap } = useUserPreferences();
 
   useLayoutEffect(() => {
     const code = editor.create(container.current!, {
       model: null,
       automaticLayout: true,
       fontFamily: "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace",
-      fontSize: 13,
-      lineHeight: 21,
       lineNumbersMinChars: 3,
-      wordWrap: "bounded",
       wordWrapColumn: 110,
       wrappingIndent: "same",
-      minimap: { enabled: true, renderCharacters: false, showSlider: "mouseover" },
       padding: { top: 8, bottom: 8 },
       scrollBeyondLastLine: false,
       fixedOverflowWidgets: true,
@@ -105,8 +111,15 @@ export function SourceEditor({
   }, []);
 
   useLayoutEffect(() => {
-    instance.current?.updateOptions({ ariaLabel: label });
-  }, [label]);
+    instance.current?.updateOptions({
+      ariaLabel: label,
+      fontSize: editorFontSize,
+      lineHeight: Math.round((editorFontSize * 21) / 13),
+      lineNumbers: editorLineNumbers ? "on" : "off",
+      wordWrap: editorWordWrap,
+      minimap: { enabled: editorMinimap, renderCharacters: false, showSlider: "mouseover" },
+    });
+  }, [label, editorFontSize, editorWordWrap, editorLineNumbers, editorMinimap]);
 
   useLayoutEffect(() => {
     const code = instance.current!;

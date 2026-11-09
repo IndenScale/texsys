@@ -38,7 +38,7 @@ import {
 } from "./NavigatorPanel";
 import "./workspace.css";
 import { SourceControl } from "./SourceControl";
-import { SourceEditor, type SourceModels } from "./SourceEditor";
+import { selectedSourceText, SourceEditor, type SourceModels } from "./SourceEditor";
 import { Settings } from "./Settings";
 import { Keycaps } from "./Keycaps";
 
@@ -317,6 +317,43 @@ export function CoreWorkspaceProvider({
           : active
             ? "source"
             : null;
+  const terminalFile =
+    activeTab === "source" && !active?.loading && !active?.error ? active?.path : undefined;
+  useEffect(() => {
+    const execute = (command: string) => {
+      window.dispatchEvent(new CustomEvent("texsys:terminal:runCommand", { detail: { command } }));
+    };
+    const runFile = () => {
+      const extension = terminalFile?.split(".").at(-1)?.toLowerCase();
+      const runner =
+        extension === "sh" || extension === "bash"
+          ? "bash"
+          : extension === "zsh"
+            ? "zsh"
+            : extension === "py"
+              ? "python3"
+              : null;
+      if (!terminalFile || !runner) {
+        notify(t("请打开已保存的 Shell 或 Python 脚本。"), true);
+        return;
+      }
+      const path = "'" + `./${terminalFile}`.replaceAll("'", "'\"'\"'") + "'";
+      execute(`${runner} ${path}`);
+    };
+    const runSelection = () => {
+      const selection =
+        window.getSelection()?.toString() ||
+        (terminalFile ? selectedSourceText(terminalFile, sourceModels) : "");
+      if (selection.trim()) execute(selection);
+      else notify(t("请先选择要在终端运行的文本。"), true);
+    };
+    window.addEventListener("texsys:terminal:runActiveFile", runFile);
+    window.addEventListener("texsys:terminal:runSelectedText", runSelection);
+    return () => {
+      window.removeEventListener("texsys:terminal:runActiveFile", runFile);
+      window.removeEventListener("texsys:terminal:runSelectedText", runSelection);
+    };
+  }, [notify, sourceModels, terminalFile]);
   const tabStop =
     activeTab ??
     (active ? "source" : searchDocumentOpen ? "search" : settingsOpen ? "settings" : null);
@@ -374,11 +411,14 @@ export function CoreWorkspaceProvider({
       void readGit();
     };
     window.addEventListener("focus", focus);
+    const terminalCompleted = () => void readGit();
+    window.addEventListener("texsys:terminal:completed", terminalCompleted);
     const timer = setInterval(() => {
       if (activity === "scm" && !busy) void readGit();
     }, 5000);
     return () => {
       window.removeEventListener("focus", focus);
+      window.removeEventListener("texsys:terminal:completed", terminalCompleted);
       clearInterval(timer);
     };
   }, [readFiles, readGit, activity, busy]);

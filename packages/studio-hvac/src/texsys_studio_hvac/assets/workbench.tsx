@@ -678,10 +678,8 @@ function Workspace({
       }
       openChecks={() => openView("checks")}
       taskPanel={taskPanel}
-      project={state.project.name}
-      branch={state.project.branch?.name ?? "main"}
+      key={state.project.path}
       dirty={state.project.branch?.kind === "branch"}
-      api={api}
       notify={notify}
     />
   );

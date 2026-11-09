@@ -11,7 +11,10 @@
   border-bottom: 1px solid var(--border, var(--ui-chrome-divider, #dfe5e8));
   padding: 0 10px;
   user-select: none;
-  transition: background 150ms ease, border-color 150ms ease, color 150ms ease;
+  transition:
+    background 150ms ease,
+    border-color 150ms ease,
+    color 150ms ease;
 }
 
 /* Panel Tabs (Rounded rectangles matching Texsys / AtomStudio Design System) */
@@ -50,7 +53,9 @@
   gap: 5px;
   cursor: pointer;
   position: relative;
-  transition: background 120ms ease, color 120ms ease;
+  transition:
+    background 120ms ease,
+    color 120ms ease;
   user-select: none;
   outline: none;
 }
@@ -97,7 +102,9 @@
   color: var(--ui-text, #263b46);
   margin-inline-start: 4px;
   box-sizing: border-box;
-  transition: background 120ms ease, color 120ms ease;
+  transition:
+    background 120ms ease,
+    color 120ms ease;
 }
 
 .bottom-panel-header .inline-tab.is-focused .tab-badge {
@@ -135,7 +142,9 @@ button.navigator-button.panel-header-action {
   display: inline-flex !important;
   align-items: center !important;
   justify-content: center !important;
-  transition: background 100ms ease, color 100ms ease !important;
+  transition:
+    background 100ms ease,
+    color 100ms ease !important;
 }
 
 .panel-header-action:hover,
@@ -232,32 +241,6 @@ button.navigator-button.panel-header-action:hover {
   display: block;
 }
 
-.terminal-hover-status {
-  color: var(--ui-text, #263b46);
-  font-size: 11.5px;
-  margin: 2px 0;
-}
-
-.terminal-hover-actions {
-  display: flex;
-  gap: 12px;
-  margin-top: 6px;
-}
-
-.terminal-hover-link {
-  color: #0366d6;
-  text-decoration: none;
-  font-size: 11.5px;
-  cursor: pointer;
-  background: none;
-  border: none;
-  padding: 0;
-}
-
-.terminal-hover-link:hover {
-  text-decoration: underline;
-}
-
 .bottom-panel-actions .terminal-header-session,
 button.navigator-button.terminal-header-session {
   width: auto !important;
@@ -276,7 +259,9 @@ button.navigator-button.terminal-header-session {
   font-weight: 400 !important;
   border: none !important;
   cursor: pointer !important;
-  transition: background 100ms ease, color 100ms ease !important;
+  transition:
+    background 100ms ease,
+    color 100ms ease !important;
   user-select: none !important;
 }
 
@@ -401,7 +386,9 @@ button.navigator-button.panel-split-chevron {
   min-width: 0;
   background: var(--ui-canvas, #ffffff);
   color: var(--ui-text, #263b46);
-  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-family:
+    ui-monospace, SFMono-Regular, "SF Mono", Menlo, Monaco, Consolas, "Liberation Mono",
+    "Courier New", monospace;
   font-size: 12px;
   line-height: 1.45;
   user-select: text;
@@ -445,146 +432,31 @@ button.navigator-button.panel-split-chevron {
   box-shadow: inset 0 0 0 1px var(--accent, #087f72);
 }
 
+.terminal-pane[hidden] {
+  display: none;
+}
+
 .terminal-viewport {
   flex: 1;
-  overflow-y: auto;
-  overflow-x: hidden;
   padding: 10px 14px;
   min-height: 0;
-  cursor: text;
-  scrollbar-width: thin;
-  scrollbar-color: rgba(0, 0, 0, 0.2) transparent;
-}
-
-.terminal-viewport::-webkit-scrollbar {
-  width: 10px;
-}
-
-.terminal-viewport::-webkit-scrollbar-thumb {
-  background: rgba(0, 0, 0, 0.15);
-  border-radius: 5px;
-}
-
-.terminal-viewport::-webkit-scrollbar-thumb:hover {
-  background: rgba(0, 0, 0, 0.28);
-}
-
-.terminal-line {
-  white-space: pre-wrap;
-  word-break: break-all;
-  display: flex;
-  align-items: baseline;
-  flex-wrap: wrap;
-  gap: 6px;
-  margin-bottom: 2px;
-}
-
-.terminal-system {
-  color: var(--accent, #087f72);
-  font-weight: 500;
-  margin-bottom: 6px;
-}
-
-.terminal-prompt-prefix {
-  display: inline-flex;
-  align-items: baseline;
-  gap: 5px;
-  font-weight: 500;
-  user-select: none;
-}
-
-.term-dot {
-  color: var(--accent, #087f72);
-}
-
-.term-dot-circle {
-  color: var(--ui-icon-muted, #6e7f89);
-}
-
-.term-venv {
-  color: #0b7261;
-  font-weight: 500;
-}
-
-.term-arrow {
-  color: var(--ui-text-muted, #657580);
-}
-
-.term-folder {
-  color: #0366d6;
-  font-weight: 600;
-}
-
-.term-git {
-  color: var(--ui-text-muted, #657580);
-}
-
-.term-branch {
-  color: #1a7f37;
-  font-weight: 600;
-}
-
-.term-branch.is-dirty {
-  color: #cf222e;
-}
-
-.term-dirty {
-  color: #cf222e;
-  font-weight: bold;
-}
-
-.term-cmd-text {
+  overflow: hidden;
+  background: var(--ui-canvas, #ffffff);
   color: var(--ui-text, #263b46);
-  font-weight: 500;
 }
 
-.terminal-output {
-  margin: 2px 0 6px 0;
-  padding: 0;
-  font-family: inherit;
-  font-size: inherit;
-  line-height: inherit;
-  color: var(--ui-text, #263b46);
-  white-space: pre-wrap;
-  word-break: break-word;
-}
-
-.terminal-output.is-error {
-  color: #cf222e;
-}
-
-.terminal-input-row {
-  display: flex;
-  align-items: baseline;
-  gap: 6px;
-  min-height: 20px;
-}
-
-.terminal-input-wrapper {
-  flex: 1;
-  position: relative;
-  display: inline-flex;
-  align-items: baseline;
-  min-width: 60px;
-}
-
-.terminal-real-input {
+.terminal-emulator {
   width: 100%;
-  background: transparent;
-  border: none;
-  outline: none;
-  color: var(--ui-text, #263b46);
-  font-family: inherit;
-  font-size: inherit;
-  line-height: inherit;
-  padding: 0;
-  margin: 0;
-  caret-color: var(--accent, #087f72);
+  height: 100%;
 }
 
-.terminal-real-input:focus {
-  outline: none;
-  border: none;
+.terminal-status {
+  flex-shrink: 0;
+  padding: 4px 14px;
+  color: var(--ui-text-muted, #657580);
+  font:
+    12px/1.4 system-ui,
+    sans-serif;
 }
 
 /* Terminal Layout Component: Sessions Sidebar on the Right (Matching VSCode Image 4 & 5) */
@@ -612,7 +484,9 @@ button.navigator-button.panel-split-chevron {
   color: var(--ui-text-muted, #657580);
   font-size: 12px;
   font-weight: 400;
-  transition: background 100ms ease, color 100ms ease;
+  transition:
+    background 100ms ease,
+    color 100ms ease;
   position: relative;
   outline: none;
 }
@@ -704,7 +578,9 @@ button.navigator-button.panel-split-chevron {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  transition: background 100ms ease, color 100ms ease;
+  transition:
+    background 100ms ease,
+    color 100ms ease;
 }
 
 .terminal-row-tool:hover {

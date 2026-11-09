@@ -8,6 +8,7 @@ from pathlib import Path
 import secrets
 import shutil
 import subprocess
+import tempfile
 import threading
 from urllib.parse import parse_qs, urlparse
 
@@ -16,6 +17,7 @@ from .runtime import Conflict, StudioRuntime
 from .files import file_operation, project_file, project_files, search_project
 from .search import replacement
 from .source_control import source_diff, source_operation, source_status, source_history, source_commit_diff, repository
+from .terminal import TerminalService
 
 ASSETS = Path(__file__).parents[1] / "assets" / "studio"
 FRONTEND_ASSETS = {
@@ -28,33 +30,59 @@ FRONTEND_ASSETS = {
 }
 
 
+class StudioServer(ThreadingHTTPServer):
+  def __init__(self, address, handler, terminals):
+    self.terminals = terminals
+    super().__init__(address, handler)
+
+  def server_close(self):
+    self.terminals.close()
+    super().server_close()
+
+
 def run_terminal_command(root: Path, request: dict) -> dict:
+  root = root.resolve()
+  boundary = (repository(root) if shutil.which("git") else None) or root
   command = request.get("command", "").strip()
-  cwd_rel = request.get("cwd", "")
-  cwd = (root / cwd_rel).resolve() if cwd_rel else root
-  if not cwd.is_relative_to(root) or not cwd.is_dir():
-    cwd = root
+  cwd = (root / request.get("cwd", "")).resolve()
+  if not cwd.is_relative_to(boundary) or not cwd.is_dir():
+    raise ProjectError("终端工作目录不可用，请新建终端。")
+  result = {"stdout": "", "stderr": "", "code": 0, "cwd": str(cwd)}
   if not command:
-    return {"stdout": "", "stderr": "", "code": 0}
+    return result
   try:
-    completed = subprocess.run(
-      command,
-      shell=True,
-      cwd=str(cwd),
-      capture_output=True,
-      text=True,
-      timeout=30,
-      env={**os.environ, "GIT_TERMINAL_PROMPT": "0", "LC_ALL": "en_US.UTF-8"},
-    )
-    return {
-      "stdout": completed.stdout[-16384:],
-      "stderr": completed.stderr[-16384:],
-      "code": completed.returncode,
-    }
+    with tempfile.TemporaryDirectory(prefix="texsys-terminal-") as temporary:
+      cwd_file = Path(temporary) / "cwd"
+      env = {**os.environ, "GIT_TERMINAL_PROMPT": "0", "LC_ALL": "en_US.UTF-8",
+             "TEXSYS_TERMINAL_CWD_FILE": str(cwd_file)}
+      env.pop("TEXSYS_TERMINAL_PREVIOUS_CWD", None)
+      if request.get("previousCwd"):
+        previous = (root / request["previousCwd"]).resolve()
+        if previous.is_relative_to(boundary) and previous.is_dir():
+          env["TEXSYS_TERMINAL_PREVIOUS_CWD"] = str(previous)
+      # A separate file keeps the final working directory out of terminal output.
+      script = """if [ -n "$TEXSYS_TERMINAL_PREVIOUS_CWD" ]; then
+  OLDPWD="$TEXSYS_TERMINAL_PREVIOUS_CWD"
+else
+  unset OLDPWD
+fi
+trap 'command pwd -P > "$TEXSYS_TERMINAL_CWD_FILE"' EXIT
+""" + command
+      completed = subprocess.run(script, shell=True, cwd=cwd, capture_output=True, text=True,
+                                 errors="replace", timeout=30, env=env)
+      result.update(stdout=completed.stdout[-16384:], stderr=completed.stderr[-16384:], code=completed.returncode)
+      recorded_cwd = os.fsdecode(cwd_file.read_bytes().removesuffix(b"\n")) if cwd_file.is_file() else ""
+      if recorded_cwd:
+        destination = Path(recorded_cwd).resolve()
+        if destination.is_relative_to(boundary) and destination.is_dir():
+          result["cwd"] = str(destination)
+        else:
+          result.update(code=1, directoryBlocked=True)
   except subprocess.TimeoutExpired:
-    return {"stdout": "", "stderr": "Command timed out after 30 seconds.", "code": 124}
-  except Exception as error:
-    return {"stdout": "", "stderr": str(error), "code": 1}
+    result.update(stderr="Command timed out after 30 seconds.", code=124)
+  except OSError as error:
+    result.update(stderr=str(error), code=1)
+  return result
 
 
 def compile_frontend(runtime: StudioRuntime):
@@ -77,9 +105,10 @@ def compile_frontend(runtime: StudioRuntime):
   return output
 
 
-def create_server(runtime: StudioRuntime, port=8710, frontend=None, token=None):
+def create_server(runtime: StudioRuntime, port=8710, frontend=None, token=None, public_port=None):
   frontend = compile_frontend(runtime) if frontend is None else frontend
   token = token or secrets.token_urlsafe(32)
+  terminals = TerminalService()
 
   def scm_root(scope):
     if scope not in {"project", "repository"}:
@@ -98,7 +127,9 @@ def create_server(runtime: StudioRuntime, port=8710, frontend=None, token=None):
       self.send_header("Cache-Control", "no-store")
       self.send_header("X-Content-Type-Options", "nosniff")
       self.send_header("Referrer-Policy", "no-referrer")
-      self.send_header("Content-Security-Policy", "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'")
+      port = self.server.server_port
+      self.send_header("Content-Security-Policy", "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; "
+                       f"img-src 'self' data:; connect-src 'self' ws://127.0.0.1:{port} ws://localhost:{port}; frame-ancestors 'none'")
       self.end_headers()
       self.wfile.write(data)
 
@@ -119,6 +150,11 @@ def create_server(runtime: StudioRuntime, port=8710, frontend=None, token=None):
       parsed = urlparse(self.path)
       if not self._host_allowed():
         self._send(403, {"error": "Invalid local host."})
+        return
+      if self.path == "/api/terminal/ws":
+        origins = ({f"http://127.0.0.1:{public_port}", f"http://localhost:{public_port}"}
+                   if public_port else {"http://" + self.headers["Host"]})
+        terminals.upgrade(self, runtime.root, token, origins)
         return
       if parsed.path == "/":
         page = ("<!doctype html><html lang=\"zh-CN\"><head><meta charset=\"utf-8\">"
@@ -239,7 +275,7 @@ def create_server(runtime: StudioRuntime, port=8710, frontend=None, token=None):
       except (ProjectError, OSError, ValueError, TypeError, KeyError) as error:
         self._send(400, {"error": str(error)})
 
-  return ThreadingHTTPServer(("127.0.0.1", port), Handler)
+  return StudioServer(("127.0.0.1", port), Handler, terminals)
 
 
 def serve(root: Path, port=8710, open_browser=False):
@@ -270,7 +306,7 @@ def serve_hmr(root: Path, port=8710, open_browser=False):
     raise ProjectError("Vite is missing; run uv run tools/sync_node_tools.py.")
   runtime = StudioRuntime(root)
   token = secrets.token_urlsafe(32)
-  api = create_server(runtime, 0, frontend=runtime.directory / "frontend", token=token)
+  api = create_server(runtime, 0, frontend=runtime.directory / "frontend", token=token, public_port=port)
   api_thread = threading.Thread(target=api.serve_forever, daemon=True)
   api_thread.start()
   frontend = runtime.directory / "hmr"
@@ -296,8 +332,9 @@ def serve_hmr(root: Path, port=8710, open_browser=False):
 import react from {json.dumps(str(root_dir / "node_modules/@vitejs/plugin-react/dist/index.js"))};
 export default defineConfig({{
   plugins: [react(), {{ name: "tex-studio-token", transformIndexHtml(html) {{ return html; }} }}],
-  server: {{ host: "127.0.0.1", port: {port}, strictPort: false, fs: {{ allow: {json.dumps(allowed)} }},
-    proxy: {{ "/api": {{ target: "http://127.0.0.1:{api.server_port}", changeOrigin: true,
+  server: {{ host: "127.0.0.1", port: {port}, strictPort: true, fs: {{ allow: {json.dumps(allowed)} }},
+    proxy: {{ "^/api/terminal/ws$": {{ target: "ws://127.0.0.1:{api.server_port}", changeOrigin: true, ws: true }},
+      "/api": {{ target: "http://127.0.0.1:{api.server_port}", changeOrigin: true,
       headers: {{ Origin: "http://127.0.0.1:{api.server_port}" }} }} }} }}
 }});
 ''')

@@ -566,6 +566,10 @@ test("language changes work without browser storage and error details keep their
       localizeError("正则表达式无效：unterminated group"),
       "Invalid regular expression: unterminated group",
     );
+    assert.equal(
+      localizeError("AI 服务返回 HTTP 429，请检查连接设置或服务状态。"),
+      "The AI service returned HTTP 429. Check the connection settings or service status.",
+    );
     setLocale("zh-CN");
     assert.equal(t("设置"), "设置");
   } finally {
@@ -874,6 +878,41 @@ test("terminal viewport, session and actions toolbar context menus match VS Code
   assert.equal(actionsMenu[13].label, "Reset Menu");
 });
 
-
-
-
+test("editor and terminal preferences persist independently and tolerate invalid stored values", () => {
+  const storageKey = "texsys.studio.user-preferences";
+  const values = new Map([
+    [
+      storageKey,
+      '{"editorFontSize":99,"editorWordWrap":"off","editorMinimap":false,"terminalFontSize":16}',
+    ],
+  ]);
+  const original = Object.getOwnPropertyDescriptor(globalThis, "localStorage");
+  Object.defineProperty(globalThis, "localStorage", {
+    configurable: true,
+    value: {
+      getItem: (key) => values.get(key) ?? null,
+      setItem: (key, value) => values.set(key, value),
+    },
+  });
+  try {
+    const { updateUserPreferences, defaultEditorPreferences } = load(
+      "src/texsys/assets/studio/user-preferences.ts",
+    );
+    updateUserPreferences({ editorLineNumbers: false });
+    assert.deepEqual(JSON.parse(values.get(storageKey)), {
+      editorFontSize: 13,
+      editorWordWrap: "off",
+      editorLineNumbers: false,
+      editorMinimap: false,
+      terminalFontSize: 16,
+    });
+    updateUserPreferences(defaultEditorPreferences);
+    assert.deepEqual(JSON.parse(values.get(storageKey)), {
+      ...defaultEditorPreferences,
+      terminalFontSize: 16,
+    });
+  } finally {
+    if (original) Object.defineProperty(globalThis, "localStorage", original);
+    else delete globalThis.localStorage;
+  }
+});

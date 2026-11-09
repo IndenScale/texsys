@@ -1,5 +1,2 @@
-export {
-  WorkbenchBottomPanel,
-  type TerminalSession,
-  type TerminalOutputLine,
-} from "./BottomPanel";
+export { WorkbenchBottomPanel } from "./BottomPanel";
+export type { TerminalSession } from "./TerminalPane";

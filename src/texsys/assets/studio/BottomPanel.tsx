@@ -4,57 +4,26 @@ import { NavigatorMenu, type NavigatorMenuItem } from "./NavigatorMenu";
 import { InlineTabStrip } from "./atomstudio/WorkspaceTabs";
 import { t } from "./i18n";
 import type { StudioLayout } from "./sdk";
+import {
+  TerminalPane,
+  type TerminalControls,
+  type TerminalInfo,
+  type TerminalProfile,
+  type TerminalSession,
+} from "./TerminalPane";
+import { useUserPreferences } from "./user-preferences";
 import "./terminal.css";
 
-export type TerminalOutputLine = {
-  id: string;
-  type: "command" | "output" | "error" | "system";
-  prompt?: {
-    project: string;
-    branch: string;
-    dirty: boolean;
-    venv: string;
-  };
-  text: string;
-};
+function createSession(profile: TerminalProfile = "default", command?: string): TerminalSession {
+  return { id: crypto.randomUUID(), profile, command };
+}
 
-export type TerminalSession = {
-  id: string;
-  name: string;
-  cwd: string;
-  shell: string;
-  pid: number;
-  commandLine: string;
-  integration: string;
-  history: TerminalOutputLine[];
-  commandHistory: string[];
-  historyIndex: number;
-  input: string;
-};
-
-let sessionCounter = 0;
-
-function createSession(
-  name = "zsh",
-  project = "texsys",
-  _branch = "main",
-  _dirty = true,
-): TerminalSession {
-  sessionCounter += 1;
-  const id = `term-${Date.now()}-${sessionCounter}`;
-  return {
-    id,
-    name,
-    cwd: project,
-    shell: name,
-    pid: 78000 + sessionCounter,
-    commandLine: `/bin/${name} -il`,
-    integration: "Rich",
-    history: [],
-    commandHistory: [],
-    historyIndex: -1,
-    input: "",
-  };
+function sessionName(session: TerminalSession) {
+  return (
+    session.name ??
+    session.info?.shell ??
+    (session.profile === "default" ? "Shell" : session.profile)
+  );
 }
 
 export type PanelTabDefinition = {
@@ -87,10 +56,7 @@ export function WorkbenchBottomPanel({
   problemsCount = 0,
   openChecks,
   taskPanel,
-  project = "texsys",
-  branch = "main",
   dirty = true,
-  api,
   notify,
 }: {
   layout: StudioLayout;
@@ -99,27 +65,21 @@ export function WorkbenchBottomPanel({
   problemsCount?: number;
   openChecks?: () => void;
   taskPanel: ReactNode;
-  project?: string;
-  branch?: string;
   dirty?: boolean;
-  api?: <T>(path: string, body?: unknown) => Promise<T>;
   notify?: (message: string, isError?: boolean) => void;
 }) {
-  const [sessions, setSessions] = useState<TerminalSession[]>(() => [
-    createSession("zsh", project, branch, dirty),
-  ]);
-  const [activeSessionId, setActiveSessionId] = useState<string>(() => sessions[0]?.id ?? "");
+  const { terminalFontSize } = useUserPreferences();
+  const [sessions, setSessions] = useState<TerminalSession[]>(() => [createSession()]);
+  const [primaryId, setPrimaryId] = useState(() => sessions[0].id);
   const [splitSessionId, setSplitSessionId] = useState<string | null>(null);
   const [focusedPane, setFocusedPane] = useState<"primary" | "secondary">("primary");
-
-  const activeSession = sessions.find((s) => s.id === activeSessionId) ?? sessions[0];
-  const splitSession = splitSessionId ? sessions.find((s) => s.id === splitSessionId) ?? null : null;
+  const controls = useRef(new Map<string, TerminalControls>()).current;
+  const panel = useRef<HTMLDivElement>(null);
+  const primary = sessions.find((session) => session.id === primaryId) ?? sessions[0];
+  const splitSession = sessions.find((session) => session.id === splitSessionId);
+  const activeSession = (focusedPane === "secondary" ? splitSession : primary) ?? primary;
+  const activeSessionId = activeSession?.id ?? "";
   const showSessionsSidebar = sessions.length > 1 || Boolean(splitSession);
-
-  const primaryInputRef = useRef<HTMLInputElement>(null);
-  const secondaryInputRef = useRef<HTMLInputElement>(null);
-  const primaryScrollRef = useRef<HTMLDivElement>(null);
-  const secondaryScrollRef = useRef<HTMLDivElement>(null);
 
   const mac = typeof navigator !== "undefined" && /Mac|iPhone|iPad/.test(navigator.platform);
 
@@ -156,506 +116,105 @@ export function WorkbenchBottomPanel({
       }}
       onMouseLeave={handleSessionMouseLeave}
     >
-      <div className="terminal-hover-title">{sess.name}</div>
+      <div className="terminal-hover-title">{sessionName(sess)}</div>
       <div className="terminal-hover-divider" />
-      <div className="terminal-hover-meta">
-        <div className="terminal-hover-row">
-          <span>{t("进程 ID (PID)：{pid}", { pid: sess.pid })}</span>
+      {sess.info && (
+        <div className="terminal-hover-meta">
+          <div className="terminal-hover-row">
+            <span>{t("进程 ID (PID)：{pid}", { pid: sess.info.pid })}</span>
+          </div>
+          <div className="terminal-hover-row">
+            <span>{t("命令行：{command}", { command: sess.info.commandLine })}</span>
+          </div>
         </div>
-        <div className="terminal-hover-row">
-          <span>{t("命令行：{command}", { command: sess.commandLine })}</span>
-        </div>
-      </div>
-      <div className="terminal-hover-divider" />
-      <div className="terminal-hover-status">
-        {t("Shell 集成：丰富")}
-      </div>
-      <div className="terminal-hover-actions">
-        <button
-          type="button"
-          className="terminal-hover-link"
-          onClick={() => {
-            setHoveredSessionId(null);
-            window.dispatchEvent(new CustomEvent("texsys:terminal:environment"));
-          }}
-        >
-          {t("显示环境贡献")}
-        </button>
-        <button
-          type="button"
-          className="terminal-hover-link"
-          onClick={() => {
-            setHoveredSessionId(null);
-            window.dispatchEvent(new CustomEvent("texsys:terminal:details"));
-          }}
-        >
-          {t("显示详情")}
-        </button>
-      </div>
+      )}
     </div>
   );
 
-  // Auto-scroll on new history items
-  useEffect(() => {
-    if (primaryScrollRef.current) {
-      primaryScrollRef.current.scrollTop = primaryScrollRef.current.scrollHeight;
+  const addSession = useCallback((profile: TerminalProfile = "default", command?: string) => {
+    const next = createSession(profile, command);
+    setSessions((current) => [...current, next]);
+    setPrimaryId(next.id);
+    setFocusedPane("primary");
+  }, []);
+
+  const selectSession = (id: string) => {
+    if (id === splitSessionId) {
+      setFocusedPane("secondary");
+    } else {
+      setPrimaryId(id);
+      setFocusedPane("primary");
     }
-  }, [activeSession?.history.length]);
+    controls.get(id)?.focus();
+  };
 
-  useEffect(() => {
-    if (secondaryScrollRef.current) {
-      secondaryScrollRef.current.scrollTop = secondaryScrollRef.current.scrollHeight;
+  const closeSession = (id: string) => {
+    const next = sessions.filter((session) => session.id !== id);
+    setSessions(next);
+    if (id === splitSessionId) {
+      setSplitSessionId(null);
+      setFocusedPane("primary");
+    } else if (id === primary?.id) {
+      const replacement = next.find((session) => session.id !== splitSessionId) ?? next[0];
+      setPrimaryId(replacement?.id ?? "");
+      if (replacement?.id === splitSessionId) setSplitSessionId(null);
+      setFocusedPane("primary");
     }
-  }, [splitSession?.history.length]);
-
-  const addSession = useCallback(
-    (name = "zsh") => {
-      const next = createSession(name, project, branch, dirty);
-      setSessions((prev) => [...prev, next]);
-      setActiveSessionId(next.id);
-      setTimeout(() => primaryInputRef.current?.focus(), 50);
-    },
-    [project, branch, dirty],
-  );
-
-  const closeSession = useCallback(
-    (id: string) => {
-      setSessions((prev) => {
-        const next = prev.filter((s) => s.id !== id);
-        if (next.length === 0) {
-          const fresh = createSession("zsh", project, branch, dirty);
-          setActiveSessionId(fresh.id);
-          setSplitSessionId(null);
-          return [fresh];
-        }
-        if (activeSessionId === id) {
-          const idx = prev.findIndex((s) => s.id === id);
-          const candidate = next[Math.min(idx, next.length - 1)];
-          setActiveSessionId(candidate?.id ?? next[0].id);
-        }
-        if (splitSessionId === id) {
-          setSplitSessionId(null);
-        }
-        return next;
-      });
-    },
-    [activeSessionId, splitSessionId, project, branch, dirty],
-  );
+  };
 
   const toggleSplit = useCallback(() => {
     if (splitSessionId) {
       setSplitSessionId(null);
       setFocusedPane("primary");
-    } else {
-      const next = createSession("zsh", project, branch, dirty);
-      setSessions((prev) => [...prev, next]);
+    } else if (primary) {
+      const next = createSession(primary.profile);
+      setSessions((current) => [...current, next]);
       setSplitSessionId(next.id);
       setFocusedPane("secondary");
-      setTimeout(() => secondaryInputRef.current?.focus(), 50);
+    } else {
+      addSession();
     }
-  }, [splitSessionId, project, branch, dirty]);
+  }, [addSession, primary, splitSessionId]);
 
-  const clearSession = useCallback((targetId: string) => {
-    setSessions((prev) =>
-      prev.map((s) => (s.id === targetId ? { ...s, history: [] } : s)),
+  const clearSession = useCallback((id: string) => controls.get(id)?.clear(), [controls]);
+  const terminalReady = useCallback((id: string, info: TerminalInfo) => {
+    setSessions((current) =>
+      current.map((session) => (session.id === id ? { ...session, info } : session)),
     );
   }, []);
 
-  const runCommandOnSession = useCallback(
-    async (targetId: string, cmdStr: string) => {
-      const trimmed = cmdStr.trim();
-      const current = sessions.find((s) => s.id === targetId);
-      if (!current) return;
-
-      const cmdId = `cmd-${Date.now()}`;
-      const cmdLine: TerminalOutputLine = {
-        id: cmdId,
-        type: "command",
-        prompt: { project, branch, dirty, venv: "texsys" },
-        text: cmdStr,
-      };
-
-      if (!trimmed) {
-        setSessions((prev) =>
-          prev.map((s) =>
-            s.id === targetId
-              ? {
-                  ...s,
-                  history: [...s.history, cmdLine],
-                  input: "",
-                }
-              : s,
-          ),
-        );
-        return;
-      }
-
-      if (trimmed === "clear") {
-        setSessions((prev) =>
-          prev.map((s) =>
-            s.id === targetId
-              ? {
-                  ...s,
-                  history: [],
-                  commandHistory: [trimmed, ...s.commandHistory.filter((c) => c !== trimmed)],
-                  historyIndex: -1,
-                  input: "",
-                }
-              : s,
-          ),
-        );
-        return;
-      }
-
-      let outputText = "";
-      let isError = false;
-      const args = trimmed.split(/\s+/);
-      const rootCommand = args[0];
-
-      if (trimmed === "texsys" || trimmed === "texsys --help" || trimmed === "texsys -h") {
-        outputText = [
-          "Usage: texsys [OPTIONS] COMMAND [ARGS]...",
-          "",
-          "  texsys: reference implementation, toolchain and ecosystem for SDL",
-          "",
-          "Options:",
-          "  --version  Show the version and exit.",
-          "  --help     Show this message and exit.",
-          "",
-          "Commands:",
-          "  studio     Launch the Tex Studio workbench.",
-          "  check      Run project-level model validation and rule checks.",
-          "  build      Compile diagrams, drawings, and engineering deliverables.",
-          "  simulate   Execute dynamic simulation scenarios.",
-        ].join("\n");
-      } else if (trimmed === "texsys --version" || trimmed === "texsys -v") {
-        outputText = "texsys 0.1.0";
-      } else if (trimmed.startsWith("texsys check")) {
-        outputText = [
-          "Checking system definition in /Users/indenscale/workspace/texsys...",
-          "✔ Validating SDL component topologies",
-          "✔ Checking hydraulic and thermal parameters",
-          "✔ Model validation completed: 0 errors, 1 warning (Drawing review pending)",
-        ].join("\n");
-      } else if (trimmed.startsWith("texsys build")) {
-        outputText = [
-          "Building engineering deliverables...",
-          "✔ Generating system diagram (SVG)",
-          "✔ Generating equipment table (CSV)",
-          "✔ Build completed successfully in 0.42s",
-        ].join("\n");
-      } else if (trimmed.startsWith("texsys simulate")) {
-        outputText = [
-          "Running dynamic simulation scenarios...",
-          "✔ Scenario: pump-trip (backend: scipy)",
-          "✔ Simulation completed in 1.15s. Results available in simulation viewer.",
-        ].join("\n");
-      } else if (trimmed === "git status") {
-        if (api) {
-          try {
-            const scm = await api<{ entries: Array<{ path: string; index: string; worktree: string }> }>("/api/scm");
-            const modified = scm.entries.map((e) => `\tmodified:   ${e.path}`);
-            outputText = [
-              `On branch ${branch}`,
-              `Your branch is up to date with 'origin/${branch}'.`,
-              ...(modified.length
-                ? [
-                    "",
-                    "Changes not staged for commit:",
-                    '  (use "git add <file>..." to update what will be committed)',
-                    '  (use "git restore <file>..." to discard changes in working directory)',
-                    ...modified,
-                    "",
-                    'no changes added to commit (use "git add" to stage)',
-                  ]
-                : ["", "nothing to commit, working tree clean"]),
-            ].join("\n");
-          } catch {
-            outputText = `On branch ${branch}\nnothing to commit, working tree clean`;
-          }
-        } else {
-          outputText = `On branch ${branch}\nnothing to commit, working tree clean`;
-        }
-      } else if (trimmed === "git branch") {
-        outputText = `* ${branch}`;
-      } else if (trimmed.startsWith("git log")) {
-        if (api) {
-          try {
-            const log = await api<Array<{ hash: string; summary: string; author: string; time: string }>>("/api/scm/history?limit=3");
-            outputText = log
-              .map(
-                (c) =>
-                  `commit ${c.hash}\nAuthor: ${c.author}\nDate:   ${c.time}\n\n    ${c.summary}`,
-              )
-              .join("\n\n");
-          } catch {
-            outputText = `commit 16ac2f0e (HEAD -> ${branch})\nAuthor: indenscale\n\n    feat: implement terminal module`;
-          }
-        } else {
-          outputText = `commit 16ac2f0e (HEAD -> ${branch})\nAuthor: indenscale\n\n    feat: implement terminal module`;
-        }
-      } else if (trimmed === "pwd") {
-        outputText = "/Users/indenscale/workspace/texsys";
-      } else if (trimmed === "ls" || trimmed === "ls -la") {
-        if (api) {
-          try {
-            const fileData = await api<{ files: Array<{ name: string; path: string }> }>("/api/files");
-            const topLevel = Array.from(new Set(fileData.files.map((f) => f.path.split("/")[0]))).sort();
-            outputText = topLevel.join("  ");
-          } catch {
-            outputText = "AGENTS.md  docs  examples  packages  src  tools  pyproject.toml";
-          }
-        } else {
-          outputText = "AGENTS.md  docs  examples  packages  src  tools  pyproject.toml";
-        }
-      } else if (trimmed.startsWith("echo ")) {
-        outputText = trimmed.slice(5).replace(/^['"]|['"]$/g, "");
-      } else if (trimmed === "python --version" || trimmed === "python -V" || trimmed === "python3 --version") {
-        outputText = "Python 3.12.8";
-      } else if (trimmed === "node --version" || trimmed === "node -v") {
-        outputText = "v24.11.0";
-      } else if (trimmed === "uv --version") {
-        outputText = "uv 0.5.11";
-      } else if (trimmed === "history") {
-        outputText = current.commandHistory
-          .slice()
-          .reverse()
-          .map((cmd, i) => `  ${i + 1}  ${cmd}`)
-          .join("\n");
-      } else if (trimmed === "help") {
-        outputText = "Available commands: texsys, git, ls, pwd, cat, echo, clear, python, node, uv, history, help";
-      } else {
-        if (api) {
-          try {
-            const res = await api<{ stdout: string; stderr: string; code: number }>("/api/terminal", {
-              command: trimmed,
-              cwd: "",
-            });
-            outputText = res.stdout || res.stderr || "";
-            if (res.code !== 0) isError = true;
-          } catch {
-            outputText = `zsh: command not found: ${rootCommand}`;
-            isError = true;
-          }
-        } else {
-          outputText = `zsh: command not found: ${rootCommand}`;
-          isError = true;
-        }
-      }
-
-      const outLine: TerminalOutputLine = {
-        id: `out-${Date.now()}`,
-        type: isError ? "error" : "output",
-        text: outputText,
-      };
-
-      setSessions((prev) =>
-        prev.map((s) =>
-          s.id === targetId
-            ? {
-                ...s,
-                history: outputText ? [...s.history, cmdLine, outLine] : [...s.history, cmdLine],
-                commandHistory: [trimmed, ...s.commandHistory.filter((c) => c !== trimmed)],
-                historyIndex: -1,
-                input: "",
-              }
-            : s,
-        ),
-      );
-    },
-    [sessions, project, branch, dirty, api],
-  );
-
-  // Global event listeners
   useEffect(() => {
-    const handleNew = () => addSession("zsh");
-    const handleSplit = () => toggleSplit();
-    const handleClear = () => clearSession(activeSessionId);
-    const handleRunCommand = (e: Event) => {
-      const customEvent = e as CustomEvent<{ command: string }>;
-      if (customEvent.detail?.command) {
-        void runCommandOnSession(activeSessionId, customEvent.detail.command);
-      }
+    const inActiveWorkbench = () => !panel.current?.closest(".professional-workbench[hidden]");
+    const handleNew = () => {
+      if (inActiveWorkbench()) addSession();
     };
-
+    const handleSplit = () => {
+      if (inActiveWorkbench()) toggleSplit();
+    };
+    const handleClear = () => {
+      if (inActiveWorkbench()) clearSession(activeSessionId);
+    };
+    const handleRunCommand = (event: Event) => {
+      const { command } = (event as CustomEvent<{ command: string }>).detail;
+      if (inActiveWorkbench() && command?.trim()) addSession("default", command);
+    };
     window.addEventListener("texsys:terminal:new", handleNew);
     window.addEventListener("texsys:terminal:split", handleSplit);
     window.addEventListener("texsys:terminal:clear", handleClear);
     window.addEventListener("texsys:terminal:runCommand", handleRunCommand);
-
     return () => {
       window.removeEventListener("texsys:terminal:new", handleNew);
       window.removeEventListener("texsys:terminal:split", handleSplit);
       window.removeEventListener("texsys:terminal:clear", handleClear);
       window.removeEventListener("texsys:terminal:runCommand", handleRunCommand);
     };
-  }, [addSession, toggleSplit, clearSession, activeSessionId, runCommandOnSession]);
+  }, [activeSessionId, addSession, clearSession, toggleSplit]);
 
-  const handleKeyDown = (
-    event: React.KeyboardEvent<HTMLInputElement>,
-    targetSession: TerminalSession,
-    _isSecondary = false,
-  ) => {
-    if (event.key === "Enter") {
-      event.preventDefault();
-      void runCommandOnSession(targetSession.id, targetSession.input);
-    } else if (event.key === "ArrowUp") {
-      event.preventDefault();
-      const nextIdx = Math.min(
-        targetSession.historyIndex + 1,
-        targetSession.commandHistory.length - 1,
-      );
-      if (nextIdx >= 0) {
-        const val = targetSession.commandHistory[nextIdx];
-        setSessions((prev) =>
-          prev.map((s) =>
-            s.id === targetSession.id
-              ? { ...s, historyIndex: nextIdx, input: val }
-              : s,
-          ),
-        );
-      }
-    } else if (event.key === "ArrowDown") {
-      event.preventDefault();
-      const nextIdx = targetSession.historyIndex - 1;
-      if (nextIdx >= 0) {
-        const val = targetSession.commandHistory[nextIdx];
-        setSessions((prev) =>
-          prev.map((s) =>
-            s.id === targetSession.id
-              ? { ...s, historyIndex: nextIdx, input: val }
-              : s,
-          ),
-        );
-      } else {
-        setSessions((prev) =>
-          prev.map((s) =>
-            s.id === targetSession.id
-              ? { ...s, historyIndex: -1, input: "" }
-              : s,
-          ),
-        );
-      }
-    } else if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k") {
-      event.preventDefault();
-      clearSession(targetSession.id);
-    } else if (event.ctrlKey && event.key.toLowerCase() === "c") {
-      event.preventDefault();
-      const abortLine: TerminalOutputLine = {
-        id: `abort-${Date.now()}`,
-        type: "command",
-        prompt: { project, branch, dirty, venv: "texsys" },
-        text: targetSession.input + "^C",
-      };
-      setSessions((prev) =>
-        prev.map((s) =>
-          s.id === targetSession.id
-            ? { ...s, history: [...s.history, abortLine], input: "", historyIndex: -1 }
-            : s,
-        ),
-      );
-    } else if (event.ctrlKey && event.key.toLowerCase() === "u") {
-      event.preventDefault();
-      setSessions((prev) =>
-        prev.map((s) => (s.id === targetSession.id ? { ...s, input: "" } : s)),
-      );
-    }
-  };
-
-  const renderPane = (
-    session: TerminalSession,
-    isSecondary: boolean,
-    inputRef: React.RefObject<HTMLInputElement | null>,
-    scrollRef: React.RefObject<HTMLDivElement | null>,
-  ) => {
-    const isFocused =
-      (!splitSessionId && !isSecondary) ||
-      (splitSessionId && (isSecondary ? focusedPane === "secondary" : focusedPane === "primary"));
-
-    return (
-      <div
-        className={`terminal-pane ${splitSessionId && !isSecondary ? "is-split" : ""} ${
-          isFocused ? "is-focused" : ""
-        }`}
-        onClick={() => {
-          setFocusedPane(isSecondary ? "secondary" : "primary");
-          inputRef.current?.focus();
-        }}
-      >
-        <div className="terminal-viewport" ref={scrollRef}>
-          {session.history.map((line) => {
-            if (line.type === "system") {
-              return (
-                <div key={line.id} className="terminal-line terminal-system">
-                  {line.text}
-                </div>
-              );
-            }
-            if (line.type === "command") {
-              return (
-                <div key={line.id} className="terminal-line">
-                  <span className="terminal-prompt-prefix">
-                    <span className="term-dot-circle">○</span>
-                    <span className="term-venv">(texsys)</span>
-                    <span className="term-arrow">→</span>
-                    <span className="term-folder">{line.prompt?.project ?? project}</span>
-                    <span className="term-git">
-                      git:(
-                      <span className={`term-branch ${line.prompt?.dirty ? "is-dirty" : ""}`}>
-                        {line.prompt?.branch ?? branch}
-                      </span>
-                      )
-                    </span>
-                    {line.prompt?.dirty && <span className="term-dirty">✗</span>}
-                  </span>
-                  <span className="term-cmd-text">{line.text}</span>
-                </div>
-              );
-            }
-            return (
-              <pre
-                key={line.id}
-                className={`terminal-output ${line.type === "error" ? "is-error" : ""}`}
-              >
-                {line.text}
-              </pre>
-            );
-          })}
-
-          <div className="terminal-input-row">
-            <span className="terminal-prompt-prefix">
-              <span className="term-dot-circle">○</span>
-              <span className="term-venv">(texsys)</span>
-              <span className="term-arrow">→</span>
-              <span className="term-folder">{project}</span>
-              <span className="term-git">
-                git:(<span className={`term-branch ${dirty ? "is-dirty" : ""}`}>{branch}</span>)
-              </span>
-              {dirty && <span className="term-dirty">✗</span>}
-            </span>
-            <div className="terminal-input-wrapper">
-              <input
-                ref={inputRef}
-                className="terminal-real-input"
-                type="text"
-                autoComplete="off"
-                autoCorrect="off"
-                autoCapitalize="off"
-                spellCheck="false"
-                value={session.input}
-                onChange={(e) => {
-                  const val = e.target.value;
-                  setSessions((prev) =>
-                    prev.map((s) => (s.id === session.id ? { ...s, input: val } : s)),
-                  );
-                }}
-                onKeyDown={(e) => handleKeyDown(e, session, isSecondary)}
-              />
-            </div>
-          </div>
-        </div>
-      </div>
-    );
+  const runActiveFile = () => window.dispatchEvent(new Event("texsys:terminal:runActiveFile"));
+  const runSelectedText = () => {
+    const selection = controls.get(activeSessionId)?.getSelection();
+    if (selection?.trim()) addSession("default", selection);
+    else window.dispatchEvent(new Event("texsys:terminal:runSelectedText"));
   };
 
   // Header profile and action menus
@@ -664,12 +223,12 @@ export function WorkbenchBottomPanel({
       label: t("新建终端"),
       icon: "terminal",
       shortcut: mac ? ["⌃", "⇧", "`"] : ["Ctrl", "Shift", "`"],
-      run: () => addSession("zsh"),
+      run: () => addSession(),
     },
     {
       label: t("新建终端窗口"),
       shortcut: mac ? ["⌃", "⌥", "⇧", "`"] : ["Ctrl", "Alt", "Shift", "`"],
-      run: () => addSession("zsh"),
+      run: () => addSession(),
     },
     {
       label: t("拆分终端"),
@@ -685,19 +244,8 @@ export function WorkbenchBottomPanel({
     },
     {
       label: "zsh",
-      checked: true,
       icon: "terminal",
       run: () => addSession("zsh"),
-    },
-    {
-      label: "JavaScript Debug Terminal",
-      icon: "terminal",
-      run: () => addSession("js-debug"),
-    },
-    {
-      label: "texsys (Python venv)",
-      icon: "terminal",
-      run: () => addSession("texsys"),
     },
     {
       label: t("清空终端"),
@@ -718,20 +266,16 @@ export function WorkbenchBottomPanel({
 
   const sessionsMenuItems: NavigatorMenuItem[] = [
     ...sessions.map((sess) => ({
-      label: `${sess.name} (${sess.id.slice(-4)})`,
+      label: sessionName(sess),
       icon: "terminal",
       checked: sess.id === activeSessionId,
-      run: () => {
-        setActiveSessionId(sess.id);
-        setFocusedPane("primary");
-        primaryInputRef.current?.focus();
-      },
+      run: () => selectSession(sess.id),
     })),
     {
       label: t("新建终端"),
       separator: true,
       icon: "plus",
-      run: () => addSession("zsh"),
+      run: () => addSession(),
     },
     {
       label: t("清空终端"),
@@ -745,20 +289,12 @@ export function WorkbenchBottomPanel({
     {
       label: t("滚动到上一命令"),
       shortcut: mac ? ["⇧", "⌘", "↑"] : ["Shift", "Ctrl", "↑"],
-      run: () => {
-        if (primaryScrollRef.current) {
-          primaryScrollRef.current.scrollTop -= 80;
-        }
-      },
+      run: () => controls.get(activeSessionId)?.scrollLines(-5),
     },
     {
       label: t("滚动到下一命令"),
       shortcut: mac ? ["⇧", "⌘", "↓"] : ["Shift", "Ctrl", "↓"],
-      run: () => {
-        if (primaryScrollRef.current) {
-          primaryScrollRef.current.scrollTop += 80;
-        }
-      },
+      run: () => controls.get(activeSessionId)?.scrollLines(5),
     },
     {
       label: t("清空终端"),
@@ -767,26 +303,11 @@ export function WorkbenchBottomPanel({
     },
     {
       label: t("运行活动文件"),
-      run: () => {
-        window.dispatchEvent(
-          new CustomEvent("texsys:terminal:runCommand", {
-            detail: { command: "texsys check" },
-          }),
-        );
-      },
+      run: runActiveFile,
     },
     {
       label: t("运行选定文本"),
-      run: () => {
-        const sel = window.getSelection()?.toString()?.trim();
-        if (sel) {
-          window.dispatchEvent(
-            new CustomEvent("texsys:terminal:runCommand", {
-              detail: { command: sel },
-            }),
-          );
-        }
-      },
+      run: runSelectedText,
     },
     {
       label: t("转到最近目录…"),
@@ -862,7 +383,7 @@ export function WorkbenchBottomPanel({
           label: t("重命名…"),
           shortcut: ["↩"],
           run: () => {
-            const next = window.prompt(t("重命名…"), sess?.name ?? "zsh");
+            const next = window.prompt(t("重命名…"), sess ? sessionName(sess) : "Shell");
             if (next && next.trim()) {
               setSessions((prev) =>
                 prev.map((s) => (s.id === contextMenu.sessionId ? { ...s, name: next.trim() } : s)),
@@ -886,6 +407,7 @@ export function WorkbenchBottomPanel({
 
     // 2. Terminal Viewport Context Menu (VS Code Terminal Body Context Menu)
     if (contextMenu.type === "terminal-viewport") {
+      const terminal = controls.get(contextMenu.sessionId);
       return [
         {
           label: t("将终端选定内容或输出添加到对话"),
@@ -897,57 +419,47 @@ export function WorkbenchBottomPanel({
           separator: true,
           shortcut: mac ? ["⌘", "C"] : ["Ctrl", "C"],
           run: () => {
-            const sel = window.getSelection()?.toString();
-            if (sel) {
-              navigator.clipboard?.writeText(sel);
-            } else if (activeSession?.input) {
-              navigator.clipboard?.writeText(activeSession.input);
-            }
+            const selection = terminal?.getSelection();
+            if (selection) void navigator.clipboard.writeText(selection);
           },
         },
         {
           label: t("复制为 HTML"),
           run: () => {
-            const sel = window.getSelection()?.toString();
-            if (sel) {
-              navigator.clipboard?.writeText(`<pre><code>${sel}</code></pre>`);
-            }
+            const selection = terminal?.getSelection();
+            if (!selection) return;
+            const pre = document.createElement("pre");
+            pre.textContent = selection;
+            void navigator.clipboard.write([
+              new ClipboardItem({ "text/html": new Blob([pre.outerHTML], { type: "text/html" }) }),
+            ]);
           },
         },
         {
           label: t("粘贴"),
           shortcut: mac ? ["⌘", "V"] : ["Ctrl", "V"],
-          run: () => {
-            navigator.clipboard?.readText().then((text) => {
-              if (text && primaryInputRef.current) {
-                primaryInputRef.current.value += text;
-                primaryInputRef.current.dispatchEvent(new Event("input", { bubbles: true }));
-                primaryInputRef.current.focus();
-              }
-            });
+          run: async () => {
+            if (!terminal) return;
+            const text = await navigator.clipboard.readText();
+            terminal.focus();
+            terminal.paste(text);
           },
         },
         {
           label: t("全选"),
           shortcut: mac ? ["⌘", "A"] : ["Ctrl", "A"],
-          run: () => {
-            primaryInputRef.current?.select();
-          },
+          run: () => terminal?.selectAll(),
         },
         {
           label: t("清空"),
           separator: true,
           shortcut: mac ? ["⌘", "K"] : ["Ctrl", "K"],
-          run: () => {
-            setSessions((prev) =>
-              prev.map((s) => (s.id === activeSessionId ? { ...s, history: [] } : s)),
-            );
-          },
+          run: () => terminal?.clear(),
         },
         {
           label: t("终止终端"),
           separator: true,
-          run: () => closeSession(activeSessionId),
+          run: () => closeSession(contextMenu.sessionId),
         },
         {
           label: t("切换大小以适应内容宽度"),
@@ -963,7 +475,6 @@ export function WorkbenchBottomPanel({
       return [
         {
           label: t("隐藏"),
-          disabled: !contextMenu.actionId,
           run: contextMenu.actionId ? () => notify?.(t("隐藏")) : undefined,
         },
         {
@@ -971,13 +482,13 @@ export function WorkbenchBottomPanel({
           separator: true,
           checked: true,
           checkbox: true,
-          run: () => primaryInputRef.current?.focus(),
+          run: () => controls.get(activeSessionId)?.focus(),
         },
         {
           label: t("新建终端"),
           checked: true,
           checkbox: true,
-          run: () => addSession("zsh"),
+          run: () => addSession(),
         },
         {
           label: t("拆分终端"),
@@ -1001,30 +512,15 @@ export function WorkbenchBottomPanel({
         },
         {
           label: t("清空终端"),
-          run: () => {
-            setSessions((prev) =>
-              prev.map((s) => (s.id === activeSessionId ? { ...s, history: [] } : s)),
-            );
-          },
+          run: () => clearSession(activeSessionId),
         },
         {
           label: t("运行活动文件"),
-          run: () => {
-            window.dispatchEvent(
-              new CustomEvent("texsys:terminal:runCommand", { detail: { command: "texsys check" } }),
-            );
-          },
+          run: runActiveFile,
         },
         {
           label: t("运行选定文本"),
-          run: () => {
-            const sel = window.getSelection()?.toString()?.trim();
-            if (sel) {
-              window.dispatchEvent(
-                new CustomEvent("texsys:terminal:runCommand", { detail: { command: sel } }),
-              );
-            }
-          },
+          run: runSelectedText,
         },
         {
           label: t("开始听写"),
@@ -1240,7 +736,11 @@ export function WorkbenchBottomPanel({
           })}
           onSelect={(id) => changeLayout({ bottomTab: id })}
           onContextMenu={(event, id) => {
-            setContextMenu({ type: "tab", tabId: id, point: { x: event.clientX, y: event.clientY } });
+            setContextMenu({
+              type: "tab",
+              tabId: id,
+              point: { x: event.clientX, y: event.clientY },
+            });
           }}
         />
 
@@ -1279,7 +779,7 @@ export function WorkbenchBottomPanel({
                 }}
               >
                 <NavigatorMenu
-                  label={activeSession.name}
+                  label={sessionName(activeSession)}
                   items={sessionsMenuItems}
                   placement="start"
                   direction="down"
@@ -1289,7 +789,7 @@ export function WorkbenchBottomPanel({
                       <span className="terminal-session-icon">
                         <Icon name="terminal" size={15} strokeWidth={1.5} />
                       </span>
-                      <span className="terminal-session-title">{activeSession.name}</span>
+                      <span className="terminal-session-title">{sessionName(activeSession)}</span>
                       {dirty && (
                         <span className="terminal-session-warning" title={t("有未暂存变更")}>
                           <Icon name="warning" size={13} strokeWidth={1.5} />
@@ -1309,7 +809,7 @@ export function WorkbenchBottomPanel({
                 className="panel-split-main"
                 title={`${t("新建终端")} ${mac ? "(⌃⇧`)" : "(Ctrl+Shift+`)"}`}
                 aria-label={t("新建终端")}
-                onClick={() => addSession("zsh")}
+                onClick={() => addSession()}
               >
                 <Icon name="plus" size={16} strokeWidth={1.5} />
               </button>
@@ -1499,29 +999,51 @@ export function WorkbenchBottomPanel({
         className="bottom-panel-content terminal-tab-content"
         hidden={layout.bottomTab !== "terminal"}
       >
-        <div className="terminal-panel-body" role="region" aria-label={t("终端")}>
-          <div
-            className="terminal-view-area"
-            onContextMenu={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              setContextMenu({
-                type: "terminal-viewport",
-                sessionId: activeSessionId,
-                point: { x: e.clientX, y: e.clientY },
-              });
-            }}
-          >
-            {activeSession && renderPane(activeSession, false, primaryInputRef, primaryScrollRef)}
-            {splitSession && renderPane(splitSession, true, secondaryInputRef, secondaryScrollRef)}
+        <div
+          className="terminal-panel-body"
+          role="region"
+          aria-label={t("终端")}
+          style={{ fontSize: terminalFontSize }}
+        >
+          <div className="terminal-view-area" ref={panel}>
+            {sessions.map((session) => {
+              const isSecondary = session.id === splitSessionId;
+              return (
+                <TerminalPane
+                  key={session.id}
+                  session={session}
+                  visible={
+                    layout.bottomOpen &&
+                    layout.bottomTab === "terminal" &&
+                    (isSecondary || session.id === primary?.id)
+                  }
+                  focused={session.id === activeSessionId}
+                  split={Boolean(splitSession) && !isSecondary}
+                  fontSize={terminalFontSize}
+                  controls={controls}
+                  onFocus={() => setFocusedPane(isSecondary ? "secondary" : "primary")}
+                  onReady={terminalReady}
+                  onContextMenu={(event) => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    setContextMenu({
+                      type: "terminal-viewport",
+                      sessionId: session.id,
+                      point: { x: event.clientX, y: event.clientY },
+                    });
+                  }}
+                />
+              );
+            })}
           </div>
 
           {/* Terminal layout component: Sessions list on the right (hidden when only 1 terminal session and no split, matching VS Code singleTerminal hideCondition) */}
           {showSessionsSidebar && (
             <aside className="terminal-sessions-sidebar" role="tablist" aria-label={t("终端会话")}>
               {sessions.map((sess, idx) => {
-                const isSplitItem = Boolean(splitSession);
-                const branch = isSplitItem ? (idx === 0 ? "┌" : "└") : null;
+                const branch =
+                  splitSession &&
+                  (sess.id === primary?.id ? "┌" : sess.id === splitSession.id ? "└" : null);
                 const isActive = sess.id === activeSessionId;
                 return (
                   <div
@@ -1541,28 +1063,24 @@ export function WorkbenchBottomPanel({
                         point: { x: e.clientX, y: e.clientY },
                       });
                     }}
-                    onClick={() => {
-                      setActiveSessionId(sess.id);
-                      setFocusedPane("primary");
-                      primaryInputRef.current?.focus();
-                    }}
+                    onClick={() => selectSession(sess.id)}
                     onKeyDown={(e) => {
                       if (e.key === "Enter" || e.key === " ") {
                         e.preventDefault();
-                        setActiveSessionId(sess.id);
-                        setFocusedPane("primary");
-                        primaryInputRef.current?.focus();
+                        selectSession(sess.id);
                       }
                     }}
                   >
                     {branch && (
-                      <span className="terminal-tree-branch" aria-hidden="true">{branch}</span>
+                      <span className="terminal-tree-branch" aria-hidden="true">
+                        {branch}
+                      </span>
                     )}
                     <span className="terminal-row-icon">
                       <Icon name="terminal" size={15} strokeWidth={1.5} />
                     </span>
                     <span className="terminal-row-name">
-                      {sessions.length > 1 ? `${idx + 1}: ${sess.name}` : sess.name}
+                      {sessions.length > 1 ? `${idx + 1}: ${sessionName(sess)}` : sessionName(sess)}
                     </span>
                     {dirty && idx === 0 && (
                       <span className="terminal-row-warning" title={t("有未暂存变更")}>

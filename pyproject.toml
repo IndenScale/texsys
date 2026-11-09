@@ -12,6 +12,7 @@ dependencies = [
   "tomlkit>=0.13,<1",
   "typer>=0.27,<1",
   "usd-core>=25.5,<27",
+  "wsproto>=1.2,<2",
 ]
 
 [dependency-groups]

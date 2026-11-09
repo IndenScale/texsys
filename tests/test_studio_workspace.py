@@ -1,6 +1,5 @@
 """Shared editor and Git boundaries, tested against real files and temporary repositories."""
 
-from pathlib import Path
 import subprocess
 
 import pytest
@@ -9,6 +8,7 @@ from texsys.project import ProjectError
 from texsys.studio.files import (file_operation, project_file, project_files, search_project,
                                  MAX_PREVIEW_BYTES)
 from texsys.studio.runtime import Conflict
+from texsys.studio.server import run_terminal_command
 from texsys.studio.source_control import source_diff, source_operation, source_status
 
 
@@ -30,6 +30,31 @@ def repo(tmp_path):
 
 def operation(root, action, **kwargs):
   return source_operation(root, "build", {"action": action, "snapshot": source_status(root, "build")["snapshot"], **kwargs})
+
+
+def test_terminal_preserves_directory_and_git_add_uses_that_directory(repo):
+  repo = repo.resolve()
+  project = repo / "nested project"
+  project.mkdir()
+  (project / "local.txt").write_text("project change\n")
+  (repo / "model.txt").write_text("repository change\n")
+
+  stage = run_terminal_command(project, {"command": "git add ."})
+  assert stage["code"] == 0 and stage["cwd"] == str(project)
+  assert git(repo, "diff", "--cached", "--name-only").splitlines() == [b"nested project/local.txt"]
+  assert [entry["path"] for entry in source_status(project, "build")["entries"]] == ["local.txt"]
+
+  parent = run_terminal_command(project, {"command": "cd ..", "cwd": stage["cwd"]})
+  assert parent["code"] == 0 and parent["cwd"] == str(repo)
+  current = run_terminal_command(project, {"command": "pwd", "cwd": parent["cwd"]})
+  assert current["stdout"].strip() == str(repo)
+  git_status = run_terminal_command(project, {"command": "git status --short", "cwd": parent["cwd"]})
+  assert "M model.txt" in git_status["stdout"] and "A  " in git_status["stdout"]
+
+  blocked = run_terminal_command(project, {"command": "cd ..", "cwd": parent["cwd"]})
+  assert blocked["code"] == 1 and blocked["directoryBlocked"] and blocked["cwd"] == str(repo)
+  returned = run_terminal_command(project, {"command": "cd -", "cwd": parent["cwd"], "previousCwd": stage["cwd"]})
+  assert returned["code"] == 0 and returned["cwd"] == str(project)
 
 
 def test_edit_is_atomic_preserves_bom_and_rejects_external_overwrite(tmp_path):
