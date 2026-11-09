@@ -208,6 +208,7 @@ function initialLayout(): StudioLayout {
   };
 }
 
+const panelPositions = { bottom: "底部", left: "左侧", right: "右侧" } as const;
 const macKeys = /Mac|iPhone|iPad/.test(navigator.platform);
 
 function Studio({ plugins, chrome }: { plugins: WorkbenchPlugin[]; chrome: StudioChrome }) {
@@ -571,6 +572,24 @@ function Studio({ plugins, chrome }: { plugins: WorkbenchPlugin[]; chrome: Studi
         break;
       case "view.inspector":
         updateLayout(active, { inspectorOpen: !layout.inspectorOpen });
+        break;
+      case "view.panelPosition":
+        openCommands("panel");
+        break;
+      case "panel.bottom":
+      case "panel.left":
+      case "panel.right":
+        updateLayout(active, {
+          panelPosition: id === "panel.bottom" ? "bottom" : id === "panel.left" ? "left" : "right",
+          bottomOpen: true,
+        });
+        break;
+      case "studio.reveal:problems":
+      case "studio.reveal:terminal":
+        updateLayout(active, {
+          bottomOpen: true,
+          bottomTab: id === "studio.reveal:problems" ? "problems" : "terminal",
+        });
         break;
       case "view.wordWrap":
         if (coreHistory.canEditSource)
@@ -1031,34 +1050,51 @@ function Studio({ plugins, chrome }: { plugins: WorkbenchPlugin[]; chrome: Studi
             !!objectIndex?.truncated
           }
           pickerCommands={
-            commandScope === "objects" || commandScope === "references"
-              ? (commandScope === "references" ? usageObjects : (objectIndex?.objects ?? [])).map(
-                  (item) => ({
-                    ...item,
-                    id: "studio.object:" + item.id,
-                    group: t(item.kind === "instance" ? "实例" : "定义"),
-                  }),
-                )
-              : [
-                  ...menuItems
-                    .filter((item) =>
-                      [
-                        "workspace.explorer",
-                        "workspace.search",
-                        "workspace.scm",
-                        "view.problems",
-                        "view.terminal",
-                        "tasks.show",
-                      ].includes(item.id),
-                    )
-                    .map((item) => ({ ...item, searchOnly: false })),
-                  ...(current?.views ?? []).map((item) => ({
-                    ...item,
-                    id: "studio.view:" + item.id,
-                    label: t(item.label),
-                    group: t(current?.manifest.discipline) ?? t("视图"),
-                  })),
-                ]
+            commandScope === "panel"
+              ? Object.entries(panelPositions).map(([position, label]) => ({
+                  id: "panel." + position,
+                  label: t(label),
+                  group: t("面板位置"),
+                  checked: (layout.panelPosition ?? "bottom") === position,
+                }))
+              : commandScope === "objects" || commandScope === "references"
+                ? (commandScope === "references" ? usageObjects : (objectIndex?.objects ?? [])).map(
+                    (item) => ({
+                      ...item,
+                      id: "studio.object:" + item.id,
+                      group: t(item.kind === "instance" ? "实例" : "定义"),
+                    }),
+                  )
+                : [
+                    ...menuItems
+                      .filter((item) =>
+                        [
+                          "workspace.explorer",
+                          "workspace.search",
+                          "workspace.scm",
+                          "view.problems",
+                          "view.terminal",
+                          "tasks.show",
+                        ].includes(item.id),
+                      )
+                      .map((item) => ({
+                        ...item,
+                        id:
+                          item.id === "view.problems"
+                            ? "studio.reveal:problems"
+                            : item.id === "view.terminal"
+                              ? "studio.reveal:terminal"
+                              : item.id,
+                        searchOnly: false,
+                        checked: undefined,
+                      })),
+                    ...(current?.views ?? []).map((item) => ({
+                      ...item,
+                      id: "studio.view:" + item.id,
+                      label: t(item.label),
+                      group: t(current?.manifest.discipline) ?? t("视图"),
+                    })),
+                  ]
           }
           onOpen={() => openCommands("all")}
           onClose={closeCommands}

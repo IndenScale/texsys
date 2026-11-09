@@ -113,6 +113,9 @@ export function readLayoutPreferences(project: string, defaults: StudioLayout): 
                       ),
                     ),
                   }),
+                  ...(typeof layout.panelWidth === "number" && {
+                    panelWidth: dimension(layout.panelWidth, 200, defaults.panelWidth ?? 320),
+                  }),
                   ...(typeof layout.panelPosition === "string" &&
                     ["bottom", "left", "right"].includes(layout.panelPosition) && {
                       panelPosition: layout.panelPosition as "bottom" | "left" | "right",

@@ -122,6 +122,42 @@
   --panel-hide-delay: var(--motion-layout);
   visibility: hidden;
 }
+.workbench-layout:is(.dock-panel-left, .dock-panel-right) > .workbench-stage {
+  --dock-size: 0px;
+  grid-template-rows: minmax(0, 1fr);
+  transition: grid-template-columns var(--motion-layout) var(--motion-ease);
+}
+.workbench-layout.is-bottom-open:is(.dock-panel-left, .dock-panel-right) > .workbench-stage {
+  --dock-size: min(var(--dock-panel-preview-width, var(--dock-panel-width)), 55%);
+}
+.dock-panel-left > .workbench-stage {
+  grid-template-columns: var(--dock-size) var(--bottom-gap) minmax(0, 1fr);
+}
+.dock-panel-right > .workbench-stage {
+  grid-template-columns: minmax(0, 1fr) var(--bottom-gap) var(--dock-size);
+}
+.dock-panel-left > .workbench-stage > .workbench-bottom,
+.dock-panel-right > .workbench-stage > .workbench-editor {
+  grid-area: 1 / 1;
+}
+.dock-panel-right > .workbench-stage > .workbench-bottom,
+.dock-panel-left > .workbench-stage > .workbench-editor {
+  grid-area: 1 / 3;
+}
+.workbench-layout:is(.dock-panel-left, .dock-panel-right) .bottom-panel-layout-resizer {
+  grid-area: 1 / 2;
+}
+.workbench-layout.is-bottom-open.is-bottom-maximized:is(.dock-panel-left, .dock-panel-right)
+  > .workbench-stage {
+  grid-template-columns: minmax(0, 1fr) 0px 0px;
+  grid-template-rows: minmax(0, 1fr);
+}
+.workbench-layout.is-bottom-open.is-bottom-maximized:is(.dock-panel-left, .dock-panel-right)
+  > .workbench-stage
+  > .workbench-bottom {
+  grid-column: 1;
+}
+
 .workbench-bottom > * {
   flex-shrink: 0;
 }

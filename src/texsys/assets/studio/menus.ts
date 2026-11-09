@@ -185,6 +185,12 @@ export const studioMenus: MenuGroup[] = [
         keywords: "Problems",
       },
       { id: "tasks.show", label: "显示任务与日志", icon: "terminal" },
+      {
+        id: "view.panelPosition",
+        label: "面板位置…",
+        separator: true,
+        keywords: "Dock Panel Position",
+      },
       { id: "view.wordWrap", label: "自动换行", separator: true, keywords: "Word Wrap" },
       { id: "view.fullscreen", label: "全屏", keywords: "Full Screen 专注 编辑器快捷键" },
     ],

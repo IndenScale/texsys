@@ -36,6 +36,18 @@ export function WorkbenchLayout({
   const navigator = React.useRef<HTMLElement>(null);
   const bottomPanel = React.useRef<HTMLElement>(null);
   const inspectorPanel = React.useRef<HTMLElement>(null);
+  const stage = React.useRef<HTMLDivElement>(null);
+  const [stageWidth, setStageWidth] = React.useState(window.innerWidth);
+  React.useEffect(() => {
+    if (!stage.current) return;
+    const observer = new ResizeObserver(([entry]) => setStageWidth(entry.contentRect.width));
+    observer.observe(stage.current);
+    return () => observer.disconnect();
+  }, []);
+  const panelPosition = layout.panelPosition ?? "bottom";
+  const sideDock = panelPosition !== "bottom";
+  const panelWidth = layout.panelWidth ?? 320;
+  const maxDockWidth = Math.max(200, Math.floor(stageWidth * 0.55));
   const [{ width, height }, setViewport] = React.useState(() => ({
     width: window.innerWidth,
     height: window.innerHeight,
@@ -50,7 +62,7 @@ export function WorkbenchLayout({
   const bottomMax = Math.max(MIN_BOTTOM_HEIGHT, Math.floor(height * 0.6));
   return (
     <div
-      className={`workbench-layout ${layout.sidebarOpen ? "" : "is-sidebar-collapsed"} ${layout.inspectorOpen ? "" : "is-inspector-hidden"} ${layout.bottomOpen ? "is-bottom-open" : ""} ${layout.bottomOpen && layout.bottomMaximized ? "is-bottom-maximized" : ""}`}
+      className={`workbench-layout dock-panel-${panelPosition} ${layout.sidebarOpen ? "" : "is-sidebar-collapsed"} ${layout.inspectorOpen ? "" : "is-inspector-hidden"} ${layout.bottomOpen ? "is-bottom-open" : ""} ${layout.bottomOpen && layout.bottomMaximized ? "is-bottom-maximized" : ""}`}
       style={
         {
           "--sidebar-width": `${layout.sidebarWidth}px`,
@@ -58,6 +70,7 @@ export function WorkbenchLayout({
           "--right-panel-width": `${layout.inspectorWidth}px`,
           "--inspector-min-width": `${MIN_INSPECTOR_WIDTH}px`,
           "--bottom-panel-height": `${layout.bottomHeight}px`,
+          "--dock-panel-width": `${panelWidth}px`,
           "--bottom-min-height": `${MIN_BOTTOM_HEIGHT}px`,
         } as React.CSSProperties
       }
@@ -92,27 +105,45 @@ export function WorkbenchLayout({
         onClose={() => change({ sidebarOpen: false })}
         onChange={(sidebarWidth) => change({ sidebarOpen: true, sidebarWidth })}
       />
-      <div className="workbench-stage">
+      <div className="workbench-stage" ref={stage}>
         <main className="workbench-editor workbench-card">{children}</main>
-        <HeightResizeHandle
-          className="bottom-panel-layout-resizer"
-          label={t("调整底部面板高度")}
-          panelRef={bottomPanel}
-          previewProperty="--bottom-preview-height"
-          value={layout.bottomHeight}
-          min={MIN_BOTTOM_HEIGHT}
-          max={bottomMax}
-          defaultValue={260}
-          grows="up"
-          mode="hide"
-          open={layout.bottomOpen}
-          onClose={() => change({ bottomOpen: false })}
-          onChange={(bottomHeight) => change({ bottomHeight })}
-        />
+        {sideDock ? (
+          <WidthResizeHandle
+            className="bottom-panel-layout-resizer"
+            label={t("调整工具面板宽度")}
+            panelRef={bottomPanel}
+            previewProperty="--dock-panel-preview-width"
+            value={panelWidth}
+            min={200}
+            max={maxDockWidth}
+            defaultValue={320}
+            grows={panelPosition === "left" ? "right" : "left"}
+            mode="hide"
+            open={layout.bottomOpen}
+            onClose={() => change({ bottomOpen: false })}
+            onChange={(panelWidth) => change({ bottomOpen: true, panelWidth })}
+          />
+        ) : (
+          <HeightResizeHandle
+            className="bottom-panel-layout-resizer"
+            label={t("调整底部面板高度")}
+            panelRef={bottomPanel}
+            previewProperty="--bottom-preview-height"
+            value={layout.bottomHeight}
+            min={MIN_BOTTOM_HEIGHT}
+            max={bottomMax}
+            defaultValue={260}
+            grows="up"
+            mode="hide"
+            open={layout.bottomOpen}
+            onClose={() => change({ bottomOpen: false })}
+            onChange={(bottomHeight) => change({ bottomHeight })}
+          />
+        )}
         <section
           ref={bottomPanel}
           className="workbench-bottom workbench-card"
-          aria-label={t("底部面板")}
+          aria-label={t(sideDock ? "工具面板" : "底部面板")}
           inert={!layout.bottomOpen}
           aria-hidden={!layout.bottomOpen}
         >

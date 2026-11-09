@@ -73,7 +73,10 @@ export function CommandCenter({
     [selected, setSelected] = useState(0);
   const resultScope = query.trimStart().startsWith(">") ? "commands" : scope;
   const pickerScope =
-    resultScope === "views" || resultScope === "objects" || resultScope === "references";
+    resultScope === "views" ||
+    resultScope === "objects" ||
+    resultScope === "references" ||
+    resultScope === "panel";
   const fileIndex =
     resultScope === "recent" ? new Map(files.map((file) => [file.path, file])) : undefined;
   const visibleFiles = fileIndex
@@ -139,7 +142,8 @@ export function CommandCenter({
         scope === "recent" ||
         scope === "views" ||
         scope === "objects" ||
-        scope === "references"
+        scope === "references" ||
+        scope === "panel"
       ) {
         setQuery("");
         setSelected(0);
@@ -236,19 +240,21 @@ export function CommandCenter({
             autoComplete="off"
             spellCheck={false}
             placeholder={
-              scope === "objects"
-                ? t("搜索工程对象…")
-                : scope === "references"
-                  ? t("搜索使用位置…")
-                  : scope === "views"
-                    ? t("搜索视图…")
-                    : scope === "recent"
-                      ? t("搜索最近打开的文件…")
-                      : scope === "files"
-                        ? t("搜索文件…")
-                        : scope === "commands"
-                          ? t("搜索或运行命令…")
-                          : t("搜索文件或运行命令…")
+              scope === "panel"
+                ? t("选择面板位置…")
+                : scope === "objects"
+                  ? t("搜索工程对象…")
+                  : scope === "references"
+                    ? t("搜索使用位置…")
+                    : scope === "views"
+                      ? t("搜索视图…")
+                      : scope === "recent"
+                        ? t("搜索最近打开的文件…")
+                        : scope === "files"
+                          ? t("搜索文件…")
+                          : scope === "commands"
+                            ? t("搜索或运行命令…")
+                            : t("搜索文件或运行命令…")
             }
             value={query}
             onChange={(event) => {
@@ -368,6 +374,9 @@ export function CommandCenter({
                         focused: resultScope === scope,
                       },
                     ]
+                  : []),
+                ...(scope === "panel"
+                  ? [{ id: "panel", label: t("面板位置"), focused: resultScope === "panel" }]
                   : []),
                 ...(scope === "views"
                   ? [{ id: "views", label: t("视图"), focused: resultScope === "views" }]

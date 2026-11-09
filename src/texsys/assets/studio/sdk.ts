@@ -21,6 +21,7 @@ export type StudioLayout = {
   hiddenBottomTabs?: string[];
   hideBadges?: Record<string, boolean>;
   panelPosition?: "bottom" | "left" | "right";
+  panelWidth?: number;
   panelAlign?: "left" | "center" | "justify" | "right";
   showPanelIcons?: boolean;
 };

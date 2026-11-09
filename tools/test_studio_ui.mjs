@@ -366,7 +366,7 @@ test("menu and command search share group names and stable action identities", (
   assert.equal(new Set(commands.map((item) => item.id)).size, commands.length);
   assert.deepEqual(
     filterCommands(commands, "> 查看 面板").map((item) => item.id),
-    ["commands.open", "view.sidebar", "view.bottom", "view.inspector"],
+    ["commands.open", "view.sidebar", "view.bottom", "view.inspector", "view.panelPosition"],
   );
   assert.deepEqual(
     filterCommands(commands, "任务 日志").map((item) => item.id),
@@ -377,7 +377,7 @@ test("menu and command search share group names and stable action identities", (
     filterCommands(commands, "")
       .filter((item) => item.id.startsWith("view."))
       .map((item) => item.id),
-    ["view.open", "view.wordWrap", "view.fullscreen"],
+    ["view.open", "view.panelPosition", "view.wordWrap", "view.fullscreen"],
   );
   assert.deepEqual(
     filterCommands(commands, "布局").map((item) => item.id),
@@ -735,7 +735,8 @@ test("layout preferences preserve bottom panel tabs visibility, badges, position
         bottomTab: "terminal",
         hiddenBottomTabs: ["output", "comments"],
         hideBadges: { problems: true },
-        panelPosition: "bottom",
+        panelPosition: "right",
+        panelWidth: 345,
         panelAlign: "justify",
         showPanelIcons: true,
       },
@@ -746,7 +747,8 @@ test("layout preferences preserve bottom panel tabs visibility, badges, position
   const layout = loaded.layouts["texsys:hvac"];
   assert.deepEqual(layout.hiddenBottomTabs, ["output", "comments"]);
   assert.deepEqual(layout.hideBadges, { problems: true });
-  assert.equal(layout.panelPosition, "bottom");
+  assert.equal(layout.panelPosition, "right");
+  assert.equal(layout.panelWidth, 345);
   assert.equal(layout.panelAlign, "justify");
   assert.equal(layout.showPanelIcons, true);
 });
