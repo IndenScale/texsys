@@ -17,6 +17,7 @@ import "monaco-editor/languages/definitions/python/register.js";
 import "monaco-editor/languages/definitions/shell/register.js";
 import "monaco-editor/languages/definitions/yaml/register.js";
 import { t } from "./i18n";
+import "./toml-language";
 import { useUserPreferences } from "./user-preferences";
 import { sourceFileFormat, sourceOffset, type SearchMatch } from "./workspace-model";
 
@@ -30,7 +31,7 @@ const languageByExtension: Record<string, string> = {
   md: "markdown",
   markdown: "markdown",
   ini: "ini",
-  toml: "ini",
+  toml: "toml",
   py: "python",
   sh: "shell",
   yaml: "yaml",
