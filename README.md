@@ -30,6 +30,8 @@ Tex Studio 已提供首个本地 Web 插件宿主与 HVAC 工作台，支持实�
 | [docs/project-layout.md](docs/project-layout.md)   | 项目元数据、依赖／锁文件识别与目录布局                 | **权威**：`init`／`info` 的布局契约    |
 | [examples/](examples/README.md)                    | 用户参考项目与端到端桩数据                             | **权威**：可执行示例契约               |
 | [docs/adr/](docs/adr/README.md)                    | 架构决策记录                                           | **权威**：为什么这样决定               |
+| [docs/ul/](docs/ul/README.md)                      | texsys 统一语言：首选用语与定义索引                     | 用语入口；规则以对应规范为准           |
+| [docs/rfc/](docs/rfc/README.md)                    | 待评审提案与取舍                                       | 提案；生效决策与规则见 ADR、DDR 和规范 |
 | [docs/open-questions.md](docs/open-questions.md)   | 未决议题、阻塞影响与触发条件                           | **权威**：什么还没定、何时必须定       |
 | [docs/references.md](docs/references.md)           | 外部资料边界、来源与校验和                             | **权威**：某份资料能否被引用、是否入库 |
 | [plugins/hvac/](plugins/hvac/README.md)            | 暖通领域插件：设备模型、静态规则、输出格式、简易求解器 | 领域扩展，不含核心语义                 |
@@ -112,6 +114,8 @@ uv run --locked --only-group docs-lint tools/check_doc_language.py --base main -
 ```
 
 ## 下一步（按优先级）
+
+当前候选 Feature：[可命名、可校验的 SDL 网络](docs/rfc/0001-sdl-topology-slice.md)，先解决 OQ-3 的显式网络子集。
 
 1. 关闭阻塞性开放问题（见 open-questions 的"阻塞"列）。
 2. 用真实项目资料替换冷站概念桩数据，并记录参数来源与适用范围。
