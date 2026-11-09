@@ -53,11 +53,7 @@ export function selectedSourceText(path: string, models: SourceModels) {
   return selection ? model.getValueInRange(selection) : "";
 }
 
-export function runSourceEditCommand(
-  path: string,
-  models: SourceModels,
-  command: SourceEditCommand,
-) {
+function visibleSourceEditor(path: string, models: SourceModels) {
   const model = models.get(path)?.model;
   if (!model || model.isDisposed()) return;
   const code = editor
@@ -66,7 +62,35 @@ export function runSourceEditCommand(
       (candidate) =>
         candidate.getModel() === model && candidate.getDomNode()?.getClientRects().length,
     );
-  if (!code) return;
+  return code ? { model, code } : undefined;
+}
+
+export function goToSourcePosition(path: string, models: SourceModels, input: string) {
+  const match = /^([1-9]\d*)(?::([1-9]\d*))?$/.exec(input.trim());
+  const target = visibleSourceEditor(path, models);
+  if (!match || !target) return false;
+  const lineNumber = Number(match[1]);
+  const column = Number(match[2] ?? 1);
+  if (
+    lineNumber > target.model.getLineCount() ||
+    column > target.model.getLineMaxColumn(lineNumber)
+  )
+    return false;
+  const position = { lineNumber, column };
+  target.code.setPosition(position);
+  target.code.revealPositionInCenter(position);
+  requestAnimationFrame(() => target.code.focus());
+  return true;
+}
+
+export function runSourceEditCommand(
+  path: string,
+  models: SourceModels,
+  command: SourceEditCommand,
+) {
+  const target = visibleSourceEditor(path, models);
+  if (!target) return;
+  const { model, code } = target;
   code.focus();
   switch (command) {
     case "editor.undo":

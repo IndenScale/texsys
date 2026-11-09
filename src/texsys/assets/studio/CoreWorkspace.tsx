@@ -40,6 +40,7 @@ import {
 import "./workspace.css";
 import { SourceControl } from "./SourceControl";
 import {
+  goToSourcePosition,
   runSourceEditCommand,
   selectedSourceText,
   SourceEditor,
@@ -239,7 +240,7 @@ export function CoreWorkspaceProvider({
   changeLayout: WorkbenchProps["changeLayout"];
   sidebarActivity?: string;
   fileRequest?: FileRequest;
-  activityRequest?: { id: Activity; token: number };
+  activityRequest?: { id: Activity; token: number; replace?: boolean };
   settingsRequest?: number;
   titlebarSettings: TitlebarSettings;
   closeRequest?: number;
@@ -306,6 +307,11 @@ export function CoreWorkspaceProvider({
   const [formError, setFormError] = useState("");
   const [closePath, setClosePath] = useState<string>();
   const [revertPath, setRevertPath] = useState<string>();
+  const [linePrompt, setLinePrompt] = useState<{
+    path: string;
+    input: string;
+    invalid?: boolean;
+  }>();
   const [closeFocusRequest, setCloseFocusRequest] = useState(0);
   const [diskComparison, setDiskComparison] = useState<{ path: string; file: FilePreview }>();
   const searchInput = useRef<HTMLInputElement>(null);
@@ -387,7 +393,7 @@ export function CoreWorkspaceProvider({
   const tabStop =
     activeTab ??
     (active ? "source" : searchDocumentOpen ? "search" : settingsOpen ? "settings" : null);
-  const closeDisabled = !!(busy || form || closePath || revertPath || diskComparison);
+  const closeDisabled = !!(busy || form || closePath || revertPath || linePrompt || diskComparison);
   const canClose = !!activeTab && !closeDisabled;
   const canEditSource =
     activeTab === "source" &&
@@ -639,13 +645,6 @@ export function CoreWorkspaceProvider({
     setSettingsOpen(true);
     setSettingsActive(true);
   }, [settingsRequest]);
-  useEffect(() => {
-    if (activityRequest) {
-      select(activityRequest.id);
-      if (activityRequest.id === "search")
-        requestAnimationFrame(() => searchInput.current?.focus());
-    }
-  }, [activityRequest?.token]);
   const saveFiles = async (paths: string[], automatic = false): Promise<boolean> => {
     if (fileWriteInFlight.current) return false;
     fileWriteInFlight.current = true;
@@ -1058,6 +1057,11 @@ export function CoreWorkspaceProvider({
     notify,
   });
   const tree = visibleFileTree(listing, expanded);
+  useEffect(() => {
+    if (!activityRequest) return;
+    select(activityRequest.id);
+    if (activityRequest.id === "search") codeSearch.focus(activityRequest.replace);
+  }, [activityRequest?.token]);
   const startForm = (action: "create" | "mkdir" | "rename" | "delete", path = selected) => {
     const parent = listing.directories.includes(path)
       ? path
@@ -1091,6 +1095,8 @@ export function CoreWorkspaceProvider({
     if (id === "file.new") startForm("create", "");
     else if (id === "file.untitled") newUntitled();
     else if (id === "file.saveAll" && canSaveAll) void saveAll();
+    else if (id === "editor.gotoLine" && canEditSource)
+      setLinePrompt({ path: active.path, input: "" });
     else if (id === "file.saveAs" && canEditSource) startSaveAs(active.path);
     else if (id === "file.revert" && canRevert) {
       if (active.content === active.saved) void rereadFile(active.path);
@@ -1347,6 +1353,47 @@ export function CoreWorkspaceProvider({
   const closingDocument = documents.find((item) => item.path === closePath);
   const dialogs = (
     <>
+      {linePrompt && (
+        <div className="core-dialog-backdrop">
+          <form
+            className="core-dialog"
+            role="dialog"
+            aria-modal="true"
+            aria-label={t("转到行／列")}
+            onSubmit={(event) => {
+              event.preventDefault();
+              if (goToSourcePosition(linePrompt.path, sourceModels, linePrompt.input))
+                setLinePrompt(undefined);
+              else setLinePrompt({ ...linePrompt, invalid: true });
+            }}
+          >
+            <strong>{t("转到行／列")}</strong>
+            <label>
+              {t("行号或行号:列号")}
+              <input
+                value={linePrompt.input}
+                aria-invalid={linePrompt.invalid}
+                onChange={(event) =>
+                  setLinePrompt({ path: linePrompt.path, input: event.target.value })
+                }
+              />
+            </label>
+            {linePrompt.invalid && (
+              <p className="core-error" role="alert">
+                {t("请输入文件范围内的行号和列号。")}
+              </p>
+            )}
+            <div className="core-dialog-actions">
+              <button type="button" onClick={() => setLinePrompt(undefined)}>
+                {t("取消")}
+              </button>
+              <button className="core-primary" disabled={!linePrompt.input.trim()}>
+                {t("转到")}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
       {form && (
         <div className="core-dialog-backdrop">
           <form
@@ -1929,13 +1976,14 @@ export function CoreWorkspaceProvider({
           onDismiss={() => setExplorerMenu(undefined)}
         />
       )}
-      {(form || closePath || revertPath || diskComparison) && (
+      {(form || closePath || revertPath || linePrompt || diskComparison) && (
         <DialogLayer
           cancel={() => {
             if (!busy) {
               setForm(undefined);
               setClosePath(undefined);
               setRevertPath(undefined);
+              setLinePrompt(undefined);
               setDiskComparison(undefined);
             }
           }}

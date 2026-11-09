@@ -212,7 +212,7 @@ const macKeys = /Mac|iPhone|iPad/.test(navigator.platform);
 
 function Studio({ plugins, chrome }: { plugins: WorkbenchPlugin[]; chrome: StudioChrome }) {
   const locale = useLocale();
-  const { autoSave, confirmBeforeUnload } = useUserPreferences();
+  const { autoSave, confirmBeforeUnload, editorWordWrap } = useUserPreferences();
   useEffect(() => {
     document.documentElement.lang = locale;
   }, [locale]);
@@ -238,6 +238,7 @@ function Studio({ plugins, chrome }: { plugins: WorkbenchPlugin[]; chrome: Studi
   const [activityRequest, setActivityRequest] = useState<{
     id: "explorer" | "search" | "scm";
     token: number;
+    replace?: boolean;
   }>();
   const [state, setState] = useState<StudioState>();
   const titlebar = useRef<HTMLElement>(null);
@@ -309,7 +310,10 @@ function Studio({ plugins, chrome }: { plugins: WorkbenchPlugin[]; chrome: Studi
     [],
   );
   const [historyStates, setHistoryStates] = useState<
-    Record<string, { canBack: boolean; canForward: boolean; canClose?: boolean }>
+    Record<
+      string,
+      { canBack: boolean; canForward: boolean; canClose?: boolean; canNavigateProblems?: boolean }
+    >
   >({});
   const [runCommands, setRunCommands] = useState<Record<string, readonly WorkbenchRunCommand[]>>(
     {},
@@ -455,11 +459,17 @@ function Studio({ plugins, chrome }: { plugins: WorkbenchPlugin[]; chrome: Studi
     "editor.redo": coreHistory.canRedo,
     "editor.find": coreHistory.canEditSource,
     "editor.replace": coreHistory.canEditSource,
+    "editor.gotoLine": coreHistory.canEditSource,
   };
   const invokeCommand = (id: string) => {
     setMenu(null);
     if (isEditorMenuCommand(id)) {
       if (editorMenuEnabled[id]) setEditorMenuRequest({ id });
+      return;
+    }
+    const view = current?.views?.find((item) => "studio.view:" + item.id === id);
+    if (view) {
+      requestNavigation(view.id);
       return;
     }
     const runCommand = activeRunCommands?.find((command) => command.id === id);
@@ -470,6 +480,17 @@ function Studio({ plugins, chrome }: { plugins: WorkbenchPlugin[]; chrome: Studi
     switch (id) {
       case "commands.open":
         openCommands("commands");
+        break;
+      case "view.open":
+        openCommands("views");
+        break;
+      case "workspace.find":
+      case "workspace.replace":
+        setActivityRequest((previous) => ({
+          id: "search",
+          token: (previous?.token ?? 0) + 1,
+          replace: id === "workspace.replace",
+        }));
         break;
       case "workspace.explorer":
       case "workspace.search":
@@ -522,6 +543,10 @@ function Studio({ plugins, chrome }: { plugins: WorkbenchPlugin[]; chrome: Studi
       case "view.inspector":
         updateLayout(active, { inspectorOpen: !layout.inspectorOpen });
         break;
+      case "view.wordWrap":
+        if (coreHistory.canEditSource)
+          updateUserPreferences({ editorWordWrap: editorWordWrap === "off" ? "on" : "off" });
+        break;
       case "view.fullscreen":
         void (
           document.fullscreenElement
@@ -548,6 +573,10 @@ function Studio({ plugins, chrome }: { plugins: WorkbenchPlugin[]; chrome: Studi
         } else {
           updateLayout(active, { bottomOpen: true, bottomTab: "problems" });
         }
+        break;
+      case "navigation.nextIssue":
+      case "navigation.previousIssue":
+        if (historyStates[active]?.canNavigateProblems) requestNavigation(id);
         break;
       case "navigation.back":
         if (historyState.canBack) requestNavigation(id);
@@ -664,6 +693,9 @@ function Studio({ plugins, chrome }: { plugins: WorkbenchPlugin[]; chrome: Studi
         (isEditorMenuCommand(item.id) && !editorMenuEnabled[item.id]) ||
         !!activeRunCommands?.find((command) => command.id === item.id)?.disabled ||
         (item.id === "view.fullscreen" && !document.fullscreenEnabled) ||
+        (item.id === "view.wordWrap" && !coreHistory.canEditSource) ||
+        ((item.id === "navigation.nextIssue" || item.id === "navigation.previousIssue") &&
+          !historyStates[active]?.canNavigateProblems) ||
         (item.id === "document.save" && !coreHistory.canSave) ||
         (item.id === closeDocumentCommand.id && !historyState.canClose) ||
         (item.id === "navigation.back" && !historyState.canBack) ||
@@ -687,9 +719,11 @@ function Studio({ plugins, chrome }: { plugins: WorkbenchPlugin[]; chrome: Studi
                       ? layout.bottomOpen && layout.bottomTab === "problems"
                       : item.id === "view.inspector"
                         ? layout.inspectorOpen
-                        : item.id === "view.fullscreen"
-                          ? fullscreen
-                          : undefined,
+                        : item.id === "view.wordWrap"
+                          ? editorWordWrap !== "off"
+                          : item.id === "view.fullscreen"
+                            ? fullscreen
+                            : undefined,
     })),
   );
   useEffect(() => {
@@ -793,7 +827,7 @@ function Studio({ plugins, chrome }: { plugins: WorkbenchPlugin[]; chrome: Studi
     commandOpen,
   ]);
   useEffect(() => {
-    if (!commandOpen || commandScope === "commands") return;
+    if (!commandOpen || commandScope === "commands" || commandScope === "views") return;
     let current = true;
     setFilesLoading(true);
     setFilesError("");
@@ -930,6 +964,26 @@ function Studio({ plugins, chrome }: { plugins: WorkbenchPlugin[]; chrome: Studi
           focusRequest={commandFocusRequest}
           returnFocus={commandOrigin}
           commands={menuItems.filter((item) => item.id !== "commands.open")}
+          viewCommands={[
+            ...menuItems
+              .filter((item) =>
+                [
+                  "workspace.explorer",
+                  "workspace.search",
+                  "workspace.scm",
+                  "view.problems",
+                  "view.terminal",
+                  "tasks.show",
+                ].includes(item.id),
+              )
+              .map((item) => ({ ...item, searchOnly: false })),
+            ...(current?.views ?? []).map((item) => ({
+              ...item,
+              id: "studio.view:" + item.id,
+              label: t(item.label),
+              group: t(current?.manifest.discipline) ?? t("视图"),
+            })),
+          ]}
           onOpen={() => openCommands("all")}
           onClose={closeCommands}
           invoke={invokeCommand}
@@ -1071,7 +1125,8 @@ function Studio({ plugins, chrome }: { plugins: WorkbenchPlugin[]; chrome: Studi
                           setHistoryStates((previous) =>
                             previous[id]?.canBack === next.canBack &&
                             previous[id]?.canForward === next.canForward &&
-                            previous[id]?.canClose === next.canClose
+                            previous[id]?.canClose === next.canClose &&
+                            previous[id]?.canNavigateProblems === next.canNavigateProblems
                               ? previous
                               : { ...previous, [id]: next },
                           )

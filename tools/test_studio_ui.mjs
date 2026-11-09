@@ -352,7 +352,7 @@ test("menu and command search share group names and stable action identities", (
     filterCommands(commands, "")
       .filter((item) => item.id.startsWith("view."))
       .map((item) => item.id),
-    ["view.fullscreen"],
+    ["view.open", "view.wordWrap", "view.fullscreen"],
   );
   assert.deepEqual(
     filterCommands(commands, "布局").map((item) => item.id),

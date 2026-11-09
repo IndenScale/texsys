@@ -25,6 +25,7 @@ export function CommandCenter({
   focusRequest,
   returnFocus,
   commands,
+  viewCommands,
   onOpen,
   onClose,
   invoke,
@@ -45,6 +46,7 @@ export function CommandCenter({
   focusRequest: number;
   returnFocus: RefObject<HTMLElement | null>;
   commands: CommandItem[];
+  viewCommands: CommandItem[];
   onOpen: () => void;
   onClose: () => void;
   invoke: (id: string) => void;
@@ -76,9 +78,18 @@ export function CommandCenter({
         return file ? [file] : [];
       })
     : files;
-  const fileQuery = resultScope !== "commands" ? parseFileQuery(visibleFiles, query) : undefined;
+  const fileQuery =
+    resultScope !== "commands" && resultScope !== "views"
+      ? parseFileQuery(visibleFiles, query)
+      : undefined;
   const location = fileQuery?.location;
   const matches: Result[] = [
+    ...(resultScope === "views"
+      ? filterCommands(viewCommands, query).map((command) => ({
+          ...command,
+          icon: command.icon ?? "arrow",
+        }))
+      : []),
     ...(resultScope === "all" || resultScope === "commands"
       ? filterCommands(commands, query).map((command) => ({
           ...command,
@@ -120,7 +131,7 @@ export function CommandCenter({
   }, [project]);
   useLayoutEffect(() => {
     if (open) {
-      if (scope === "recent") {
+      if (scope === "recent" || scope === "views") {
         setQuery("");
         setSelected(0);
       } else if (scope !== "commands") setQuery((current) => current.replace(/^\s*>\s*/, ""));
@@ -216,13 +227,15 @@ export function CommandCenter({
             autoComplete="off"
             spellCheck={false}
             placeholder={
-              scope === "recent"
-                ? t("搜索最近打开的文件…")
-                : scope === "files"
-                  ? t("搜索文件…")
-                  : scope === "commands"
-                    ? t("搜索或运行命令…")
-                    : t("搜索文件或运行命令…")
+              scope === "views"
+                ? t("搜索视图…")
+                : scope === "recent"
+                  ? t("搜索最近打开的文件…")
+                  : scope === "files"
+                    ? t("搜索文件…")
+                    : scope === "commands"
+                      ? t("搜索或运行命令…")
+                      : t("搜索文件或运行命令…")
             }
             value={query}
             onChange={(event) => {
@@ -331,6 +344,9 @@ export function CommandCenter({
                 { id: "commands", label: t("命令"), focused: resultScope === "commands" },
                 { id: "files", label: t("文件"), focused: resultScope === "files" },
                 { id: "recent", label: t("最近"), focused: resultScope === "recent" },
+                ...(scope === "views"
+                  ? [{ id: "views", label: t("视图"), focused: resultScope === "views" }]
+                  : []),
               ]}
               onSelect={(id) => {
                 if (id !== "commands") setQuery((current) => current.replace(/^\s*>\s*/, ""));

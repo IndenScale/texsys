@@ -91,11 +91,13 @@ export type WorkbenchProps = {
     canBack: boolean;
     canForward: boolean;
     canClose?: boolean;
+    canNavigateProblems?: boolean;
   }) => void;
 };
 export type WorkbenchPlugin = {
   manifest: PluginManifest;
   Workbench: ComponentType<WorkbenchProps>;
+  views?: readonly MenuItem[];
 };
 
 export const labels: Record<string, string> = {

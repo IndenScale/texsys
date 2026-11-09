@@ -130,11 +130,28 @@ const views: { id: View; label: string; icon: string; group: string; description
 ];
 const info = (view: View) => views.find((item) => item.id === view)!;
 
-function IssueRows({ issues, locate }: { issues: Issue[]; locate: (issue: Issue) => void }) {
+function IssueRows({
+  issues,
+  locate,
+  activeIssue,
+}: {
+  issues: Issue[];
+  locate: (issue: Issue) => void;
+  activeIssue?: string;
+}) {
+  const currentRow = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    currentRow.current?.scrollIntoView({ block: "nearest" });
+  }, [activeIssue]);
   return (
     <div className="issue-list">
       {issues.map((issue) => (
-        <div className={`issue-row ${issue.current ? "" : "historical"}`} key={issue.id}>
+        <div
+          className={`issue-row ${issue.current ? "" : "historical"}`}
+          key={issue.id}
+          ref={issue.id === activeIssue ? currentRow : undefined}
+          aria-current={issue.id === activeIssue ? true : undefined}
+        >
           <span className={`tag ${issue.status}`}>
             {({ error: t("错误"), warning: t("警告") } as Record<string, string>)[issue.status] ??
               t(labels[issue.status]) ??
@@ -233,6 +250,7 @@ function Workspace({
   const busy = state.jobs.some((item) => item.state === "running");
   const issues = useMemo(() => issuesFor(data), [data, locale]);
   const currentIssues = issues.filter((item) => item.current);
+  const [issueCursor, setIssueCursor] = useState<string>();
   const visibleIssues = issues.filter(
     (item) =>
       (issueScope === "all" || (issueScope === "current" ? item.current : !item.current)) &&
@@ -305,6 +323,7 @@ function Workspace({
     openView("simulation");
   };
   const locateIssue = (issue: Issue) => {
+    setIssueCursor(issue.id);
     if (issue.runPath && issue.assertion !== undefined)
       locateAssertion(issue.runPath, issue.assertion);
     else if (issue.object && choose({ kind: "instance", id: issue.object }, false)) {
@@ -369,8 +388,9 @@ function Workspace({
       canBack: history.index > 0,
       canForward: history.index < history.entries.length - 1,
       canClose: documents.length > 0,
+      canNavigateProblems: currentIssues.length > 0,
     });
-  }, [history, documents.length, onNavigationState]);
+  }, [history, documents.length, currentIssues.length, onNavigationState]);
   useEffect(() => {
     core?.setDomainTabsOpen?.(documents.length > 0);
   }, [core?.setDomainTabsOpen, documents.length]);
@@ -385,6 +405,25 @@ function Workspace({
     if (command === "file.open" && navigationRequest.path) {
       setFilePath(navigationRequest.path);
       openView("file");
+    } else if (command === "navigation.nextIssue" || command === "navigation.previousIssue") {
+      const index = currentIssues.findIndex((item) => item.id === issueCursor);
+      const step = command === "navigation.nextIssue" ? 1 : -1;
+      const next =
+        index < 0
+          ? step === 1
+            ? 0
+            : currentIssues.length - 1
+          : (index + step + currentIssues.length) % currentIssues.length;
+      const issue = currentIssues[next];
+      if (issue) {
+        if (issue.object || (issue.runPath && issue.assertion !== undefined)) locateIssue(issue);
+        else {
+          setIssueCursor(issue.id);
+          setIssueScope("current");
+          setIssueSearch("");
+          openView("checks");
+        }
+      }
     } else if (command === "document.close") {
       if (view && documents.includes(view)) closeDocument(view);
     } else if (command === "navigation.back" || command === "navigation.forward") {
@@ -1327,7 +1366,11 @@ function Workspace({
                   </select>
                 </div>
                 {visibleIssues.length ? (
-                  <IssueRows issues={visibleIssues} locate={locateIssue} />
+                  <IssueRows
+                    issues={visibleIssues}
+                    locate={locateIssue}
+                    activeIssue={issueCursor}
+                  />
                 ) : (
                   <div className="check-clear">
                     <Icon name="check" size={26} />
@@ -1610,5 +1653,8 @@ const plugin: WorkbenchPlugin = {
     ],
   },
   Workbench: HvacWorkbench,
+  views: views
+    .filter((view) => view.id !== "file")
+    .map(({ id, label, icon, description }) => ({ id, label, icon, keywords: description })),
 };
 export default plugin;

@@ -43,6 +43,7 @@ const fileEditorCommands = [
   "file.saveAs",
   "file.saveAll",
   "file.revert",
+  "editor.gotoLine",
 ] as const;
 export type EditorMenuCommand = (typeof fileEditorCommands)[number] | SourceEditCommand;
 
@@ -100,12 +101,21 @@ export const studioMenus: MenuGroup[] = [
       },
     ],
   },
-  { id: "edit", label: "编辑", items: [...sourceEditCommands] },
+  {
+    id: "edit",
+    label: "编辑",
+    items: [
+      ...sourceEditCommands,
+      { id: "workspace.find", label: "在文件中查找…", separator: true, keywords: "Find in Files" },
+      { id: "workspace.replace", label: "在文件中替换…", keywords: "Replace in Files" },
+    ],
+  },
   {
     id: "view",
     label: "查看",
     items: [
       { id: "commands.open", label: "命令面板…", icon: "search" },
+      { id: "view.open", label: "打开视图…", icon: "search", keywords: "Open View" },
       {
         id: "workspace.explorer",
         label: "文件资源管理器",
@@ -166,6 +176,7 @@ export const studioMenus: MenuGroup[] = [
         keywords: "Problems",
       },
       { id: "tasks.show", label: "显示任务与日志", icon: "terminal" },
+      { id: "view.wordWrap", label: "自动换行", separator: true, keywords: "Word Wrap" },
       { id: "view.fullscreen", label: "全屏", keywords: "Full Screen 专注 编辑器快捷键" },
     ],
   },
@@ -176,6 +187,14 @@ export const studioMenus: MenuGroup[] = [
       { id: "files.search", label: "快速打开文件…", icon: "file", keywords: "Quick Open 搜索文件" },
       { id: "navigation.back", label: "后退", icon: "back" },
       { id: "navigation.forward", label: "前进", icon: "forward" },
+      { id: "editor.gotoLine", label: "转到行／列…", keywords: "Go to Line Column" },
+      {
+        id: "navigation.nextIssue",
+        label: "下一个问题",
+        separator: true,
+        keywords: "Next Problem",
+      },
+      { id: "navigation.previousIssue", label: "上一个问题", keywords: "Previous Problem" },
       { id: "project.overview", label: "项目概览", icon: "folder" },
     ],
   },

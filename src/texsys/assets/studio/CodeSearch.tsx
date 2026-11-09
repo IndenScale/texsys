@@ -234,6 +234,7 @@ export function useCodeSearch({
   gitEntries: GitEntry[];
   notify: WorkbenchProps["notify"];
 }) {
+  const replaceInput = useRef<HTMLInputElement>(null);
   const [query, setQuery] = useState(""),
     [replaceText, setReplaceText] = useState("");
   const [caseSensitive, setCaseSensitive] = useState(false),
@@ -623,6 +624,7 @@ export function useCodeSearch({
       <div className="code-replace-row" hidden={!replaceOpen}>
         <div className="code-search-box">
           <input
+            ref={replaceInput}
             aria-label={t("替换内容")}
             placeholder={t("替换")}
             value={replaceText}
@@ -754,6 +756,12 @@ export function useCodeSearch({
         </div>
       </section>
     ),
+    focus: (replace?: boolean) => {
+      if (replace !== undefined) setReplaceOpen(replace);
+      requestAnimationFrame(() => {
+        (replace && query ? replaceInput.current : inputRef.current)?.focus();
+      });
+    },
     dialog: replacementPreview ? (
       <ReplacementDialog
         preview={replacementPreview.result}

@@ -1,5 +1,5 @@
 import type { ProjectFile } from "./sdk";
-export type SearchScope = "all" | "commands" | "files" | "recent";
+export type SearchScope = "all" | "commands" | "files" | "recent" | "views";
 export type FileLocation = { line: number; column?: number };
 
 const recentFileLimit = 30;

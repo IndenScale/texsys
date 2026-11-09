@@ -562,6 +562,9 @@
 .issue-row:last-child {
   border-bottom: 0;
 }
+.issue-row[aria-current="true"] {
+  background: #edf3f6;
+}
 .issue-row.historical {
   background: #fcfaf5;
 }
@@ -1422,7 +1425,10 @@
   border-bottom: 1px solid var(--border);
   padding: 0 8px 0 10px;
   user-select: none;
-  transition: background 150ms ease, border-color 150ms ease, color 150ms ease;
+  transition:
+    background 150ms ease,
+    border-color 150ms ease,
+    color 150ms ease;
 }
 .bottom-panel-header .inline-tabs,
 .bottom-panel-header .bottom-tabs {
@@ -1446,7 +1452,9 @@
   gap: 5px;
   cursor: pointer;
   position: relative;
-  transition: background 120ms ease, color 120ms ease;
+  transition:
+    background 120ms ease,
+    color 120ms ease;
   user-select: none;
   outline: none;
 }
@@ -1487,7 +1495,9 @@
   color: var(--ui-text, #263b46);
   margin-inline-start: 4px;
   box-sizing: border-box;
-  transition: background 120ms ease, color 120ms ease;
+  transition:
+    background 120ms ease,
+    color 120ms ease;
 }
 .bottom-panel-header .inline-tab.is-focused .tab-badge {
   background: var(--accent, #087f72);
