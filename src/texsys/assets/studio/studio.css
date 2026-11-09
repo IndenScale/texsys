@@ -110,6 +110,12 @@ button svg {
   overflow: hidden;
   background: var(--ui-workbench-backdrop);
 }
+.studio-app.is-empty-workspace {
+  grid-template-rows: var(--titlebar-height) minmax(0, 1fr);
+}
+.studio-statusbar[hidden] {
+  display: none;
+}
 .studio-titlebar {
   display: grid;
   --titlebar-leading-min: 70px;

@@ -20,13 +20,13 @@ export function ExplorerTree({
   entries: TreeEntry[];
   expanded: Set<string>;
   selected: string;
-  dirtyPaths: Set<string>;
+  dirtyPaths?: Set<string>;
   select: (path: string) => void;
   toggle: (path: string) => void;
   open: (path: string, keyboard: boolean) => void;
-  contextMenu: (path: string, x: number, y: number) => void;
-  rename: () => void;
-  remove: () => void;
+  contextMenu?: (path: string, x: number, y: number) => void;
+  rename?: () => void;
+  remove?: () => void;
 }) {
   const selectedEntry = entries.find((entry) => entry.path === selected);
   const activeBranch = selectedEntry
@@ -41,12 +41,12 @@ export function ExplorerTree({
       role="tree"
       aria-label={t("项目文件")}
       onKeyDown={(event) => {
-        if (event.key === "F2" && selectedEntry) {
+        if (event.key === "F2" && selectedEntry && rename) {
           event.preventDefault();
           rename();
           return;
         }
-        if (event.key === "Delete" && selectedEntry) {
+        if (event.key === "Delete" && selectedEntry && remove) {
           event.preventDefault();
           remove();
           return;
@@ -105,6 +105,7 @@ export function ExplorerTree({
             title={entry.path}
             onFocus={() => select(entry.path)}
             onContextMenu={(event) => {
+              if (!contextMenu) return;
               event.preventDefault();
               select(entry.path);
               contextMenu(entry.path, event.clientX, event.clientY);
@@ -133,7 +134,7 @@ export function ExplorerTree({
               {entry.directory ? <Icon name="folder" size={16} /> : <FileIcon path={entry.path} />}
             </span>
             <span className="core-entry-name">{entry.name}</span>
-            {dirtyPaths.has(entry.path) && <span className="core-dirty" title={t("未保存")} />}
+            {dirtyPaths?.has(entry.path) && <span className="core-dirty" title={t("未保存")} />}
           </button>
         );
       })}

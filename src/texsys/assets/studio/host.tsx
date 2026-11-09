@@ -12,6 +12,7 @@ import {
   type StudioChrome,
 } from "./sdk";
 import { CoreWorkspaceProvider, WorkbenchSurface } from "./CoreWorkspace";
+import { WelcomeWorkspace, type WelcomeEditorState } from "./WelcomeWorkspace";
 import { DEFAULT_SIDEBAR_WIDTH } from "./atomstudio/layoutSizing";
 import {
   readHiddenTitlebarGroups,
@@ -211,12 +212,41 @@ function initialLayout(): StudioLayout {
 const panelPositions = { bottom: "底部", left: "左侧", right: "右侧" } as const;
 const macKeys = /Mac|iPhone|iPad/.test(navigator.platform);
 
-function Studio({ plugins, chrome }: { plugins: WorkbenchPlugin[]; chrome: StudioChrome }) {
+const welcomeEditorCommands = new Set([
+  "file.untitled",
+  "file.open",
+  "file.openFolder",
+  "file.recent",
+  "document.save",
+  "file.saveAs",
+  closeDocumentCommand.id,
+  "help.welcome",
+]);
+const emptyWorkspaceCommands = new Set([
+  ...welcomeEditorCommands,
+  "file.newWindow",
+  "file.openProject",
+  "view.sidebar",
+  "view.fullscreen",
+]);
+
+function Studio({
+  plugins,
+  chrome,
+  emptyWorkspace,
+}: {
+  plugins: WorkbenchPlugin[];
+  chrome: StudioChrome;
+  emptyWorkspace: boolean;
+}) {
   const locale = useLocale();
+  const welcome = useRef<{ run: (id: string) => void }>(null);
+  const [welcomeEditor, setWelcomeEditor] = useState<WelcomeEditorState>();
   const { autoSave, confirmBeforeUnload, editorWordWrap } = useUserPreferences();
   useEffect(() => {
     document.documentElement.lang = locale;
-  }, [locale]);
+    document.title = emptyWorkspace ? `${t("空白工作区")} — Tex Studio` : "Tex Studio";
+  }, [emptyWorkspace, locale]);
   const [fileRequest, setFileRequest] = useState<{
     path: string;
     token: number;
@@ -364,7 +394,7 @@ function Studio({ plugins, chrome }: { plugins: WorkbenchPlugin[]; chrome: Studi
     [],
   );
   const refresh = useCallback(async () => {
-    if (refreshing.current) return;
+    if (emptyWorkspace || refreshing.current) return;
     refreshing.current = true;
     try {
       const next = await api<StudioState>("/api/state");
@@ -390,12 +420,11 @@ function Studio({ plugins, chrome }: { plugins: WorkbenchPlugin[]; chrome: Studi
     } finally {
       refreshing.current = false;
     }
-  }, [defaultLayout]);
+  }, [defaultLayout, emptyWorkspace]);
   useEffect(() => {
     if (project) writeLayoutPreferences(project, { discipline: active, layouts });
   }, [project, active, layouts]);
   useEffect(() => {
-    document.title = "Tex Studio";
     let iconLink = document.querySelector<HTMLLinkElement>('link[rel~="icon"]');
     if (!iconLink) {
       iconLink = document.createElement("link");
@@ -406,6 +435,7 @@ function Studio({ plugins, chrome }: { plugins: WorkbenchPlugin[]; chrome: Studi
     iconLink.href = "/favicon.svg";
   }, []);
   useEffect(() => {
+    if (emptyWorkspace) return;
     mounted.current = true;
     void refresh();
     const timer = setInterval(() => void refresh(), 2500);
@@ -413,7 +443,7 @@ function Studio({ plugins, chrome }: { plugins: WorkbenchPlugin[]; chrome: Studi
       mounted.current = false;
       clearInterval(timer);
     };
-  }, [refresh]);
+  }, [emptyWorkspace, refresh]);
   useEffect(() => {
     if (!toast) return;
     const timer = setTimeout(() => setToast(undefined), 6500);
@@ -489,6 +519,13 @@ function Studio({ plugins, chrome }: { plugins: WorkbenchPlugin[]; chrome: Studi
   };
   const invokeCommand = (id: string) => {
     setMenu(null);
+    if (emptyWorkspace) {
+      if (!emptyWorkspaceCommands.has(id)) return;
+      if (welcomeEditorCommands.has(id)) {
+        welcome.current?.run(id);
+        return;
+      }
+    }
     if (isEditorMenuCommand(id)) {
       if (editorMenuEnabled[id]) setEditorMenuRequest({ id });
       return;
@@ -538,7 +575,10 @@ function Studio({ plugins, chrome }: { plugins: WorkbenchPlugin[]; chrome: Studi
         openCommands("recent");
         break;
       case "file.newWindow":
-        window.open(window.location.href, "_blank", "popup,noopener");
+        window.open("/?workspace=empty", "_blank", "noopener");
+        break;
+      case "file.openProject":
+        window.location.assign("/");
         break;
       case "file.autoSave":
         updateUserPreferences({ autoSave: !autoSave });
@@ -699,14 +739,26 @@ function Studio({ plugins, chrome }: { plugins: WorkbenchPlugin[]; chrome: Studi
       label: t(group.label),
       items: (group.id === "run"
         ? [...(activeRunCommands ?? []), ...group.items]
-        : group.items
+        : emptyWorkspace && group.id === "file"
+          ? group.items.flatMap((item) =>
+              item.id === "file.open"
+                ? [
+                    item,
+                    { id: "file.openFolder", label: "打开文件夹…", icon: "folder" },
+                    { id: "file.openProject", label: "打开已启动的项目", icon: "grid" },
+                  ]
+                : [item],
+            )
+          : emptyWorkspace && group.id === "help"
+            ? [{ id: "help.welcome", label: "显示欢迎页", icon: "sparkles" }, ...group.items]
+            : group.items
       ).map((item) => ({
         ...item,
         label: t(item.label),
         keys: isSourceEditCommand(item.id) ? editKeys[item.id] : item.keys,
       })),
     }));
-  }, [locale, activeRunCommands]);
+  }, [locale, activeRunCommands, emptyWorkspace]);
   const menuItems = localizedMenus.flatMap((group) =>
     group.items.map((item) => ({
       ...item,
@@ -754,8 +806,10 @@ function Studio({ plugins, chrome }: { plugins: WorkbenchPlugin[]; chrome: Studi
                                   : ["Ctrl", "Shift", "M"]
                                 : item.keys,
       disabled:
-        !state ||
-        (isEditorMenuCommand(item.id) && !editorMenuEnabled[item.id]) ||
+        (emptyWorkspace
+          ? !emptyWorkspaceCommands.has(item.id)
+          : !state && item.id !== "file.newWindow") ||
+        (!emptyWorkspace && isEditorMenuCommand(item.id) && !editorMenuEnabled[item.id]) ||
         !!activeRunCommands?.find((command) => command.id === item.id)?.disabled ||
         (item.id === "view.fullscreen" && !document.fullscreenEnabled) ||
         (item.id === "view.wordWrap" && !coreHistory.canEditSource) ||
@@ -764,8 +818,11 @@ function Studio({ plugins, chrome }: { plugins: WorkbenchPlugin[]; chrome: Studi
         (item.id === "objects.references" && !usageObjects.length) ||
         ((item.id === "navigation.nextIssue" || item.id === "navigation.previousIssue") &&
           !canNavigateProblems) ||
-        (item.id === "document.save" && !coreHistory.canSave) ||
-        (item.id === closeDocumentCommand.id && !historyState.canClose) ||
+        (item.id === "document.save" &&
+          !(emptyWorkspace ? welcomeEditor?.canSave : coreHistory.canSave)) ||
+        (item.id === "file.saveAs" && emptyWorkspace && !welcomeEditor?.canSaveAs) ||
+        (item.id === closeDocumentCommand.id &&
+          !(emptyWorkspace ? welcomeEditor?.canClose : historyState.canClose)) ||
         (item.id === "navigation.back" && !historyState.canBack) ||
         (item.id === "navigation.forward" && !historyState.canForward) ||
         (item.id === "help.capabilities" && !current) ||
@@ -810,11 +867,12 @@ function Studio({ plugins, chrome }: { plugins: WorkbenchPlugin[]; chrome: Studi
     // Monaco handles key events in the editor before they bubble to the workbench.
     window.addEventListener("keydown", closeHandler, true);
     return () => window.removeEventListener("keydown", closeHandler, true);
-  }, [historyState.canClose, commandOpen]);
+  }, [emptyWorkspace, historyState.canClose, commandOpen]);
   useEffect(() => {
     const handler = (event: KeyboardEvent) => {
       if (event.defaultPrevented || event.isComposing || event.keyCode === 229) return;
       if (event.target instanceof Element && event.target.closest('[aria-modal="true"]')) return;
+      if (emptyWorkspace && !((event.metaKey || event.ctrlKey) && event.key === "\\")) return;
       if ((event.metaKey || event.ctrlKey) && event.shiftKey && event.key.toLowerCase() === "p") {
         event.preventDefault();
         openCommands("commands");
@@ -897,6 +955,7 @@ function Studio({ plugins, chrome }: { plugins: WorkbenchPlugin[]; chrome: Studi
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
   }, [
+    emptyWorkspace,
     active,
     layout.sidebarOpen,
     layout.bottomOpen,
@@ -908,7 +967,8 @@ function Studio({ plugins, chrome }: { plugins: WorkbenchPlugin[]; chrome: Studi
     commandOpen,
   ]);
   useEffect(() => {
-    if (!commandOpen || !["all", "files", "recent"].includes(commandScope)) return;
+    if (emptyWorkspace || !commandOpen || !["all", "files", "recent"].includes(commandScope))
+      return;
     let current = true;
     setFilesLoading(true);
     setFilesError("");
@@ -928,7 +988,7 @@ function Studio({ plugins, chrome }: { plugins: WorkbenchPlugin[]; chrome: Studi
     return () => {
       current = false;
     };
-  }, [commandOpen, commandFocusRequest, commandScope]);
+  }, [emptyWorkspace, commandOpen, commandFocusRequest, commandScope]);
   const openFile = (file: ProjectFile, location?: FileLocation) => {
     setFileRequest((previous) => ({
       path: file.path,
@@ -946,7 +1006,7 @@ function Studio({ plugins, chrome }: { plugins: WorkbenchPlugin[]; chrome: Studi
           ? t("无版本库")
           : t("分支不可用");
   return (
-    <div className="studio-app">
+    <div className={emptyWorkspace ? "studio-app is-empty-workspace" : "studio-app"}>
       <header
         ref={titlebar}
         className={`studio-titlebar ${chrome.nativeMenu ? "has-native-menu" : "has-app-menu"} window-controls-${chrome.windowControls}`}
@@ -1019,6 +1079,7 @@ function Studio({ plugins, chrome }: { plugins: WorkbenchPlugin[]; chrome: Studi
                   <ToolbarButton
                     aria-label={t("切换底部面板")}
                     tooltip={t("显示/隐藏底部面板")}
+                    disabled={emptyWorkspace}
                     aria-pressed={layout.bottomOpen}
                     onClick={() => updateLayout(active, { bottomOpen: !layout.bottomOpen })}
                   >
@@ -1027,6 +1088,7 @@ function Studio({ plugins, chrome }: { plugins: WorkbenchPlugin[]; chrome: Studi
                   <ToolbarButton
                     aria-label={t("切换属性面板")}
                     tooltip={t("显示/隐藏属性面板")}
+                    disabled={emptyWorkspace}
                     aria-pressed={layout.inspectorOpen}
                     onClick={() => updateLayout(active, { inspectorOpen: !layout.inspectorOpen })}
                   >
@@ -1038,7 +1100,7 @@ function Studio({ plugins, chrome }: { plugins: WorkbenchPlugin[]; chrome: Studi
           )}
         </div>
         <CommandCenter
-          project={state?.project.name ?? t("打开项目中")}
+          project={state?.project.name ?? t(emptyWorkspace ? "空白工作区" : "打开项目中")}
           showTrigger={!hiddenTitlebarGroups.includes("commandCenter")}
           disabled={!state}
           open={commandOpen}
@@ -1152,7 +1214,16 @@ function Studio({ plugins, chrome }: { plugins: WorkbenchPlugin[]; chrome: Studi
             <button onClick={() => void refresh()}>{t("重试")}</button>
           </div>
         )}
-        {!state ? (
+        {emptyWorkspace ? (
+          <WelcomeWorkspace
+            ref={welcome}
+            layout={layout}
+            changeLayout={(patch) => updateLayout(active, patch)}
+            openProject={() => invokeCommand("file.openProject")}
+            notify={notify}
+            onEditorState={setWelcomeEditor}
+          />
+        ) : !state ? (
           <Empty title={t("正在打开工作空间")}>{t("读取项目、专业和运行记录。")}</Empty>
         ) : (
           <CoreWorkspaceProvider
@@ -1270,7 +1341,7 @@ function Studio({ plugins, chrome }: { plugins: WorkbenchPlugin[]; chrome: Studi
           </CoreWorkspaceProvider>
         )}
       </main>
-      <footer className="studio-statusbar" aria-label={t("工作空间状态")}>
+      <footer className="studio-statusbar" aria-label={t("工作空间状态")} hidden={emptyWorkspace}>
         <div className="project-context context-item">
           <button
             className="context-button"
@@ -1405,5 +1476,8 @@ export function startStudio(
       throw new Error("Incompatible or duplicate Studio frontend contribution.");
     seen.add(plugin.manifest.id);
   }
-  createRoot(document.getElementById("root")!).render(<Studio plugins={plugins} chrome={chrome} />);
+  const emptyWorkspace = new URLSearchParams(window.location.search).get("workspace") === "empty";
+  createRoot(document.getElementById("root")!).render(
+    <Studio plugins={plugins} chrome={chrome} emptyWorkspace={emptyWorkspace} />,
+  );
 }
