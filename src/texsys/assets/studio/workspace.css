@@ -179,8 +179,12 @@
   border-radius: 3px;
   font-size: 12px;
 }
-.core-primary:hover:not(:disabled) {
+.core-primary:hover:not(:disabled, [aria-disabled="true"]) {
   background: #076d63;
+}
+.core-primary[aria-disabled="true"] {
+  cursor: not-allowed;
+  opacity: 0.48;
 }
 .core-change-row {
   display: flex;

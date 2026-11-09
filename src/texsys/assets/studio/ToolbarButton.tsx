@@ -10,8 +10,17 @@ import { createPortal } from "react-dom";
 import { Keycaps } from "./Keycaps";
 import { AnimatedPresence } from "./AnimatedPresence";
 
-/** Shared button and tooltip interaction for Studio chrome. */
-export function ToolbarButton({
+type TooltipButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
+  tooltip: string;
+  shortcut?: string[];
+};
+
+export function ToolbarButton({ className = "", ...props }: TooltipButtonProps) {
+  return <TooltipButton {...props} className={`toolbar-button ${className}`} />;
+}
+
+/** Place the tooltip above the workbench layout while keeping focus on the trigger. */
+export function TooltipButton({
   tooltip,
   shortcut,
   className = "",
@@ -23,7 +32,7 @@ export function ToolbarButton({
   onClick,
   onKeyDown,
   ...props
-}: ButtonHTMLAttributes<HTMLButtonElement> & { tooltip: string; shortcut?: string[] }) {
+}: TooltipButtonProps) {
   const button = useRef<HTMLButtonElement>(null),
     tip = useRef<HTMLDivElement>(null),
     timer = useRef<number | undefined>(undefined);
@@ -77,14 +86,14 @@ export function ToolbarButton({
       window.removeEventListener("resize", place);
       window.removeEventListener("scroll", place, true);
     };
-  }, [open]);
+  }, [open, tooltip]);
   return (
     <>
       <button
         {...props}
         ref={button}
-        className={`toolbar-button ${className}`}
-        aria-describedby={open ? id : undefined}
+        className={className}
+        aria-describedby={props["aria-describedby"] ?? (open ? id : undefined)}
         onPointerEnter={(event) => {
           show();
           onPointerEnter?.(event);

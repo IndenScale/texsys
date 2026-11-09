@@ -42,3 +42,5 @@ ddr/NNNN-short-title.md
 | [0007](0007-studio-source-control.md) | 本地 Git 差异浏览、项目／仓库范围隔离、批量暂存与提交历史图 | 已接受 |
 | [0008](0008-studio-integrated-terminal-and-panel-system.md) | 对标 VS Code 的底部终端模块、面板控制与下拉菜单交互系统 | 已接受 |
 | [0009](0009-studio-visual-identity-and-logo-design.md) | Tex Studio 视觉识别（VI）系统、Logo 语义与正交节点设计演进 | 提议 |
+| [0010](0010-studio-disabled-action-feedback.md) | 在主要操作旁说明禁用原因和可执行的下一步 | 已取代 |
+| [0011](0011-studio-disabled-action-tooltip.md) | 通过浮层说明禁用原因，保持面板布局稳定 | 已接受 |
