@@ -109,7 +109,7 @@ export function readLayoutPreferences(project: string, defaults: StudioLayout): 
                   ...(record(layout.hideBadges) && {
                     hideBadges: Object.fromEntries(
                       Object.entries(layout.hideBadges).filter(
-                        ([, v]) => typeof v === "boolean",
+                        (entry): entry is [string, boolean] => typeof entry[1] === "boolean",
                       ),
                     ),
                   }),

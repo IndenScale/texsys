@@ -13,15 +13,19 @@ from .files import MAX_PREVIEW_BYTES, workspace_path
 from .runtime import Conflict
 
 MAX_CHANGES = 2000
+MAX_COMMIT_DRAFT_DIFF_BYTES = 48 * 1024
 
 
-def git(root: Path, *arguments: str, accepted=(0,), output_limit=8 * 1024 * 1024, truncate=False) -> bytes:
+def git(root: Path, *arguments: str, accepted=(0,), output_limit=8 * 1024 * 1024, truncate=False,
+        index_file: Path | None = None) -> bytes:
   # Spool stdout to disk so a large binary/text diff cannot exhaust the API process.
+  env = {**os.environ, "GIT_OPTIONAL_LOCKS": "0", "GIT_TERMINAL_PROMPT": "0", "LC_ALL": "C"}
+  if index_file is not None:
+    env["GIT_INDEX_FILE"] = str(index_file)
   try:
     with tempfile.TemporaryFile() as output:
       result = subprocess.run(["git", "--literal-pathspecs", "-c", "diff.relative=false", "-C", str(root), *arguments],
-                              stdout=output, stderr=subprocess.PIPE, timeout=20,
-                              env={**os.environ, "GIT_OPTIONAL_LOCKS": "0", "GIT_TERMINAL_PROMPT": "0", "LC_ALL": "C"})
+                              stdout=output, stderr=subprocess.PIPE, timeout=20, env=env)
       output.seek(0)
       content = output.read(output_limit + 1)
   except (OSError, subprocess.TimeoutExpired) as error:
@@ -59,10 +63,20 @@ def _records(root: Path) -> list[dict]:
   return entries
 
 
-def source_status(root: Path, build: str) -> dict:
+def _read_index(root: Path) -> bytes | None:
+  index_path = Path(os.fsdecode(git(root, "rev-parse", "--git-path", "index")).rstrip("\n"))
+  if not index_path.is_absolute():
+    index_path = root / index_path
+  try:
+    return index_path.read_bytes()
+  except FileNotFoundError:
+    return None
+
+
+def _source_status(root: Path, build: str) -> tuple[dict, str, str]:
   repo = repository(root)
   if repo is None:
-    return {"available": False, "reason": "当前项目尚未使用 Git。", "entries": [], "snapshot": ""}
+    return {"available": False, "reason": "当前项目尚未使用 Git。", "entries": [], "snapshot": ""}, "", ""
   root = root.resolve()
   records = _records(root)
   entries, signature = [], []
@@ -93,15 +107,84 @@ def source_status(root: Path, build: str) -> dict:
       continue
   head = git(root, "rev-parse", "--verify", "HEAD", accepted=(0, 128)).decode().strip()
   # Index content belongs to the snapshot even if a file's two status letters stay the same.
-  index_path = Path(os.fsdecode(git(root, "rev-parse", "--git-path", "index")).strip())
-  if not index_path.is_absolute():
-    index_path = root / index_path
-  index_digest = hashlib.sha256(index_path.read_bytes()).hexdigest() if index_path.is_file() else ""
+  index = _read_index(root)
+  index_digest = hashlib.sha256(index).hexdigest() if index is not None else ""
   snapshot = hashlib.sha256(json.dumps([head, index_digest, signature], ensure_ascii=True).encode()).hexdigest()
   branch = git(root, "symbolic-ref", "--quiet", "--short", "HEAD", accepted=(0, 1)).decode().strip()
   return {"available": True, "repository": str(repo), "scope": root.relative_to(repo).as_posix(),
           "branch": branch or head[:8], "detached": not bool(branch),
-          "entries": entries[:MAX_CHANGES], "truncated": len(entries) > MAX_CHANGES, "snapshot": snapshot}
+          "entries": entries[:MAX_CHANGES], "truncated": len(entries) > MAX_CHANGES, "snapshot": snapshot}, head, index_digest
+
+
+def source_status(root: Path, build: str) -> dict:
+  return _source_status(root, build)[0]
+
+
+def _validate_snapshot(status: dict, snapshot):
+  if not status["available"]:
+    raise ProjectError("当前项目没有 Git 仓库。")
+  if snapshot != status["snapshot"]:
+    raise Conflict("Git 变更已更新，请刷新后再操作。")
+  if status.get("truncated"):
+    raise ProjectError("变更数量超过显示上限，请先在终端处理部分变更。")
+
+
+def verify_source_snapshot(root: Path, build: str, snapshot):
+  _validate_snapshot(source_status(root, build), snapshot)
+
+
+def _validate_staged_paths(root: Path, build: str, status: dict, *, base: str | None = None,
+                           index_file: Path | None = None):
+  staged = git(root, "diff", "--cached", "--no-renames", "--name-only", "-z",
+               *(["--ignore-submodules=dirty", base] if base else []), index_file=index_file).split(b"\0")
+  staged = [os.fsdecode(name) for name in staged if name]
+  if not staged:
+    raise ProjectError("请先暂存需要提交的文件。")
+  root = root.resolve()
+  repo = Path(status["repository"])
+  visible_staged = {path for entry in status["entries"] if entry["index"] not in {" ", "?"}
+                    for path in (entry["path"], entry["original"]) if path}
+  for name in staged:
+    absolute = repo / name
+    if not absolute.is_relative_to(root):
+      raise ProjectError("仓库中还有当前项目以外的暂存变更；请先处理这些变更，再提交当前项目。")
+    relative = absolute.relative_to(root).as_posix()
+    workspace_path(root, relative, build, missing=True)
+    if relative not in visible_staged:
+      raise ProjectError("暂存区包含当前列表未显示的变更，请先在终端处理。")
+  if any(entry["index"] == "U" or entry["worktree"] == "U" or
+         entry["index"] + entry["worktree"] in {"AA", "DD"} for entry in status["entries"]):
+    raise ProjectError("请先解决合并冲突。")
+
+
+def staged_commit_diff(root: Path, build: str, snapshot) -> str:
+  """Read only the staged patch for the exact reviewed Git snapshot."""
+  status, head, index_digest = _source_status(root, build)
+  _validate_snapshot(status, snapshot)
+  if not index_digest:
+    raise ProjectError("请先暂存需要提交的文件。")
+  index = _read_index(root)
+  if index is None or hashlib.sha256(index).hexdigest() != index_digest:
+    raise Conflict("Git 变更已更新，请刷新后再操作。")
+  # Pin both diff inputs so a terminal Git operation cannot substitute a different patch.
+  base = head or git(root, "hash-object", "-t", "tree", os.devnull).decode().strip()
+  with tempfile.TemporaryDirectory(prefix="texsys-git-") as directory:
+    frozen_index = Path(directory) / "index"
+    frozen_index.write_bytes(index)
+    _validate_staged_paths(root, build, status, base=base, index_file=frozen_index)
+    raw = git(root, "diff", "--cached", "--no-ext-diff", "--no-textconv", "--no-color", "--no-renames",
+              "--submodule=short", "--ignore-submodules=dirty", "--unified=0", "--inter-hunk-context=0",
+              base, "--", ".", index_file=frozen_index,
+              output_limit=MAX_COMMIT_DRAFT_DIFF_BYTES, truncate=True)
+  verify_source_snapshot(root, build, snapshot)
+  if len(raw) > MAX_COMMIT_DRAFT_DIFF_BYTES:
+    raise ProjectError("暂存差异超过 48 KiB，请缩小暂存范围后重试。")
+  if b"\0" in raw or not raw:
+    raise ProjectError("暂存区没有可用的文本差异。")
+  try:
+    return raw.decode("utf-8")
+  except UnicodeDecodeError:
+    raise ProjectError("暂存差异不是 UTF-8 文本。") from None
 
 
 def source_diff(root: Path, build: str, relative: str, staged=False) -> dict:
@@ -168,12 +251,7 @@ def source_operation(root: Path, build: str, request: dict) -> dict:
       raise Conflict("项目已经位于 Git 仓库中。")
     git(root, "init")
     return source_status(root, build)
-  if not status["available"]:
-    raise ProjectError("当前项目没有 Git 仓库。")
-  if request.get("snapshot") != status["snapshot"]:
-    raise Conflict("Git 变更已更新，请刷新后再操作。")
-  if status.get("truncated"):
-    raise ProjectError("变更数量超过显示上限，请先在终端处理部分变更。")
+  _validate_snapshot(status, request.get("snapshot"))
   if action in {"stage_all", "unstage_all"}:
     records = [entry for entry in status["entries"] if
                (entry["worktree"] != " " if action == "stage_all" else entry["index"] not in {" ", "?"})]
@@ -222,24 +300,7 @@ def source_operation(root: Path, build: str, request: dict) -> dict:
     message = request.get("message")
     if not isinstance(message, str) or not message.strip() or len(message) > 4000 or "\0" in message:
       raise ProjectError("请输入最多 4000 字符的提交说明。")
-    staged = git(root, "diff", "--cached", "--no-renames", "--name-only", "-z").split(b"\0")
-    staged = [os.fsdecode(name) for name in staged if name]
-    if not staged:
-      raise ProjectError("请先暂存需要提交的文件。")
-    repo = Path(status["repository"])
-    visible_staged = {path for entry in status["entries"] if entry["index"] not in {" ", "?"}
-                      for path in (entry["path"], entry["original"]) if path}
-    for name in staged:
-      absolute = repo / name
-      if not absolute.is_relative_to(root.resolve()):
-        raise ProjectError("仓库中还有当前项目以外的暂存变更；请先处理这些变更，再提交当前项目。")
-      relative = absolute.relative_to(root.resolve()).as_posix()
-      workspace_path(root, relative, build, missing=True)
-      if relative not in visible_staged:
-        raise ProjectError("暂存区包含当前列表未显示的变更，请先在终端处理。")
-    if any(entry["index"] == "U" or entry["worktree"] == "U" or
-           entry["index"] + entry["worktree"] in {"AA", "DD"} for entry in status["entries"]):
-      raise ProjectError("请先解决合并冲突。")
+    _validate_staged_paths(root, build, status)
     git(root, "commit", "-m", message.strip())
   else:
     raise ProjectError("未知 Git 操作。")

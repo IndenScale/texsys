@@ -1236,7 +1236,7 @@ button svg {
   align-items: center;
   gap: 12px;
   padding: 6px 9px;
-  max-width: calc(100vw - 16px);
+  max-width: min(320px, calc(100vw - 16px));
   border: 1px solid #d6dade;
   border-radius: 8px;
   background: #fafbfc;
@@ -1246,6 +1246,11 @@ button svg {
   line-height: 18px;
   pointer-events: none;
   white-space: nowrap;
+}
+.chrome-tooltip > span:first-child {
+  min-width: 0;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 
 .file-document {

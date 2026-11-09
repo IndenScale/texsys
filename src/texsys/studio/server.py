@@ -13,10 +13,12 @@ import threading
 from urllib.parse import parse_qs, urlparse
 
 from texsys.project import ProjectError
+from .ai import AiSettings, draft_commit_message, is_ai_config_path, test_connection
 from .runtime import Conflict, StudioRuntime
 from .files import file_operation, project_file, project_files, search_project
 from .search import replacement
-from .source_control import source_diff, source_operation, source_status, source_history, source_commit_diff, repository
+from .source_control import (repository, source_commit_diff, source_diff, source_history, source_operation,
+                             source_status, staged_commit_diff, verify_source_snapshot)
 from .terminal import TerminalService
 
 ASSETS = Path(__file__).parents[1] / "assets" / "studio"
@@ -108,6 +110,7 @@ def compile_frontend(runtime: StudioRuntime):
 def create_server(runtime: StudioRuntime, port=8710, frontend=None, token=None, public_port=None):
   frontend = compile_frontend(runtime) if frontend is None else frontend
   token = token or secrets.token_urlsafe(32)
+  ai_settings = AiSettings()
   terminals = TerminalService()
 
   def scm_root(scope):
@@ -185,6 +188,8 @@ def create_server(runtime: StudioRuntime, port=8710, frontend=None, token=None, 
       try:
         if parsed.path == "/api/state":
           self._send(200, runtime.state())
+        elif parsed.path == "/api/ai/settings":
+          self._send(200, ai_settings.read().public())
         elif parsed.path == "/api/files":
           self._send(200, project_files(runtime.root, runtime.project.build))
         elif parsed.path == "/api/file":
@@ -224,7 +229,7 @@ def create_server(runtime: StudioRuntime, port=8710, frontend=None, token=None, 
           relative = parse_qs(parsed.query).get("path", [""])[0]
           file = (runtime.root / relative).resolve()
           build = (runtime.root / runtime.project.build).resolve()
-          if not file.is_relative_to(build) or not file.is_file():
+          if not file.is_relative_to(build) or not file.is_file() or is_ai_config_path(file):
             self._send(404, {"error": "Artifact not found."})
           elif file.suffix not in {".json", ".svg", ".drawio", ".log", ".csv", ".mo", ".txt"}:
             self._send(403, {"error": "Unsupported artifact type."})
@@ -257,6 +262,35 @@ def create_server(runtime: StudioRuntime, port=8710, frontend=None, token=None, 
             root = scm_root(body.get("scope", "project"))
             result = source_operation(root, runtime.project.build if root == runtime.root else "build", body)
             result["project_prefix"] = runtime.root.relative_to(root).as_posix() if root != runtime.root else ""
+        elif self.path == "/api/ai/settings":
+          workspace = (repository(runtime.root) if shutil.which("git") else None) or runtime.root
+          config = ai_settings.path.resolve()
+          if config.is_relative_to(workspace) or any(parent.is_dir() and parent.samefile(workspace) for parent in config.parents):
+            raise ProjectError("AI 设置必须保存在当前项目及其仓库之外。")
+          result = ai_settings.save(body).public()
+        elif self.path == "/api/ai/test":
+          connection = ai_settings.read()
+          test_connection(connection)
+          ai_settings.verify(connection)
+          result = {"ok": True}
+        elif self.path == "/api/ai/commit-message":
+          locale = body.get("locale")
+          if locale not in ("zh-CN", "en"):
+            raise ProjectError("未知的提交说明语言。")
+          connection = ai_settings.read()
+          if body.get("destination") != connection.destination():
+            raise Conflict("AI 连接设置已更新，请重新确认后再试。")
+          snapshot = body.get("snapshot")
+          with runtime.lock:
+            root = scm_root(body.get("scope", "project"))
+            build = runtime.project.build if root == runtime.root else "build"
+            diff = staged_commit_diff(root, build, snapshot)
+          ai_settings.verify(connection)
+          message = draft_commit_message(connection, diff, locale)
+          with runtime.lock:
+            verify_source_snapshot(root, build, snapshot)
+          ai_settings.verify(connection)
+          result = {"message": message}
         elif self.path == "/api/edit":
           result = runtime.edit(body)
         elif self.path == "/api/jobs":

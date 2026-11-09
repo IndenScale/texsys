@@ -44,6 +44,14 @@ Code Search 提供搜索／替换、三种匹配开关、保留替换大小写�
 
 项目原有 CLI 生成物可以作为历史预览读取；没有完整 Studio 输入修订的产物不自动标记为当前有效，重新运行后建立当前版本关联。
 
+## 本机设置与 AI 提交说明
+
+设置提供语言、工作台布局、源码编辑器与终端的个人偏好，保存在当前浏览器。AI 连接由本机 Studio 后端保存，适用于该用户打开的项目。密钥只写入项目和仓库以外的本机用户配置文件，也不通过 API 回传。
+
+- BYOK 使用自己的 API 密钥连接兼容 Chat Completions 的服务。BYOA 使用自己的 Agent 网关，网关须提供相同的请求与文本回复格式，可选 Bearer 凭据。基础 URL 填到 API 前缀（例如 `https://api.openai.com/v1`），Studio 附加 `/chat/completions`。远程服务使用 HTTPS，本机回环地址支持 HTTP。
+- `GET /api/ai/settings` 返回连接方式、基础 URL、模型或 Agent 标识及密钥是否存在。`POST /api/ai/settings` 保存连接，密钥字段为空时清除。连接测试 `POST /api/ai/test` 使用已保存的配置和固定测试文本。
+- 源代码管理的「AI 生成」显示当前范围、接收地址与模型或 Agent，确认后以 Git 状态快照请求 `POST /api/ai/commit-message`。只发送范围内的 UTF-8 暂存差异，最多 48 KiB，快照、范围和连接须与确认时一致。服务返回可编辑的提交说明草稿，实际提交仍由用户触发。
+
 ## HVAC 首个切片
 
 专业 ID 为 `texsys:hvac`。工作台包含系统设计、设备表、器件库、仿真分析、检查报告、模型源与专业能力说明。复用既有工程图元、系统投影、lint、build 与动态求解器，浏览器不实现第二套物理方程。

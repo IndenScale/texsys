@@ -83,6 +83,8 @@ export function t(
 
 /** The server appends details such as a path or a regex parser error to these prefixes. */
 export function localizeError(message: string): string {
+  const aiStatus = /^AI 服务返回 HTTP (\d{3})，请检查连接设置或服务状态。$/.exec(message);
+  if (aiStatus) return t("AI 服务返回 HTTP {0}，请检查连接设置或服务状态。", { "0": aiStatus[1] });
   const prefix = [
     "正则表达式无效：",
     "替换表达式无效：",

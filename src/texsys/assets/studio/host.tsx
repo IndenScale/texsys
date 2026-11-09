@@ -19,6 +19,7 @@ import {
   writeHiddenTitlebarGroups,
   writeLayoutPreferences,
   type LayoutPreferences,
+  type TitlebarGroup,
 } from "./layout-preferences";
 import { CommandCenter } from "./CommandCenter";
 import { AnimatedPresence } from "./AnimatedPresence";
@@ -236,6 +237,10 @@ function Studio({ plugins, chrome }: { plugins: WorkbenchPlugin[]; chrome: Studi
   useEffect(() => {
     writeHiddenTitlebarGroups(hiddenTitlebarGroups);
   }, [hiddenTitlebarGroups]);
+  const toggleTitlebarGroup = (id: TitlebarGroup) =>
+    setHiddenTitlebarGroups((hidden) =>
+      hidden.includes(id) ? hidden.filter((group) => group !== id) : [...hidden, id],
+    );
   const showNavigation = !hiddenTitlebarGroups.includes("navigationControls");
   const showLayout = !hiddenTitlebarGroups.includes("layoutControls");
   const [commandOpen, setCommandOpen] = useState(false);
@@ -883,10 +888,7 @@ function Studio({ plugins, chrome }: { plugins: WorkbenchPlugin[]; chrome: Studi
             label: t(label),
             checked: !hiddenTitlebarGroups.includes(id),
             checkbox: true,
-            run: () =>
-              setHiddenTitlebarGroups((hidden) =>
-                hidden.includes(id) ? hidden.filter((group) => group !== id) : [...hidden, id],
-              ),
+            run: () => toggleTitlebarGroup(id),
           }))}
         />
       )}
@@ -911,6 +913,11 @@ function Studio({ plugins, chrome }: { plugins: WorkbenchPlugin[]; chrome: Studi
             fileRequest={fileRequest}
             activityRequest={activityRequest}
             settingsRequest={settingsRequest}
+            titlebarSettings={{
+              hidden: hiddenTitlebarGroups,
+              toggle: toggleTitlebarGroup,
+              reset: () => setHiddenTitlebarGroups([]),
+            }}
             closeRequest={closeRequest}
             closeShortcut={closeShortcut}
             navigationRequest={navigation[active]}

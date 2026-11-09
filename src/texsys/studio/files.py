@@ -6,6 +6,7 @@ from pathlib import Path
 import tempfile
 
 from texsys.project import ProjectError
+from .ai import is_ai_config_path
 
 SKIP_DIRECTORIES = {".git", ".hg", ".svn", ".venv", "venv", "node_modules", "__pycache__",
                     ".pytest_cache", ".mypy_cache", ".ruff_cache"}
@@ -29,6 +30,7 @@ def workspace_path(root: Path, relative: str, build: str, *, missing=False) -> P
   candidate = candidate.resolve()
   if (candidate == root or not candidate.is_relative_to(root)
       or candidate.is_relative_to((root / build).resolve())
+      or is_ai_config_path(candidate)
       or (not missing and not candidate.exists())):
     raise ProjectError("Project file not found.")
   return candidate
@@ -54,7 +56,7 @@ def project_files(root: Path, build: str) -> dict:
       return {"files": entries, "directories": folders[:MAX_FILES], "truncated": True}
     for name in sorted(names):
       file = Path(parent) / name
-      if name == ".DS_Store" or file.is_symlink() or not file.is_file():
+      if name == ".DS_Store" or file.is_symlink() or not file.is_file() or is_ai_config_path(file):
         continue
       try:
         size = file.stat().st_size

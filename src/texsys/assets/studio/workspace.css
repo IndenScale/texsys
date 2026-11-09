@@ -699,6 +699,13 @@
 .core-sidebar[data-activity="scm"] textarea:focus-visible {
   outline-offset: -1px;
 }
+.navigator-button.scm-scope-trigger {
+  width: auto;
+  gap: 3px;
+  padding-inline: 6px;
+  color: var(--ui-text-muted);
+  font-size: 11px;
+}
 .core-scm:not([hidden]) {
   display: flex;
   flex-direction: column;
@@ -831,6 +838,24 @@
   width: auto;
   gap: 3px;
   padding-inline: 4px;
+}
+.scm-ai-review {
+  display: grid;
+  gap: 6px;
+  overflow-wrap: anywhere;
+}
+.scm-ai-review-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.scm-ai-review-actions > button:not(.core-primary) {
+  padding: 6px 10px;
+  border-radius: 3px;
+  font-size: 12px;
+}
+.scm-ai-review-actions > button:not(.core-primary):hover {
+  background: var(--ui-control-hover);
 }
 .scm-commit-split {
   display: flex;

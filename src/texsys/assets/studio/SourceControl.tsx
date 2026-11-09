@@ -1,9 +1,10 @@
-import { t } from "./i18n";
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import { getLocale, t } from "./i18n";
+import React, { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Icon } from "./ui";
 import { FileIcon } from "./FileIcon";
 import { NavigatorButton, NavigatorToolbar } from "./NavigatorPanel";
 import { NavigatorMenu } from "./NavigatorMenu";
+import { TooltipButton } from "./ToolbarButton";
 import {
   commitGraph,
   gitGroups,
@@ -14,9 +15,16 @@ import {
   type GitDiff,
 } from "./workspace-model";
 import type { WorkbenchProps } from "./sdk";
+import type { StudioAiSettings } from "./ai-settings";
+
+type DraftGeneration =
+  | { phase: "loading" | "generating" }
+  | { phase: "review"; destination: Omit<StudioAiSettings, "hasApiKey">; context: object }
+  | { phase: "error" | "changed"; message: string };
 
 export function SourceControl({
   status,
+  scope,
   active,
   activeDiff,
   busy,
@@ -34,6 +42,7 @@ export function SourceControl({
   setGraphExpanded,
 }: {
   status: GitStatus;
+  scope: "project" | "repository";
   active: boolean;
   activeDiff?: GitDiff;
   busy: boolean;
@@ -60,6 +69,15 @@ export function SourceControl({
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
   const [commitAttempted, setCommitAttempted] = useState(false);
   const messageInput = useRef<HTMLTextAreaElement>(null);
+  const generationHintId = useId();
+  const draftContext = useRef<object | null>(null);
+  const [generation, setGeneration] = useState<DraftGeneration>();
+  useLayoutEffect(() => {
+    draftContext.current = {};
+    return () => {
+      draftContext.current = null;
+    };
+  }, [status.snapshot, scope, message]);
   const [history, setHistory] = useState<GitHistory>();
   const [error, setError] = useState("");
   const [limit, setLimit] = useState(50);
@@ -118,17 +136,63 @@ export function SourceControl({
     setCommitAttempted(false);
     void action("commit");
   };
-  const generateMessage = () => {
-    const files = groups.staged.length ? groups.staged : groups.changes;
-    const name = files[0]?.path.split("/").pop();
-    if (!name) return;
-    setMessage(
-      files.length === 1
-        ? t("更新 {0}", { "0": name })
-        : t("更新 {0} 和其他文件（共 {1} 个）", { "0": name, "1": files.length }),
-    );
-    setCommitAttempted(false);
-    messageInput.current?.focus();
+  let generationBlocker = "";
+  if (generation?.phase === "loading") generationBlocker = "正在读取 AI 设置…";
+  else if (generation?.phase === "generating") generationBlocker = "正在生成提交说明…";
+  else if (busy) generationBlocker = "正在操作…";
+  else if (status.truncated) generationBlocker = "变更数量超过显示上限，请先在终端处理部分变更。";
+  else if (!groups.staged.length)
+    generationBlocker = "没有暂存的更改。点击文件旁的 + 暂存，再生成提交说明。";
+  const canGenerate = !generationBlocker;
+  const draftChanged = () =>
+    setGeneration({ phase: "changed", message: t("提交说明或暂存区已变化，请重新生成。") });
+  const draftError = (error: unknown) =>
+    setGeneration({
+      phase: "error",
+      message: error instanceof Error ? error.message : String(error),
+    });
+  const reviewGeneration = async () => {
+    const context = draftContext.current;
+    if (!canGenerate || !context) return;
+    setGeneration({ phase: "loading" });
+    try {
+      const { mode, baseUrl, model, hasApiKey } = await api<StudioAiSettings>("/api/ai/settings");
+      if (!draftContext.current) return;
+      if (draftContext.current !== context) return draftChanged();
+      if (mode === "disabled") {
+        setGeneration({ phase: "error", message: t("请在设置中配置 AI 连接。") });
+        return;
+      }
+      if (mode === "byok" && !hasApiKey) {
+        setGeneration({ phase: "error", message: t("请先在设置中保存 API 密钥。") });
+        return;
+      }
+      setGeneration({ phase: "review", context, destination: { mode, baseUrl, model } });
+    } catch (error) {
+      if (draftContext.current) draftError(error);
+    }
+  };
+  const generateMessage = async () => {
+    if (generation?.phase !== "review" || !canGenerate) return;
+    const { context, destination } = generation;
+    if (draftContext.current !== context) return draftChanged();
+    setGeneration({ phase: "generating" });
+    try {
+      const draft = await api<{ message: string }>("/api/ai/commit-message", {
+        snapshot: status.snapshot,
+        scope,
+        locale: getLocale(),
+        destination,
+      });
+      if (!draftContext.current) return;
+      if (draftContext.current !== context) return draftChanged();
+      setGeneration(undefined);
+      setMessage(draft.message);
+      setCommitAttempted(false);
+      messageInput.current?.focus();
+    } catch (error) {
+      if (draftContext.current) draftError(error);
+    }
   };
   const shortcut = /Mac|iPhone|iPad/.test(navigator.platform) ? "⌘Enter" : "Ctrl+Enter";
   const branch = status.detached ? t("游离 HEAD") : status.branch;
@@ -136,7 +200,8 @@ export function SourceControl({
     "0": shortcut,
     "1": branch ?? "HEAD",
   });
-  const generateLabel = t("根据变更文件生成提交说明草稿");
+  const generateLabel = t("使用 AI 生成提交说明");
+  const generationHint = t(generationBlocker);
   const rows = useMemo(() => commitGraph(history?.commits ?? []), [history]);
   const graphWidth = Math.max(
     20,
@@ -212,19 +277,58 @@ export function SourceControl({
                   }
                 }}
               />
-              <button
+              <TooltipButton
                 className="core-primary scm-generate"
                 data-expanded={!message}
                 type="button"
                 aria-label={generateLabel}
-                title={generateLabel}
-                disabled={busy}
-                onClick={generateMessage}
+                aria-describedby={canGenerate ? undefined : generationHintId}
+                tooltip={generationHint || generateLabel}
+                aria-disabled={!canGenerate || undefined}
+                onClick={() => void reviewGeneration()}
               >
-                {!message && t("生成")}
+                {!message && t("AI 生成")}
                 <Icon name="sparkles" size={16} />
-              </button>
+              </TooltipButton>
             </div>
+            <p id={generationHintId} className="sr-only" role="status">
+              {generationHint}
+            </p>
+            {generation?.phase === "review" && (
+              <div className="scm-ai-review">
+                <p className="scm-commit-hint">
+                  {t("将{0}的暂存差异发送至 {1}，使用 {2} 生成草稿。", {
+                    "0": t(scope === "project" ? "当前项目" : "整个仓库"),
+                    "1": generation.destination.baseUrl,
+                    "2": generation.destination.model,
+                  })}
+                  {message && <> {t("生成成功后将替换当前提交说明。")}</>}
+                </p>
+                <div className="scm-ai-review-actions">
+                  <TooltipButton
+                    type="button"
+                    className="core-primary"
+                    aria-describedby={canGenerate ? undefined : generationHintId}
+                    tooltip={generationHint || t("发送并生成")}
+                    aria-disabled={!canGenerate || undefined}
+                    onClick={() => void generateMessage()}
+                  >
+                    {t("发送并生成")}
+                  </TooltipButton>
+                  <button type="button" onClick={() => setGeneration(undefined)}>
+                    {t("取消")}
+                  </button>
+                </div>
+              </div>
+            )}
+            {(generation?.phase === "error" || generation?.phase === "changed") && (
+              <p
+                className={generation.phase === "error" ? "core-error" : "scm-commit-hint"}
+                role={generation.phase === "error" ? "alert" : "status"}
+              >
+                {generation.message}
+              </p>
+            )}
             <div className="scm-commit-split">
               <button
                 type="submit"

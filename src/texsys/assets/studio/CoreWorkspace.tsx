@@ -39,7 +39,7 @@ import {
 import "./workspace.css";
 import { SourceControl } from "./SourceControl";
 import { selectedSourceText, SourceEditor, type SourceModels } from "./SourceEditor";
-import { Settings } from "./Settings";
+import { Settings, type TitlebarSettings } from "./Settings";
 import { Keycaps } from "./Keycaps";
 
 type Activity = "explorer" | "search" | "scm";
@@ -214,6 +214,7 @@ export function CoreWorkspaceProvider({
   fileRequest,
   activityRequest,
   settingsRequest,
+  titlebarSettings,
   closeRequest,
   closeShortcut,
   navigationRequest,
@@ -230,6 +231,7 @@ export function CoreWorkspaceProvider({
   fileRequest?: FileRequest;
   activityRequest?: { id: Activity; token: number };
   settingsRequest?: number;
+  titlebarSettings: TitlebarSettings;
   closeRequest?: number;
   closeShortcut?: string[];
   navigationRequest?: WorkbenchProps["navigationRequest"];
@@ -263,7 +265,7 @@ export function CoreWorkspaceProvider({
   const [history, setHistory] = useState<DocumentHistory>({ entries: [], index: -1 });
   const [busy, setBusy] = useState(false);
   const [searchGeneration, setSearchGeneration] = useState(0);
-  const [gitScope, setGitScope] = useState<"project" | "repository">("repository");
+  const [gitScope, setGitScope] = useState<"project" | "repository">("project");
   const [gitRefreshGeneration, setGitRefreshGeneration] = useState(0);
   const [gitGraphExpanded, setGitGraphExpanded] = useState<boolean>();
   const [gitStatus, setGitStatus] = useState<GitStatus>(),
@@ -956,12 +958,19 @@ export function CoreWorkspaceProvider({
       <NavigatorMenu
         key="scm"
         label={t("源码管理范围")}
-        title={`${t("管理范围")} · ${t(gitScope === "project" ? "当前项目" : "整个仓库")}`}
+        title={gitScope === "project" ? state.project.path : gitStatus?.repository}
+        triggerClassName="scm-scope-trigger"
+        triggerIcon={
+          <>
+            <span>{t(gitScope === "project" ? "当前项目" : "整个仓库")}</span>
+            <Icon name="scm-chevron" size={13} />
+          </>
+        }
         items={[
           {
             label: t("当前项目"),
             checked: gitScope === "project",
-            reason: gitScope === "project" ? gitStatus?.scope : undefined,
+            reason: state.project.path,
             run: busy || !gitStatus?.available ? undefined : () => changeScmScope("project"),
           },
           {
@@ -1096,6 +1105,7 @@ export function CoreWorkspaceProvider({
         ) : (
           <>
             <SourceControl
+              scope={gitScope}
               status={gitStatus}
               active={activity === "scm"}
               activeDiff={diffActive && !settingsActive ? diff : undefined}
@@ -1643,7 +1653,9 @@ export function CoreWorkspaceProvider({
         <div className="core-editor-page" hidden={settingsActive}>
           {editorContent}
         </div>
-        {settingsActive && <Settings />}
+        {settingsOpen && (
+          <Settings api={api} titlebar={titlebarSettings} hidden={!settingsActive} />
+        )}
       </>
     ),
     editorActions,
