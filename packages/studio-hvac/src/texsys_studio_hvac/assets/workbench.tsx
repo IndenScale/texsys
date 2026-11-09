@@ -504,7 +504,7 @@ function Workspace({
   };
   const canRun = !busy && !submitting && !saving && !hasDraft;
   const submit = useCallback(
-    async (action: string) => {
+    async (action: string, options?: Record<string, unknown>) => {
       if (!canRun || requestPending.current) return;
       requestPending.current = true;
       setSubmitting(true);
@@ -513,7 +513,7 @@ function Workspace({
           plugin: "texsys:hvac",
           action,
           revision: state.project.revision,
-          options: action === "simulate" ? { scenario, backend } : {},
+          options: options ?? (action === "simulate" ? { scenario, backend } : {}),
         });
         await refresh();
         notify(t("{0}已启动，可继续查看设计。", { "0": t(labels[action]) }));
@@ -527,6 +527,15 @@ function Workspace({
     [api, backend, canRun, notify, refresh, scenario, state.project.revision],
   );
   const hasScenarios = data.scenarios.length > 0;
+  const lastOperation = state.jobs.find(
+    (job) => job.plugin === "texsys:hvac" && ["check", "build", "simulate"].includes(job.action),
+  );
+  const canRepeat =
+    !!lastOperation &&
+    (lastOperation.action !== "simulate" ||
+      (hasScenarios &&
+        (lastOperation.options.scenario === "all" ||
+          data.scenarios.some((item) => item.id === lastOperation.options.scenario))));
   useEffect(
     () =>
       registerRunCommands?.("texsys:hvac", [
@@ -554,8 +563,20 @@ function Workspace({
           disabled: !hasScenarios,
           run: () => openView("simulation"),
         },
+        {
+          id: "texsys:hvac.repeat",
+          label: "重新运行上次操作",
+          icon: "refresh",
+          keywords: "Repeat Last Run Rerun",
+          separator: true,
+          disabled: !canRun || !canRepeat,
+          run: () => {
+            if (lastOperation && canRepeat)
+              void submit(lastOperation.action, lastOperation.options);
+          },
+        },
       ]),
-    [canRun, hasScenarios, openView, registerRunCommands, submit],
+    [canRepeat, canRun, hasScenarios, lastOperation, openView, registerRunCommands, submit],
   );
   const exportArtifact = async (path: string, name: string) => {
     const token =

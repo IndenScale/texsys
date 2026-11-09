@@ -41,12 +41,13 @@ import "./workspace.css";
 import { SourceControl } from "./SourceControl";
 import {
   goToSourcePosition,
+  supportsSourceLineComments,
   runSourceEditCommand,
   selectedSourceText,
   SourceEditor,
   type SourceModels,
 } from "./SourceEditor";
-import { isSourceEditCommand, type EditorMenuCommand } from "./menus";
+import { isSourceEditCommand, type EditorMenuCommand, type CommandItem } from "./menus";
 import { Settings, type TitlebarSettings } from "./Settings";
 import { Keycaps } from "./Keycaps";
 
@@ -227,6 +228,7 @@ export function CoreWorkspaceProvider({
   closeRequest,
   saveRequest,
   editorMenuRequest,
+  shortcutCommands,
   closeShortcut,
   navigationRequest,
   onNavigationState,
@@ -246,6 +248,7 @@ export function CoreWorkspaceProvider({
   closeRequest?: number;
   saveRequest?: number;
   editorMenuRequest?: { id: EditorMenuCommand };
+  shortcutCommands: CommandItem[];
   closeShortcut?: string[];
   navigationRequest?: WorkbenchProps["navigationRequest"];
   onNavigationState?: (next: {
@@ -258,6 +261,7 @@ export function CoreWorkspaceProvider({
     canSaveAll: boolean;
     canRevert: boolean;
     canEditSource: boolean;
+    canCommentSource: boolean;
     canUndo: boolean;
     canRedo: boolean;
   }) => void;
@@ -307,6 +311,7 @@ export function CoreWorkspaceProvider({
   const [formError, setFormError] = useState("");
   const [closePath, setClosePath] = useState<string>();
   const [revertPath, setRevertPath] = useState<string>();
+  const [showShortcuts, setShowShortcuts] = useState(false);
   const [linePrompt, setLinePrompt] = useState<{
     path: string;
     input: string;
@@ -393,7 +398,15 @@ export function CoreWorkspaceProvider({
   const tabStop =
     activeTab ??
     (active ? "source" : searchDocumentOpen ? "search" : settingsOpen ? "settings" : null);
-  const closeDisabled = !!(busy || form || closePath || revertPath || linePrompt || diskComparison);
+  const closeDisabled = !!(
+    busy ||
+    form ||
+    closePath ||
+    revertPath ||
+    linePrompt ||
+    showShortcuts ||
+    diskComparison
+  );
   const canClose = !!activeTab && !closeDisabled;
   const canEditSource =
     activeTab === "source" &&
@@ -403,6 +416,7 @@ export function CoreWorkspaceProvider({
     !active.reason &&
     !closeDisabled;
   const canSave = canEditSource && (!!active.untitled || active.content !== active.saved);
+  const canCommentSource = canEditSource && supportsSourceLineComments(active.path);
   const canRevert = canEditSource && !active.untitled;
   const dirty = documents.some((item) => item.content !== item.saved);
   const canSaveAll = dirty && !closeDisabled;
@@ -601,6 +615,7 @@ export function CoreWorkspaceProvider({
       canSaveAll,
       canRevert,
       canEditSource,
+      canCommentSource,
       canUndo: model?.canUndo() ?? false,
       canRedo: model?.canRedo() ?? false,
     });
@@ -615,6 +630,7 @@ export function CoreWorkspaceProvider({
     canRevert,
     closeDisabled,
     canEditSource,
+    canCommentSource,
     active,
     sourceModels,
     onNavigationState,
@@ -1092,7 +1108,8 @@ export function CoreWorkspaceProvider({
     if (!editorMenuRequest) return;
     const { id } = editorMenuRequest;
     if (closeDisabled) return;
-    if (id === "file.new") startForm("create", "");
+    if (id === "help.shortcuts") setShowShortcuts(true);
+    else if (id === "file.new") startForm("create", "");
     else if (id === "file.untitled") newUntitled();
     else if (id === "file.saveAll" && canSaveAll) void saveAll();
     else if (id === "editor.gotoLine" && canEditSource)
@@ -1353,6 +1370,41 @@ export function CoreWorkspaceProvider({
   const closingDocument = documents.find((item) => item.path === closePath);
   const dialogs = (
     <>
+      {showShortcuts && (
+        <div className="core-dialog-backdrop">
+          <section
+            className="core-dialog core-shortcut-dialog"
+            role="dialog"
+            aria-modal="true"
+            aria-label={t("键盘快捷键参考")}
+          >
+            <div className="core-shortcut-heading">
+              <strong>{t("键盘快捷键参考")}</strong>
+              <button onClick={() => setShowShortcuts(false)}>{t("关闭")}</button>
+            </div>
+            <table>
+              <thead>
+                <tr>
+                  <th scope="col">{t("命令")}</th>
+                  <th scope="col">{t("快捷键")}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {shortcutCommands.map((item) => (
+                  <tr key={item.id}>
+                    <td>
+                      {item.group} · {item.label}
+                    </td>
+                    <td>
+                      <Keycaps keys={item.keys ?? []} />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </section>
+        </div>
+      )}
       {linePrompt && (
         <div className="core-dialog-backdrop">
           <form
@@ -1976,7 +2028,7 @@ export function CoreWorkspaceProvider({
           onDismiss={() => setExplorerMenu(undefined)}
         />
       )}
-      {(form || closePath || revertPath || linePrompt || diskComparison) && (
+      {(form || closePath || revertPath || linePrompt || showShortcuts || diskComparison) && (
         <DialogLayer
           cancel={() => {
             if (!busy) {
@@ -1984,6 +2036,7 @@ export function CoreWorkspaceProvider({
               setClosePath(undefined);
               setRevertPath(undefined);
               setLinePrompt(undefined);
+              setShowShortcuts(false);
               setDiskComparison(undefined);
             }
           }}

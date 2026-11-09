@@ -75,6 +75,8 @@ export function WorkbenchBottomPanel({
   const [focusedPane, setFocusedPane] = useState<"primary" | "secondary">("primary");
   const controls = useRef(new Map<string, TerminalControls>()).current;
   const panel = useRef<HTMLDivElement>(null);
+  const [focusRequest, setFocusRequest] = useState(0);
+  const focusedRequest = useRef(0);
   const primary = sessions.find((session) => session.id === primaryId) ?? sessions[0];
   const splitSession = sessions.find((session) => session.id === splitSessionId);
   const activeSession = (focusedPane === "secondary" ? splitSession : primary) ?? primary;
@@ -148,19 +150,22 @@ export function WorkbenchBottomPanel({
     controls.get(id)?.focus();
   };
 
-  const closeSession = (id: string) => {
-    const next = sessions.filter((session) => session.id !== id);
-    setSessions(next);
-    if (id === splitSessionId) {
-      setSplitSessionId(null);
-      setFocusedPane("primary");
-    } else if (id === primary?.id) {
-      const replacement = next.find((session) => session.id !== splitSessionId) ?? next[0];
-      setPrimaryId(replacement?.id ?? "");
-      if (replacement?.id === splitSessionId) setSplitSessionId(null);
-      setFocusedPane("primary");
-    }
-  };
+  const closeSession = useCallback(
+    (id: string) => {
+      const next = sessions.filter((session) => session.id !== id);
+      setSessions(next);
+      if (id === splitSessionId) {
+        setSplitSessionId(null);
+        setFocusedPane("primary");
+      } else if (id === primary?.id) {
+        const replacement = next.find((session) => session.id !== splitSessionId) ?? next[0];
+        setPrimaryId(replacement?.id ?? "");
+        if (replacement?.id === splitSessionId) setSplitSessionId(null);
+        setFocusedPane("primary");
+      }
+    },
+    [sessions, primary?.id, splitSessionId],
+  );
 
   const toggleSplit = useCallback(() => {
     if (splitSessionId) {
@@ -184,7 +189,8 @@ export function WorkbenchBottomPanel({
   }, []);
 
   useEffect(() => {
-    const inActiveWorkbench = () => !panel.current?.closest(".professional-workbench[hidden]");
+    const inActiveWorkbench = () =>
+      !!panel.current && !panel.current.closest(".professional-workbench[hidden]");
     const handleNew = () => {
       if (inActiveWorkbench()) addSession();
     };
@@ -192,7 +198,19 @@ export function WorkbenchBottomPanel({
       if (inActiveWorkbench()) toggleSplit();
     };
     const handleClear = () => {
-      if (inActiveWorkbench()) clearSession(activeSessionId);
+      if (!inActiveWorkbench()) return;
+      if (activeSessionId) clearSession(activeSessionId);
+      else notify?.(t("没有可用的终端会话"));
+    };
+    const handleFocus = () => {
+      if (!inActiveWorkbench()) return;
+      if (!activeSessionId) addSession();
+      setFocusRequest((value) => value + 1);
+    };
+    const handleTerminate = () => {
+      if (!inActiveWorkbench()) return;
+      if (activeSessionId) closeSession(activeSessionId);
+      else notify?.(t("没有可用的终端会话"));
     };
     const handleRunCommand = (event: Event) => {
       const { command } = (event as CustomEvent<{ command: string }>).detail;
@@ -201,14 +219,34 @@ export function WorkbenchBottomPanel({
     window.addEventListener("texsys:terminal:new", handleNew);
     window.addEventListener("texsys:terminal:split", handleSplit);
     window.addEventListener("texsys:terminal:clear", handleClear);
+    window.addEventListener("texsys:terminal:focus", handleFocus);
+    window.addEventListener("texsys:terminal:terminate", handleTerminate);
     window.addEventListener("texsys:terminal:runCommand", handleRunCommand);
     return () => {
       window.removeEventListener("texsys:terminal:new", handleNew);
       window.removeEventListener("texsys:terminal:split", handleSplit);
       window.removeEventListener("texsys:terminal:clear", handleClear);
+      window.removeEventListener("texsys:terminal:focus", handleFocus);
+      window.removeEventListener("texsys:terminal:terminate", handleTerminate);
       window.removeEventListener("texsys:terminal:runCommand", handleRunCommand);
     };
-  }, [activeSessionId, addSession, clearSession, toggleSplit]);
+  }, [activeSessionId, addSession, clearSession, closeSession, notify, toggleSplit]);
+  useEffect(() => {
+    if (
+      focusedRequest.current === focusRequest ||
+      !layout.bottomOpen ||
+      layout.bottomTab !== "terminal"
+    )
+      return;
+    const frame = requestAnimationFrame(() => {
+      const terminal = controls.get(activeSessionId);
+      if (terminal) {
+        terminal.focus();
+        focusedRequest.current = focusRequest;
+      }
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [activeSessionId, controls, focusRequest, layout.bottomOpen, layout.bottomTab, sessions]);
 
   const runActiveFile = () => window.dispatchEvent(new Event("texsys:terminal:runActiveFile"));
   const runSelectedText = () => {

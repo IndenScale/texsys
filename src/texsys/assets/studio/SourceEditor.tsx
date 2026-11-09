@@ -5,6 +5,8 @@ import JsonWorker from "monaco-editor/language/json/json.worker.js?worker";
 import "monaco-editor/features/codicon/register.js";
 import "monaco-editor/editor/browser/coreCommands.js";
 import "monaco-editor/editor/contrib/bracketMatching/browser/bracketMatching.js";
+import "monaco-editor/editor/contrib/comment/browser/comment.js";
+import "monaco-editor/editor/contrib/multicursor/browser/multicursor.js";
 import "monaco-editor/editor/contrib/contextmenu/browser/contextmenu.js";
 import "monaco-editor/editor/contrib/find/browser/findController.js";
 import "monaco-editor/editor/contrib/folding/browser/folding.js";
@@ -51,6 +53,10 @@ export function selectedSourceText(path: string, models: SourceModels) {
   const code = editor.getEditors().find((candidate) => candidate.getModel() === model);
   const selection = code?.getSelection();
   return selection ? model.getValueInRange(selection) : "";
+}
+
+export function supportsSourceLineComments(path: string) {
+  return ["ini", "py", "sh", "toml", "yaml", "yml"].includes(sourceFileFormat(path));
 }
 
 function visibleSourceEditor(path: string, models: SourceModels) {
@@ -104,6 +110,18 @@ export function runSourceEditCommand(
       break;
     case "editor.replace":
       void code.getAction("editor.action.startFindReplaceAction")?.run();
+      break;
+    case "editor.comment":
+      if (supportsSourceLineComments(path)) void code.getAction("editor.action.commentLine")?.run();
+      break;
+    case "editor.selectAll":
+      code.setSelection(model.getFullModelRange());
+      break;
+    case "editor.nextMatch":
+      void code.getAction("editor.action.addSelectionToNextFindMatch")?.run();
+      break;
+    case "editor.allMatches":
+      void code.getAction("editor.action.selectHighlights")?.run();
       break;
   }
 }

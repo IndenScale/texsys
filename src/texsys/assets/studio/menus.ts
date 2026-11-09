@@ -35,6 +35,10 @@ const sourceEditCommands = [
   { id: "editor.redo", label: "重做", keywords: "Redo 恢复" },
   { id: "editor.find", label: "在当前文件中查找…", keywords: "Find in current file" },
   { id: "editor.replace", label: "在当前文件中替换…", keywords: "Replace in current file" },
+  { id: "editor.comment", label: "切换行注释", keywords: "Toggle Line Comment" },
+  { id: "editor.selectAll", label: "全选", separator: true, keywords: "Select All" },
+  { id: "editor.nextMatch", label: "添加下一个匹配项", keywords: "Add Next Match Selection" },
+  { id: "editor.allMatches", label: "选择所有匹配项", keywords: "Select All Matches" },
 ] as const satisfies readonly MenuItem[];
 export type SourceEditCommand = (typeof sourceEditCommands)[number]["id"];
 const fileEditorCommands = [
@@ -44,6 +48,7 @@ const fileEditorCommands = [
   "file.saveAll",
   "file.revert",
   "editor.gotoLine",
+  "help.shortcuts",
 ] as const;
 export type EditorMenuCommand = (typeof fileEditorCommands)[number] | SourceEditCommand;
 
@@ -61,6 +66,10 @@ export function sourceEditKeys(mac: boolean): Record<SourceEditCommand, string[]
     "editor.redo": mac ? ["⇧", "⌘", "Z"] : ["Ctrl", "Y"],
     "editor.find": [mac ? "⌘" : "Ctrl", "F"],
     "editor.replace": mac ? ["⌥", "⌘", "F"] : ["Ctrl", "H"],
+    "editor.comment": [mac ? "⌘" : "Ctrl", "/"],
+    "editor.selectAll": [mac ? "⌘" : "Ctrl", "A"],
+    "editor.nextMatch": [mac ? "⌘" : "Ctrl", "D"],
+    "editor.allMatches": mac ? ["⇧", "⌘", "L"] : ["Ctrl", "Shift", "L"],
   };
 }
 
@@ -193,8 +202,14 @@ export const studioMenus: MenuGroup[] = [
         label: "下一个问题",
         separator: true,
         keywords: "Next Problem",
+        keys: ["F8"],
       },
-      { id: "navigation.previousIssue", label: "上一个问题", keywords: "Previous Problem" },
+      {
+        id: "navigation.previousIssue",
+        label: "上一个问题",
+        keywords: "Previous Problem",
+        keys: ["Shift", "F8"],
+      },
       {
         id: "objects.search",
         label: "转到工程对象…",
@@ -222,6 +237,9 @@ export const studioMenus: MenuGroup[] = [
         icon: "split-horizontal",
         keywords: "Split Terminal",
       },
+      { id: "terminal.focus", label: "聚焦终端", keywords: "Focus Terminal" },
+      { id: "terminal.clear", label: "清空终端", keywords: "Clear Terminal" },
+      { id: "terminal.terminate", label: "终止终端", keywords: "Kill Terminal" },
       { id: "terminal.runActiveFile", label: "运行活动文件", keywords: "Run Active File" },
       { id: "terminal.runSelectedText", label: "运行选定文本", keywords: "Run Selected Text" },
       {
@@ -234,7 +252,10 @@ export const studioMenus: MenuGroup[] = [
   {
     id: "help",
     label: "帮助",
-    items: [{ id: "help.capabilities", label: "专业能力与范围", icon: "info" }],
+    items: [
+      { id: "help.shortcuts", label: "键盘快捷键参考…", keywords: "Keyboard Shortcuts Reference" },
+      { id: "help.capabilities", label: "专业能力与范围", icon: "info" },
+    ],
   },
 ];
 export type CommandItem = MenuItem & { group: string; disabled?: boolean; checked?: boolean };

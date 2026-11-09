@@ -555,6 +555,30 @@
 .core-dialog .core-error {
   padding: 0;
 }
+.core-shortcut-dialog {
+  max-height: min(560px, calc(100dvh - 64px));
+  overflow: auto;
+}
+.core-shortcut-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+.core-shortcut-dialog table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+.core-shortcut-dialog :is(th, td) {
+  padding: 6px 8px;
+  text-align: left;
+  border-bottom: 1px solid var(--core-border, #dce0e4);
+}
+.core-shortcut-dialog td:last-child {
+  white-space: nowrap;
+}
+
 .core-dialog-actions {
   display: flex;
   justify-content: flex-end;

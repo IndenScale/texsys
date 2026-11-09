@@ -287,6 +287,7 @@ function Studio({ plugins, chrome }: { plugins: WorkbenchPlugin[]; chrome: Studi
     canSaveAll: false,
     canRevert: false,
     canEditSource: false,
+    canCommentSource: false,
     canUndo: false,
     canRedo: false,
   });
@@ -302,6 +303,7 @@ function Studio({ plugins, chrome }: { plugins: WorkbenchPlugin[]; chrome: Studi
         previous.canSaveAll === next.canSaveAll &&
         previous.canRevert === next.canRevert &&
         previous.canEditSource === next.canEditSource &&
+        previous.canCommentSource === next.canCommentSource &&
         previous.canUndo === next.canUndo &&
         previous.canRedo === next.canRedo
           ? previous
@@ -463,6 +465,7 @@ function Studio({ plugins, chrome }: { plugins: WorkbenchPlugin[]; chrome: Studi
     }));
     setMenu(null);
   };
+  const canNavigateProblems = !!historyStates[active]?.canNavigateProblems;
   const historyState = coreHistory.active
     ? coreHistory
     : (historyStates[active] ?? { canBack: false, canForward: false, canClose: false });
@@ -477,6 +480,11 @@ function Studio({ plugins, chrome }: { plugins: WorkbenchPlugin[]; chrome: Studi
     "editor.find": coreHistory.canEditSource,
     "editor.replace": coreHistory.canEditSource,
     "editor.gotoLine": coreHistory.canEditSource,
+    "editor.comment": coreHistory.canCommentSource,
+    "editor.selectAll": coreHistory.canEditSource,
+    "editor.nextMatch": coreHistory.canEditSource,
+    "editor.allMatches": coreHistory.canEditSource,
+    "help.shortcuts": coreHistory.canCreateFile,
   };
   const invokeCommand = (id: string) => {
     setMenu(null);
@@ -606,7 +614,7 @@ function Studio({ plugins, chrome }: { plugins: WorkbenchPlugin[]; chrome: Studi
         break;
       case "navigation.nextIssue":
       case "navigation.previousIssue":
-        if (historyStates[active]?.canNavigateProblems) requestNavigation(id);
+        if (canNavigateProblems) requestNavigation(id);
         break;
       case "navigation.back":
         if (historyState.canBack) requestNavigation(id);
@@ -621,6 +629,14 @@ function Studio({ plugins, chrome }: { plugins: WorkbenchPlugin[]; chrome: Studi
       case "terminal.split":
         updateLayout(active, { bottomOpen: true, bottomTab: "terminal" });
         window.dispatchEvent(new CustomEvent("texsys:terminal:split"));
+        break;
+      case "terminal.focus":
+      case "terminal.clear":
+        updateLayout(active, { bottomOpen: true, bottomTab: "terminal" });
+        window.dispatchEvent(new Event("texsys:" + id.replace(".", ":")));
+        break;
+      case "terminal.terminate":
+        window.dispatchEvent(new Event("texsys:terminal:terminate"));
         break;
       case "terminal.runActiveFile":
       case "terminal.runSelectedText":
@@ -728,7 +744,7 @@ function Studio({ plugins, chrome }: { plugins: WorkbenchPlugin[]; chrome: Studi
         (item.id === "objects.definition" && !objectDefinition) ||
         (item.id === "objects.references" && !usageObjects.length) ||
         ((item.id === "navigation.nextIssue" || item.id === "navigation.previousIssue") &&
-          !historyStates[active]?.canNavigateProblems) ||
+          !canNavigateProblems) ||
         (item.id === "document.save" && !coreHistory.canSave) ||
         (item.id === closeDocumentCommand.id && !historyState.canClose) ||
         (item.id === "navigation.back" && !historyState.canBack) ||
@@ -788,6 +804,18 @@ function Studio({ plugins, chrome }: { plugins: WorkbenchPlugin[]; chrome: Studi
       if ((event.metaKey || event.ctrlKey) && !event.shiftKey && event.key.toLowerCase() === "p") {
         event.preventDefault();
         openCommands("files");
+        return;
+      }
+      if (
+        !commandOpen &&
+        canNavigateProblems &&
+        event.key === "F8" &&
+        !event.metaKey &&
+        !event.ctrlKey &&
+        !event.altKey
+      ) {
+        event.preventDefault();
+        invokeCommand(event.shiftKey ? "navigation.previousIssue" : "navigation.nextIssue");
         return;
       }
       if (
@@ -857,6 +885,7 @@ function Studio({ plugins, chrome }: { plugins: WorkbenchPlugin[]; chrome: Studi
     layout.bottomMaximized,
     historyState.canBack,
     historyState.canForward,
+    canNavigateProblems,
     commandOpen,
   ]);
   useEffect(() => {
@@ -1108,6 +1137,7 @@ function Studio({ plugins, chrome }: { plugins: WorkbenchPlugin[]; chrome: Studi
             closeRequest={closeRequest}
             saveRequest={saveRequest}
             editorMenuRequest={editorMenuRequest}
+            shortcutCommands={menuItems.filter((item) => item.keys?.length)}
             closeShortcut={closeShortcut}
             navigationRequest={navigation[active]}
             onNavigationState={reportCoreHistory}
