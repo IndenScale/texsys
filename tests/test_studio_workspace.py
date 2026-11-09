@@ -86,6 +86,23 @@ def test_file_operations_create_rename_delete_and_empty_directories(tmp_path):
   assert not (tmp_path / "src").exists()
 
 
+def test_save_as_creates_complete_text_and_leaves_existing_files_intact(tmp_path):
+  destination = tmp_path / "copy.txt"
+  request = {"action": "create_text", "path": destination.name, "content": "示例\r\nsecond line"}
+  saved = file_operation(tmp_path, "build", request)
+  assert saved["content"] == "示例\nsecond line"
+  assert saved["version"] == project_file(tmp_path, destination.name, "build")["version"]
+  with pytest.raises(Conflict):
+    file_operation(tmp_path, "build", {**request, "content": "overwrite"})
+  assert destination.read_bytes() == "示例\nsecond line".encode()
+  with pytest.raises(ProjectError):
+    file_operation(tmp_path, "build", {**request, "path": "too-large.txt", "content": "x" * (MAX_PREVIEW_BYTES + 1)})
+  assert not (tmp_path / "too-large.txt").exists()
+  with pytest.raises(ProjectError):
+    file_operation(tmp_path, "build", {**request, "path": "../outside.txt"})
+  assert not list(tmp_path.glob(".studio-*"))
+
+
 @pytest.mark.parametrize("path", ["../outside", "/tmp/outside", "build/output", ".git/config", "node_modules/package", "."])
 def test_mutations_cannot_escape_project_or_touch_internal_outputs(tmp_path, path):
   with pytest.raises(ProjectError):

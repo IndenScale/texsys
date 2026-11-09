@@ -8,6 +8,8 @@ export type UserPreferences = {
   editorLineNumbers: boolean;
   editorMinimap: boolean;
   terminalFontSize: number;
+  autoSave: boolean;
+  confirmBeforeUnload: boolean;
 };
 
 export const fontSizeOptions = Array.from({ length: 17 }, (_, index) => index + 8);
@@ -19,7 +21,12 @@ export const defaultEditorPreferences = {
 } satisfies Partial<UserPreferences>;
 
 export const defaultTerminalPreferences = { terminalFontSize: 12 };
-const defaults = { ...defaultEditorPreferences, ...defaultTerminalPreferences };
+const defaults = {
+  ...defaultEditorPreferences,
+  ...defaultTerminalPreferences,
+  autoSave: false,
+  confirmBeforeUnload: true,
+};
 const storageKey = "texsys.studio.user-preferences";
 
 function fontSize(value: unknown, fallback: number) {
@@ -41,6 +48,8 @@ function readPreferences(raw: string | null): UserPreferences {
           typeof editorLineNumbers === "boolean" ? editorLineNumbers : defaults.editorLineNumbers,
         editorMinimap: typeof editorMinimap === "boolean" ? editorMinimap : defaults.editorMinimap,
         terminalFontSize: fontSize(saved.terminalFontSize, defaults.terminalFontSize),
+        autoSave: saved.autoSave === true,
+        confirmBeforeUnload: saved.confirmBeforeUnload !== false,
       };
     }
   } catch {

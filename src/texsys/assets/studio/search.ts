@@ -1,6 +1,34 @@
 import type { ProjectFile } from "./sdk";
-export type SearchScope = "all" | "commands" | "files";
+export type SearchScope = "all" | "commands" | "files" | "recent";
 export type FileLocation = { line: number; column?: number };
+
+const recentFileLimit = 30;
+const recentFileKey = (project: string) => `texsys.studio.recent-files:${project}`;
+
+export function readRecentFiles(project: string): string[] {
+  try {
+    const entries: unknown = JSON.parse(localStorage.getItem(recentFileKey(project)) ?? "[]");
+    return Array.isArray(entries)
+      ? entries
+          .filter((entry): entry is string => typeof entry === "string")
+          .slice(0, recentFileLimit)
+      : [];
+  } catch {
+    return [];
+  }
+}
+
+export function rememberRecentFile(project: string, path: string) {
+  try {
+    const entries = readRecentFiles(project).filter((entry) => entry !== path);
+    localStorage.setItem(
+      recentFileKey(project),
+      JSON.stringify([path, ...entries].slice(0, recentFileLimit)),
+    );
+  } catch {
+    // Recent files are optional when browser storage is unavailable.
+  }
+}
 
 export function parseFileQuery(
   files: ProjectFile[],

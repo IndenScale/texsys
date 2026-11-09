@@ -103,7 +103,7 @@ def project_file(root: Path, relative: str, build: str) -> dict:
 def file_operation(root: Path, build: str, request: dict) -> dict:
   from .runtime import Conflict
   action, relative = request.get("action"), request.get("path")
-  file = workspace_path(root, relative, build, missing=action in {"create", "mkdir"})
+  file = workspace_path(root, relative, build, missing=action in {"create", "create_text", "mkdir"})
   if action in {"create", "mkdir"}:
     if file.exists():
       raise Conflict("路径已经存在，请刷新文件列表。")
@@ -114,6 +114,29 @@ def file_operation(root: Path, build: str, request: dict) -> dict:
     else:
       with file.open("xb"):
         pass
+  elif action == "create_text":
+    if not file.parent.is_dir():
+      raise ProjectError("父目录不存在。")
+    text = request.get("content")
+    if not isinstance(text, str) or "\0" in text:
+      raise ProjectError("文件内容必须是 UTF-8 文本。")
+    try:
+      raw = text.replace("\r\n", "\n").replace("\r", "\n").encode("utf-8")
+    except UnicodeError as error:
+      raise ProjectError("文件内容必须是 UTF-8 文本。") from error
+    if len(raw) > MAX_PREVIEW_BYTES:
+      raise ProjectError("文件超过 1 MiB。")
+    descriptor, temporary = tempfile.mkstemp(prefix=".studio-", dir=file.parent)
+    try:
+      with os.fdopen(descriptor, "wb") as stream:
+        stream.write(raw)
+      try:
+        os.link(temporary, file)
+      except FileExistsError as error:
+        raise Conflict("目标路径已经存在。") from error
+    finally:
+      Path(temporary).unlink(missing_ok=True)
+    return project_file(root, relative, build)
   elif action == "save":
     original = project_file(root, relative, build)
     if not original["previewable"]:

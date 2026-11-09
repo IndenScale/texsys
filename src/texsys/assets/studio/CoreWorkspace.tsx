@@ -23,7 +23,8 @@ import {
   type SearchMatch,
 } from "./workspace-model";
 import { visitDocument, stepDocument, type DocumentHistory } from "./navigation";
-import type { FileLocation } from "./search";
+import { rememberRecentFile, type FileLocation } from "./search";
+import { useUserPreferences } from "./user-preferences";
 import { useCodeSearch } from "./CodeSearch";
 import { ExplorerTree } from "./ExplorerTree";
 import { FileIcon } from "./FileIcon";
@@ -38,7 +39,13 @@ import {
 } from "./NavigatorPanel";
 import "./workspace.css";
 import { SourceControl } from "./SourceControl";
-import { selectedSourceText, SourceEditor, type SourceModels } from "./SourceEditor";
+import {
+  runSourceEditCommand,
+  selectedSourceText,
+  SourceEditor,
+  type SourceModels,
+} from "./SourceEditor";
+import { isSourceEditCommand, type EditorMenuCommand } from "./menus";
 import { Settings, type TitlebarSettings } from "./Settings";
 import { Keycaps } from "./Keycaps";
 
@@ -56,6 +63,7 @@ type Document = {
   error?: string;
   location?: SearchMatch;
   cursorLine?: number;
+  untitled?: string;
 };
 type FileRequest = {
   path: string;
@@ -216,6 +224,8 @@ export function CoreWorkspaceProvider({
   settingsRequest,
   titlebarSettings,
   closeRequest,
+  saveRequest,
+  editorMenuRequest,
   closeShortcut,
   navigationRequest,
   onNavigationState,
@@ -233,6 +243,8 @@ export function CoreWorkspaceProvider({
   settingsRequest?: number;
   titlebarSettings: TitlebarSettings;
   closeRequest?: number;
+  saveRequest?: number;
+  editorMenuRequest?: { id: EditorMenuCommand };
   closeShortcut?: string[];
   navigationRequest?: WorkbenchProps["navigationRequest"];
   onNavigationState?: (next: {
@@ -240,10 +252,18 @@ export function CoreWorkspaceProvider({
     canBack: boolean;
     canForward: boolean;
     canClose: boolean;
+    canSave: boolean;
+    canCreateFile: boolean;
+    canSaveAll: boolean;
+    canRevert: boolean;
+    canEditSource: boolean;
+    canUndo: boolean;
+    canRedo: boolean;
   }) => void;
   hasDomain: boolean;
   children: ReactNode;
 }) {
+  const { autoSave, confirmBeforeUnload } = useUserPreferences();
   const activity = isCoreActivity(sidebarActivity) ? sidebarActivity : "explorer";
   const [listing, setListing] = useState<FileListing>(emptyListing),
     [listingError, setListingError] = useState("");
@@ -277,17 +297,23 @@ export function CoreWorkspaceProvider({
     [diffError, setDiffError] = useState("");
   const diffSequence = useRef(0);
   const [form, setForm] = useState<{
-    action: "create" | "mkdir" | "rename" | "delete";
+    action: "create" | "mkdir" | "rename" | "delete" | "saveAs";
     path: string;
     value: string;
+    closeAfter?: boolean;
+    remainingDrafts?: string[];
   }>();
   const [formError, setFormError] = useState("");
   const [closePath, setClosePath] = useState<string>();
+  const [revertPath, setRevertPath] = useState<string>();
   const [closeFocusRequest, setCloseFocusRequest] = useState(0);
   const [diskComparison, setDiskComparison] = useState<{ path: string; file: FilePreview }>();
   const searchInput = useRef<HTMLInputElement>(null);
   const [sourceFocus, setSourceFocus] = useState<{ path: string; origin: Element | null }>();
   const openReads = useRef(new Map<string, symbol>());
+  const untitledSequence = useRef(0);
+  const fileWriteInFlight = useRef(false);
+  const failedAutoSaves = useRef(new Map<string, { content: string; version: string }>());
   const [sourceModels] = useState<SourceModels>(() => new Map());
   useEffect(() => {
     const paths = new Set(documents.map(({ path }) => path));
@@ -320,7 +346,9 @@ export function CoreWorkspaceProvider({
             ? "source"
             : null;
   const terminalFile =
-    activeTab === "source" && !active?.loading && !active?.error ? active?.path : undefined;
+    activeTab === "source" && !active?.untitled && !active?.loading && !active?.error
+      ? active?.path
+      : undefined;
   useEffect(() => {
     const execute = (command: string) => {
       window.dispatchEvent(new CustomEvent("texsys:terminal:runCommand", { detail: { command } }));
@@ -359,9 +387,19 @@ export function CoreWorkspaceProvider({
   const tabStop =
     activeTab ??
     (active ? "source" : searchDocumentOpen ? "search" : settingsOpen ? "settings" : null);
-  const closeDisabled = !!(busy || form || closePath || diskComparison);
+  const closeDisabled = !!(busy || form || closePath || revertPath || diskComparison);
   const canClose = !!activeTab && !closeDisabled;
+  const canEditSource =
+    activeTab === "source" &&
+    !!active &&
+    !active.loading &&
+    !active.error &&
+    !active.reason &&
+    !closeDisabled;
+  const canSave = canEditSource && (!!active.untitled || active.content !== active.saved);
+  const canRevert = canEditSource && !active.untitled;
   const dirty = documents.some((item) => item.content !== item.saved);
+  const canSaveAll = dirty && !closeDisabled;
   const select = useCallback(
     (id: Activity) => changeLayout({ sidebarOpen: true, sidebarActivity: id }),
     [changeLayout],
@@ -428,11 +466,10 @@ export function CoreWorkspaceProvider({
     void readFiles();
   }, [state.project.revision, readFiles]);
   useEffect(() => {
+    if (!dirty || !confirmBeforeUnload) return;
     const handler = (event: BeforeUnloadEvent) => {
-      if (dirty) {
-        event.preventDefault();
-        event.returnValue = "";
-      }
+      event.preventDefault();
+      event.returnValue = "";
     };
     window.addEventListener("beforeunload", handler);
     return () => window.removeEventListener("beforeunload", handler);
@@ -451,6 +488,16 @@ export function CoreWorkspaceProvider({
       fromDiskSearch?: boolean;
     } = {},
   ) => {
+    if (path.startsWith("\0untitled:")) {
+      if (!documentsRef.current.some((item) => item.path === path)) return;
+      setSettingsActive(false);
+      setSearchEditorActive(false);
+      setDiffActive(false);
+      setActivePath(path);
+      setDocumentActive(true);
+      if (recordHistory) setHistory((previous) => visitDocument(previous, path));
+      return;
+    }
     setSourceFocus(focus ? { path, origin: document.activeElement } : undefined);
     setSettingsActive(false);
     if (recordHistory) setHistory((previous) => visitDocument(previous, path));
@@ -484,6 +531,7 @@ export function CoreWorkspaceProvider({
     const existing = documentsRef.current.find((item) => item.path === path);
     const hasEdits = existing && existing.content !== existing.saved;
     if (hasEdits || (focus && existing && !existing.loading && !existing.error)) {
+      rememberRecentFile(state.project.path, path);
       openReads.current.delete(path);
       if (target && hasEdits && fromDiskSearch) {
         notify(t("文件有未保存的编辑，已打开文件；请保存后再按磁盘搜索结果定位。"));
@@ -507,6 +555,7 @@ export function CoreWorkspaceProvider({
     try {
       const file = await api<FilePreview>(`/api/file?path=${encodeURIComponent(path)}`);
       if (openReads.current.get(path) !== read) return;
+      rememberRecentFile(state.project.path, path);
       setDocuments((previous) =>
         previous.map((item) =>
           item.path === path && item.content === item.saved
@@ -535,11 +584,19 @@ export function CoreWorkspaceProvider({
     }
   };
   useEffect(() => {
+    const model = canEditSource ? sourceModels.get(active.path)?.model : undefined;
     onNavigationState?.({
       active: documentActive || settingsActive,
       canBack: !settingsActive && history.index > 0,
       canForward: !settingsActive && history.index < history.entries.length - 1,
       canClose,
+      canSave,
+      canCreateFile: !closeDisabled,
+      canSaveAll,
+      canRevert,
+      canEditSource,
+      canUndo: model?.canUndo() ?? false,
+      canRedo: model?.canRedo() ?? false,
     });
   }, [
     documentActive,
@@ -547,6 +604,13 @@ export function CoreWorkspaceProvider({
     history.index,
     history.entries.length,
     canClose,
+    canSave,
+    canSaveAll,
+    canRevert,
+    closeDisabled,
+    canEditSource,
+    active,
+    sourceModels,
     onNavigationState,
   ]);
   useEffect(() => {
@@ -582,34 +646,101 @@ export function CoreWorkspaceProvider({
         requestAnimationFrame(() => searchInput.current?.focus());
     }
   }, [activityRequest?.token]);
-  const saveFile = async (path = activePath): Promise<boolean> => {
-    const document = documentsRef.current.find((item) => item.path === path);
-    if (!document || document.loading || document.reason || document.error) return false;
+  const saveFiles = async (paths: string[], automatic = false): Promise<boolean> => {
+    if (fileWriteInFlight.current) return false;
+    fileWriteInFlight.current = true;
     setBusy(true);
+    const errors: string[] = [];
+    let count = 0;
     try {
-      const saved = await api<FilePreview>("/api/file", {
-        action: "save",
-        path,
-        content: document.content,
-        version: document.version,
-      });
-      setDocuments((previous) =>
-        previous.map((item) =>
-          item.path === path
-            ? { ...item, saved: saved.content ?? "", version: saved.version! }
-            : item,
-        ),
-      );
-      notify(t("文件已保存"));
-      await reload();
-      return true;
-    } catch (error) {
-      notify(String(error), true);
-      return false;
+      for (const path of paths) {
+        const document = documentsRef.current.find((item) => item.path === path);
+        if (!document?.version || document.content === document.saved) continue;
+        try {
+          const saved = await api<FilePreview>("/api/file", {
+            action: "save",
+            path,
+            content: document.content,
+            version: document.version,
+          });
+          setDocuments((previous) =>
+            previous.map((item) =>
+              item.path === path
+                ? { ...item, saved: saved.content ?? "", version: saved.version! }
+                : item,
+            ),
+          );
+          failedAutoSaves.current.delete(path);
+          count += 1;
+        } catch (error) {
+          failedAutoSaves.current.set(path, {
+            content: document.content,
+            version: document.version,
+          });
+          errors.push(`${path}: ${error instanceof Error ? error.message : String(error)}`);
+        }
+      }
+      if (count) await reload();
+      if (errors.length) notify(errors.join("\n"), true);
+      else if (count && !automatic) notify(t(count === 1 ? "文件已保存" : "全部文件已保存"));
+      return errors.length === 0;
     } finally {
+      fileWriteInFlight.current = false;
       setBusy(false);
     }
   };
+  const startSaveAs = (path: string, closeAfter = false, remainingDrafts: string[] = []) => {
+    setFormError("");
+    setForm({
+      action: "saveAs",
+      path,
+      value: path.startsWith("\0untitled:") ? "" : path,
+      closeAfter,
+      remainingDrafts,
+    });
+  };
+  const saveFile = (path = activePath) => {
+    const document = documentsRef.current.find((item) => item.path === path);
+    if (!document) return Promise.resolve(false);
+    if (document.untitled) {
+      startSaveAs(document.path);
+      return Promise.resolve(false);
+    }
+    return saveFiles([document.path]);
+  };
+  const saveAll = async () => {
+    const pending = documentsRef.current.filter((item) => item.content !== item.saved);
+    const named = pending.filter((item) => !item.untitled).map((item) => item.path);
+    if (named.length) await saveFiles(named);
+    const [first, ...remaining] = pending.filter((item) => item.untitled);
+    if (first)
+      startSaveAs(
+        first.path,
+        false,
+        remaining.map((item) => item.path),
+      );
+  };
+  useEffect(() => {
+    if (!autoSave || !canSaveAll) return;
+    const pending = documents.filter((item) => {
+      const failed = failedAutoSaves.current.get(item.path);
+      return (
+        item.version &&
+        item.content !== item.saved &&
+        (failed?.version !== item.version || failed.content !== item.content)
+      );
+    });
+    if (!pending.length) return;
+    const timer = setTimeout(
+      () =>
+        void saveFiles(
+          pending.map((item) => item.path),
+          true,
+        ),
+      1000,
+    );
+    return () => clearTimeout(timer);
+  }, [autoSave, canSaveAll, documents]);
   const compareDisk = async (path: string) => {
     try {
       const file = await api<FilePreview>(`/api/file?path=${encodeURIComponent(path)}`);
@@ -620,11 +751,17 @@ export function CoreWorkspaceProvider({
     }
   };
   const rereadFile = async (path: string) => {
+    const original = documentsRef.current.find((item) => item.path === path);
+    if (!original || original.untitled) return;
     try {
       const file = await api<FilePreview>(`/api/file?path=${encodeURIComponent(path)}`);
+      if (!file.previewable && original.content !== original.saved)
+        throw new Error(file.reason ?? t("磁盘版本无法作为文本读取。"));
       setDocuments((previous) =>
         previous.map((item) =>
-          item.path === path
+          item.path === path &&
+          item.content === original.content &&
+          item.version === original.version
             ? {
                 ...item,
                 saved: file.content ?? "",
@@ -644,6 +781,13 @@ export function CoreWorkspaceProvider({
   const removeDocument = (path: string) => {
     const index = documentsRef.current.findIndex((item) => item.path === path);
     openReads.current.delete(path);
+    failedAutoSaves.current.delete(path);
+    if (path.startsWith("\0untitled:")) {
+      setHistory(({ entries, index }) => ({
+        entries: entries.filter((entry) => entry !== path),
+        index: entries.slice(0, index + 1).filter((entry) => entry !== path).length - 1,
+      }));
+    }
     const nextDocuments = documentsRef.current.filter((item) => item.path !== path);
     setDocuments(nextDocuments);
     if (activePath === path) {
@@ -733,13 +877,16 @@ export function CoreWorkspaceProvider({
     if (activeTab === "source" && activePath) closeFileTab(activePath);
   }, [closeRequest]);
   useEffect(() => {
+    if (saveRequest && canSave) void saveFile();
+  }, [saveRequest]);
+  useEffect(() => {
     const handler = (event: KeyboardEvent) => {
       if (event.defaultPrevented || event.isComposing || event.keyCode === 229) return;
       if (!(event.metaKey || event.ctrlKey) || event.altKey) return;
       if (event.target instanceof Element && event.target.closest('[aria-modal="true"]')) return;
-      if (event.key.toLowerCase() === "s" && activeTab === "source") {
+      if (!event.shiftKey && event.key.toLowerCase() === "s" && activeTab === "source") {
         event.preventDefault();
-        if (!busy) void saveFile();
+        if (canSave) void saveFile();
       }
       const item = event.shiftKey
         ? coreItems.find(({ shortcutKey }) => shortcutKey === event.key.toUpperCase())
@@ -752,19 +899,40 @@ export function CoreWorkspaceProvider({
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [activeTab, busy, activePath, documents, select]);
+  }, [activeTab, canSave, activePath, documents, select]);
   const submitFileOperation = async (event: React.FormEvent) => {
     event.preventDefault();
-    if (!form) return;
+    if (!form || fileWriteInFlight.current) return;
     if (
+      form.action !== "saveAs" &&
       documentsRef.current.some((item) => item.path === form.path && item.content !== item.saved)
     ) {
       setFormError(t("请先保存或关闭该文件的未保存编辑。"));
       return;
     }
+    fileWriteInFlight.current = true;
     setBusy(true);
     setFormError("");
     try {
+      if (form.action === "saveAs") {
+        const source = documentsRef.current.find((item) => item.path === form.path);
+        if (!source) return;
+        const saved = await api<FilePreview>("/api/file", {
+          action: "create_text",
+          path: form.value,
+          content: source.content,
+        });
+        const current = documentsRef.current.find((item) => item.path === source.path);
+        const canReplaceTab = current?.content === source.content;
+        if (canReplaceTab) finishClosingTab(() => removeDocument(source.path));
+        setForm(undefined);
+        await reload();
+        if (!form.closeAfter || !canReplaceTab) await openFile(saved.path, { focus: true });
+        const [next, ...remaining] = form.remainingDrafts ?? [];
+        if (next) startSaveAs(next, false, remaining);
+        notify(t("文件已保存"));
+        return;
+      }
       let version;
       if (
         ["rename", "delete"].includes(form.action) &&
@@ -804,6 +972,7 @@ export function CoreWorkspaceProvider({
     } catch (error) {
       setFormError(String(error));
     } finally {
+      fileWriteInFlight.current = false;
       setBusy(false);
     }
   };
@@ -900,6 +1069,36 @@ export function CoreWorkspaceProvider({
       value: action === "rename" ? path : parent ? parent + "/" : "",
     });
   };
+  const newUntitled = () => {
+    const number = ++untitledSequence.current;
+    const path = `\0untitled:${number}`;
+    setDocuments((previous) => [
+      ...previous,
+      { path, untitled: t("未命名-{0}", { 0: number }), saved: "", content: "", version: "" },
+    ]);
+    setSourceFocus({ path, origin: document.activeElement });
+    setSettingsActive(false);
+    setSearchEditorActive(false);
+    setDiffActive(false);
+    setActivePath(path);
+    setDocumentActive(true);
+    setHistory((previous) => visitDocument(previous, path));
+  };
+  useEffect(() => {
+    if (!editorMenuRequest) return;
+    const { id } = editorMenuRequest;
+    if (closeDisabled) return;
+    if (id === "file.new") startForm("create", "");
+    else if (id === "file.untitled") newUntitled();
+    else if (id === "file.saveAll" && canSaveAll) void saveAll();
+    else if (id === "file.saveAs" && canEditSource) startSaveAs(active.path);
+    else if (id === "file.revert" && canRevert) {
+      if (active.content === active.saved) void rereadFile(active.path);
+      else setRevertPath(active.path);
+    } else if (canEditSource && isSourceEditCommand(id)) {
+      runSourceEditCommand(active.path, sourceModels, id);
+    }
+  }, [editorMenuRequest]);
   const explorerActions = (path: string): NavigatorMenuItem[] => [
     {
       label: t("新建文件…"),
@@ -1134,6 +1333,18 @@ export function CoreWorkspaceProvider({
       </NavigatorPage>
     </NavigatorPanel>
   );
+  const fileDialogTitle =
+    form &&
+    t(
+      {
+        create: "新建文件",
+        mkdir: "新建文件夹",
+        rename: "重命名",
+        delete: "删除文件",
+        saveAs: "另存为",
+      }[form.action],
+    );
+  const closingDocument = documents.find((item) => item.path === closePath);
   const dialogs = (
     <>
       {form && (
@@ -1142,26 +1353,10 @@ export function CoreWorkspaceProvider({
             className="core-dialog"
             role="dialog"
             aria-modal="true"
-            aria-label={
-              {
-                create: t("新建文件"),
-                mkdir: t("新建文件夹"),
-                rename: t("重命名"),
-                delete: t("删除文件"),
-              }[form.action]
-            }
+            aria-label={fileDialogTitle}
             onSubmit={(event) => void submitFileOperation(event)}
           >
-            <strong>
-              {
-                {
-                  create: t("新建文件"),
-                  mkdir: t("新建文件夹"),
-                  rename: t("重命名"),
-                  delete: t("删除文件"),
-                }[form.action]
-              }
-            </strong>
+            <strong>{fileDialogTitle}</strong>
             {form.action === "delete" ? (
               <p>
                 {t("删除“")}
@@ -1190,7 +1385,11 @@ export function CoreWorkspaceProvider({
                 className="core-primary"
                 disabled={busy || (form.action !== "delete" && !form.value.trim())}
               >
-                {form.action === "delete" ? t("删除") : t("确定")}
+                {form.action === "delete"
+                  ? t("删除")
+                  : form.action === "saveAs"
+                    ? t("保存")
+                    : t("确定")}
               </button>
             </div>
           </form>
@@ -1206,7 +1405,7 @@ export function CoreWorkspaceProvider({
           >
             <strong>{t("保存文件更改？")}</strong>
             <p>
-              {closePath}
+              {closingDocument?.untitled ?? closePath}
               {t("有未保存的编辑。")}
             </p>
             <div className="core-dialog-actions">
@@ -1223,10 +1422,45 @@ export function CoreWorkspaceProvider({
                 className="core-primary"
                 disabled={busy}
                 onClick={async () => {
-                  if (await saveFile(closePath)) finishClosingTab(() => removeDocument(closePath));
+                  if (closingDocument?.untitled) {
+                    setClosePath(undefined);
+                    startSaveAs(closePath, true);
+                  } else if (await saveFile(closePath)) {
+                    const current = documentsRef.current.find((item) => item.path === closePath);
+                    if (current?.content === current?.saved)
+                      finishClosingTab(() => removeDocument(closePath));
+                  }
                 }}
               >
                 {t("保存并关闭")}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {revertPath && (
+        <div className="core-dialog-backdrop">
+          <div className="core-dialog" role="dialog" aria-modal="true" aria-label={t("还原文件")}>
+            <strong>{t("还原文件")}</strong>
+            <p>{t("放弃“{0}”未保存的更改，并重新读取磁盘上的内容？", { 0: revertPath })}</p>
+            <div className="core-dialog-actions">
+              <button disabled={busy} onClick={() => setRevertPath(undefined)}>
+                {t("取消")}
+              </button>
+              <button
+                className="core-primary"
+                disabled={busy}
+                onClick={async () => {
+                  setBusy(true);
+                  try {
+                    await rereadFile(revertPath);
+                  } finally {
+                    setRevertPath(undefined);
+                    setBusy(false);
+                  }
+                }}
+              >
+                {t("还原")}
               </button>
             </div>
           </div>
@@ -1346,12 +1580,14 @@ export function CoreWorkspaceProvider({
           key={document.path}
           selected={activeTab === "source" && activePath === document.path}
           tabStop={tabStop === "source" && activePath === document.path}
-          title={document.path}
-          closeLabel={t("关闭 {0}", { "0": document.path })}
+          title={document.untitled ?? document.path}
+          closeLabel={t("关闭 {0}", { "0": document.untitled ?? document.path })}
           closeDisabled={closeDisabled}
           closeShortcut={closeShortcut}
           onClose={() => closeFileTab(document.path)}
           onSelect={() => {
+            if (!document.untitled && !document.loading && !document.error)
+              rememberRecentFile(state.project.path, document.path);
             setSettingsActive(false);
             setSearchEditorActive(false);
             setHistory((previous) => visitDocument(previous, document.path));
@@ -1361,7 +1597,7 @@ export function CoreWorkspaceProvider({
           }}
         >
           <FileIcon path={document.path} />
-          <span>{document.path.split("/").pop()}</span>
+          <span>{document.untitled ?? document.path.split("/").pop()}</span>
           {document.content !== document.saved && (
             <span className="core-dirty" title={t("未保存")} />
           )}
@@ -1439,22 +1675,26 @@ export function CoreWorkspaceProvider({
     )
   ) : active && !active.loading && !active.error && !active.reason ? (
     <>
-      <EditorActionButton
-        label={t("与磁盘内容比较")}
-        icon="compare"
-        disabled={busy}
-        onClick={() => void compareDisk(active.path)}
-      />
-      <EditorActionButton
-        label={t("重新读取文件")}
-        icon="refresh"
-        disabled={busy || activeDirty}
-        onClick={() => void rereadFile(active.path)}
-      />
+      {!active.untitled && (
+        <>
+          <EditorActionButton
+            label={t("与磁盘内容比较")}
+            icon="compare"
+            disabled={busy}
+            onClick={() => void compareDisk(active.path)}
+          />
+          <EditorActionButton
+            label={t("重新读取文件")}
+            icon="refresh"
+            disabled={busy || activeDirty}
+            onClick={() => void rereadFile(active.path)}
+          />
+        </>
+      )}
       <EditorActionButton
         label={t("保存")}
         icon="save"
-        disabled={busy || !activeDirty}
+        disabled={!canSave}
         onClick={() => void saveFile()}
       />
     </>
@@ -1534,10 +1774,17 @@ export function CoreWorkspaceProvider({
       {t(active.error ?? active.reason)}
     </Empty>
   ) : (
-    <section className="core-text-document" aria-label={t("编辑 {0}", { "0": active.path })}>
+    <section
+      className="core-text-document"
+      aria-label={t("编辑 {0}", { "0": active.untitled ?? active.path })}
+    >
       <div className="core-document-header">
-        <nav className="core-breadcrumb" aria-label={t("文件路径")} title={active.path}>
-          {active.path.split("/").map((part, index, parts) => (
+        <nav
+          className="core-breadcrumb"
+          aria-label={t("文件路径")}
+          title={active.untitled ?? active.path}
+        >
+          {(active.untitled ?? active.path).split("/").map((part, index, parts) => (
             <React.Fragment key={index}>
               {index > 0 && (
                 <span className="core-breadcrumb-separator">
@@ -1604,7 +1851,7 @@ export function CoreWorkspaceProvider({
       <div className="core-editor-status">
         <span className="core-editor-status-details">
           <span>UTF-8 · {sourceFileFormat(active.path).toUpperCase()}</span>
-          <span>{activeDirty ? t("未保存") : t("已保存")}</span>
+          <span>{active.untitled || activeDirty ? t("未保存") : t("已保存")}</span>
         </span>
         <span>
           {t("行 {0} · 共 {1} 行", {
@@ -1623,7 +1870,7 @@ export function CoreWorkspaceProvider({
       {active && !diffActive && !searchEditorActive ? (
         <dl>
           <dt>{t("路径")}</dt>
-          <dd>{active.path}</dd>
+          <dd>{active.untitled ?? active.path}</dd>
           <dt>{t("编码")}</dt>
           <dd>UTF-8</dd>
           <dt>{t("状态")}</dt>
@@ -1632,7 +1879,7 @@ export function CoreWorkspaceProvider({
               ? t("读取中")
               : active.reason
                 ? t("不可编辑")
-                : active.content !== active.saved
+                : active.untitled || active.content !== active.saved
                   ? t("未保存")
                   : t("已保存")}
           </dd>
@@ -1682,12 +1929,13 @@ export function CoreWorkspaceProvider({
           onDismiss={() => setExplorerMenu(undefined)}
         />
       )}
-      {(form || closePath || diskComparison) && (
+      {(form || closePath || revertPath || diskComparison) && (
         <DialogLayer
           cancel={() => {
             if (!busy) {
               setForm(undefined);
               setClosePath(undefined);
+              setRevertPath(undefined);
               setDiskComparison(undefined);
             }
           }}

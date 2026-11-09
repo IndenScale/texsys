@@ -17,6 +17,7 @@ import "monaco-editor/languages/definitions/python/register.js";
 import "monaco-editor/languages/definitions/shell/register.js";
 import "monaco-editor/languages/definitions/yaml/register.js";
 import { t } from "./i18n";
+import type { SourceEditCommand } from "./menus";
 import "./toml-language";
 import { useUserPreferences } from "./user-preferences";
 import { sourceFileFormat, sourceOffset, type SearchMatch } from "./workspace-model";
@@ -50,6 +51,37 @@ export function selectedSourceText(path: string, models: SourceModels) {
   const code = editor.getEditors().find((candidate) => candidate.getModel() === model);
   const selection = code?.getSelection();
   return selection ? model.getValueInRange(selection) : "";
+}
+
+export function runSourceEditCommand(
+  path: string,
+  models: SourceModels,
+  command: SourceEditCommand,
+) {
+  const model = models.get(path)?.model;
+  if (!model || model.isDisposed()) return;
+  const code = editor
+    .getEditors()
+    .find(
+      (candidate) =>
+        candidate.getModel() === model && candidate.getDomNode()?.getClientRects().length,
+    );
+  if (!code) return;
+  code.focus();
+  switch (command) {
+    case "editor.undo":
+      if (model.canUndo()) void model.undo();
+      break;
+    case "editor.redo":
+      if (model.canRedo()) void model.redo();
+      break;
+    case "editor.find":
+      void code.getAction("actions.find")?.run();
+      break;
+    case "editor.replace":
+      void code.getAction("editor.action.startFindReplaceAction")?.run();
+      break;
+  }
 }
 
 export function SourceEditor({

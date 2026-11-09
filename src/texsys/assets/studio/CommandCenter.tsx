@@ -32,6 +32,7 @@ export function CommandCenter({
   scope,
   onScopeChange,
   files,
+  recentPaths,
   filesLoading,
   filesError,
   filesTruncated,
@@ -51,6 +52,7 @@ export function CommandCenter({
   scope: SearchScope;
   onScopeChange: (scope: SearchScope) => void;
   files: ProjectFile[];
+  recentPaths: string[];
   filesLoading: boolean;
   filesError: string;
   filesTruncated: boolean;
@@ -66,17 +68,25 @@ export function CommandCenter({
   const [query, setQuery] = useState(""),
     [selected, setSelected] = useState(0);
   const resultScope = query.trimStart().startsWith(">") ? "commands" : scope;
-  const fileQuery = resultScope !== "commands" ? parseFileQuery(files, query) : undefined;
+  const fileIndex =
+    resultScope === "recent" ? new Map(files.map((file) => [file.path, file])) : undefined;
+  const visibleFiles = fileIndex
+    ? recentPaths.flatMap((path) => {
+        const file = fileIndex.get(path);
+        return file ? [file] : [];
+      })
+    : files;
+  const fileQuery = resultScope !== "commands" ? parseFileQuery(visibleFiles, query) : undefined;
   const location = fileQuery?.location;
   const matches: Result[] = [
-    ...(resultScope !== "files"
+    ...(resultScope === "all" || resultScope === "commands"
       ? filterCommands(commands, query).map((command) => ({
           ...command,
           icon: command.icon ?? "arrow",
         }))
       : []),
     ...(fileQuery
-      ? filterFiles(files, fileQuery.text)
+      ? filterFiles(visibleFiles, fileQuery.text)
           .slice(0, 100)
           .map((file) => ({
             id: `file:${file.path}`,
@@ -110,7 +120,10 @@ export function CommandCenter({
   }, [project]);
   useLayoutEffect(() => {
     if (open) {
-      if (scope !== "commands") setQuery((current) => current.replace(/^\s*>\s*/, ""));
+      if (scope === "recent") {
+        setQuery("");
+        setSelected(0);
+      } else if (scope !== "commands") setQuery((current) => current.replace(/^\s*>\s*/, ""));
       input.current?.focus();
       input.current?.select();
     }
@@ -203,11 +216,13 @@ export function CommandCenter({
             autoComplete="off"
             spellCheck={false}
             placeholder={
-              scope === "files"
-                ? t("搜索文件…")
-                : scope === "commands"
-                  ? t("搜索或运行命令…")
-                  : t("搜索文件或运行命令…")
+              scope === "recent"
+                ? t("搜索最近打开的文件…")
+                : scope === "files"
+                  ? t("搜索文件…")
+                  : scope === "commands"
+                    ? t("搜索或运行命令…")
+                    : t("搜索文件或运行命令…")
             }
             value={query}
             onChange={(event) => {
@@ -300,7 +315,9 @@ export function CommandCenter({
             {fileQuery && filesLoading && <p role="status">{t("正在读取项目文件…")}</p>}
             {fileQuery && filesError && <p role="alert">{filesError}</p>}
             {!matches.length && (!fileQuery || (!filesLoading && !filesError)) && (
-              <p role="status">{t("没有匹配的结果")}</p>
+              <p role="status">
+                {t(resultScope === "recent" && !query ? "没有最近打开的文件" : "没有匹配的结果")}
+              </p>
             )}
             {fileQuery && filesTruncated && (
               <p className="search-limit">{t("仅索引前 5000 个项目文件。")}</p>
@@ -313,6 +330,7 @@ export function CommandCenter({
                 { id: "all", label: t("全部"), focused: resultScope === "all" },
                 { id: "commands", label: t("命令"), focused: resultScope === "commands" },
                 { id: "files", label: t("文件"), focused: resultScope === "files" },
+                { id: "recent", label: t("最近"), focused: resultScope === "recent" },
               ]}
               onSelect={(id) => {
                 if (id !== "commands") setQuery((current) => current.replace(/^\s*>\s*/, ""));

@@ -234,21 +234,23 @@ export function ApplicationMenuBar({
       const command = lookup(item.id);
       if (!command) return null;
       return (
-        <button
-          key={item.id}
-          role={command.checked === undefined ? "menuitem" : "menuitemcheckbox"}
-          aria-checked={command.checked}
-          aria-disabled={!!command.disabled}
-          disabled={!!command.disabled}
-          tabIndex={-1}
-          onClick={() => choose(command)}
-        >
-          <span className="application-menu-mark">
-            {command.checked && <Icon name="tick" size={14} />}
-          </span>
-          <span className="application-menu-label">{command.label}</span>
-          {command.keys && <Keycaps keys={command.keys} />}
-        </button>
+        <React.Fragment key={item.id}>
+          {item.separator && <div role="separator" className="application-menu-separator" />}
+          <button
+            role={command.checked === undefined ? "menuitem" : "menuitemcheckbox"}
+            aria-checked={command.checked}
+            aria-disabled={!!command.disabled}
+            disabled={!!command.disabled}
+            tabIndex={-1}
+            onClick={() => choose(command)}
+          >
+            <span className="application-menu-mark">
+              {command.checked && <Icon name="tick" size={14} />}
+            </span>
+            <span className="application-menu-label">{command.label}</span>
+            {command.keys && <Keycaps keys={command.keys} />}
+          </button>
+        </React.Fragment>
       );
     });
   return (

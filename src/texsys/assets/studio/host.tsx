@@ -6,6 +6,7 @@ import {
   type StudioJob,
   type StudioState,
   type WorkbenchPlugin,
+  type WorkbenchRunCommand,
   type StudioLayout,
   type ProjectFile,
   type StudioChrome,
@@ -27,12 +28,17 @@ import { ToolbarButton } from "./ToolbarButton";
 import { ApplicationMenuBar } from "./ApplicationMenuBar";
 import { NavigatorMenu } from "./NavigatorMenu";
 import { WorkbenchBottomPanel } from "./BottomPanel";
-import type { FileLocation, SearchScope } from "./search";
+import { readRecentFiles, type FileLocation, type SearchScope } from "./search";
+import { updateUserPreferences, useUserPreferences } from "./user-preferences";
 import {
   closeDocumentCommand,
   closeDocumentKeys,
   isCloseDocumentShortcut,
+  isEditorMenuCommand,
+  isSourceEditCommand,
+  sourceEditKeys,
   studioMenus,
+  type EditorMenuCommand,
 } from "./menus";
 import { t, useLocale, getLocale, localizeError } from "./i18n";
 import "./studio.css";
@@ -206,6 +212,7 @@ const macKeys = /Mac|iPhone|iPad/.test(navigator.platform);
 
 function Studio({ plugins, chrome }: { plugins: WorkbenchPlugin[]; chrome: StudioChrome }) {
   const locale = useLocale();
+  const { autoSave, confirmBeforeUnload } = useUserPreferences();
   useEffect(() => {
     document.documentElement.lang = locale;
   }, [locale]);
@@ -216,6 +223,8 @@ function Studio({ plugins, chrome }: { plugins: WorkbenchPlugin[]; chrome: Studi
   }>();
   const [settingsRequest, setSettingsRequest] = useState(0);
   const [closeRequest, setCloseRequest] = useState(0);
+  const [saveRequest, setSaveRequest] = useState(0);
+  const [editorMenuRequest, setEditorMenuRequest] = useState<{ id: EditorMenuCommand }>();
   const [fullscreen, setFullscreen] = useState(
     () => document.fullscreenElement === document.documentElement,
   );
@@ -246,6 +255,7 @@ function Studio({ plugins, chrome }: { plugins: WorkbenchPlugin[]; chrome: Studi
   const [commandOpen, setCommandOpen] = useState(false);
   const [commandScope, setCommandScope] = useState<SearchScope>("all");
   const [files, setFiles] = useState<ProjectFile[]>([]);
+  const [recentPaths, setRecentPaths] = useState<string[]>([]);
   const [filesLoading, setFilesLoading] = useState(false),
     [filesError, setFilesError] = useState("");
   const [filesTruncated, setFilesTruncated] = useState(false);
@@ -258,6 +268,7 @@ function Studio({ plugins, chrome }: { plugins: WorkbenchPlugin[]; chrome: Studi
     setTitlebarMenuPoint(point);
   };
   const openCommands = (scope: SearchScope = "all") => {
+    setRecentPaths(state ? readRecentFiles(state.project.path) : []);
     if (!commandOpen) commandOrigin.current = document.activeElement as HTMLElement | null;
     setTitlebarMenuPoint(undefined);
     setMenu(null);
@@ -270,6 +281,13 @@ function Studio({ plugins, chrome }: { plugins: WorkbenchPlugin[]; chrome: Studi
     canBack: false,
     canForward: false,
     canClose: false,
+    canSave: false,
+    canCreateFile: false,
+    canSaveAll: false,
+    canRevert: false,
+    canEditSource: false,
+    canUndo: false,
+    canRedo: false,
   });
   const reportCoreHistory = useCallback(
     (next: typeof coreHistory) =>
@@ -277,7 +295,14 @@ function Studio({ plugins, chrome }: { plugins: WorkbenchPlugin[]; chrome: Studi
         previous.active === next.active &&
         previous.canBack === next.canBack &&
         previous.canForward === next.canForward &&
-        previous.canClose === next.canClose
+        previous.canClose === next.canClose &&
+        previous.canSave === next.canSave &&
+        previous.canCreateFile === next.canCreateFile &&
+        previous.canSaveAll === next.canSaveAll &&
+        previous.canRevert === next.canRevert &&
+        previous.canEditSource === next.canEditSource &&
+        previous.canUndo === next.canUndo &&
+        previous.canRedo === next.canRedo
           ? previous
           : next,
       ),
@@ -286,6 +311,22 @@ function Studio({ plugins, chrome }: { plugins: WorkbenchPlugin[]; chrome: Studi
   const [historyStates, setHistoryStates] = useState<
     Record<string, { canBack: boolean; canForward: boolean; canClose?: boolean }>
   >({});
+  const [runCommands, setRunCommands] = useState<Record<string, readonly WorkbenchRunCommand[]>>(
+    {},
+  );
+  const registerRunCommands = useCallback(
+    (plugin: string, commands: readonly WorkbenchRunCommand[]) => {
+      setRunCommands((previous) => ({ ...previous, [plugin]: commands }));
+      return () =>
+        setRunCommands((previous) => {
+          if (previous[plugin] !== commands) return previous;
+          const next = { ...previous };
+          delete next[plugin];
+          return next;
+        });
+    },
+    [],
+  );
   const [menu, setMenu] = useState<"project" | "discipline" | null>(null);
   const [defaultLayout] = useState(initialLayout);
   const [workbench, setWorkbench] = useState<LayoutPreferences & { project: string }>({
@@ -388,6 +429,7 @@ function Studio({ plugins, chrome }: { plugins: WorkbenchPlugin[]; chrome: Studi
     state?.plugins.some((item) => item.id === plugin.manifest.id),
   );
   const current = available.find((plugin) => plugin.manifest.id === active);
+  const activeRunCommands = current ? runCommands[active] : undefined;
   const running = state?.jobs.filter((job) => job.state === "running").length ?? 0;
   const showTasks = (id?: string) => {
     setTaskId(id);
@@ -403,8 +445,28 @@ function Studio({ plugins, chrome }: { plugins: WorkbenchPlugin[]; chrome: Studi
   const historyState = coreHistory.active
     ? coreHistory
     : (historyStates[active] ?? { canBack: false, canForward: false, canClose: false });
+  const editorMenuEnabled: Record<EditorMenuCommand, boolean> = {
+    "file.new": coreHistory.canCreateFile,
+    "file.untitled": coreHistory.canCreateFile,
+    "file.saveAs": coreHistory.canEditSource,
+    "file.saveAll": coreHistory.canSaveAll,
+    "file.revert": coreHistory.canRevert,
+    "editor.undo": coreHistory.canUndo,
+    "editor.redo": coreHistory.canRedo,
+    "editor.find": coreHistory.canEditSource,
+    "editor.replace": coreHistory.canEditSource,
+  };
   const invokeCommand = (id: string) => {
     setMenu(null);
+    if (isEditorMenuCommand(id)) {
+      if (editorMenuEnabled[id]) setEditorMenuRequest({ id });
+      return;
+    }
+    const runCommand = activeRunCommands?.find((command) => command.id === id);
+    if (runCommand) {
+      if (!runCommand.disabled) runCommand.run();
+      return;
+    }
     switch (id) {
       case "commands.open":
         openCommands("commands");
@@ -418,7 +480,20 @@ function Studio({ plugins, chrome }: { plugins: WorkbenchPlugin[]; chrome: Studi
         }));
         break;
       case "files.search":
+      case "file.open":
         openCommands("files");
+        break;
+      case "file.recent":
+        openCommands("recent");
+        break;
+      case "file.newWindow":
+        window.open(window.location.href, "_blank", "popup,noopener");
+        break;
+      case "file.autoSave":
+        updateUserPreferences({ autoSave: !autoSave });
+        break;
+      case "file.confirmUnload":
+        updateUserPreferences({ confirmBeforeUnload: !confirmBeforeUnload });
         break;
       case "project.overview":
         if (!current)
@@ -427,6 +502,9 @@ function Studio({ plugins, chrome }: { plugins: WorkbenchPlugin[]; chrome: Studi
         break;
       case "project.refresh":
         void refresh();
+        break;
+      case "document.save":
+        if (coreHistory.canSave) setSaveRequest((request) => request + 1);
         break;
       case closeDocumentCommand.id:
         if (coreHistory.active && coreHistory.canClose) {
@@ -485,17 +563,11 @@ function Studio({ plugins, chrome }: { plugins: WorkbenchPlugin[]; chrome: Studi
         updateLayout(active, { bottomOpen: true, bottomTab: "terminal" });
         window.dispatchEvent(new CustomEvent("texsys:terminal:split"));
         break;
-      case "terminal.newWindow":
-        updateLayout(active, { bottomOpen: true, bottomTab: "terminal" });
-        window.dispatchEvent(new CustomEvent("texsys:terminal:new"));
-        break;
       case "terminal.runActiveFile":
       case "terminal.runSelectedText":
         updateLayout(active, { bottomOpen: true, bottomTab: "terminal" });
         window.dispatchEvent(new Event(`texsys:${id.replace(".", ":")}`));
         break;
-      case "tasks.run":
-      case "tasks.showRunning":
       case "tasks.show":
         showTasks();
         break;
@@ -506,13 +578,6 @@ function Studio({ plugins, chrome }: { plugins: WorkbenchPlugin[]; chrome: Studi
             detail: { command: "texsys build" },
           }),
         );
-        break;
-      case "tasks.restartRunning":
-        if (taskId) {
-          showTasks(taskId);
-        } else {
-          showTasks();
-        }
         break;
       case "tasks.terminate":
         if (state) {
@@ -525,27 +590,29 @@ function Studio({ plugins, chrome }: { plugins: WorkbenchPlugin[]; chrome: Studi
           }
         }
         break;
-      case "tasks.configure":
-      case "tasks.configureBuild":
+      case "settings.open":
         setSettingsRequest((req) => req + 1);
-        break;
-      case "problems.show":
-        updateLayout(active, { bottomOpen: true, bottomTab: "problems" });
         break;
       case "help.capabilities":
         requestNavigation("capabilities");
         break;
     }
   };
-  const localizedMenus = useMemo(
-    () =>
-      studioMenus.map((group) => ({
-        ...group,
-        label: t(group.label),
-        items: group.items.map((item) => ({ ...item, label: t(item.label) })),
+  const localizedMenus = useMemo(() => {
+    const editKeys = sourceEditKeys(macKeys);
+    return studioMenus.map((group) => ({
+      ...group,
+      label: t(group.label),
+      items: (group.id === "run"
+        ? [...(activeRunCommands ?? []), ...group.items]
+        : group.items
+      ).map((item) => ({
+        ...item,
+        label: t(item.label),
+        keys: isSourceEditCommand(item.id) ? editKeys[item.id] : item.keys,
       })),
-    [locale],
-  );
+    }));
+  }, [locale, activeRunCommands]);
   const menuItems = localizedMenus.flatMap((group) =>
     group.items.map((item) => ({
       ...item,
@@ -553,76 +620,76 @@ function Studio({ plugins, chrome }: { plugins: WorkbenchPlugin[]; chrome: Studi
       keys:
         item.id === closeDocumentCommand.id
           ? closeShortcut
-          : item.id === "commands.open"
-            ? macKeys
-              ? ["⇧", "⌘", "P"]
-              : ["Ctrl", "Shift", "P"]
-            : item.id === "navigation.back"
+          : item.id === "document.save"
+            ? [macKeys ? "⌘" : "Ctrl", "S"]
+            : item.id === "commands.open"
               ? macKeys
-                ? ["⌘", "["]
-                : ["Alt", "←"]
-              : item.id === "navigation.forward"
+                ? ["⇧", "⌘", "P"]
+                : ["Ctrl", "Shift", "P"]
+              : item.id === "navigation.back"
                 ? macKeys
-                  ? ["⌘", "]"]
-                  : ["Alt", "→"]
-                : item.id === "view.sidebar"
-                  ? [macKeys ? "⌘" : "Ctrl", "\\"]
-                  : item.id === "files.search"
-                    ? [macKeys ? "⌘" : "Ctrl", "P"]
-                    : item.id === "terminal.new"
-                      ? macKeys
-                        ? ["⌃", "⇧", "`"]
-                        : ["Ctrl", "Shift", "`"]
-                      : item.id === "terminal.split"
-                        ? [macKeys ? "⌘" : "Ctrl", "\\"]
-                        : item.id === "terminal.newWindow"
+                  ? ["⌘", "["]
+                  : ["Alt", "←"]
+                : item.id === "navigation.forward"
+                  ? macKeys
+                    ? ["⌘", "]"]
+                    : ["Alt", "→"]
+                  : item.id === "view.sidebar"
+                    ? [macKeys ? "⌘" : "Ctrl", "\\"]
+                    : item.id === "files.search"
+                      ? [macKeys ? "⌘" : "Ctrl", "P"]
+                      : item.id === "terminal.new"
+                        ? macKeys
+                          ? ["⌃", "⇧", "`"]
+                          : ["Ctrl", "Shift", "`"]
+                        : item.id === "tasks.build"
                           ? macKeys
-                            ? ["⌃", "⌥", "⇧", "`"]
-                            : ["Ctrl", "Alt", "Shift", "`"]
-                          : item.id === "tasks.build"
+                            ? ["⇧", "⌘", "B"]
+                            : ["Ctrl", "Shift", "B"]
+                          : item.id === "view.toggleMaximize"
                             ? macKeys
-                              ? ["⇧", "⌘", "B"]
-                              : ["Ctrl", "Shift", "B"]
-                            : item.id === "view.toggleMaximize"
+                              ? ["⌥", "⌘", "J"]
+                              : ["Alt", "Ctrl", "J"]
+                            : item.id === "view.terminal"
                               ? macKeys
-                                ? ["⌥", "⌘", "J"]
-                                : ["Alt", "Ctrl", "J"]
-                              : item.id === "view.terminal"
+                                ? ["⌃", "`"]
+                                : ["Ctrl", "`"]
+                              : item.id === "view.problems"
                                 ? macKeys
-                                  ? ["⌃", "`"]
-                                  : ["Ctrl", "`"]
-                                : item.id === "view.problems"
-                                  ? macKeys
-                                    ? ["⇧", "⌘", "M"]
-                                    : ["Ctrl", "Shift", "M"]
-                                  : undefined,
+                                  ? ["⇧", "⌘", "M"]
+                                  : ["Ctrl", "Shift", "M"]
+                                : item.keys,
       disabled:
         !state ||
+        (isEditorMenuCommand(item.id) && !editorMenuEnabled[item.id]) ||
+        !!activeRunCommands?.find((command) => command.id === item.id)?.disabled ||
         (item.id === "view.fullscreen" && !document.fullscreenEnabled) ||
+        (item.id === "document.save" && !coreHistory.canSave) ||
         (item.id === closeDocumentCommand.id && !historyState.canClose) ||
         (item.id === "navigation.back" && !historyState.canBack) ||
         (item.id === "navigation.forward" && !historyState.canForward) ||
         (item.id === "help.capabilities" && !current) ||
-        ((item.id === "tasks.showRunning" ||
-          item.id === "tasks.restartRunning" ||
-          item.id === "tasks.terminate") &&
-          running === 0),
+        (item.id === "tasks.terminate" && running === 0),
       checked:
-        item.id === "view.sidebar"
-          ? layout.sidebarOpen
-          : item.id === "view.bottom"
-            ? layout.bottomOpen
-            : item.id === "view.toggleMaximize"
-              ? layout.bottomMaximized
-              : item.id === "view.terminal"
-                ? layout.bottomOpen && layout.bottomTab === "terminal"
-                : item.id === "view.problems"
-                  ? layout.bottomOpen && layout.bottomTab === "problems"
-                  : item.id === "view.inspector"
-                    ? layout.inspectorOpen
-                    : item.id === "view.fullscreen"
-                      ? fullscreen
-                      : undefined,
+        item.id === "file.autoSave"
+          ? autoSave
+          : item.id === "file.confirmUnload"
+            ? confirmBeforeUnload
+            : item.id === "view.sidebar"
+              ? layout.sidebarOpen
+              : item.id === "view.bottom"
+                ? layout.bottomOpen
+                : item.id === "view.toggleMaximize"
+                  ? layout.bottomMaximized
+                  : item.id === "view.terminal"
+                    ? layout.bottomOpen && layout.bottomTab === "terminal"
+                    : item.id === "view.problems"
+                      ? layout.bottomOpen && layout.bottomTab === "problems"
+                      : item.id === "view.inspector"
+                        ? layout.inspectorOpen
+                        : item.id === "view.fullscreen"
+                          ? fullscreen
+                          : undefined,
     })),
   );
   useEffect(() => {
@@ -676,6 +743,15 @@ function Studio({ plugins, chrome }: { plugins: WorkbenchPlugin[]; chrome: Studi
         invokeCommand("view.terminal");
         return;
       }
+      if (
+        (macKeys ? event.metaKey : event.ctrlKey) &&
+        event.shiftKey &&
+        event.key.toLowerCase() === "m"
+      ) {
+        event.preventDefault();
+        invokeCommand("view.problems");
+        return;
+      }
       if ((event.metaKey || event.ctrlKey) && event.shiftKey && event.key.toLowerCase() === "b") {
         event.preventDefault();
         invokeCommand("tasks.build");
@@ -706,7 +782,16 @@ function Studio({ plugins, chrome }: { plugins: WorkbenchPlugin[]; chrome: Studi
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [active, layout.sidebarOpen, historyState.canBack, historyState.canForward, commandOpen]);
+  }, [
+    active,
+    layout.sidebarOpen,
+    layout.bottomOpen,
+    layout.bottomTab,
+    layout.bottomMaximized,
+    historyState.canBack,
+    historyState.canForward,
+    commandOpen,
+  ]);
   useEffect(() => {
     if (!commandOpen || commandScope === "commands") return;
     let current = true;
@@ -852,6 +937,7 @@ function Studio({ plugins, chrome }: { plugins: WorkbenchPlugin[]; chrome: Studi
           scope={commandScope}
           onScopeChange={setCommandScope}
           files={files}
+          recentPaths={recentPaths}
           filesLoading={filesLoading}
           filesError={filesError}
           filesTruncated={filesTruncated}
@@ -919,6 +1005,8 @@ function Studio({ plugins, chrome }: { plugins: WorkbenchPlugin[]; chrome: Studi
               reset: () => setHiddenTitlebarGroups([]),
             }}
             closeRequest={closeRequest}
+            saveRequest={saveRequest}
+            editorMenuRequest={editorMenuRequest}
             closeShortcut={closeShortcut}
             navigationRequest={navigation[active]}
             onNavigationState={reportCoreHistory}
@@ -977,6 +1065,7 @@ function Studio({ plugins, chrome }: { plugins: WorkbenchPlugin[]; chrome: Studi
                           updateLayout(id, { bottomOpen: true, bottomTab: "tasks" });
                         }}
                         taskResult={taskResult}
+                        registerRunCommands={registerRunCommands}
                         navigationRequest={navigation[id]}
                         onNavigationState={(next) =>
                           setHistoryStates((previous) =>

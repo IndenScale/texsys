@@ -253,15 +253,6 @@ export function WorkbenchBottomPanel({
       shortcut: [mac ? "⌘" : "Ctrl", "K"],
       run: () => clearSession(activeSessionId),
     },
-    {
-      label: t("运行任务…"),
-      separator: true,
-      run: () => window.dispatchEvent(new CustomEvent("texsys:tasks:run")),
-    },
-    {
-      label: t("配置任务…"),
-      run: () => window.dispatchEvent(new CustomEvent("texsys:tasks:configure")),
-    },
   ];
 
   const sessionsMenuItems: NavigatorMenuItem[] = [

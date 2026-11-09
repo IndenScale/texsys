@@ -174,6 +174,7 @@ function Workspace({
   layout,
   changeLayout,
   taskPanel,
+  registerRunCommands,
   navigationRequest,
   onNavigationState,
 }: WorkbenchProps & { data: Data }) {
@@ -423,26 +424,61 @@ function Workspace({
       setSaving(false);
     }
   };
-  const submit = async (action: string) => {
-    if (busy || requestPending.current || hasDraft) return;
-    requestPending.current = true;
-    setSubmitting(true);
-    try {
-      await api("/api/jobs", {
-        plugin: "texsys:hvac",
-        action,
-        revision: state.project.revision,
-        options: action === "simulate" ? { scenario, backend } : {},
-      });
-      await refresh();
-      notify(t("{0}已启动，可继续查看设计。", { "0": t(labels[action]) }));
-    } catch (error) {
-      notify(error instanceof Error ? error.message : String(error), true);
-    } finally {
-      requestPending.current = false;
-      setSubmitting(false);
-    }
-  };
+  const canRun = !busy && !submitting && !saving && !hasDraft;
+  const submit = useCallback(
+    async (action: string) => {
+      if (!canRun || requestPending.current) return;
+      requestPending.current = true;
+      setSubmitting(true);
+      try {
+        await api("/api/jobs", {
+          plugin: "texsys:hvac",
+          action,
+          revision: state.project.revision,
+          options: action === "simulate" ? { scenario, backend } : {},
+        });
+        await refresh();
+        notify(t("{0}已启动，可继续查看设计。", { "0": t(labels[action]) }));
+      } catch (error) {
+        notify(error instanceof Error ? error.message : String(error), true);
+      } finally {
+        requestPending.current = false;
+        setSubmitting(false);
+      }
+    },
+    [api, backend, canRun, notify, refresh, scenario, state.project.revision],
+  );
+  const hasScenarios = data.scenarios.length > 0;
+  useEffect(
+    () =>
+      registerRunCommands?.("texsys:hvac", [
+        {
+          id: "texsys:hvac.check",
+          label: "运行模型检查",
+          icon: "check",
+          keywords: "Check Model",
+          disabled: !canRun,
+          run: () => void submit("check"),
+        },
+        {
+          id: "texsys:hvac.build",
+          label: "生成图纸",
+          icon: "layers",
+          keywords: "Build Drawings 出图 构建",
+          disabled: !canRun,
+          run: () => void submit("build"),
+        },
+        {
+          id: "texsys:hvac.simulate",
+          label: "运行仿真…",
+          icon: "play",
+          keywords: "Simulation 工况",
+          disabled: !hasScenarios,
+          run: () => openView("simulation"),
+        },
+      ]),
+    [canRun, hasScenarios, openView, registerRunCommands, submit],
+  );
   const exportArtifact = async (path: string, name: string) => {
     const token =
       document.querySelector<HTMLMetaElement>('meta[name="tex-studio-token"]')?.content ?? "";
@@ -493,7 +529,6 @@ function Workspace({
       }
     />
   );
-  const canRun = !busy && !submitting && !saving && !hasDraft;
   const closeDocument = (target: View) => {
     const { remaining, next } = closeDocumentFromList(documents, target);
     setDocuments(remaining);

@@ -1,4 +1,5 @@
 import type { ComponentType, ReactNode } from "react";
+import type { MenuItem } from "./menus";
 
 /** Supplied by the host, never inferred from the OS. Web uses external window controls. */
 export type StudioChrome = {
@@ -68,6 +69,10 @@ export type FilePreview = {
   reason?: string;
   version?: string;
 };
+export type WorkbenchRunCommand = MenuItem & {
+  disabled?: boolean;
+  run: () => void;
+};
 export type WorkbenchProps = {
   state: StudioState;
   data: unknown;
@@ -79,6 +84,8 @@ export type WorkbenchProps = {
   layout: StudioLayout;
   changeLayout: (patch: Partial<StudioLayout>) => void;
   taskPanel: ReactNode;
+  /** Publish commands for this discipline's Run menu and the command palette. */
+  registerRunCommands?: (plugin: string, commands: readonly WorkbenchRunCommand[]) => () => void;
   navigationRequest?: { command: string; token: number; path?: string };
   onNavigationState?: (state: {
     canBack: boolean;

@@ -6,6 +6,7 @@ export type MenuItem = {
   icon?: string;
   searchOnly?: boolean;
   keywords?: string;
+  separator?: boolean;
 };
 export type MenuGroup = { id: string; label: string; items: MenuItem[] };
 export const closeDocumentCommand = {
@@ -29,20 +30,82 @@ export function isCloseDocumentShortcut(event: KeyboardEvent, mac: boolean): boo
   );
 }
 
+const sourceEditCommands = [
+  { id: "editor.undo", label: "撤销", keywords: "Undo" },
+  { id: "editor.redo", label: "重做", keywords: "Redo 恢复" },
+  { id: "editor.find", label: "在当前文件中查找…", keywords: "Find in current file" },
+  { id: "editor.replace", label: "在当前文件中替换…", keywords: "Replace in current file" },
+] as const satisfies readonly MenuItem[];
+export type SourceEditCommand = (typeof sourceEditCommands)[number]["id"];
+const fileEditorCommands = [
+  "file.new",
+  "file.untitled",
+  "file.saveAs",
+  "file.saveAll",
+  "file.revert",
+] as const;
+export type EditorMenuCommand = (typeof fileEditorCommands)[number] | SourceEditCommand;
+
+export function isEditorMenuCommand(id: string): id is EditorMenuCommand {
+  return fileEditorCommands.some((command) => command === id) || isSourceEditCommand(id);
+}
+
+export function isSourceEditCommand(id: string): id is SourceEditCommand {
+  return sourceEditCommands.some((command) => command.id === id);
+}
+
+export function sourceEditKeys(mac: boolean): Record<SourceEditCommand, string[]> {
+  return {
+    "editor.undo": [mac ? "⌘" : "Ctrl", "Z"],
+    "editor.redo": mac ? ["⇧", "⌘", "Z"] : ["Ctrl", "Y"],
+    "editor.find": [mac ? "⌘" : "Ctrl", "F"],
+    "editor.replace": mac ? ["⌥", "⌘", "F"] : ["Ctrl", "H"],
+  };
+}
+
 export const studioMenus: MenuGroup[] = [
   {
-    id: "project",
-    label: "项目",
+    id: "file",
+    label: "文件",
     items: [
-      { id: "project.overview", label: "项目概览", icon: "folder" },
-      { id: "project.refresh", label: "读取外部修改", icon: "refresh" },
+      {
+        id: "file.untitled",
+        label: "新建文本文件",
+        icon: "new-file",
+        keywords: "New Text File Untitled",
+      },
+      { id: "file.new", label: "新建文件…", icon: "new-file", keywords: "New File Create File" },
+      { id: "file.newWindow", label: "新建窗口", keywords: "Open Current Project in New Window" },
+      { id: "file.open", label: "打开文件…", separator: true, icon: "file", keywords: "Open File" },
+      { id: "file.recent", label: "打开最近的文件…", keywords: "Open Recent Files" },
+      {
+        id: "document.save",
+        label: "保存",
+        separator: true,
+        icon: "save",
+        keywords: "Save File 保存文件",
+      },
+      { id: "file.saveAs", label: "另存为…", icon: "save", keywords: "Save As" },
+      { id: "file.saveAll", label: "全部保存", keywords: "Save All" },
+      { id: "file.autoSave", label: "自动保存", separator: true, keywords: "Auto Save" },
+      { id: "settings.open", label: "设置…", icon: "settings", keywords: "Preferences" },
+      { id: "file.revert", label: "还原文件…", separator: true, keywords: "Revert File" },
       closeDocumentCommand,
+      { id: "project.refresh", label: "读取外部修改", icon: "refresh" },
+      {
+        id: "file.confirmUnload",
+        label: "离开前确认",
+        separator: true,
+        keywords: "Confirm Unsaved Changes Before Close",
+      },
     ],
   },
+  { id: "edit", label: "编辑", items: [...sourceEditCommands] },
   {
     id: "view",
-    label: "视图",
+    label: "查看",
     items: [
+      { id: "commands.open", label: "命令面板…", icon: "search" },
       {
         id: "workspace.explorer",
         label: "文件资源管理器",
@@ -97,23 +160,29 @@ export const studioMenus: MenuGroup[] = [
       },
       {
         id: "view.problems",
-        label: "问题",
+        label: "显示问题",
         icon: "check",
         searchOnly: true,
         keywords: "Problems",
       },
+      { id: "tasks.show", label: "显示任务与日志", icon: "terminal" },
       { id: "view.fullscreen", label: "全屏", keywords: "Full Screen 专注 编辑器快捷键" },
     ],
   },
   {
     id: "go",
-    label: "导航",
+    label: "转到",
     items: [
-      { id: "commands.open", label: "命令面板…", icon: "search" },
-      { id: "files.search", label: "搜索文件…", icon: "file" },
+      { id: "files.search", label: "快速打开文件…", icon: "file", keywords: "Quick Open 搜索文件" },
       { id: "navigation.back", label: "后退", icon: "back" },
       { id: "navigation.forward", label: "前进", icon: "forward" },
+      { id: "project.overview", label: "项目概览", icon: "folder" },
     ],
+  },
+  {
+    id: "run",
+    label: "运行",
+    items: [{ id: "tasks.terminate", label: "取消任务", keywords: "Cancel Stop Terminate Task" }],
   },
   {
     id: "terminal",
@@ -126,28 +195,13 @@ export const studioMenus: MenuGroup[] = [
         icon: "split-horizontal",
         keywords: "Split Terminal",
       },
-      { id: "terminal.newWindow", label: "新建终端窗口", keywords: "New Terminal Window" },
-      { id: "tasks.run", label: "运行任务…", keywords: "Run Task" },
-      { id: "tasks.build", label: "运行生成任务…", keywords: "Run Build Task" },
       { id: "terminal.runActiveFile", label: "运行活动文件", keywords: "Run Active File" },
       { id: "terminal.runSelectedText", label: "运行选定文本", keywords: "Run Selected Text" },
-      { id: "tasks.showRunning", label: "显示正在运行的任务…", keywords: "Show Running Tasks" },
-      { id: "tasks.restartRunning", label: "重新启动正在运行的任务…", keywords: "Restart Running Task" },
-      { id: "tasks.terminate", label: "终止任务…", keywords: "Terminate Task" },
-      { id: "tasks.configure", label: "配置任务…", keywords: "Configure Tasks" },
       {
-        id: "tasks.configureBuild",
-        label: "配置默认生成任务…",
-        keywords: "Configure Default Build Task",
+        id: "tasks.build",
+        label: "在终端运行 texsys build",
+        keywords: "Run Build Task",
       },
-    ],
-  },
-  {
-    id: "tasks",
-    label: "任务",
-    items: [
-      { id: "tasks.show", label: "显示任务与日志", icon: "terminal" },
-      { id: "problems.show", label: "显示问题", icon: "check" },
     ],
   },
   {

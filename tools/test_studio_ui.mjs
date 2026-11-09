@@ -340,8 +340,8 @@ test("menu and command search share group names and stable action identities", (
   );
   assert.equal(new Set(commands.map((item) => item.id)).size, commands.length);
   assert.deepEqual(
-    filterCommands(commands, "> 视图 面板").map((item) => item.id),
-    ["view.sidebar", "view.bottom", "view.inspector"],
+    filterCommands(commands, "> 查看 面板").map((item) => item.id),
+    ["commands.open", "view.sidebar", "view.bottom", "view.inspector"],
   );
   assert.deepEqual(
     filterCommands(commands, "任务 日志").map((item) => item.id),
@@ -585,23 +585,14 @@ test("English catalog retains all interpolation placeholders and contains no Chi
   }
 });
 
-test("terminal menu contains expected action items matching VS Code model", () => {
-  const terminalGroup = studioMenus.find((g) => g.id === "terminal");
-  assert.ok(terminalGroup, "terminal menu group must exist in studioMenus");
-  assert.equal(terminalGroup.label, "终端");
-  const itemIds = terminalGroup.items.map((item) => item.id);
-  assert.ok(itemIds.includes("terminal.new"), "must include terminal.new");
-  assert.ok(itemIds.includes("terminal.split"), "must include terminal.split");
-  assert.ok(itemIds.includes("terminal.newWindow"), "must include terminal.newWindow");
-  assert.ok(itemIds.includes("tasks.run"), "must include tasks.run");
-  assert.ok(itemIds.includes("tasks.build"), "must include tasks.build");
-  assert.ok(itemIds.includes("terminal.runActiveFile"), "must include terminal.runActiveFile");
-  assert.ok(itemIds.includes("terminal.runSelectedText"), "must include terminal.runSelectedText");
-  assert.ok(itemIds.includes("tasks.showRunning"), "must include tasks.showRunning");
-  assert.ok(itemIds.includes("tasks.restartRunning"), "must include tasks.restartRunning");
-  assert.ok(itemIds.includes("tasks.terminate"), "must include tasks.terminate");
-  assert.ok(itemIds.includes("tasks.configure"), "must include tasks.configure");
-  assert.ok(itemIds.includes("tasks.configureBuild"), "must include tasks.configureBuild");
+test("menu separates viewing task history, controlling jobs and using the shell", () => {
+  const owner = (id) => studioMenus.find((group) => group.items.some((item) => item.id === id))?.id;
+  assert.equal(owner("tasks.show"), "view");
+  assert.equal(owner("tasks.terminate"), "run");
+  assert.equal(owner("tasks.build"), "terminal");
+  assert.equal(owner("terminal.runActiveFile"), "terminal");
+  assert.equal(owner("tasks.run"), undefined);
+  assert.equal(owner("terminal.newWindow"), undefined);
 });
 
 test("layout preferences preserve terminal tab and panel maximize state", (t) => {
@@ -657,7 +648,11 @@ test("bottom panel tabs support pill badges and rounded rectangle presentation",
 
 test("terminal session sidebar hideCondition matches VS Code singleTerminal rule", () => {
   const shouldShowSidebar = (sessionsCount, isSplit) => sessionsCount > 1 || Boolean(isSplit);
-  assert.equal(shouldShowSidebar(1, false), false, "single session without split must not show sidebar");
+  assert.equal(
+    shouldShowSidebar(1, false),
+    false,
+    "single session without split must not show sidebar",
+  );
   assert.equal(shouldShowSidebar(2, false), true, "multiple sessions must show sidebar");
   assert.equal(shouldShowSidebar(1, true), true, "split session must show sidebar");
 });
@@ -680,13 +675,7 @@ test("single terminal mode preserves session pill and kill action in header", ()
     "maximize",
     "close",
   ]);
-  assert.deepEqual(getHeaderActions(2, false), [
-    "new",
-    "more",
-    "separator",
-    "maximize",
-    "close",
-  ]);
+  assert.deepEqual(getHeaderActions(2, false), ["new", "more", "separator", "maximize", "close"]);
 });
 
 test("layout preferences preserve bottom panel tabs visibility, badges, position and align", (t) => {
@@ -905,11 +894,16 @@ test("editor and terminal preferences persist independently and tolerate invalid
       editorLineNumbers: false,
       editorMinimap: false,
       terminalFontSize: 16,
+      autoSave: false,
+      confirmBeforeUnload: true,
     });
+    updateUserPreferences({ autoSave: true, confirmBeforeUnload: false });
     updateUserPreferences(defaultEditorPreferences);
     assert.deepEqual(JSON.parse(values.get(storageKey)), {
       ...defaultEditorPreferences,
       terminalFontSize: 16,
+      autoSave: true,
+      confirmBeforeUnload: false,
     });
   } finally {
     if (original) Object.defineProperty(globalThis, "localStorage", original);
