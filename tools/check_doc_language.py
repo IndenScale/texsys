@@ -25,7 +25,7 @@ def git(*args):
 def changed_markdown(*revisions):
   changes = git(
     "diff", "--raw", "--no-abbrev", "--no-renames", "--no-relative", "--diff-filter=AMT", "-z",
-    *revisions, "--", ":(top,glob)**/*.md",
+    *revisions, "--", ":(top,glob,icase)**/*.md",
   ).split(b"\0")
   for metadata, path in zip(changes[0:-1:2], changes[1::2]):
     _, new_mode, _, blob, _ = metadata.split()
@@ -33,9 +33,13 @@ def changed_markdown(*revisions):
       yield fsdecode(path), blob.decode("ascii")
 
 
+def requires_chinese_prose(path, config):
+  return re.fullmatch(config["chinese_only_paths"], path) is not None
+
+
 def expected_language(path, config, patterns):
-  if path in config["overrides"]:
-    return config["overrides"][path]
+  if requires_chinese_prose(path, config):
+    return "zh"
 
   locales = set()
   for pattern in patterns:
@@ -92,13 +96,18 @@ def check_document(path, markdown, expected, detector, config):
     print(f"{path}:1: error: expected {expected}, but the main prose appears to be {dominant}.")
     return False
 
+  strict = requires_chinese_prose(path, config)
+  minimum_passage = config["minimum_letters"] if strict else config["minimum_passage_letters"]
+  severity = "error" if strict else "warning"
+  failed = False
   for line, text, letters in blocks:
-    if letters < config["minimum_passage_letters"]:
+    if letters < minimum_passage:
       continue
     language = detect(text)
     if language and language != expected:
-      print(f"{path}:{line}: warning: expected {expected}, but this passage appears to be {language}.")
-  return True
+      print(f"{path}:{line}: {severity}: expected {expected}, but this passage appears to be {language}.")
+      failed = strict
+  return not failed
 
 
 def main():

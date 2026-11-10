@@ -1,6 +1,6 @@
 # texsys
 
-texsys 来自 **textual system**，是 **SDL** 的参考实现、工具链与生态。SDL（System Description Language）是面向设计自动化（SysDA）的声明式系统描述语言与描述标准。
+texsys 得名于「文本化系统」，是系统描述语言（SDL）的参考实现、工具链与生态。SDL 为设计自动化（SysDA）提供声明式的系统描述标准。
 
 ## 当前状态（2026-11）
 
@@ -9,16 +9,16 @@ texsys 来自 **textual system**，是 **SDL** 的参考实现、工具链与生
 | 方法论           | 有：13 章《设计自动化原理》                                                                                  |
 | SDL 规范         | 草案：核心语义模型与 JSON 交换子集                                                                           |
 | 语法 / 校验器    | JSON 交换子集的基础静态检查；最终文本语法未开始                                                              |
-| 参考实现 / 代码  | CLI 覆盖项目、依赖、形式检查及显式 target 的 `build` / `test` / `sim(event)`；支持 Target BOM 与 Hook Runner |
-| conformance 测试 | 单元、CLI 集成与 examples 端到端用例，含反向与确定性测试                                                     |
-| 暖通领域插件     | 设备族、静态规则、设计校核、Target BOM、工程图元、系统原理图与集总参数动态求解                               |
+| 参考实现／代码   | 命令行支持项目管理、依赖管理、形式检查、按目标构建、测试与事件仿真，也支持目标物料清单和构建钩子 |
+| 一致性测试       | 单元测试、命令行集成测试与示例端到端测试，覆盖反例和结果确定性 |
+| 暖通领域插件     | 设备族、静态规则、设计校核、目标物料清单、工程图元、系统原理图与集总参数动态求解 |
 | 通用构建组件     | 专业无关的 BOM 投影、快照、映射、比较与检查内核，通过显式契约组合专业规则                                    |
 | 首个验证场景     | 同源冷站：BOM、工程图纸、负荷／调速／停泵工况；另有安装几何事件示例                                          |
 | 系统图／原理图   | TypeScript 共享工程图元、React/SVG、draw.io、离线交互与工况回放                                              |
 
 项目当前处于**可执行参考实现阶段**：JSON 交换子集、形式检查、本地路径依赖、暖通最小闭环与首个出图切片已可执行，但最终 SDL 文本语法仍未完成。Python 已支持准稳态水力与集总热动态，真实 OpenModelica 导出／执行已对三种示例工况作独立比较；几何求值仍为解析轴对齐盒，通用高保真行为与几何求解未完成。详细进度和未完成边界见 [项目进度审查](docs/progress.md)。
 
-Tex Studio 已提供首个本地 Web 插件宿主与 HVAC 工作台，支持实例参数编辑、后台检查／出图／仿真和结果回放；Electron 与远程协作尚未实现。启动入口见下文。
+Tex Studio 已提供首个本地网页插件宿主与暖通工作台，支持实例参数编辑、后台检查、出图、仿真和结果回放。Electron 桌面端与远程协作尚未实现。启动入口见下文。
 
 ## 文档地图
 
@@ -36,7 +36,7 @@ Tex Studio 已提供首个本地 Web 插件宿主与 HVAC 工作台，支持实�
 | [docs/references.md](docs/references.md)           | 外部资料边界、来源与校验和                             | **权威**：某份资料能否被引用、是否入库 |
 | [plugins/hvac/](plugins/hvac/README.md)            | 暖通领域插件：设备模型、静态规则、输出格式、简易求解器 | 领域扩展，不含核心语义                 |
 | [spec/sdl/](spec/sdl/00-overview.md)               | SDL 规范                                               | **权威**：语义怎么定义                 |
-| [spec/build/](spec/build/00-overview.md)           | target、Target BOM 与 Hook Runner 构建契约             | **权威**：构建怎么选择与闭环           |
+| [构建规范](spec/build/00-overview.md)              | 构建目标、目标物料清单与构建钩子执行契约               | **权威**：构建怎么选择与闭环           |
 | [设计自动化原理/](设计自动化原理/00-前言与导读.md) | 方法论书                                               | 背景论证，**不构成约束**               |
 
 同一件事只在一处定义。若发现重复，以本表标注的权威来源为准，并删除复述。
@@ -50,7 +50,7 @@ Tex Studio 已提供首个本地 Web 插件宿主与 HVAC 工作台，支持实�
 
 ## 开发环境
 
-Python 项目环境、依赖与命令执行统一使用 uv。首次同步并验证 CLI：
+Python 项目环境、依赖与命令执行统一使用 uv。首次同步时，运行以下命令验证命令行工具。
 
 ```bash
 uv sync
@@ -59,7 +59,7 @@ uv run texsys --version
 uv run pytest
 ```
 
-## Tex Studio 与 HVAC 工作台
+## Tex Studio 与暖通工作台
 
 启动本地工作台：
 
@@ -69,29 +69,29 @@ uv run tools/sync_node_tools.py
 uv run texsys studio -p examples/hvac-dynamic-station --open
 ```
 
-前端开发时改用 Vite HMR 模式（需 Node.js 与 Bun）：
+前端开发时使用 Vite 热更新模式，需要 Node.js 与 Bun。
 
 ```bash
 bun install --frozen-lockfile
 uv run texsys studio -p examples/hvac-dynamic-station --hmr --open
 ```
 
-该模式由 Vite 提供 React Fast Refresh，Studio 本地 API 仍由 Python 服务提供。默认启动不变，继续使用预构建静态前端。
+该模式由 Vite 提供 React 组件快速刷新，本地接口仍由 Python 服务提供。默认启动使用预构建的静态前端。
 
 默认地址为 `http://127.0.0.1:8710`，可用 `--port` 修改。第一次进入后点击“生成图纸”，或到“仿真分析”启动工况求解。暖通工作台提供系统图／原理图、设备表、器件图元、参数与依据、检查报告及模型源视图。参数保存形成实例覆盖，可恢复继承或撤销；后台计算在输入副本中执行，保留日志、诊断与固定版本结果。
 
-专业插件通过 `texsys.studio` 入口发现，宿主启动时加载已安装专业并提供切换入口。当前实际提供 HVAC 一个专业；架构搜索、物理布局布线和正式提资显示为未接入。插件架构见 [ADR-0021](docs/adr/0021-tex-studio-plugin-based-disciplinary-workbenches.md)，当前接入协议见 [工作台契约](spec/studio/01-workbench.md)。
+专业插件通过 `texsys.studio` 入口发现，宿主启动时加载已安装专业并提供切换入口。目前接入了暖通专业。架构搜索、物理布局布线和正式提资显示为未接入。 [插件架构](docs/adr/0021-tex-studio-plugin-based-disciplinary-workbenches.md) · [工作台契约](spec/studio/01-workbench.md)
 
 ## 交付物构建与检查
 
-生成 HVAC 系统图与原理图（需要本机 Node.js）：
+生成暖通系统图与原理图需要本机安装 Node.js。
 
 ```bash
 uv run tools/sync_node_tools.py
 uv run examples/build-deliverables/run.py all
 ```
 
-在统一示例的 `build/hvac/system/` 与 `build/hvac/schematic/` 分别输出 SVG、draw.io、JSON、离线 HTML 和检查报告；动态运行放在 `build/tests/scenarios/`。默认完成 review 草稿生成；工程 profile 需额外的人工审核记录。行为缺失明确降级为系统图，空间状态独立标记，完整协议见 [出图构建契约](spec/build/03-system-schematic.md)。
+统一示例分别在 `build/hvac/system/` 与 `build/hvac/schematic/` 输出 SVG、draw.io、JSON、离线 HTML 和检查报告，动态结果写入 `build/tests/scenarios/`。默认按审阅配置生成草稿，采用工程配置时还需要人工审核记录。缺少行为定义时生成系统图，并单独标记空间状态。 [出图构建契约](spec/build/03-system-schematic.md)
 
 BOM、系统图、原理图的命令、参数和 Python 函数调用集中展示在 [构建调用示例](examples/build-deliverables/README.md)，并提供可执行脚本。
 
@@ -104,9 +104,9 @@ uv run pre-commit install
 uv run pre-commit run --all-files
 ```
 
-Shell 教程不得包含直接解释器或包安装器命令，包括通过兼容接口绕过 uv 项目工作流的写法。该约束由自定义 markdownlint 规则和 pre-commit 自动执行。
+命令行教程不得直接调用解释器或包安装器，也不得通过兼容接口绕过 uv 项目工作流。提交钩子运行自定义 Markdown 检查规则来执行这项约束。
 
-Markdown 正文默认使用中文。`README_EN.md`、`CHANGELOG_EN.md` 等使用文件名后缀声明语言，`docs/en/` 使用目录声明语言，`AGENTS.md` 按例外使用英文。语言映射和识别阈值见 [文档语言配置](tools/doc-language.toml)。提交前检查暂存版本，PR／MR 检查合并基点到源分支提交之间新增或修改的 Markdown。整篇语言明显错配会阻止通过，个别段落的疑似错配只提示。
+Markdown 正文默认使用中文。各级目录中的 `README.md`、带语言后缀的 README 和 `AGENTS.md` 一律使用中文正文，语言目录和文件名后缀均不能改变这项要求。整篇或单个段落识别为其他语言时，语言检查会报错。其他文档可用语言目录或变更日志的文件名后缀指定语言，个别段落的疑似错配只提示。提交前检查暂存版本，合并请求检查从合并基点到源分支提交新增或修改的 Markdown。 [文档语言配置](tools/doc-language.toml)
 
 ```bash
 uv run --locked --only-group docs-lint tools/check_doc_language.py --staged
@@ -115,9 +115,9 @@ uv run --locked --only-group docs-lint tools/check_doc_language.py --base main -
 
 ## 下一步（按优先级）
 
-当前候选 Feature：[可命名、可校验的 SDL 网络](docs/rfc/0001-sdl-topology-slice.md)，先解决 OQ-3 的显式网络子集。
+当前候选功能为可命名、可校验的 SDL 网络，先解决 OQ-3 的显式网络子集。 [网络提案](docs/rfc/0001-sdl-topology-slice.md)
 
-1. 关闭阻塞性开放问题（见 open-questions 的"阻塞"列）。
+1. 关闭阻塞性开放问题，范围见 `docs/open-questions.md` 的「阻塞」列。
 2. 用真实项目资料替换冷站概念桩数据，并记录参数来源与适用范围。
 3. 继续验证更复杂的动态拓扑、设备性能校准与 USD BRep 几何内核，并分别积累证据。
 

@@ -1,16 +1,28 @@
-# Repository instructions
+# 仓库约定
 
-## Tex Studio
+## 长期目标
 
-- **Tex Studio** is the local Web workbench implemented in this repository; it is not a separately installed macOS application. The repository name and CLI are `texsys`.
-- **Run at most one Tex Studio instance per user.** Reuse the running instance at `http://127.0.0.1:8710` for development, review, and browser tests. Check for an existing Studio process and listener before launching. If an instance is already running or the port is occupied, do not start another instance on a different port, even for a temporary project or a production smoke test.
-- **Acquire the exclusive launch lock before starting Studio.** Use an atomic `mkdir "/tmp/texsys-studio-$(id -u).lock"` for this user and keep the lock for the lifetime of the server. Record the owning session ID in the lock directory so other sessions can reach it. If the lock cannot be acquired or the running state cannot be verified, do not launch. Only release a lock you acquired, after its server has stopped.
-- **Leave the existing `8710` instance under its owning session's control.** Never kill, stop, or restart another session's instance, even if its owner or lock cannot be identified. For changes that require a rebuild or restart, such as adding a dependency, notify the owning session through cross-session communication and describe what changed. The owning session is responsible for rebuilding and restarting on `8710`. Wait for its confirmation before verifying the change in the browser. If the owner cannot be reached or identified, report the blocker and leave the instance running.
-- Start Tex Studio in **Vite HMR mode by default** for the standard HVAC example project. Run from the repository root:
+1. **把 Tex Studio 做成开放、可扩展的工作台。** 支持通用软件开发，也让系统工程师在同一个工作区建模、分析和审查设计。
+2. **把 texsys 命令行做成可靠的工程工具链。** 管理和锁定项目依赖、运行求解器，并可重复地构建工程交付物。
+3. **建设实用的官方库。** 提供可复用的设计对象、工程计算和分析方法，使用户在每个受支持的领域都能从表达设计走到获得可用的工程结果，形成领域闭环。
+
+Tex Studio 提供交互式工作区，命令行支持脚本化和重复执行，两者共用官方库提供的领域模型和方法。
+
+## 文档语言
+
+各级目录中的 README 和 `AGENTS.md` 正文统一使用中文。命令、路径、代码标识和专有名称保留原拼写。
+
+## Tex Studio 开发与验证
+
+- **Tex Studio** 是本仓库实现的本地网页工作台，通过浏览器使用，无需另行安装 macOS 应用。仓库名和命令行工具名均为 `texsys`。
+- **每位用户最多运行一个 Tex Studio 实例。** 开发、审查和浏览器验证统一复用 `http://127.0.0.1:8710` 上的实例。启动前检查现有进程和端口监听状态。如果已有实例运行或端口已占用，即使为临时项目或生产构建冒烟测试，也不得换端口再起一个实例。
+- **启动前取得独占锁。** 使用原子操作 `mkdir "/tmp/texsys-studio-$(id -u).lock"`，并在服务运行期间持有锁。在锁目录内记录持有者的会话标识，便于其他会话联系。无法取得锁或无法核实运行状态时不得启动。只能在服务停止后释放自己取得的锁。
+- **由所属会话管理现有的 `8710` 实例。** 即使无法识别持有者或锁，也不得终止、停止或重启其他会话的实例。新增依赖等变更若需要重新构建或重启，通过跨会话通信告知持有者并说明改动。由持有者在 `8710` 上重新构建和启动，收到确认后再进行浏览器验证。无法识别或联系持有者时，报告阻碍并让实例继续运行。
+- 标准暖通示例默认以 **Vite 热更新模式**启动。从仓库根目录运行以下命令。
 
   ```bash
   uv run texsys studio -p examples/hvac-dynamic-station --hmr
   ```
 
-- HMR mode requires Node.js and the repository's installed Vite dependencies. If dependencies are missing, run `bun install --frozen-lockfile` and `uv run tools/sync_node_tools.py` from the repository root.
-- Use the existing Google Chrome instance and Tex Studio tab for opening, reviewing, and testing the workbench. Do not start a separate Chrome process or isolated browser profile for automation. If the existing Chrome instance cannot be accessed, report the blocker. The CLI option `--open` uses the system default browser and must not be used.
+- 热更新模式需要 Node.js 和仓库的 Vite 依赖。如果缺少依赖，从仓库根目录运行 `bun install --frozen-lockfile` 和 `uv run tools/sync_node_tools.py`。
+- 打开、审查和测试工作台时，使用现有的 Google Chrome 实例及 Tex Studio 标签页。自动化验证不得另起 Chrome 进程或使用隔离的浏览器配置。无法访问现有 Chrome 实例时，报告具体阻碍。命令行选项 `--open` 会调用系统默认浏览器，禁止使用。

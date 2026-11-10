@@ -20,16 +20,19 @@ class PolicyTests(unittest.TestCase):
     patterns = [re.compile(rule["pattern"]) for rule in config["path_rules"]]
     for path, language in {
       "README.md": "zh",
-      "AGENTS.md": "en",
-      "examples/README_EN.md": "en",
+      "AGENTS.md": "zh",
+      "docs/en/agents.MD": "zh",
+      "examples/README_EN.md": "zh",
+      "docs/en/README.md": "zh",
       "README_ZH_CN.md": "zh",
+      "CHANGELOG_EN.md": "en",
       "docs/en/subdir/setup.md": "en",
       "docs/adr/setup.md": "zh",
     }.items():
       with self.subTest(path=path):
         self.assertEqual(expected_language(path, config, patterns), language)
 
-    for path, error in {"README_XX.md": "unknown locale", "docs/en/README_ZH.md": "conflicting locale"}.items():
+    for path, error in {"CHANGELOG_XX.md": "unknown locale", "docs/en/CHANGELOG_ZH.md": "conflicting locale"}.items():
       with self.subTest(path=path), self.assertRaisesRegex(ValueError, error):
         expected_language(path, config, patterns)
 
@@ -86,7 +89,7 @@ class ChangedFilesTests(unittest.TestCase):
   def test_staged_checks_index_and_rename_destination(self):
     self.write("README.md", CHINESE)
     self.git("add", "README.md")
-    self.git("mv", "old-name.md", "README_EN.md")
+    self.git("mv", "old-name.md", "CHANGELOG_EN.md")
     self.git("rm", "deleted.md")
     self.write("untracked.md", ENGLISH)
     self.write("README.md", ENGLISH)
@@ -118,10 +121,21 @@ class ChangedFilesTests(unittest.TestCase):
 
   def test_foreign_passage_warns_without_blocking(self):
     self.write(
-      "README.md",
+      "guide.md",
       f"{CHINESE}\n{CHINESE}\n{CHINESE}\n{ENGLISH}\nMicrosoft VS Code Codicons & Action Bar Alignment Standard\n",
     )
-    self.git("add", "README.md")
+    self.git("add", "guide.md")
     result = self.lint("--staged")
     self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
-    self.assertRegex(result.stdout, r"\AREADME\.md:7: warning:[^\n]+\n\Z")
+    self.assertRegex(result.stdout, r"\Aguide\.md:7: warning:[^\n]+\n\Z")
+
+  def test_readmes_and_agent_instructions_reject_foreign_passages(self):
+    paths = ("README.md", "docs/en/README_EN.md", "examples/AGENTS.MD")
+    for path in paths:
+      self.write(path, f"{CHINESE}\n{CHINESE}\n{CHINESE}\n{ENGLISH}")
+    self.git("add", "--", *paths)
+
+    result = self.lint("--staged")
+    self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+    for path in paths:
+      self.assertIn(f"{path}:7: error: expected zh", result.stdout)

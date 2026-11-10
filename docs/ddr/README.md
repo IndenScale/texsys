@@ -1,11 +1,11 @@
 # 设计决策记录
 
-DDR（Design Decision Record，设计决策记录）用于记录对产品人机交互、界面信息架构、视觉系统、体验准则或设计系统有重要影响的决策，以及作出决策时的背景、取舍和后果。
+设计决策记录（DDR）用于记录对产品人机交互、界面信息架构、视觉系统、体验准则或设计系统有重要影响的决策，以及作出决策时的背景、取舍和后果。
 
 DDR 与 [ADR](../adr/README.md)（架构决策记录）对标并平行管理：
 
 - **ADR** 负责系统架构、契约协议与技术实现路线；
-- **DDR** 负责 UI/UX 设计决策、工作台交互心智模型与设计系统规范。
+- **DDR** 负责界面与用户体验设计决策、工作台交互心智模型与设计系统规范。
 
 ## 原则
 
@@ -34,13 +34,13 @@ ddr/NNNN-short-title.md
 | 编号 | 决策 | 状态 |
 | :--- | :--- | :--- |
 | [0001](0001-hvac-workbench-interface-round1.md) | 落实暖通 EDA 类工作台的分栏布局、信息架构与连续交互 | 已接受 |
-| [0002](0002-studio-uiux-guidelines.md) | 操作按钮仅显示图标且与标签同排，建立 Keycaps 快捷键展示规范 | 已接受 |
-| [0003](0003-studio-interaction-design.md) | 常驻 Activity Bar、连续尺寸过渡、面板拖动折叠与图纸相机隔离 | 已接受 |
-| [0004](0004-studio-titlebar-and-menu.md) | 40px 统一标题栏、ToolbarButton 规范与下挂式 Hanging 命令中心 | 已接受 |
-| [0005](0005-studio-core-editor.md) | 集成 Monaco 源码编辑、Explorer 树对齐与根节点操作、外部修改比对 | 已接受 |
+| [0002](0002-studio-uiux-guidelines.md) | 操作按钮仅显示图标且与标签同排，建立快捷键键帽展示规范 | 已接受 |
+| [0003](0003-studio-interaction-design.md) | 常驻活动栏、连续尺寸过渡、面板拖动折叠与图纸相机隔离 | 已接受 |
+| [0004](0004-studio-titlebar-and-menu.md) | 统一 40 像素标题栏、工具栏按钮规范与下挂式命令中心 | 已接受 |
+| [0005](0005-studio-core-editor.md) | 集成 Monaco 源码编辑、资源管理器树对齐与根节点操作、外部修改比对 | 已接受 |
 | [0006](0006-studio-code-search.md) | 搜索替换双行组、整词／正则／大小写保持、Unicode 字符定位与行合并折叠 | 已接受 |
 | [0007](0007-studio-source-control.md) | 本地 Git 差异浏览、项目／仓库范围隔离、批量暂存与提交历史图 | 已接受 |
 | [0008](0008-studio-integrated-terminal-and-panel-system.md) | 对标 VS Code 的底部终端模块、面板控制与下拉菜单交互系统 | 已接受 |
-| [0009](0009-studio-visual-identity-and-logo-design.md) | Tex Studio 视觉识别（VI）系统、Logo 语义与正交节点设计演进 | 提议 |
+| [0009](0009-studio-visual-identity-and-logo-design.md) | Tex Studio 视觉识别（VI）系统、标志语义与正交节点设计演进 | 提议 |
 | [0010](0010-studio-disabled-action-feedback.md) | 在主要操作旁说明禁用原因和可执行的下一步 | 已取代 |
 | [0011](0011-studio-disabled-action-tooltip.md) | 通过浮层说明禁用原因，保持面板布局稳定 | 已接受 |
