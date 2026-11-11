@@ -5,6 +5,11 @@
   "scripts": {
     "build": "node build.mjs",
     "check": "node check.mjs",
+    "test": "node --test markdown.test.mjs",
     "preview": "node serve.mjs"
+  },
+  "dependencies": {
+    "turndown": "7.2.5",
+    "turndown-plugin-gfm": "1.0.2"
   }
 }

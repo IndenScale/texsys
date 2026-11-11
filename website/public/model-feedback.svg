@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="480" height="450" viewBox="0 0 480 450" fill="none">
+  <title>设计模型与实现信息之间的反馈</title>
+  <desc>设计模型约束空间布局。几何提取将长度、管径和连接反馈给模型，用同一物理规律重新计算并检查结果。这是机制示意，不是实际管路布置。</desc>
+  <defs><pattern id="grid" width="20" height="20" patternUnits="userSpaceOnUse"><path d="M20 0H0V20" stroke="#eceef3" stroke-width=".7"/></pattern><marker id="arr" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto"><path d="m1 1 5 2.5L1 6" stroke="#2457e7" stroke-width="1.2" fill="none"/></marker></defs>
+  <rect x="12" y="12" width="456" height="426" rx="3" fill="#fafbfe" stroke="#dfe4ee"/>
+  <path d="M12 50H468" stroke="#dfe4ee"/>
+  <circle cx="30" cy="31" r="3" fill="#2457e7"/>
+  <g font-family="Helvetica Neue,Arial,PingFang SC,Microsoft YaHei,sans-serif">
+    <text x="42" y="35" fill="#59647b" font-size="12">一个设计，共同的对象与版本</text>
+    <text x="442" y="35" text-anchor="end" fill="#81899a" font-size="11">TexSys</text>
+    <rect x="35" y="75" width="180" height="131" fill="white" stroke="#c7d2e7"/>
+    <text x="49" y="99" fill="#27344d" font-size="14">设计模型</text>
+    <text x="49" y="117" fill="#7e8798" font-size="10">拓扑 · 行为 · 约束</text>
+    <path d="M60 159H96M114 159H152M170 159h22" stroke="#2457e7" stroke-width="1.7"/>
+    <circle cx="105" cy="159" r="9" stroke="#2457e7" stroke-width="1.7"/>
+    <path d="m101 154 8 5-8 5Z" fill="#2457e7"/>
+    <rect x="152" y="148" width="18" height="22" stroke="#2457e7" stroke-width="1.7"/>
+    <text x="49" y="191" fill="#727e92" font-size="10">先声明条件，再检验行为</text>
+    <rect x="265" y="75" width="180" height="131" fill="url(#grid)" stroke="#c7d2e7"/>
+    <text x="279" y="99" fill="#27344d" font-size="14">空间布局</text>
+    <text x="279" y="117" fill="#7e8798" font-size="10">位置 · 路由 · 尺寸</text>
+    <path d="M290 179v-38h71v38h63" stroke="#2457e7" stroke-width="2.5"/>
+    <path d="M290 150h-8m8 0h8M361 168h-8m8 0h8" stroke="#2457e7"/>
+    <rect x="401" y="166" width="23" height="22" fill="#eef3ff" stroke="#2457e7"/>
+    <path d="M219 143h41" stroke="#2457e7" stroke-width="1.2" marker-end="url(#arr)"/>
+    <text x="240" y="131" text-anchor="middle" fill="#6a7790" font-size="10">落实</text>
+    <path d="M355 211v33H126v-32" stroke="#2457e7" stroke-width="1.4" marker-end="url(#arr)"/>
+    <rect x="163" y="233" width="149" height="23" fill="#fafbfe"/>
+    <text x="237" y="248" text-anchor="middle" fill="#2457e7" font-size="12">提取参数，更新模型</text>
+    <path d="M125 260v30" stroke="#aab8d0" stroke-width="1.2" marker-end="url(#arr)"/>
+    <rect x="35" y="294" width="410" height="105" fill="white" stroke="#c7d2e7"/>
+    <text x="49" y="319" fill="#27344d" font-size="14">重新计算与验证</text>
+    <text x="49" y="344" fill="#6d7890" font-size="11">输入修订</text><text x="166" y="344" fill="#6d7890" font-size="11">工程判据</text><text x="294" y="344" fill="#6d7890" font-size="11">证据适用性</text>
+    <text x="49" y="369" fill="#2457e7" font-size="13">可追溯</text><text x="166" y="369" fill="#2457e7" font-size="13">重新检查</text><text x="294" y="369" fill="#2457e7" font-size="13">重新确认</text>
+    <path d="M150 334v42m128-42v42" stroke="#e4e8ef"/>
+    <text x="35" y="421" fill="#81899a" font-size="10">物理规律不变，模型与设计可以迭代。</text>
+  </g>
+</svg>

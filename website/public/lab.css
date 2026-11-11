@@ -1,0 +1,456 @@
+/* A compact comparison instrument, isolated from the article typography. */
+.experiment-panel {
+  --experiment-ink: #192131;
+  --experiment-muted: #657085;
+  --experiment-line: #dfe4ec;
+  --experiment-blue: #2457e7;
+  --experiment-fail: #a84230;
+  container: experiment / inline-size;
+  margin: 0;
+  border: 1px solid var(--experiment-line);
+  border-radius: 5px;
+  background: #fff;
+  color: var(--experiment-ink);
+  font-size: 13px;
+  line-height: 1.45;
+  scroll-margin-top: 96px;
+  overflow: clip;
+}
+.experiment-panel *,
+.experiment-provenance * {
+  box-sizing: border-box;
+}
+.experiment-panel .experiment-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 13px 20px;
+  background: #f5f7fa;
+  border-bottom: 1px solid var(--experiment-line);
+}
+.experiment-panel .experiment-header h2,
+.experiment-panel .experiment-header h3 {
+  margin: 0;
+  color: inherit;
+  font-size: 18px;
+  font-weight: 500;
+  line-height: 24px;
+  letter-spacing: -0.025em;
+}
+.experiment-panel .experiment-kind-label,
+.experiment-panel .experiment-date {
+  color: var(--experiment-muted);
+  font-size: 12px;
+  line-height: 18px;
+  white-space: nowrap;
+}
+.experiment-panel .experiment-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 20px;
+}
+.experiment-panel .experiment-controls {
+  display: flex;
+  gap: 4px;
+}
+.experiment-panel .experiment-controls button {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  padding: 5px 12px;
+  border: 1px solid transparent;
+  border-radius: 3px;
+  background: transparent;
+  color: var(--experiment-muted);
+  font: inherit;
+  font-size: 13px;
+  line-height: 20px;
+  white-space: nowrap;
+}
+.experiment-panel .experiment-controls button > span {
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  opacity: 0.72;
+}
+.experiment-panel .experiment-controls button[aria-pressed="true"] {
+  border-color: #c6d3f9;
+  background: #edf2ff;
+  color: #1947cc;
+}
+.experiment-panel .experiment-controls button:hover {
+  background: #f2f5fb;
+  color: var(--experiment-ink);
+}
+.experiment-panel .experiment-controls button:focus-visible,
+.experiment-panel a:focus-visible,
+.experiment-provenance summary:focus-visible {
+  outline: 2px solid var(--experiment-blue, #2457e7);
+  outline-offset: 2px;
+}
+.experiment-panel .experiment-data {
+  display: grid;
+  grid-template-columns: minmax(210px, 0.86fr) minmax(280px, 1.14fr);
+  gap: 28px;
+  padding: 8px 20px 16px;
+}
+.experiment-panel .experiment-inputs,
+.experiment-panel .experiment-chart {
+  min-width: 0;
+}
+.experiment-panel h4 {
+  margin: 0;
+  color: var(--experiment-ink);
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 20px;
+  letter-spacing: 0;
+}
+.experiment-panel .experiment-input-table {
+  display: table;
+  width: 100%;
+  margin: 8px 0 0;
+  border-collapse: collapse;
+  table-layout: fixed;
+  color: var(--experiment-muted);
+  font-size: 13px;
+  line-height: 18px;
+  overflow: visible;
+}
+.experiment-panel .experiment-input-table th,
+.experiment-panel .experiment-input-table td {
+  padding: 6px 9px;
+  border: 0;
+  border-bottom: 1px solid #edf0f4;
+  background: transparent;
+  text-align: right;
+  vertical-align: middle;
+  font-size: inherit;
+  font-weight: 400;
+  line-height: 18px;
+  font-variant-numeric: tabular-nums;
+}
+.experiment-panel .experiment-input-table thead th {
+  padding-top: 0;
+  padding-bottom: 6px;
+  color: var(--experiment-muted);
+  font-size: 12px;
+  white-space: nowrap;
+}
+.experiment-panel .experiment-input-table th:first-child {
+  width: 29%;
+  text-align: left;
+}
+.experiment-panel .experiment-input-table thead span {
+  margin-left: 3px;
+  font-size: 12px;
+}
+.experiment-panel .experiment-input-table tr.is-selected th,
+.experiment-panel .experiment-input-table tr.is-selected td {
+  background: #edf2ff;
+  color: #1947cc;
+}
+.experiment-panel .experiment-chart {
+  margin: 0;
+}
+.experiment-panel .experiment-chart figcaption {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin: 0;
+  color: var(--experiment-muted);
+  font-size: 12px;
+  line-height: 20px;
+}
+.experiment-panel .experiment-axis {
+  display: flex;
+  justify-content: space-between;
+  margin: 5px 58px 3px 44px;
+  color: var(--experiment-muted);
+  font-size: 12px;
+  line-height: 16px;
+  font-variant-numeric: tabular-nums;
+}
+.experiment-panel .experiment-bar-row {
+  display: grid;
+  grid-template-columns: 36px minmax(0, 1fr) 50px;
+  align-items: center;
+  gap: 8px;
+  min-height: 27px;
+  padding: 2px 0;
+  color: var(--experiment-muted);
+  font-size: 12px;
+  line-height: 20px;
+  font-variant-numeric: tabular-nums;
+}
+.experiment-panel .experiment-bar-row.is-selected {
+  color: var(--experiment-ink);
+}
+.experiment-panel .experiment-bar-label {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.experiment-panel .experiment-bar-label::before {
+  content: "";
+  width: 4px;
+  height: 4px;
+  flex: 0 0 4px;
+  border-radius: 50%;
+  background: transparent;
+}
+.experiment-panel .is-selected .experiment-bar-label::before {
+  background: var(--experiment-blue);
+}
+.experiment-panel .experiment-bar-track {
+  position: relative;
+  height: 13px;
+  background: #e9edf4;
+  border-right: 1px solid #7e8ba2;
+}
+.experiment-panel .experiment-bar-track::after {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  border-left: 1px solid #fff9;
+  content: "";
+}
+.experiment-panel .experiment-bar-fill {
+  display: block;
+  width: var(--experiment-ratio);
+  height: 100%;
+  background: #5075d5;
+}
+.experiment-panel [data-lab-series="changed"] .experiment-bar-fill {
+  background: #b95d49;
+}
+.experiment-panel .experiment-bar-value {
+  text-align: right;
+  font-size: 13px;
+}
+.experiment-panel .experiment-chart-note {
+  margin: 5px 0 0;
+  color: var(--experiment-muted);
+  font-size: 12px;
+  line-height: 18px;
+  text-align: right;
+}
+.experiment-panel .experiment-readout {
+  background: #f7f9fc;
+  border-top: 1px solid var(--experiment-line);
+}
+.experiment-panel .experiment-diagnosis {
+  display: flex;
+  align-items: center;
+  min-height: 56px;
+  margin: 0;
+  padding: 10px 20px;
+  color: var(--experiment-ink);
+  font-size: 13px;
+  line-height: 18px;
+  overflow-wrap: break-word;
+}
+.experiment-panel .experiment-outcomes {
+  display: grid;
+  grid-template-columns: 0.7fr 1fr 1fr 1fr;
+  gap: 12px;
+  margin: 0;
+  padding: 0 20px 12px;
+}
+.experiment-panel .experiment-outcomes > div {
+  min-width: 0;
+}
+.experiment-panel .experiment-outcomes dt {
+  margin: 0 0 3px;
+  color: var(--experiment-muted);
+  font-size: 12px;
+  line-height: 18px;
+}
+.experiment-panel .experiment-outcomes dd {
+  margin: 0;
+  color: var(--experiment-ink);
+  font-size: 13px;
+  line-height: 20px;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.experiment-panel[data-lab-state="changed"] [data-lab-field="assessment"],
+.experiment-panel[data-lab-state="changed"] [data-lab-field="acceptance"] {
+  color: var(--experiment-fail);
+}
+.experiment-panel .experiment-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 9px 20px;
+  border-top: 1px solid var(--experiment-line);
+}
+.experiment-panel .experiment-footer p,
+.experiment-panel .experiment-footer a,
+.experiment-panel .experiment-noscript {
+  margin: 0;
+  color: var(--experiment-muted);
+  font-size: 12px;
+  line-height: 18px;
+  overflow-wrap: break-word;
+}
+.experiment-panel .experiment-footer a {
+  color: #1947cc;
+  white-space: nowrap;
+  text-decoration: none;
+}
+.experiment-panel .experiment-footer a:hover {
+  text-decoration: underline;
+}
+.experiment-panel .experiment-noscript {
+  padding: 8px 20px;
+}
+.experiment-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  border: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  clip-path: inset(50%);
+}
+.experiment-provenance {
+  margin: 12px 0 28px;
+  color: #657085;
+  border-bottom: 1px solid #dfe4ec;
+  font-size: 13px;
+  line-height: 1.6;
+}
+.experiment-provenance > summary {
+  padding: 8px 0 12px;
+  cursor: pointer;
+  font-size: 13px;
+}
+.experiment-provenance .experiment-provenance-content {
+  padding: 8px 0 20px;
+}
+.experiment-provenance .experiment-provenance-content h3 {
+  margin: 20px 0 10px;
+  color: #192131;
+  font-size: 15px;
+}
+.experiment-provenance .experiment-provenance-content dl {
+  margin: 0;
+}
+.experiment-provenance .experiment-provenance-content dl > div {
+  display: grid;
+  grid-template-columns: 96px minmax(0, 1fr);
+  gap: 12px;
+  padding: 5px 0;
+}
+.experiment-provenance .experiment-provenance-content dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.experiment-provenance .experiment-provenance-content code,
+.experiment-provenance .experiment-provenance-content p {
+  font-size: 12px;
+  line-height: 1.7;
+}
+.experiment-provenance .experiment-provenance-content p {
+  margin: 15px 0 0;
+}
+@container experiment (max-width: 620px) {
+  .experiment-panel .experiment-header {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 2px;
+    padding: 10px 14px;
+  }
+  .experiment-panel .experiment-header h2,
+  .experiment-panel .experiment-header h3 {
+    font-size: 16px;
+    line-height: 23px;
+  }
+  .experiment-panel .experiment-kind-label {
+    line-height: 17px;
+  }
+  .experiment-panel .experiment-toolbar {
+    padding: 7px 14px;
+  }
+  .experiment-panel .experiment-controls {
+    width: 100%;
+  }
+  .experiment-panel .experiment-controls button {
+    flex: 1;
+    justify-content: center;
+    padding: 4px 8px;
+  }
+  .experiment-panel .experiment-date {
+    display: none;
+  }
+  .experiment-panel .experiment-data {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 14px;
+    padding: 8px 14px 12px;
+  }
+  .experiment-panel .experiment-input-table {
+    margin-top: 5px;
+  }
+  .experiment-panel .experiment-input-table th,
+  .experiment-panel .experiment-input-table td {
+    padding-top: 3px;
+    padding-bottom: 3px;
+  }
+  .experiment-panel .experiment-chart figcaption {
+    line-height: 18px;
+  }
+  .experiment-panel .experiment-bar-row {
+    min-height: 24px;
+    padding: 1px 0;
+  }
+  .experiment-panel .experiment-chart-note {
+    margin-top: 3px;
+  }
+  .experiment-panel .experiment-diagnosis {
+    min-height: 76px;
+    padding: 10px 14px;
+  }
+  .experiment-panel .experiment-outcomes {
+    grid-template-columns: 1fr 1fr;
+    gap: 8px 16px;
+    padding: 0 14px 12px;
+  }
+  .experiment-panel .experiment-outcomes dt {
+    margin-bottom: 0;
+  }
+  .experiment-panel .experiment-footer {
+    align-items: flex-start;
+    gap: 8px;
+    padding: 8px 14px;
+  }
+  .experiment-panel .experiment-footer p {
+    max-width: 24em;
+  }
+}
+@media print {
+  .experiment-panel {
+    break-inside: avoid;
+    border-color: #555;
+    container-type: normal;
+  }
+  .experiment-panel .experiment-controls {
+    display: none;
+  }
+  .experiment-panel .experiment-date {
+    display: inline;
+  }
+  .experiment-panel .experiment-bar-fill {
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+  .experiment-provenance {
+    display: none;
+  }
+}

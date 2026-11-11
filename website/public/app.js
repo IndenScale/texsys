@@ -178,3 +178,109 @@ if (document.body.classList.contains("article")) {
   addEventListener("resize", update);
   update();
 }
+
+const docsToggle = document.querySelector(".docs-nav-toggle");
+const docsNav = document.querySelector(".docs-sidebar");
+const closeDocsNav = () => {
+  docsNav?.classList.remove("is-open");
+  docsToggle?.setAttribute("aria-expanded", "false");
+};
+docsToggle?.addEventListener("click", () => {
+  const open = docsNav.classList.toggle("is-open");
+  docsToggle.setAttribute("aria-expanded", String(open));
+});
+document.addEventListener("click", (event) => {
+  if (!docsNav?.contains(event.target) && !docsToggle?.contains(event.target)) closeDocsNav();
+  document.querySelectorAll(".page-tool-menu[open]").forEach((menu) => {
+    if (!menu.contains(event.target)) menu.open = false;
+  });
+});
+document.addEventListener("keydown", (event) => {
+  if (event.key !== "Escape") return;
+  if (docsNav?.classList.contains("is-open")) {
+    closeDocsNav();
+    docsToggle.focus();
+  }
+  document.querySelectorAll(".page-tool-menu[open]").forEach((menu) => {
+    menu.open = false;
+    menu.querySelector("summary").focus();
+  });
+});
+document.querySelectorAll(".docs-inline-toc a").forEach((a) =>
+  a.addEventListener("click", () => {
+    a.closest("details").open = false;
+  }),
+);
+
+const fallback = document.querySelector(".copy-fallback");
+let copyFocus;
+function manualCopy(text) {
+  copyFocus = document.activeElement;
+  fallback.querySelector("textarea").value = text;
+  fallback.showModal();
+  const textarea = fallback.querySelector("textarea");
+  textarea.focus();
+  textarea.select();
+}
+document.querySelector("[data-close-copy]")?.addEventListener("click", () => fallback.close());
+fallback?.addEventListener("close", () => copyFocus?.focus());
+const copyStates = new WeakMap();
+function copyContent(text, button, successText = "已复制") {
+  const status = button.closest(".page-tools")?.querySelector(".copy-status");
+  const label = button.querySelector("span") || button;
+  let state = copyStates.get(button);
+  if (!state) {
+    state = { original: label.textContent, timer: null };
+    copyStates.set(button, state);
+  }
+  const success = () => {
+    clearTimeout(state.timer);
+    label.textContent = successText;
+    if (status) status.textContent = "内容已复制到剪贴板";
+    state.timer = setTimeout(() => {
+      label.textContent = state.original;
+      if (status) status.textContent = "";
+    }, 2400);
+  };
+  if (!navigator.clipboard?.writeText) {
+    manualCopy(text);
+    return;
+  }
+  navigator.clipboard
+    .writeText(text)
+    .then(success)
+    .catch(() => manualCopy(text));
+}
+document.querySelectorAll("[data-copy-page]").forEach((button) =>
+  button.addEventListener("click", () => {
+    const node = document.querySelector("#page-markdown");
+    if (!node) return;
+    try {
+      copyContent(JSON.parse(node.textContent), button, "已复制 Markdown");
+    } catch {
+      const status = button.closest(".page-tools").querySelector(".copy-status");
+      status.textContent = "内容暂时无法读取，请从菜单下载 Markdown。";
+    }
+  }),
+);
+document.querySelectorAll("[data-copy-link]").forEach((button) =>
+  button.addEventListener("click", () => {
+    copyContent(location.href, button, "已复制链接");
+  }),
+);
+for (const block of document.querySelectorAll(".prose pre")) {
+  const code = block.querySelector("code");
+  const text = code?.textContent || block.textContent;
+  const language = /language-([\w-]+)/.exec(code?.className || "")?.[1];
+  const caption = document.createElement("span");
+  caption.className = "code-language";
+  caption.textContent = language || "命令 / 代码";
+  caption.setAttribute("aria-hidden", "true");
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = "copy-code";
+  button.textContent = "复制";
+  button.setAttribute("aria-label", "复制代码");
+  button.addEventListener("click", () => copyContent(text, button));
+  block.append(caption, button);
+}

@@ -5,6 +5,8 @@ import { isDeepStrictEqual } from "node:util";
 import path from "node:path";
 import { pages } from "./content/pages.mjs";
 import { labPage } from "./content/lab.mjs";
+import { productPages } from "./content/product.mjs";
+import { markdownPath } from "./lib/markdown.mjs";
 
 // Validate the generated publication, including links and the evidence readers see.
 // Browser layout and engineering solver acceptance require their own checks.
@@ -187,6 +189,7 @@ const routes = [
   "/manifesto/",
   ...indexRoutes,
   ...pages.map((page) => page.path),
+  ...productPages.map((page) => page.path),
   labPage.path,
 ];
 const routeSet = new Set();
@@ -203,6 +206,33 @@ check(
   htmlFiles.length === routeSet.size + 1,
   "构建页面数量与声明路由不一致（另含一个 404 页面）。",
 );
+
+// The copy button, raw document and rendered reading view share one publication.
+for (const document of documents.values()) {
+  if (document.route === "/404.html") continue;
+  const payload = document.html.match(
+    /<script\b[^>]*id="page-markdown"[^>]*>([\s\S]*?)<\/script>/,
+  )?.[1];
+  try {
+    const markdown = await readFile(path.join(dist, markdownPath(document.route)), "utf8");
+    check(Boolean(payload), `${document.route}: 缺少本页 Markdown 复制内容。`);
+    check(
+      JSON.parse(payload) === markdown,
+      `${document.route}: 复制内容与下载的 Markdown 不一致。`,
+    );
+    check(/^# .+/m.test(markdown), `${document.route}: Markdown 缺少标题。`);
+    check(
+      !/<script\b|data-lab-records|data-copy-page|搜索网站/.test(markdown),
+      `${document.route}: Markdown 泄漏了页面控件或数据脚本。`,
+    );
+    if (document.route.startsWith("/docs/") || document.route === "/lab/pipe-change/") {
+      check(/复制本页 Markdown/.test(document.html), `${document.route}: 文档缺少复制入口。`);
+      check(/aria-label="文档栏目"/.test(document.html), `${document.route}: 缺少持续文档导航。`);
+    }
+  } catch (error) {
+    errors.push(`${document.route}: Markdown 发布不完整：${error.message}`);
+  }
+}
 
 try {
   const searchIndex = JSON.parse(await readFile(path.join(dist, "search-index.json"), "utf8"));

@@ -1,24 +1,21 @@
-/* Saved-result replay only. This page does not execute an engineering solver. */
+/* Inspect saved records. Selecting a record does not run a solver or alter acceptance. */
 const labels = {
   baseline: {
-    status: "基线记录：计算完成，254 项检查满足；已另行记录自动化测试接受。",
-    explanation: "供冷与已建模几何在声明工况内满足。这个结论绑定当前输入与工具版本。",
-    geometry: "基线几何",
-    review: "测试接受",
+    explanation: "基线：选定机房供冷达到 300 kW。几何与供冷检查满足声明工况，接受另行记录。",
+    applicability: "对应当时输入",
+    acceptance: "另行测试接受",
   },
   changed: {
-    status: "变更记录：计算完成，250 项检查不满足。旧接受转为待复核，新结果的接受请求被拒绝。",
     explanation:
-      "96 条管段提取长度改变。选定供冷路径的 4 个管段达到 2.5 m/s 流速上限，机房仅获 81.83 kW；泵组仍有扬程余量。",
-    geometry: "96 个长度改变",
-    review: "拒绝接受",
+      "缩径与移位：96 条管段长度改变，4 个管段达到 2.5 m/s 流速上限。选定机房供冷降至 81.83 kW。",
+    applicability: "旧证据待复核",
+    acceptance: "接受请求被拒绝",
   },
   repaired: {
-    status: "修复记录：恢复原输入，254 项检查重新满足。新运行先待审查，再单独记录自动化测试接受。",
     explanation:
-      "恢复到 160 mm 与 46.4 m 后，检查结果与基线一致。新运行拥有自己的证据摘要，原接受记录不会自动继承。",
-    geometry: "恢复原几何",
-    review: "重新审查",
+      "恢复输入：供冷回到 300 kW。新运行先待审查，再单独记录测试接受；原决定不自动继承。",
+    applicability: "新证据独立生成",
+    acceptance: "重审后测试接受",
   },
 };
 
@@ -36,35 +33,39 @@ for (const panel of document.querySelectorAll("[data-lab-console]")) {
     const record = records[state];
     const label = labels[state];
     if (!record || !label) return;
-    const inputs = Object.fromEntries(record.input_values.map((input) => [input.id, input.value]));
     const values = {
-      diameter: String(Math.round(inputs["fws.row-diameter"] * 1000)),
-      position: inputs["fws.spine-x"].toFixed(1),
-      cooling: record.selected_check.actual.toFixed(2),
-      failures: `${record.failed_checks} / ${record.total_checks}`,
-      status: label.status,
       explanation: label.explanation,
-      revision: record.revision,
-      "run-id": record.run_id,
-      digest: record.evidence_digest,
-      acceptance: record.recorded_follow_up,
-      "diagram-input": `Ø ${Math.round(inputs["fws.row-diameter"] * 1000)} mm`,
-      "diagram-geometry": label.geometry,
-      "diagram-result": record.failed_checks
-        ? `${record.failed_checks} 项不满足`
+      execution: record.execution === "completed" ? "已完成" : record.execution,
+      assessment: record.failed_checks
+        ? `${record.failed_checks} / ${record.total_checks} 不满足`
         : `${record.total_checks} 项满足`,
-      "diagram-review": label.review,
+      applicability: label.applicability,
+      acceptance: label.acceptance,
     };
     for (const element of panel.querySelectorAll("[data-lab-field]")) {
       const value = values[element.dataset.labField];
       if (value !== undefined) element.textContent = value;
     }
     panel.dataset.labState = state;
+    for (const row of panel.querySelectorAll("[data-lab-row]")) {
+      row.classList.toggle("is-selected", row.dataset.labRow === state);
+    }
     for (const button of buttons) {
       button.setAttribute("aria-pressed", String(button.dataset.labSelect === state));
     }
   };
-  for (const button of buttons) {
+  for (const [index, button] of buttons.entries()) {
     button.addEventListener("click", () => update(button.dataset.labSelect));
+    button.addEventListener("keydown", (event) => {
+      let next;
+      if (event.key === "ArrowRight") next = (index + 1) % buttons.length;
+      if (event.key === "ArrowLeft") next = (index + buttons.length - 1) % buttons.length;
+      if (event.key === "Home") next = 0;
+      if (event.key === "End") next = buttons.length - 1;
+      if (next === undefined) return;
+      event.preventDefault();
+      buttons[next].focus();
+      update(buttons[next].dataset.labSelect);
+    });
   }
 }
