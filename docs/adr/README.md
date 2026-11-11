@@ -35,7 +35,7 @@ adr/NNNN-short-title.md
 | [0005](0005-executable-examples.md)                                      | 以可执行示例统一参考用例与端到端桩数据                | 已接受                                 |
 | [0006](0006-design-dependency-management.md)                             | 分离设计依赖的声明、锁定与同步                              | 已接受                                 |
 | [0007](0007-formal-checking-and-formatting.md)                           | 以 JSON 交换子集启动形式检查与格式化                        | 已接受（0022 修订命令职责）            |
-| [0008](0008-six-stage-sysda-model.md)                                    | 采用六阶段 SysDA 模型并区分三类仿真                         | 已接受                                 |
+| [0008](0008-six-stage-sysda-model.md)                                    | 采用六阶段 SysDA 模型并区分三类仿真                         | 已接受（0023 修订容量归属及活动映射） |
 | [0009](0009-equipment-and-topology-refinement.md)                        | 建立设备与拓扑的分层映射规则                                | 已接受                                 |
 | [0010](0010-build-test-sim-and-package-boundaries.md)                    | 划分 `build`、`test`、`sim` 与领域包边界                          | 已接受（0011 补充）                    |
 | [0011](0011-stage-scoped-build-targets.md)                               | 采用按阶段解析目标的分阶段构建                              | 已接受（0013 补充）                    |
@@ -50,3 +50,4 @@ adr/NNNN-short-title.md
 | [0020](0020-python-physics-and-typescript-engineering-graphics.md)       | Python 物理行为与 TypeScript/React 工程图元；清除旧草稿实现 | 已接受                                 |
 | [0021](0021-tex-studio-plugin-based-disciplinary-workbenches.md)         | Tex Studio 采用插件式多专业工作台架构                       | 已接受                                 |
 | [0022](0022-separate-project-check-and-style-lint.md)                    | 区分项目检查与源文件风格检查                                | 已接受                                 |
+| [0023](0023-design-commitments-and-professional-activities.md)           | 区分设计承诺层级与专业活动并统一容量归属                    | 已接受                                 |

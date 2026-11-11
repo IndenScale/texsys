@@ -34,6 +34,8 @@ app = typer.Typer(
 )
 design_app = typer.Typer(help="Inspect, preview and apply SDL design edits.", no_args_is_help=True)
 app.add_typer(design_app, name="design")
+engineering_app = typer.Typer(help="Inspect, change, evaluate and review engineering evidence.", no_args_is_help=True)
+app.add_typer(engineering_app, name="engineering")
 
 PathOption = Annotated[
   Path,
@@ -240,6 +242,69 @@ def apply_design_command(
 ) -> None:
   """Apply a previewed JSON request to the same input revision."""
   _run_design_edit(path, request, plan)
+
+
+def _engineering_result(action, *args, **kwargs):
+  try:
+    result = action(*args, **kwargs)
+  except (ProjectError, OSError, ValueError) as error:
+    result = {"status": "error", "message": str(error)}
+  _print_design_result(result)
+  if result.get("execution") == "error":
+    raise typer.Exit(code=2)
+  assessment = result.get("result", {}).get("assessment")
+  if assessment in {"fail", "indeterminate"}:
+    raise typer.Exit(code=1 if assessment == "fail" else 3)
+
+
+@engineering_app.command("inspect")
+def inspect_engineering_command(path: PathOption = Path("."), adapter: str | None = None):
+  """Show editable inputs, current evidence, changes and review history as JSON."""
+  from texsys.engineering import inspect_engineering
+  _engineering_result(inspect_engineering, path, adapter)
+
+
+def _engineering_edit(path, request, plan=None):
+  from texsys.engineering import apply_engineering_change, plan_engineering_change
+  try:
+    payload = _load_json(sys.stdin.read() if request == "-" else Path(request).read_text(encoding="utf-8"))
+  except (OSError, ValueError) as error:
+    _print_design_result({"status": "error", "message": str(error)})
+    return
+  if plan is None:
+    _engineering_result(plan_engineering_change, path, payload)
+  else:
+    _engineering_result(apply_engineering_change, path, payload, plan)
+
+
+@engineering_app.command("plan")
+def plan_engineering_command(request: str, path: PathOption = Path(".")):
+  """Preview an engineering change request from a file or stdin (-)."""
+  _engineering_edit(path, request)
+
+
+@engineering_app.command("apply")
+def apply_engineering_command(request: str, plan: Annotated[str, typer.Option(help="Reviewed plan digest.")],
+                              path: PathOption = Path(".")):
+  """Apply the exact reviewed request while its inputs are still current."""
+  _engineering_edit(path, request, plan)
+
+
+@engineering_app.command("run")
+def run_engineering_command(adapter: str, path: PathOption = Path(".")):
+  """Evaluate a fixed design and preserve evidence; exit 1 means engineering failure."""
+  from texsys.engineering import run_engineering
+  _engineering_result(run_engineering, path, adapter)
+
+
+@engineering_app.command("accept")
+def accept_engineering_command(adapter: str, run_id: str,
+                               actor: Annotated[str, typer.Option(help="Responsible reviewer.")],
+                               rationale: Annotated[str, typer.Option(help="Reason and accepted scope.")],
+                               path: PathOption = Path(".")):
+  """Record acceptance of exact current passing evidence within its declared scope."""
+  from texsys.engineering import accept_engineering
+  _engineering_result(accept_engineering, path, adapter, run_id, actor, rationale)
 
 
 @app.command("check")

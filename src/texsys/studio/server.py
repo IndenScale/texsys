@@ -190,6 +190,10 @@ def create_server(runtime: StudioRuntime, port=8710, frontend=None, token=None, 
       try:
         if parsed.path == "/api/state":
           self._send(200, runtime.state())
+        elif parsed.path == "/api/engineering":
+          from texsys.engineering import inspect_engineering
+
+          self._send(200, inspect_engineering(runtime.root, parse_qs(parsed.query).get("adapter", [None])[0]))
         elif parsed.path == "/api/design-index":
           from .library_sources import library_index
 
@@ -260,7 +264,23 @@ def create_server(runtime: StudioRuntime, port=8710, frontend=None, token=None, 
         body = json.loads(self.rfile.read(length))
         if not isinstance(body, dict):
           raise ProjectError("Request must be an object.")
-        if self.path == "/api/library":
+        if self.path.startswith("/api/engineering/"):
+          from texsys.engineering import (accept_engineering, apply_engineering_change,
+                                         plan_engineering_change, run_engineering)
+
+          action = self.path.removeprefix("/api/engineering/")
+          if action == "plan":
+            result = plan_engineering_change(runtime.root, body)
+          elif action == "apply":
+            with runtime.lock:
+              result = apply_engineering_change(runtime.root, body["request"], body["plan"])
+          elif action == "run":
+            result = run_engineering(runtime.root, body["adapter"])
+          elif action == "accept":
+            result = accept_engineering(runtime.root, body["adapter"], body["run_id"], body["actor"], body["rationale"])
+          else:
+            raise ProjectError("Unknown engineering operation.")
+        elif self.path == "/api/library":
           from .library_sources import library_index, reference_library_entry
 
           if body.get("action") == "reference":

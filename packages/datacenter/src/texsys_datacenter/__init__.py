@@ -38,15 +38,19 @@ class DatacenterPackage(TexsysPackage):
   name = "datacenter"
   version = "0.1.0"
 
+  def engineering_adapters(self):
+    from .engineering import FwsChangeAdapter
+    return (FwsChangeAdapter(),)
+
   def targets(self):
     return (
       TargetDefinition("datacenter:unit-study", self.name, self.version, self.build_unit,
-                       profiles=("concept",), default_profile="concept"),
+                       profiles=("concept", "evaluation"), default_profile="concept"),
       TargetDefinition("datacenter:floor-study", self.name, self.version, self.build_floor,
-                       profiles=("concept",), default_profile="concept",
+                       profiles=("concept", "evaluation"), default_profile="concept",
                        dependencies=("datacenter:unit-study",)),
       TargetDefinition("datacenter:building-study", self.name, self.version, self.build_building,
-                       profiles=("concept",), default_profile="concept",
+                       profiles=("concept", "evaluation"), default_profile="concept",
                        dependencies=("datacenter:unit-study", "datacenter:floor-study")),
       TargetDefinition("datacenter:air-environment", self.name, self.version, self.build_air_environment,
                        profiles=("concept",), default_profile="concept",
@@ -55,7 +59,7 @@ class DatacenterPackage(TexsysPackage):
                        profiles=("concept",), default_profile="concept",
                        dependencies=("datacenter:cooling-equipment",)),
       TargetDefinition("datacenter:frame-study", self.name, self.version, self.build_frame,
-                       profiles=("concept",), default_profile="concept",
+                       profiles=("concept", "evaluation"), default_profile="concept",
                        dependencies=("datacenter:building-study",)),
       TargetDefinition("datacenter:drainage-study", self.name, self.version, self.build_drainage,
                        profiles=("concept",), default_profile="concept",
@@ -82,7 +86,7 @@ class DatacenterPackage(TexsysPackage):
                        profiles=("concept",), default_profile="concept",
                        dependencies=("datacenter:frame-study", "datacenter:fire-study", "datacenter:fws-branches")),
       TargetDefinition("datacenter:fws-branches", self.name, self.version, self.build_fws_branches,
-                       profiles=("concept",), default_profile="concept",
+                       profiles=("concept", "evaluation"), default_profile="concept",
                        dependencies=("datacenter:frame-study",)),
       TargetDefinition("datacenter:cooling-equipment", self.name, self.version, self.build_cooling_equipment,
                        profiles=("concept",), default_profile="concept",
@@ -126,7 +130,9 @@ class DatacenterPackage(TexsysPackage):
     report["status"] = "fail" if mismatches else "pass"
     path = context.build_path / "datacenter/unit-study.json"
     write_json(path, report)
-    return TargetResult(report["status"], (Artifact("unit-study", path.relative_to(context.root).as_posix()),),
+    return TargetResult("pass" if context.profile == "evaluation" else report["status"],
+                        (Artifact("unit-study", path.relative_to(context.root).as_posix()),),
+                        details={"verification": report["status"], "fidelity": "concept"},
                         diagnostics=tuple({"scenario": name, "message": "Scenario differs from its expectation."}
                                           for name in mismatches))
 
@@ -153,7 +159,8 @@ class DatacenterPackage(TexsysPackage):
     assembly = directory / "floor-assembly.usda"
     if write_floor_assembly(report, usd, assembly):
       artifacts.append(Artifact("floor-assembly", assembly.relative_to(context.root).as_posix()))
-    return TargetResult(report["status"], tuple(artifacts),
+    return TargetResult("pass" if context.profile == "evaluation" else report["status"], tuple(artifacts),
+                        details={"verification": report["status"], "fidelity": "concept"},
                         diagnostics=(*mismatches, *({"objects": pair, "message": "Floor coordination overlap."}
                                                     for pair in report["plan_clashes"])))
 
@@ -172,10 +179,11 @@ class DatacenterPackage(TexsysPackage):
     usd = directory / "building-layout.usda"
     write_json(path, report)
     write_building_usd(report, usd)
-    return TargetResult(report["status"], (
+    return TargetResult("pass" if context.profile == "evaluation" else report["status"], (
       Artifact("building-study", path.relative_to(context.root).as_posix()),
       Artifact("building-layout", usd.relative_to(context.root).as_posix()),
-    ), diagnostics=tuple({"scenario": name, "message": "Building scenario differs from its expectation."}
+    ), details={"verification": report["status"], "fidelity": "concept"},
+       diagnostics=tuple({"scenario": name, "message": "Building scenario differs from its expectation."}
                          for name in mismatches))
 
   def build_air_environment(self, context):
@@ -242,10 +250,10 @@ class DatacenterPackage(TexsysPackage):
                        for clash in report["rack_column_clashes"])
     diagnostics.extend({**clash, "message": "Column overlaps a cooling equipment footprint."}
                        for clash in report["cooling_column_clashes"])
-    return TargetResult(report["status"], (
+    return TargetResult("pass" if context.profile == "evaluation" else report["status"], (
       Artifact("frame-study", path.relative_to(context.root).as_posix()),
       Artifact("frame-layout", usd.relative_to(context.root).as_posix()),
-    ), diagnostics=tuple(diagnostics))
+    ), details={"verification": report["status"], "fidelity": "concept"}, diagnostics=tuple(diagnostics))
 
   def build_drainage(self, context):
     project = inspect_project(context.root)
@@ -404,10 +412,11 @@ class DatacenterPackage(TexsysPackage):
     path, usd = directory / "fws-branches.json", directory / "fws-branches-layout.usda"
     write_json(path, report)
     write_fws_branches_usd(report, usd)
-    return TargetResult(report["status"], (
+    return TargetResult("pass" if context.profile == "evaluation" else report["status"], (
       Artifact("fws-branches", path.relative_to(context.root).as_posix()),
       Artifact("fws-branches-layout", usd.relative_to(context.root).as_posix()),
-    ), diagnostics=tuple({**issue, "message": "FWS branch coordination conflict."} for issue in report["conflicts"]))
+    ), details={"geometry_assessment": report["status"], "fidelity": "concept"},
+       diagnostics=tuple({**issue, "message": "FWS branch coordination conflict."} for issue in report["conflicts"]))
 
   def build_cooling_equipment(self, context):
     project = inspect_project(context.root)

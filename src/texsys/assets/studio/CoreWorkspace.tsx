@@ -61,8 +61,10 @@ import {
 import { isSourceEditCommand, type EditorMenuCommand, type CommandItem } from "./menus";
 import { Settings, type TitlebarSettings } from "./Settings";
 import { Keycaps } from "./Keycaps";
+import { EngineeringDocument } from "./EngineeringDocument";
 
-type Activity = "explorer" | "search" | "scm" | "extensions" | "library" | "instances";
+type Activity =
+  "explorer" | "search" | "scm" | "extensions" | "library" | "instances" | "engineering";
 function isCoreActivity(id: string): id is Activity {
   return coreItems.some((item) => item.id === id);
 }
@@ -77,6 +79,7 @@ type Document = {
   location?: SearchMatch;
   cursorLine?: number;
   design?: { selection: DesignSelection; view: DesignView };
+  engineering?: boolean;
   untitled?: string;
 };
 type FileRequest = {
@@ -105,6 +108,7 @@ const CoreContext = createContext<Core | null>(null);
 export const useCoreWorkspace = () => useContext(CoreContext);
 const emptyListing: FileListing = { files: [], directories: [], truncated: false };
 const coreItems: { id: Activity; label: string; icon: string; shortcutKey?: string }[] = [
+  { id: "engineering", label: "工程变更", icon: "compare" },
   { id: "explorer", label: "文件资源管理器", icon: "files", shortcutKey: "E" },
   { id: "search", label: "搜索", icon: "search", shortcutKey: "F" },
   { id: "scm", label: "源代码管理", icon: "branch", shortcutKey: "G" },
@@ -113,6 +117,7 @@ const coreItems: { id: Activity; label: string; icon: string; shortcutKey?: stri
   { id: "instances", label: "项目实例", icon: "system" },
 ];
 const coreSidebarTitles: Record<Activity, string> = {
+  engineering: "工程变更",
   explorer: "文件资源管理器",
   search: "搜索",
   scm: "源代码管理",
@@ -436,6 +441,7 @@ export function CoreWorkspaceProvider({
   const terminalFile =
     activeTab === "source" &&
     !active?.design &&
+    !active?.engineering &&
     !active?.untitled &&
     !active?.loading &&
     !active?.error
@@ -493,6 +499,7 @@ export function CoreWorkspaceProvider({
     activeTab === "source" &&
     !!active &&
     !active.design &&
+    !active.engineering &&
     !active.loading &&
     !active.error &&
     !active.reason &&
@@ -601,6 +608,20 @@ export function CoreWorkspaceProvider({
           ],
     );
   };
+  function openEngineering(recordHistory = true) {
+    const path = "\0engineering";
+    setSettingsActive(false);
+    setSearchEditorActive(false);
+    setDiffActive(false);
+    setActivePath(path);
+    setDocumentActive(true);
+    if (recordHistory) setHistory((previous) => visitDocument(previous, path));
+    setDocuments((previous) =>
+      previous.some((item) => item.path === path)
+        ? previous
+        : [...previous, { path, saved: "", content: "", version: "", engineering: true }],
+    );
+  }
   const openFile = async (
     path: string,
     {
@@ -615,6 +636,10 @@ export function CoreWorkspaceProvider({
       fromDiskSearch?: boolean;
     } = {},
   ) => {
+    if (path === "\0engineering") {
+      openEngineering(recordHistory);
+      return;
+    }
     if (path.startsWith("\0untitled:")) {
       if (!documentsRef.current.some((item) => item.path === path)) return;
       setSettingsActive(false);
@@ -1489,6 +1514,13 @@ export function CoreWorkspaceProvider({
           </>
         )}
       </NavigatorPage>
+      <NavigatorPage hidden={activity !== "engineering"} aria-label={t("工程变更")}>
+        <p className="core-hint">{t("预览设计变化，检查受影响的结论，重算并保存审查依据。")}</p>
+        <button className="core-activity-row" onClick={() => openEngineering()}>
+          <Icon name="compare" />
+          <span>{t("打开工程变更")}</span>
+        </button>
+      </NavigatorPage>
       <NavigatorPage hidden={activity !== "extensions"} aria-label={t("已加载的扩展")}>
         {state.plugins.length ? (
           <ul className="core-activity-list">
@@ -1861,25 +1893,36 @@ export function CoreWorkspaceProvider({
         const module = designIndex?.library.some(
           (item) => item.kind === "modules" && item.definition === scope?.key,
         );
-        const title = selection
-          ? (("occurrence" in selection ? selection.occurrence.at(-1) : undefined) ??
-            scope?.definition?.name ??
-            t("模型"))
-          : (document.untitled ?? document.path.split("/").pop());
+        const title = document.engineering
+          ? t("工程变更")
+          : selection
+            ? (("occurrence" in selection ? selection.occurrence.at(-1) : undefined) ??
+              scope?.definition?.name ??
+              t("模型"))
+            : (document.untitled ?? document.path.split("/").pop());
         return (
           <DocumentTab
             key={document.path}
             selected={activeTab === "source" && activePath === document.path}
             tabStop={tabStop === "source" && activePath === document.path}
-            title={selection || document.untitled ? title : document.path}
+            title={document.engineering || selection || document.untitled ? title : document.path}
             closeLabel={t("关闭 {0}", {
-              "0": selection ? (title ?? "") : (document.untitled ?? document.path),
+              "0":
+                document.engineering || selection
+                  ? (title ?? "")
+                  : (document.untitled ?? document.path),
             })}
             closeDisabled={closeDisabled}
             closeShortcut={closeShortcut}
             onClose={() => closeFileTab(document.path)}
             onSelect={() => {
-              if (!document.untitled && !document.design && !document.loading && !document.error)
+              if (
+                !document.untitled &&
+                !document.design &&
+                !document.engineering &&
+                !document.loading &&
+                !document.error
+              )
                 rememberRecentFile(state.project.path, document.path);
               setSettingsActive(false);
               setSearchEditorActive(false);
@@ -1889,7 +1932,9 @@ export function CoreWorkspaceProvider({
               setDiffActive(false);
             }}
           >
-            {selection ? (
+            {document.engineering ? (
+              <Icon name="compare" size={14} />
+            ) : selection ? (
               <Icon name={module ? "module" : "system"} size={14} />
             ) : (
               <FileIcon path={document.path} />
@@ -1962,7 +2007,7 @@ export function CoreWorkspaceProvider({
     diff && !diff.historical ? gitPathInProject(diff.path, gitStatus?.project_prefix) : undefined;
   const activeDirty = !!active && active.content !== active.saved;
   const designEntry =
-    designIndex && active && !active.design
+    designIndex && active && !active.design && !active.engineering
       ? [
           designIndex.root,
           ...designIndex.library.filter((item) => !item.source).map((item) => item.definition),
@@ -1978,7 +2023,12 @@ export function CoreWorkspaceProvider({
         onClick={() => void openFile(diffProjectPath)}
       />
     )
-  ) : active && !active.design && !active.loading && !active.error && !active.reason ? (
+  ) : active &&
+    !active.design &&
+    !active.engineering &&
+    !active.loading &&
+    !active.error &&
+    !active.reason ? (
     <>
       {designEntry && (
         <EditorActionButton
@@ -2070,6 +2120,14 @@ export function CoreWorkspaceProvider({
         </div>
       </div>
     </div>
+  ) : active.engineering ? (
+    <EngineeringDocument
+      api={api}
+      refresh={refresh}
+      revision={state.project.revision}
+      openFile={(path) => void openFile(path)}
+      hasUnsaved={dirty}
+    />
   ) : active.design ? (
     designIndex ? (
       <DesignDocument
@@ -2200,7 +2258,7 @@ export function CoreWorkspaceProvider({
       <div className="core-heading">
         <strong>{t("文件属性")}</strong>
       </div>
-      {active && !active.design && !diffActive && !searchEditorActive ? (
+      {active && !active.design && !active.engineering && !diffActive && !searchEditorActive ? (
         <dl>
           <dt>{t("路径")}</dt>
           <dd>{active.untitled ?? active.path}</dd>

@@ -20,6 +20,10 @@ class TexsysPackage:
   def targets(self) -> tuple[Any, ...]:
     return ()
 
+  def engineering_adapters(self) -> tuple[Any, ...]:
+    """Contribute explicit change inputs, impact explanations and engineering checks."""
+    return ()
+
   def build(self, root: Path) -> tuple[str, ...]:
     """Deprecated package-wide entry point; selected targets use targets()."""
     return ()

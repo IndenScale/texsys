@@ -1,8 +1,23 @@
-# 项目进度审查（2026-11-05）
+# 项目进度审查
 
-> 本地仓库实现与实际执行证据，不代表已发布产品。当前行为与图纸决策见 [ADR-0020](adr/0020-python-physics-and-typescript-engineering-graphics.md)。
+> 本地实现与执行证据，不代表已发布产品或真实工程接受。当前范围见 [范围契约](scope.md)，完整目标与新增闭环验收见 [工程 POC 台账](engineering-poc.md)。历史验证保留原日期，不自动覆盖后续版本。
 
-## 当前结论
+## 当前基线与推进方向（2026-11-11）
+
+提交 `220b186` 保存此前的模块库、多专业数据中心算例和 Studio 工作区成果。该基线的 `uv run --locked pytest` 为 **315 passed，127.94 秒**；`node tools/test_studio_ui.mjs` 为 **45 项通过**；提交钩子的 Markdown、文档语言、Ruff、ESLint 和字重检查通过。这些验证不包含本轮随后新增的工程变更功能，也不代表实际 Chrome 交互或真实设备模型验收。
+
+| 能力 | 当前证据与边界 |
+| --- | --- |
+| SDL 与模块库 | 显式网络、私有定义、递归实例、锁定引入及带端口绑定的模块资产已有实现和回归；完整需求／约束／决定模型未统一 |
+| 数据中心研究 | [混合冷却单元](../examples/datacenter-hybrid-unit/README.md)形成供电、冷却、热响应、控制、结构、建筑、消防等有限模型链；40 MW 为参数化概念规模 |
+| 几何反馈 | FWS/TCS 路由几何长度及局部损失实际进入水力和配流；通用来源、预算、提取及接受协议仍在建设 |
+| 依赖与证据底座 | 本地依赖内容漂移、输入快照、产物摘要、旧结果识别及部分审批失效有回归；完整工具环境复现和细粒度结论依赖尚未完成 |
+| Studio | 通用编辑、模块／实例导航、场景预览和 HVAC 工作台已有代码；一对象多视图及跨专业工程变更体验尚未全面贯通 |
+| 本轮贯通工作 | 基于既有 FWS 计算实现变更预览、应用、重算、比较与范围明确的接受；以台账中逐项实际证据更新状态，当前不预先判定完成 |
+
+新的开发排序以工程师能否完成一次决策为准。每轮先整理并提交工作区，再记录本轮改变的权威状态、推进的闭环步骤和仍未验证的部分。真实资料小场景、第二项目复用和外部能力交换仍属于完整目标中的未完成项。
+
+## 同源暖通链路的历史实现（2026-11-05）
 
 TexSys 已具备一条同源冷站链路：SDL 中的实例、端口、连接、参数和版本化行为选择，可生成 BOM、系统图、原理图、物理快照，并在时变负荷、调速和停泵工况下求解。Python 维护工程与物理行为，TypeScript/React 维护工程图元和交互呈现，SVG 作为静态及交互矢量载体。
 
@@ -10,7 +25,7 @@ TexSys 已具备一条同源冷站链路：SDL 中的实例、端口、连接、
 
 清除的实现包括 Python SVG 绘制器、旧概念卡片目录、重复 ELK worker、旧手工布局数值／行为段落标签、重复 Node 子集安装器，以及“有序 Modelica 子集”解释器。原容量／通风／露点公式迁移为名称明确的 `hvac-checks` Python 设计校核，不保留旧名称兼容入口。
 
-## 能力状态
+## 暖通历史能力状态（2026-11-05）
 
 | 能力                       | 状态         | 证据与边界                                                                                       |
 | -------------------------- | ------------ | ------------------------------------------------------------------------------------------------ |
@@ -25,9 +40,9 @@ TexSys 已具备一条同源冷站链路：SDL 中的实例、端口、连接、
 | 空间与安装事件             | 简化闭环     | USD BRep 包络与轴对齐盒碰撞；不等于真实几何内核或运行期水力事件                                  |
 | 工程正式交付               | 未验收       | 概念参数、无厂家标定和现场核验；跨页、递归网络、字体锁定与施工基线仍待推进                       |
 
-## 可重跑入口
+## 暖通可重跑入口
 
-Tex Studio 的启动入口为 `uv run texsys studio -p examples/hvac-dynamic-station --open`。新增的本地 Web 宿主与 HVAC 插件采用 [工作台契约 v1](../spec/studio/01-workbench.md)，并遵守 [ADR-0021](adr/0021-tex-studio-plugin-based-disciplinary-workbenches.md)。
+Tex Studio 的标准启动入口为 `uv run texsys studio -p examples/hvac-dynamic-station --hmr`。先按 [AGENTS.md](../AGENTS.md#tex-studio-开发与验证)检查并复用唯一的 `8710` 实例；确需启动时先取得锁。浏览器使用现有 Google Chrome。宿主与 HVAC 插件采用 [工作台契约 v1](../spec/studio/01-workbench.md)和 [ADR-0021](adr/0021-tex-studio-plugin-based-disciplinary-workbenches.md)。
 
 ```bash
 uv sync --locked
@@ -43,7 +58,7 @@ node node_modules/markdownlint-cli2/markdownlint-cli2.mjs "**/*.md"
 
 本地 Python API 为 `texsys.api.build/evaluate`，CLI 和参数集中于 [调用示例](../examples/build-deliverables/README.md)。物理与数值口径以 [动态行为契约](../spec/build/04-hvac-dynamics.md) 为权威；图纸与审核以 [出图契约](../spec/build/03-system-schematic.md) 为权威。
 
-## Tex Studio 首个本地切片
+## Tex Studio 首个本地切片的历史记录
 
 已实现专业 entry point 发现、专业切换入口、项目与修订上下文、设备浏览器、系统图／原理图、设备表、器件图元库、只读源视图、对象属性／接管／依据，以及实例参数覆盖、恢复继承和单步撤销。图纸支持缩放、适应工作区、拖动查看及导出；回放面板可展开，避免占满设计画布。
 
@@ -51,7 +66,7 @@ node node_modules/markdownlint-cli2/markdownlint-cli2.mjs "**/*.md"
 
 Studio 后端新增 13 项契约测试，涵盖两个专业的发现与重复／不兼容诊断、空宿主、参数编辑与撤销、未知参数状态、拒绝非法写入、外部冲突、输入副本、取消、任务恢复和失效工况。多专业测试使用管理专业桩，不代表已提供真实管理专业 GUI。浏览器实际核验和最终工作区检查记录见 [Studio 实施与验收](implementation-tex-studio.md)。
 
-## 前一实现阶段实际验证
+## 前一实现阶段实际验证（历史记录）
 
 提交整理时，从暂存内容导出的干净目录执行锁定环境与 Python 全量测试，**143 passed**（原有 134 项及本次新增的 9 项回归）；Node 图元 9 项、命令规则 4 项通过；TypeScript strict 类型检查与 Markdown 检查通过。统一冷站 lint、format、lock 检查通过。旧设备布置示例迁移后的容量／温升／露点校核仍通过。
 
@@ -67,6 +82,6 @@ Prettier 负责通用文档和前端资源；`*.sdl.json` 与 `src/hvac.json` �
 
 本机 Python 3.12.13、NumPy 2.5.4、SciPy 1.18.1、Node 24.11.0；外部编译器实际报告 `v1.23.0-dev-152-g5b94ed190c-cmake`，运行在 macOS arm64 的项目隔离目录。官方 ARM64 包来自 [OpenModelica 构建站](https://build.openmodelica.org/omc/builds/mac/arm64/nightly/OpenModelica-6.1.5-Darwin.pkg)，SHA-256 `194484ab559bc9d7179a295e7d8830bd7e18729cdb8be936a8b92e8268eddd0b`；libiconv 来自 [MacPorts 官方包](https://packages.macports.org/libiconv/libiconv-1.19_0.darwin_23.arm64.tbz2)，SHA-256 `f3c66266fddbb39e393a0dc398d0489e18f24b25fbfee4d7efc94a489e578258`。仅解包到项目忽略目录，未进行全局安装；这些运行文件不作为项目分发依赖。CI 使用 Node 22，配置已覆盖新链路，本次没有远端 CI 运行证据。
 
-## 后续边界
+## 暖通模型的后续边界
 
-继续推进真实设备参数／性能曲面校准、更复杂的切换拓扑、递归子系统与显式 Net、跨页、字体锁定、真实几何内核与施工配置基线。当前采用定物性单相水、准稳态水力、集总热力和等效塔 UA；高保真瞬态、两相、水锤与完整湿空气模型不在本次实现范围内。
+继续推进真实设备参数／性能曲面校准、更复杂的切换拓扑、跨页、字体锁定、真实几何内核与施工配置基线。显式 Net 和递归模块已在后续基线形成有限实现，其完整语义仍以规范和开放问题为准。暖通动态链路采用定物性单相水、准稳态水力、集总热力和等效塔 UA；高保真瞬态、两相、水锤与完整湿空气模型尚未完成。
