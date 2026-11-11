@@ -152,6 +152,147 @@ def test_noop_preserves_original_file_and_invalid_changes_are_rejected(project):
       engineering.plan_engineering_change(root, {**request, "changes": changes})
 
 
+@pytest.mark.parametrize("design", [{"definition": "water.Route"}, {"occurrence": ["plant", "route"]}])
+def test_explicit_design_selection_survives_plan_run_and_review(project, monkeypatch, design):
+  root, adapter = project
+  original_inputs, original_evaluate = adapter.inputs, adapter.evaluate
+  monkeypatch.setattr(adapter, "inputs", lambda root: [{**original_inputs(root)[0], "design": design}])
+
+  def evaluate(root):
+    result = original_evaluate(root)
+    result["checks"][0]["design"] = design
+    result["extraction"][0]["design"] = design
+    return result
+
+  monkeypatch.setattr(adapter, "evaluate", evaluate)
+  state = engineering.inspect_engineering(root)
+  assert state["inputs"][0]["design"] == design
+  assert state["inputs"][0]["object_ref"] == "water.Route-01"
+  request = change(root, 12)
+  plan = engineering.plan_engineering_change(root, request)
+  assert plan["changes"][0]["design"] == design
+  assert engineering.apply_engineering_change(root, request, plan["plan"])["applied"]
+  run = engineering.run_engineering(root, adapter.id)
+  assert run["input_values"][0]["design"] == design
+  assert run["result"]["checks"][0]["design"] == design
+  assert run["result"]["checks"][0]["object_ref"] == "water.Pump-01"
+  assert run["result"]["extraction"][0]["design"] == design
+  review = engineering.accept_engineering(root, adapter.id, run["run_id"], "Engineer", "Explicit model selection checked.")
+  assert review["evidence"]["result"]["checks"][0]["design"] == design
+
+
+@pytest.mark.parametrize("design", [
+  None, True, {}, {"definition": ""}, {"definition": " "}, {"definition": True},
+  {"occurrence": []}, {"occurrence": "route"}, {"occurrence": [""]},
+  {"occurrence": ["plant", " "]}, {"occurrence": [True]},
+  {"definition": "water.Route", "occurrence": ["route"]},
+  {"definition": "water.Route", "extra": "unchecked"},
+])
+def test_invalid_input_design_cannot_be_applied_even_with_an_earlier_valid_plan(project, monkeypatch, design):
+  root, adapter = project
+  request = change(root, 12)
+  plan = engineering.plan_engineering_change(root, request)
+  original = adapter.inputs
+  before = (root / "src/route.study.json").read_bytes()
+  monkeypatch.setattr(adapter, "inputs", lambda root: [{**original(root)[0], "design": design}])
+  with pytest.raises(ProjectError, match="design selection"):
+    engineering.apply_engineering_change(root, request, plan["plan"])
+  assert (root / "src/route.study.json").read_bytes() == before
+  with pytest.raises(ProjectError, match="design selection"):
+    engineering.run_engineering(root, adapter.id)
+  assert not list((root / "build/engineering/runs").glob("*.json"))
+
+
+@pytest.mark.parametrize("collection, design", [
+  ("checks", {"definition": False}), ("checks", {"occurrence": []}),
+  ("extraction", {"occurrence": ["plant", True]}),
+  ("extraction", {"definition": "water.Route", "extra": "unchecked"}),
+])
+def test_invalid_result_design_is_not_saved_as_engineering_evidence(project, monkeypatch, collection, design):
+  root, adapter = project
+  original = adapter.evaluate
+
+  def evaluate(root):
+    result = original(root)
+    result[collection][0]["design"] = design
+    return result
+
+  monkeypatch.setattr(adapter, "evaluate", evaluate)
+  run = engineering.run_engineering(root, adapter.id)
+  assert run["execution"] == "error" and run["result"]["assessment"] == "indeterminate"
+  assert "design selection" in run["diagnostics"][0]["message"]
+  saved = json.loads((root / run["path"]).read_text())
+  assert saved["result"]["checks"] == [] and saved["result"]["extraction"] == []
+  with pytest.raises(ProjectError, match="Only current"):
+    engineering.accept_engineering(root, adapter.id, run["run_id"], "Engineer", "Invalid selection.")
+
+
+def test_optional_adapter_description_and_design_are_not_inferred(project, monkeypatch):
+  root, adapter = project
+  state = engineering.inspect_engineering(root)
+  assert "description" not in state["selected"] and "design" not in state["inputs"][0]
+  run = engineering.run_engineering(root, adapter.id)
+  assert "design" not in run["result"]["checks"][0]
+  monkeypatch.setattr(adapter, "description", "管路长度对压损预算的影响。", raising=False)
+  state = engineering.inspect_engineering(root)
+  assert state["selected"]["description"] == "管路长度对压损预算的影响。"
+  assert state["adapters"] == [state["selected"]]
+
+
+@pytest.mark.parametrize("description", [None, True, ["invalid"]])
+def test_invalid_adapter_description_is_rejected(project, monkeypatch, description):
+  root, adapter = project
+  monkeypatch.setattr(adapter, "description", description, raising=False)
+  with pytest.raises(ProjectError, match="description must be a string"):
+    engineering.inspect_engineering(root)
+
+
+def test_known_numeric_change_cannot_retain_source_endorsement(project, monkeypatch):
+  root, adapter = project
+  source = root / "src/route.study.json"
+  document = json.loads(source.read_text())
+  document["route"].update(state="known", source="Measured route, survey A")
+  source.write_text(json.dumps(document))
+  original = adapter.inputs
+
+  def inputs(root):
+    route = json.loads(source.read_text())["route"]
+    return [{**original(root)[0], "state": route["state"], "source": route["source"]}]
+
+  monkeypatch.setattr(adapter, "inputs", inputs)
+  before = source.read_bytes()
+  assert apply(root, 10)["applied"] is False
+  assert source.read_bytes() == before
+  run = engineering.run_engineering(root, adapter.id)
+  assert run["execution"] == "completed" and run["input_values"][0]["state"] == "known"
+  request = change(root, 12)
+  with pytest.raises(ProjectError, match="known.*source endorsement.*source and state"):
+    engineering.plan_engineering_change(root, request)
+  with pytest.raises(ProjectError, match="known.*source endorsement"):
+    engineering.apply_engineering_change(root, request, "cannot-bypass-source-protection")
+  assert source.read_bytes() == before
+  # A separate source-aware workflow explicitly replaces the measured basis.
+  document["route"].update(state="assumed", source="Design alternative B, assumed route")
+  source.write_text(json.dumps(document))
+  assert apply(root, 12)["applied"]
+  changed = json.loads(source.read_text())["route"]
+  assert changed["length_m"] == 12 and changed["state"] == "assumed"
+  assert changed["source"] == "Design alternative B, assumed route"
+
+
+@pytest.mark.parametrize("state", ["unknown", "missing", "not-applicable", "failed", None, True, "estimated", {}])
+def test_non_numeric_or_invalid_input_state_cannot_be_applied(project, monkeypatch, state):
+  root, adapter = project
+  request = change(root, 12)
+  plan = engineering.plan_engineering_change(root, request)
+  original = adapter.inputs
+  before = (root / "src/route.study.json").read_bytes()
+  monkeypatch.setattr(adapter, "inputs", lambda root: [{**original(root)[0], "state": state}])
+  with pytest.raises(ProjectError, match="input.*state"):
+    engineering.apply_engineering_change(root, request, plan["plan"])
+  assert (root / "src/route.study.json").read_bytes() == before
+
+
 def test_existing_project_lock_serializes_writes_and_runs(project):
   root, adapter = project
   request = change(root, 12)
