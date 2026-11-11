@@ -1,11 +1,11 @@
 import json
 import importlib.util
-import os
 import sys
 
 import pytest
 
 from texsys import engineering as engineering
+from texsys.dependencies import add_dependency, lock_project
 from texsys.packages import TexsysPackage
 from texsys.project import ProjectError, initialize_project, project_write_lock
 
@@ -56,7 +56,7 @@ def project(tmp_path, monkeypatch):
   initialize_project(root)
   (root / "src/route.study.json").write_text(json.dumps({"route": {"length_m": 10, "name": "Route-01"}}))
   adapter = WaterAdapter()
-  monkeypatch.setattr(engineering, "installed_packages", lambda: (WaterPackage(adapter),))
+  monkeypatch.setattr(engineering, "project_packages", lambda root: (WaterPackage(adapter),))
   monkeypatch.setattr(engineering, "_worker_call", engineering._dispatch)
   return root, adapter
 
@@ -487,7 +487,7 @@ def test_review_needs_named_actor_and_reason_and_stays_portable(project):
 
 def test_unsupported_project_has_no_engineering_actions(tmp_path, monkeypatch):
   initialize_project(tmp_path)
-  monkeypatch.setattr(engineering, "installed_packages", lambda: (WaterPackage(WaterAdapter()),))
+  monkeypatch.setattr(engineering, "project_packages", lambda root: (WaterPackage(WaterAdapter()),))
   monkeypatch.setattr(engineering, "_worker_call", engineering._dispatch)
   state = engineering.inspect_engineering(tmp_path)
   assert not state["available"] and state["selected"] is None and state["runs"] == []
@@ -527,15 +527,17 @@ class Package(TexsysPackage):
   def engineering_adapters(self): return (Adapter(),)
 package=Package()
 '''
-  source = tmp_path / "engineering_worker_audit.py"
+  capability = tmp_path / "worker-audit"
+  initialize_project(capability)
+  manifest = capability / "texsys.toml"
+  manifest.write_text(manifest.read_text().replace('name = "worker-audit"', 'name = "worker-audit"\nversion = "1"')
+                      + '\n[package]\nkind = "capability"\n[package.runtime]\napi_version = 1\n'
+                      + 'modules = ["engineering_worker_audit"]\nentry_point = "engineering_worker_audit:package"\n')
+  source = capability / "src/engineering_worker_audit.py"
   source.write_text(code)
-  distribution = tmp_path / "engineering_worker_audit-1.0.dist-info"
-  distribution.mkdir()
-  (distribution / "METADATA").write_text("Metadata-Version: 2.1\nName: engineering-worker-audit\nVersion: 1.0\n")
-  (distribution / "entry_points.txt").write_text("[texsys.packages]\nworker_audit = engineering_worker_audit:package\n")
-  monkeypatch.setenv("PYTHONPATH", os.pathsep.join(filter(None, [str(tmp_path), os.environ.get("PYTHONPATH")])))
   root = tmp_path / "project"
   initialize_project(root)
+  add_dependency(root, capability)
   (root / "src/input.json").write_text('{"length":10}')
   baseline = engineering.run_engineering(root, "audit:fresh-worker")
   assert baseline["result"]["assessment"] == "pass"
@@ -546,9 +548,10 @@ package=Package()
   monkeypatch.setitem(sys.modules, spec.name, stale)
   spec.loader.exec_module(stale)
   source.write_text(code.replace("FACTOR = 1", "FACTOR = 1000"))
+  lock_project(root)  # Explicitly adopt the developer package revision.
   assert stale.FACTOR == 1
   # The caller can still hold the old instance; public operations must ignore it.
-  monkeypatch.setattr(engineering, "installed_packages", lambda: (stale.Package(),))
+  monkeypatch.setattr(engineering, "project_packages", lambda root: (stale.Package(),))
   state = engineering.inspect_engineering(root, "audit:fresh-worker")
   assert state["inputs"][0]["label"] == "Length factor 1000"
   assert not state["latest"]["current"] and state["reviews"][0]["state"] == "needs-review"
@@ -565,6 +568,7 @@ package=Package()
   assert changed["execution"] == "error" and not changed["current"]
   assert "changed" in changed["diagnostics"][-1]["message"]
   monkeypatch.delenv("TEXSYS_AUDIT_MUTATE_SOURCE")
+  lock_project(root)
   monkeypatch.setenv("TEXSYS_AUDIT_PAUSE", "1")
   monkeypatch.setitem(engineering.WORKER_TIMEOUT_SECONDS, "run", 3)
   with pytest.raises(ProjectError, match="exceeded 3 seconds"):

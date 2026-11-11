@@ -3,11 +3,11 @@ from pathlib import Path
 import shutil
 
 import pytest
-from typer.testing import CliRunner
+from cli_process import ProjectCliRunner
 
 from texsys.cli import app
 
-runner = CliRunner()
+runner = ProjectCliRunner()
 ROOT = Path(__file__).parents[1]
 EXAMPLE = ROOT / "examples" / "hvac-cold-station"
 PACKAGES = ROOT / "packages"

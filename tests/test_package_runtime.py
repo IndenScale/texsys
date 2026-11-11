@@ -144,6 +144,10 @@ def test_missing_or_incompatible_runtime_blocks_code_before_execution(tmp_path,r
   assert next(item for item in state["packages"] if item["name"]=="capacity-demo")["status"] == expected
   result = _python('from pathlib import Path;import sys;from texsys.packages import project_packages;project_packages(Path(sys.argv[1]))',root,check=False)
   assert result.returncode != 0 and "runtime unavailable" in result.stderr
+  from texsys.project_operations import run_project_operation
+  checked = run_project_operation(root, "check")
+  assert checked["status"] == "error" and checked["runtime"] == []
+  assert any(item["rule"] == "P003" for item in checked["diagnostics"])
 
 
 def test_absent_declared_module_cannot_fall_back_to_ambient_plugin(tmp_path):
@@ -239,7 +243,54 @@ legacy=project_packages(root)[0].implementation
 locked=project_packages(root,locked_only=True)[0].implementation
 print(json.dumps([legacy,locked]))
 '''
-  assert json.loads(_python(script,root).stdout) == ["ambient","locked"]
+  assert json.loads(_python(script,root).stdout) == ["locked","locked"]
+
+
+def test_empty_project_never_inherits_ide_or_host_capabilities(tmp_path):
+  root = _project(tmp_path / "empty")
+  script = '''import json,sys
+from pathlib import Path
+from texsys.packages import project_packages
+from texsys.studio import discover_plugins
+def unexpected():
+  raise AssertionError("ambient discovery was invoked")
+before=project_packages(Path(sys.argv[1]), installed=unexpected, locked_only=False)
+plugins,errors=discover_plugins()
+after=project_packages(Path(sys.argv[1]), installed=unexpected, locked_only=False)
+print(json.dumps({"before":[p.name for p in before],"after":[p.name for p in after],
+                  "plugins":list(plugins),"errors":errors,
+                  "solver_imported":any(name.startswith("texsys_hvac_dynamics") for name in sys.modules)}))
+'''
+  result = json.loads(_python(script, root).stdout)
+  assert result == {"before": [], "after": [], "plugins": ["texsys:hvac"], "errors": [], "solver_imported": False}
+
+
+def test_public_project_operation_isolated_from_host_modules_and_between_versions(tmp_path):
+  registry = _publish(tmp_path)
+  a = _consumer(tmp_path / "a", registry)
+  _publish(tmp_path, version="2.0.0", multiplier=2)
+  b = _consumer(tmp_path / "b", registry, version="2.0.0")
+  script = '''import json,sys,types
+from pathlib import Path
+from texsys.api import run_project_operation
+from texsys.studio import discover_plugins
+fake=types.ModuleType("runtime_capacity")
+fake.__file__="/ide/private/runtime_capacity.py"
+sys.modules["runtime_capacity"]=fake
+discover_plugins()
+outputs=[]
+for directory in sys.argv[1:]:
+  root=Path(directory)
+  result=run_project_operation(root,"build",{"targets":["capacity:report"]})
+  outputs.append({"runtime":result["runtime"],"status":result["status"],
+                  "actual":json.loads((root/"build/capacity.json").read_text())["checks"][0]["actual"]})
+assert sys.modules["runtime_capacity"] is fake
+print(json.dumps(outputs))
+'''
+  outputs = json.loads(_python(script, a, b).stdout)
+  assert [item["status"] for item in outputs] == ["pass", "pass"]
+  assert [item["actual"] for item in outputs] == [20, 40]
+  assert [[package["version"] for package in item["runtime"]] for item in outputs] == [["1.0.0"], ["2.0.0"]]
 
 
 @pytest.mark.parametrize("source_kind", ["path", "registry"])

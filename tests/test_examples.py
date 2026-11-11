@@ -3,11 +3,11 @@ from pathlib import Path
 import shutil
 
 import pytest
-from typer.testing import CliRunner
+from cli_process import ProjectCliRunner
 
 from texsys.cli import app
 
-runner = CliRunner()
+runner = ProjectCliRunner()
 EXAMPLES = Path(__file__).parents[1] / "examples"
 PUBLIC_EXAMPLES = ("minimal", "hvac-cold-station", "hvac-system-schematic")
 

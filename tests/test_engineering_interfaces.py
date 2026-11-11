@@ -47,7 +47,7 @@ class InterfacePackage(TexsysPackage):
 def engineering_project(tmp_path, monkeypatch):
   initialize_project(tmp_path)
   (tmp_path / "src/demand.json").write_text('{"value": 5}\n')
-  monkeypatch.setattr(engineering, "installed_packages", lambda: (InterfacePackage(),))
+  monkeypatch.setattr(engineering, "project_packages", lambda root: (InterfacePackage(),))
   monkeypatch.setattr(engineering, "_worker_call", engineering._dispatch)
   return tmp_path
 

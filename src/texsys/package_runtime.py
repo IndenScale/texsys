@@ -1,7 +1,7 @@
 """Load explicitly declared Python capabilities from verified design-package content.
 
 The package manager supplies source, not a Python dependency installer or sandbox.
-Registry projects never substitute an ambient editable distribution for locked code.
+Project operations never substitute an ambient editable distribution for locked code.
 """
 
 from dataclasses import dataclass
@@ -225,42 +225,24 @@ def _activate(declarations):
   importlib.invalidate_caches()
 
 
-def load_project_packages(root, installed, *, locked_only=False):
+def load_project_packages(root, installed=None, *, locked_only=True):
+  """Load only the declared project graph; legacy arguments never widen it."""
   from texsys.packages import TexsysPackage
 
   root = Path(root).expanduser().resolve()
   manifest = root / "texsys.toml"
   if not manifest.is_file():
-    return () if locked_only else installed()
+    return ()
   with manifest.open("rb") as stream:
     data = tomllib.load(stream)
-  if not data.get("dependencies"):
-    return () if locked_only else installed()
-  if not isinstance(data["dependencies"], dict):
+  dependencies = data.get("dependencies", {})
+  if not isinstance(dependencies, dict):
     raise ProjectError("[dependencies] must be a table.")
-  registry_declared = any(isinstance(value, dict) and "registry" in value for value in data["dependencies"].values())
-  lock = root / "texsys.lock"
-  if lock.is_file():
-    try:
-      with lock.open("rb") as stream:
-        registry_declared |= any(item.get("source") == "registry" for item in tomllib.load(stream).get("packages", []))
-    except (OSError, ValueError, TypeError, AttributeError):
-      pass
-  try:
-    _, declarations, status, strict = _inspect(root)
-  except ProjectError:
-    if registry_declared or locked_only:
-      raise
-    # Preserve legacy inspection of invalid path dependencies: its caller
-    # reports dependency_error and invalidates prior evidence before any run.
-    return installed()
+  if not dependencies:
+    return ()
+  _, declarations, status, _ = _inspect(root)
   if status["errors"]:
     raise ProjectError("Package runtime unavailable: " + "; ".join(status["errors"]))
-  # Existing local-path workspaces still use their installed developer plugins.
-  # A package absent from that environment can opt into explicit source loading.
-  registered = {entry.name for entry in metadata.entry_points(group="texsys.packages")}
-  if not strict and not locked_only and all(not item.entry_point or item.locked.name in registered for item in declarations):
-    return installed()
   _activate(declarations)
   environment = [{key: item[key] for key in ("name", "version", "digest", "source", "modules", "requirements")}
                  for item in status["packages"]]

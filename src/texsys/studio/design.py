@@ -4,8 +4,10 @@ from hashlib import sha256
 from pathlib import Path
 
 from texsys.dependencies import _read_manifest
+from texsys.component_exports import component_exports, is_component_export
 from texsys.formal import resolve_sdl_imports
 from texsys.library import library_entries
+from texsys.project import ProjectError, inspect_project
 from texsys.sdl_catalog import read_sdl_catalog
 
 
@@ -52,6 +54,21 @@ def design_index(root: Path, source: str) -> dict:
   sources = {name: {"id": sha256(str(pkg.root).encode()).hexdigest(), "path": str(pkg.root),
                     "name": name, "version": pkg.version, "digest": pkg.digest, "locked": True}
              for name, pkg in catalog.packages.items()}
+  exports = {}
+  for name, package in catalog.packages.items():
+    try:
+      exports[name] = component_exports(package.root)
+    except ProjectError as error:
+      issues.append({"file": f"@{name}/texsys.toml", "message": str(error)})
+      exports[name] = ()
+
+  def public_package_entry(path: str) -> bool:
+    if not path.startswith("@"):
+      return True
+    name, relative = path[1:].split("/", 1)
+    package = catalog.packages[name]
+    package_source = inspect_project(package.root).source
+    return is_component_export(f"{package_source}/{relative}", exports.get(name, ()))
 
   def source_id(path: str) -> dict:
     return {"source": sources[path[1:].split("/", 1)[0]]["id"]} if path.startswith("@") else {}
@@ -83,6 +100,13 @@ def design_index(root: Path, source: str) -> dict:
       }
       if path in modules and name == document["root"]:
         definitions[identity(path, name)]["module_package"] = modules[path]
+      if path.startswith("@"):
+        package_name, relative = path[1:].split("/", 1)
+        package = catalog.packages[package_name]
+        definitions[identity(path, name)]["package_identity"] = {
+          "name": package.name, "version": package.version, "digest": package.digest,
+          "entry": f"{inspect_project(package.root).source}/{relative}#{name}",
+        }
 
   def document_root(path: str) -> str | None:
     if path not in documents:
@@ -110,11 +134,12 @@ def design_index(root: Path, source: str) -> dict:
       tag_errors.append(f"studio.instance_tags.{path}")
 
   return {"root": project_root, "definitions": definitions, "instance_tags": instance_tags,
-          "dependency_sources": list(sources.values()),
+          "dependency_sources": [item for name, item in sources.items() if exports.get(name)],
           "library": [{"definition": key, "kind": entry.kind,
                        "owner": document_root(entry.owner) if entry.owner else None,
                        "folder": file_label(entry.folder) if entry.folder else None, **source_id(path),
                        "tags": tags.get(key, {})}
                       for path, entry in entries.items()
-                      if (key := document_root(path)) and (not entry.owner or document_root(entry.owner))],
+                      if (key := document_root(path)) and (not entry.owner or document_root(entry.owner))
+                      and public_package_entry(path)],
           "diagnostics": issues, "tag_errors": tag_errors}

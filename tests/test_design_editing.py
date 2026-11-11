@@ -5,6 +5,7 @@ import shutil
 import pytest
 from typer.testing import CliRunner
 
+from texsys.project_operations import run_project_operation
 from texsys import api
 from texsys.cli import app
 from texsys.project import initialize_project, project_write_lock
@@ -120,13 +121,13 @@ def test_api_and_direct_edit_produce_same_cold_station_artifacts(tmp_path):
   assert preview["status"] == "pass", preview
   assert api.apply_edit(project, batch, preview["plan"])["applied"] is True
   assert api.read_design(project)["document"] == direct
-  assert api.build(project, scope={"view": "system"}).status == "pass"
+  assert run_project_operation(project, "build", {"scope": {"view": "system"}})["status"] == "pass"
   diagram = project / "build/hvac/system/system.json"
   first = diagram.read_bytes()
 
   shutil.rmtree(project / "build")
   source.write_text(json.dumps(direct), encoding="utf-8")
-  assert api.build(project, scope={"view": "system"}).status == "pass"
+  assert run_project_operation(project, "build", {"scope": {"view": "system"}})["status"] == "pass"
   assert diagram.read_bytes() == first
 
 

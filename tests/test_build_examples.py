@@ -1,6 +1,7 @@
 import json
 from pathlib import Path
-import runpy
+import subprocess
+import sys
 import shutil
 
 import pytest
@@ -15,18 +16,17 @@ ROOT = Path(__file__).parents[1]
   ("system", "hvac-dynamic-station", "hvac:system-schematic"),
   ("schematic", "hvac-dynamic-station", "hvac:system-schematic"),
 ])
-def test_python_build_example_generates_requested_deliverable(tmp_path, capsys, kind, example, expected):
+def test_python_build_example_generates_requested_deliverable(tmp_path, kind, example, expected):
   project = tmp_path / "project"
   shutil.copytree(ROOT / "examples" / example, project, ignore=shutil.ignore_patterns("build"))
   (project / "build").mkdir()
   manifest = project / "texsys.toml"
   manifest.write_text(manifest.read_text().replace('"../../packages/', f'"{ROOT / "packages"}/'))
   lock_project(project)
-  namespace = runpy.run_path(str(ROOT / "examples/build-deliverables/run.py"))
-
-  code = namespace["main"]([kind, "--project", str(project)])
-
-  output = json.loads(capsys.readouterr().out)
+  result = subprocess.run([sys.executable, "-B", str(ROOT / "examples/build-deliverables/run.py"),
+                           kind, "--project", str(project)], capture_output=True, text=True, check=False)
+  code = result.returncode
+  output = json.loads(result.stdout)
   assert code == 0
   assert output["status"] == "pass"
   assert output["targets"][0]["id"] == expected
@@ -40,18 +40,17 @@ def test_python_build_example_generates_requested_deliverable(tmp_path, capsys, 
     assert document["deliverable"] == ("system-diagram" if kind == "system" else "schematic")
 
 
-def test_python_transient_example_returns_existing_artifacts(tmp_path, capsys):
+def test_python_transient_example_returns_existing_artifacts(tmp_path):
   project = tmp_path / "project"
   shutil.copytree(ROOT / "examples/hvac-dynamic-station", project, ignore=shutil.ignore_patterns("build"))
   (project / "build").mkdir()
   manifest = project / "texsys.toml"
   manifest.write_text(manifest.read_text().replace('"../../packages/', f'"{ROOT / "packages"}/'))
   lock_project(project)
-  namespace = runpy.run_path(str(ROOT / "examples/build-deliverables/run.py"))
-
-  code = namespace["main"](["transient", "--project", str(project)])
-
-  output = json.loads(capsys.readouterr().out)
+  result = subprocess.run([sys.executable, "-B", str(ROOT / "examples/build-deliverables/run.py"),
+                           "transient", "--project", str(project)], capture_output=True, text=True, check=False)
+  code = result.returncode
+  output = json.loads(result.stdout)
   assert code == 0
   assert output["status"] == "pass"
   assert output["kind"] == "transient"

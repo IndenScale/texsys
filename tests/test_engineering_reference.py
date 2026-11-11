@@ -6,6 +6,7 @@ import shutil
 
 import pytest
 
+from cli_process import ProjectCliRunner
 from texsys.dependencies import lock_project
 from texsys.engineering import (
   accept_engineering,
@@ -32,6 +33,8 @@ def _binding(value, unit="1"):
 def reference(tmp_path):
   root = tmp_path / "reference"
   initialize_project(root)
+  added = ProjectCliRunner().invoke(None, ["add", REPO / "packages/hvac-checks", "-p", root])
+  assert added.exit_code == 0, added.output
   values = {"chiller_count": (2, "1"), "per_chiller_capacity_kw": (75, "kW"),
             "air_load_count": (7, "1"), "per_air_load_kw": (15, "kW"),
             "liquid_load_count": (2, "1"), "per_liquid_load_kw": (45, "kW"),

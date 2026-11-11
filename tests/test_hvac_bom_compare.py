@@ -1,13 +1,13 @@
 import json
 from pathlib import Path
 
-from typer.testing import CliRunner
+from cli_process import ProjectCliRunner
 
 from test_hvac_bom import copied_project
 from texsys.cli import app
 from texsys_hvac_bom.compare import compare_documents
 
-runner = CliRunner()
+runner = ProjectCliRunner()
 
 
 def entry(identity, design_ids, quantity=1, capacity=100, zone="a"):

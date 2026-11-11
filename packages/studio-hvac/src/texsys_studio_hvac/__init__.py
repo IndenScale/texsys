@@ -4,13 +4,12 @@ import copy
 from pathlib import Path
 import tempfile
 
-from texsys.api import build, check, evaluate
+from texsys.project_operations import run_project_operation
 from texsys.evidence import file_digest, write_json
 from texsys.formal import _check_schema, _check_semantics, _load_json
 from texsys.project import ProjectError, inspect_project
 from texsys.studio import StudioPlugin
 from texsys.studio.runtime import Conflict, input_records, snapshot_project
-from texsys_hvac_dynamics.domain import compile_model, PhysicsUnresolved
 
 MANIFEST = {"id": "texsys:hvac", "name": "Tex Studio HVAC", "discipline": "暖通", "version": "0.1.0", "api_version": 1,
             "capabilities": ["system-view", "scene-preview", "equipment-table", "parameter-edit", "symbols", "source", "check", "build", "simulate", "results"]}
@@ -107,10 +106,11 @@ class HvacWorkbench(StudioPlugin):
       candidate = Path(directory) / "project"
       snapshot_project(root, candidate, input_records(root))
       write_json(candidate / info.source / "system.sdl.json", data)
-      try:
-        compile_model(candidate)
-      except PhysicsUnresolved:
-        pass  # Unknown/missing parameters are valid, visibly incomplete design states.
+      # The IDE contributes editing; the project's locked checker owns domain
+      # validation. Its existing check contract permits unresolved design input.
+      checked = run_project_operation(candidate, "package-check", {"packages": ["hvac-dynamics"]})
+      if checked["status"] not in {"pass", "indeterminate"}:
+        raise ProjectError("; ".join(item["message"] for item in checked["diagnostics"]))
     if file_digest(file) != before_digest:
       raise Conflict("Source changed during validation; no data was saved.")
     write_json(file, data)
@@ -135,9 +135,9 @@ class HvacWorkbench(StudioPlugin):
   def execute(self, root, action, options):
     project = inspect_project(root)
     if action == "check":
-      result = check(root).as_dict()
+      result = run_project_operation(root, "check")
       write_json(root / project.build / "studio-check.json", result)
-      return {"status": result["status"], "diagnostics": result["diagnostics"]}
+      return {"status": result["status"], "diagnostics": result["diagnostics"], "runtime": result["runtime"]}
     result_paths, conclusions = [], []
     if action == "simulate":
       scenarios = sorted((root / project.assets / "scenarios").glob("*.json"))
@@ -146,18 +146,19 @@ class HvacWorkbench(StudioPlugin):
         if options.get("scenario") not in {"all", name}:
           continue
         print(f"Solving {name} with {options.get('backend', 'scipy')}…", flush=True)
-        result = evaluate(root, file.relative_to(root), options.get("backend", "scipy"))
-        conclusions.append(result.status)
-        if result.status in {"pass", "fail"}:
-          result_paths.append(result.report.relative_to(root).as_posix())
-        print(f"{name}: {result.status}", flush=True)
+        result = run_project_operation(root, "evaluate", {
+          "scenario": file.relative_to(root).as_posix(), "backend": options.get("backend", "scipy")})
+        conclusions.append(result["status"])
+        if result["status"] in {"pass", "fail"}:
+          result_paths.append(Path(result["report"]).relative_to(root).as_posix())
+        print(f"{name}: {result['status']}", flush=True)
     for view in ("system", "schematic"):
       print(f"Building {view} drawing…", flush=True)
       scope = {"view": view}
       if result_paths:
         scope["results"] = result_paths
-      result = build(root, targets=("hvac:system-schematic",), scope=scope)
-      conclusions.append(result.status)
+      result = run_project_operation(root, "build", {"targets": ["hvac:system-schematic"], "scope": scope})
+      conclusions.append(result["status"])
     status = next((state for state in ("error", "fail", "indeterminate") if state in conclusions), "pass")
     return {"status": status, "results": result_paths}
 

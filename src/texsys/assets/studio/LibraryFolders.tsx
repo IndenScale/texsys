@@ -1,8 +1,18 @@
 import React, { useState } from "react";
-import type { LibrarySource } from "./DesignNavigation";
+import type { DesignIndex, LibrarySource } from "./DesignNavigation";
 import { t } from "./i18n";
 
 const storageKey = "texsys.studio.library-folders";
+
+/** Resolve the requested directory from the server's validated, canonical source mapping. */
+export function requestedLibrarySource(
+  index: Pick<DesignIndex, "sources" | "requested_sources">,
+  folder: string,
+): LibrarySource | undefined {
+  const matches = index.requested_sources?.filter((item) => item.folder === folder) ?? [];
+  if (matches.length !== 1) return undefined;
+  return index.sources.find((source) => source.id === matches[0].source_id);
+}
 
 export function readLibraryFolders(): string[] {
   try {

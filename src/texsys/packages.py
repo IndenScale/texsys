@@ -54,10 +54,14 @@ def installed_packages() -> tuple[TexsysPackage, ...]:
   return tuple(packages)
 
 
-def project_packages(root: Path, *, installed=None, locked_only: bool = False) -> tuple[TexsysPackage, ...]:
-  """Use locked runtime capabilities, with local workspace compatibility."""
+def project_packages(root: Path, *, installed=None, locked_only: bool = True) -> tuple[TexsysPackage, ...]:
+  """Use only the declared and verified project dependency graph.
+
+  The legacy ``installed`` / ``locked_only`` arguments cannot enable ambient
+  discovery. IDE extensions and host distributions never add project tools.
+  """
   from texsys.package_runtime import load_project_packages
-  return load_project_packages(root, installed_packages if installed is None else installed, locked_only=locked_only)
+  return load_project_packages(root)
 
 
 def runtime_status(root: Path) -> dict:

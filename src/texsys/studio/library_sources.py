@@ -2,6 +2,7 @@
 
 import hashlib
 import math
+import shlex
 from pathlib import Path
 
 import tomlkit
@@ -9,16 +10,16 @@ import tomlkit
 from texsys.dependencies import (
   LOCK_NAME,
   DependencySpec,
-  _dependency_specs,
+  _atomic_write,
   _package_digest,
-  _read_lock,
   _read_manifest,
   _read_package,
   _validate_name,
-  add_dependency,
+  lock_project,
 )
+from texsys.component_exports import component_exports, is_component_export
 from texsys.formal import _load_json
-from texsys.project import ProjectError, inspect_project
+from texsys.project import ProjectError, inspect_project, project_write_lock
 
 from .design import design_index
 
@@ -83,72 +84,82 @@ def _source(root: Path, folder: object, *, locked: bool = False) -> tuple[dict, 
   _validate_name(project.name)
   digest = _package_digest(path)
   version, _ = _read_package(DependencySpec(project.name, path, None))
+  exports = component_exports(path)
+  if not exports:
+    raise ProjectError("This package does not declare component exports; use CLI package status for general dependencies.")
   index = design_index(path, project.source)
   _model_catalog(path, project.source, index)
+  index["library"] = [item for item in index["library"]
+                      if is_component_export(item["definition"].split("#", 1)[0], exports)]
   if _package_digest(path) != digest:
     raise ProjectError("Library contents changed while reading. Refresh the library.")
+  identity = {"name": project.name, "version": version, "digest": digest}
+  for key, definition in index["definitions"].items():
+    if not key.startswith("@"):
+      definition["package_identity"] = {**identity, "entry": key}
   return {
     "id": hashlib.sha256(str(path).encode()).hexdigest(),
-    "path": str(path), "name": project.name, "version": version, "digest": digest,
+    "path": str(path), **identity, "kind": "component", "exports": list(exports),
+    "cli_hint": f"texsys add {shlex.quote(str(path))} -p {shlex.quote(str(root))}",
   }, index
 
 
 def library_index(root: Path, source: str, folders: object) -> dict:
+  root = root.expanduser().resolve()
   if not isinstance(folders, list) or len(folders) > MAX_SOURCES or not all(isinstance(path, str) for path in folders):
     raise ProjectError(f"Select at most {MAX_SOURCES} library folders.")
   index = design_index(root, source)
   _model_catalog(root, source, index)
+  # Imported definitions remain available to the instance tree, but dependency
+  # packages only enter the component browser through verified explicit exports.
+  index["library"] = [entry for entry in index["library"] if not entry["definition"].startswith("@")]
+  index.pop("dependency_sources", None)
   studio = _read_manifest(root).get("studio", {})
   references = studio.get("library_references", []) if isinstance(studio, dict) else []
-  index.update(sources=index.pop("dependency_sources", []), source_errors=[], references=[])
-  if isinstance(references, list):
-    for record in references:
-      fields = ("package", "version", "digest", "entry")
-      if isinstance(record, dict) and all(isinstance(record.get(key), str) for key in fields):
-        index["references"].append({key: record[key] for key in fields})
-  seen = {item["id"] for item in index["sources"]}
-  attached = set()
+  index.update(sources=[], requested_sources=[], source_errors=[], references=[])
+  project = inspect_project(root)
+  packages = ()
+  if (root / LOCK_NAME).exists():
+    try:
+      packages = lock_project(root, check=True).packages
+    except ProjectError as error:
+      index["source_errors"].append({"path": LOCK_NAME, "message": str(error)})
+  seen = set()
 
-  def append(folder: str, *, locked: bool = False, expected_digest: str | None = None, package=None) -> None:
+  def append(folder: str, package=None) -> str | None:
+    locked = package is not None
     try:
       metadata, external = _source(root, folder, locked=locked)
-      if expected_digest is not None and metadata["digest"] != expected_digest:
-        raise ProjectError("The synchronized library differs from its project lock.")
+      if locked and (metadata["name"], metadata["version"], metadata["digest"]) != (package.name, package.version, package.digest):
+        raise ProjectError("The synchronized component package differs from its project lock.")
     except (OSError, ValueError, ProjectError) as error:
       index["source_errors"].append({"path": folder, "message": str(error)})
       return
-    source_id = metadata["id"]
-    if package is not None:
+    if locked:
       origin = f"registry:{package.registry}:{package.name}" if package.source == "registry" else str(package.root)
       source_id = hashlib.sha256(f"{origin}@{package.version}:{package.digest}".encode()).hexdigest()
-      old_id = hashlib.sha256(str(package.root).encode()).hexdigest()
-      for identity, definition in index["definitions"].items():
-        if identity.startswith(f"@{package.name}/") and definition.get("source") == old_id:
-          definition["source"] = source_id
-      for entry in index["library"]:
-        if entry["definition"].startswith(f"@{package.name}/") and entry.get("source") == old_id:
-          entry["source"] = source_id
-      index["sources"] = [source for source in index["sources"]
-                          if source["id"] != source_id and not (source["id"] == old_id and source["digest"] == package.digest)]
       metadata.update(id=source_id, origin=package.source,
-                      registry=str(package.registry) if package.registry else None)
-    elif source_id in seen:
-      return
+                      registry=str(package.registry) if package.registry else None, cli_hint="")
+    else:
+      source_id = metadata["id"]
+    if source_id in seen:
+      return source_id
     seen.add(source_id)
-    if not locked:
-      attached.add((metadata["name"], metadata["digest"]))
     metadata["locked"] = locked
     index["sources"].append(metadata)
     source_project = inspect_project(Path(metadata["path"]))
     prefix = f"{source_project.source}/"
-    keys = {key: (f"@{package.name}/{key[len(prefix):]}" if package is not None and key.startswith(prefix)
+    keys = {key: (key if key.startswith("@") else
+                  f"@{package.name}/{key[len(prefix):]}" if locked and key.startswith(prefix)
                   else f"external:{source_id}:{key}") for key in external["definitions"]}
     for key, definition in external["definitions"].items():
-      if keys[key] in index["definitions"]:
+      target = keys[key]
+      if key.startswith("@"):
+        index["definitions"].setdefault(target, definition)
         continue
       for item in definition["instances"]:
         item["definition"] = keys.get(item["definition"])
-      index["definitions"][keys[key]] = {**definition, "source": source_id, "entry": key}
+      index["definitions"][target] = {**definition, "source": source_id, "entry": key}
     existing = {item["definition"] for item in index["library"]}
     for item in external["library"]:
       if keys[item["definition"]] in existing:
@@ -159,59 +170,79 @@ def library_index(root: Path, source: str, folders: object) -> dict:
       })
     for issue in external["diagnostics"]:
       index["diagnostics"].append({**issue, "file": f"{metadata['name']}: {issue['file']}"})
+    return source_id
 
-  for folder in folders:
-    append(folder)
-  if (root / LOCK_NAME).exists():
+  installed = {}
+  for package in packages:
+    folder = (root / project.build / "dependencies" / package.name).resolve()
     try:
-      _, packages = _read_lock(root)
-    except ProjectError as error:
-      index["source_errors"].append({"path": LOCK_NAME, "message": str(error)})
-    else:
-      project = inspect_project(root)
-      for package in packages:
-        key = (package.name, package.digest)
-        if key not in attached:
-          folder = root / project.build / "dependencies" / package.name
-          if folder.is_dir():
-            append(str(folder), locked=True, expected_digest=package.digest, package=package)
+      if not folder.is_dir() or _package_digest(folder) != package.digest:
+        continue
+      if not component_exports(folder):
+        continue
+    except (OSError, ValueError, ProjectError) as error:
+      index["source_errors"].append({"path": str(folder), "message": str(error)})
+      continue
+    installed[str(folder)] = package
+    installed[str(package.root)] = package
+    append(str(folder), package)
+  for folder in folders:
+    path = (root / Path(folder).expanduser()).resolve()
+    source_id = append(str(path), installed.get(str(path)))
+    if source_id is not None:
+      index["requested_sources"].append({"folder": folder, "source_id": source_id})
+  if isinstance(references, list):
+    locked_sources = {item["id"] for item in index["sources"] if item["locked"]}
+    public = {(definition["package_identity"]["name"], definition["package_identity"]["entry"])
+              for item in index["library"] if item.get("source") in locked_sources and item["owner"] is None
+              if "package_identity" in (definition := index["definitions"][item["definition"]])}
+    locked_by_name = {package.name: package for package in packages}
+    for record in references:
+      fields = ("package", "version", "digest", "entry")
+      if not isinstance(record, dict) or not all(isinstance(record.get(key), str) for key in fields):
+        continue
+      package = locked_by_name.get(record["package"])
+      state = "missing" if package is None or (record["package"], record["entry"]) not in public else (
+        "current" if (record["version"], record["digest"]) == (package.version, package.digest) else "needs-review")
+      index["references"].append({**{key: record[key] for key in fields}, "state": state})
   return index
 
 
 def reference_library_entry(root: Path, request: dict) -> dict:
-  metadata, index = _source(root, request.get("folder"))
-  if request.get("digest") != metadata["digest"]:
-    raise ProjectError("Library contents changed. Refresh the library before referencing this entry.")
-  entry = request.get("entry")
-  item = next((item for item in index["library"] if item["definition"] == entry), None)
-  if item is None or item["owner"] is not None:
-    raise ProjectError("Select a public library entry.")
-  name, path, version, digest = (metadata[key] for key in ("name", "path", "version", "digest"))
-  if (root / LOCK_NAME).exists():
-    _, packages = _read_lock(root)
-    if any(item.name == name and item.source == "registry" for item in packages):
-      raise ProjectError("This package is managed by its registry. Use package management to change its version.")
-  record = {"package": name, "version": version, "digest": digest, "entry": entry, "kind": item["kind"]}
-  previous_digest = request.get("previous_digest")
-  if previous_digest is not None and (not isinstance(previous_digest, str) or previous_digest == digest):
-    raise ProjectError("The previous library version is invalid. Refresh the library.")
-
-  def record_reference(document, result):
-    selected = next(package for package in result.packages if package.name == name)
-    if selected.digest != digest:
+  """Record selection from installed component exports without changing dependencies."""
+  root = root.expanduser().resolve()
+  with project_write_lock(root):
+    if not (root / LOCK_NAME).is_file():
+      raise ProjectError("Import the component package with texsys add and texsys sync before selecting a component.")
+    packages = lock_project(root, check=True).packages
+    folder = request.get("folder")
+    if not isinstance(folder, str) or not folder.strip():
+      raise ProjectError("Select an installed component package.")
+    path = (root / Path(folder).expanduser()).resolve()
+    project = inspect_project(root)
+    selected = next((package for package in packages
+                     if path in {package.root, (root / project.build / "dependencies" / package.name).resolve()}), None)
+    if selected is None:
+      raise ProjectError("Import this component package with texsys add and texsys sync; component selection does not install packages.")
+    installed = root / project.build / "dependencies" / selected.name
+    if not installed.is_dir() or _package_digest(installed) != selected.digest:
+      raise ProjectError("Run texsys sync before selecting a component from this package.")
+    metadata, index = _source(root, str(path), locked=True)
+    if ((metadata["name"], metadata["version"], metadata["digest"]) != (selected.name, selected.version, selected.digest)
+        or request.get("digest") != selected.digest):
       raise ProjectError("Library contents changed. Refresh the library before referencing this entry.")
-    for dependency in _dependency_specs(_read_manifest(root), root):
-      if dependency.name == name and dependency.root != selected.root and previous_digest is None:
-        raise ProjectError(f"The project already uses a different library named '{name}'.")
-    if (root / LOCK_NAME).exists():
-      _, locked = _read_lock(root)
-      current = {package.name: package for package in result.packages}
-      for package in locked:
-        if package.name == name and package.digest == previous_digest:
-          continue
-        replacement = current.get(package.name)
-        if replacement is None or (replacement.root, replacement.digest) != (package.root, package.digest):
-          raise ProjectError(f"Project dependency '{package.name}' changed. Review dependencies before adding a reference.")
+    entry = request.get("entry")
+    item = next((item for item in index["library"] if item["definition"] == entry), None)
+    if item is None or item["owner"] is not None:
+      raise ProjectError("Select a public exported component entry.")
+    name, version, digest = selected.name, selected.version, selected.digest
+    record = {"package": name, "version": version, "digest": digest, "entry": entry, "kind": item["kind"]}
+    previous_digest = request.get("previous_digest")
+    if previous_digest is not None and (not isinstance(previous_digest, str) or previous_digest == digest):
+      raise ProjectError("The previous component reference is invalid. Refresh the library.")
+    manifest = root / "texsys.toml"
+    before = manifest.read_text(encoding="utf-8")
+    document = tomlkit.parse(before)
     studio = document.setdefault("studio", tomlkit.table())
     if not isinstance(studio, dict):
       raise ProjectError("studio must be a table.")
@@ -221,18 +252,19 @@ def reference_library_entry(root: Path, request: dict) -> dict:
     if previous_digest is not None:
       matching = [value for value in references if value.get("package") == name]
       if not matching or any(value.get("digest") != previous_digest for value in matching):
-        raise ProjectError("Project library references changed. Refresh the library.")
+        raise ProjectError("Project component references changed. Refresh the library.")
       public = {(item["definition"], item["kind"]) for item in index["library"] if item["owner"] is None}
       for value in matching:
         if (value.get("entry"), value.get("kind")) not in public:
-          raise ProjectError(f"Referenced entry is absent from the new library: {value.get('entry')}")
+          raise ProjectError(f"Referenced entry is absent from the installed package: {value.get('entry')}")
         value["version"] = version
         value["digest"] = digest
     else:
       if any(value.get("package") == name and value.get("digest") != digest for value in references):
-        raise ProjectError("Update the project library explicitly before referencing another entry.")
+        raise ProjectError("Review the project component references after the CLI dependency update.")
       if record not in references:
         references.append(tomlkit.item(record))
-
-  add_dependency(root, Path(path), version, on_resolved=record_reference)
+    if manifest.read_text(encoding="utf-8") != before or _package_digest(installed) != digest or _package_digest(path) != digest:
+      raise ProjectError("Component selection inputs changed; refresh before retrying.")
+    _atomic_write(manifest, tomlkit.dumps(document))
   return record

@@ -1,7 +1,7 @@
 import json
 
 from texsys.editing import plan_edit, read_design
-from texsys.dependencies import lock_project
+from texsys.dependencies import lock_project, sync_project
 from texsys.formal import check_project
 from texsys.project import initialize_project
 from texsys.studio.design import design_index
@@ -97,6 +97,8 @@ def test_locked_module_import_preserves_private_scope_and_detects_drift(tmp_path
   (library / "src/system.sdl.json").unlink()
   manifest = library / "texsys.toml"
   manifest.write_text(manifest.read_text().replace('name = "equipment"', 'name = "equipment"\nversion = "0.1.0"'))
+  with manifest.open("a") as stream:
+    stream.write('\n[package]\nkind = "component"\n[package.exports]\ncomponents = ["src/library"]\n')
   project = tmp_path / "station"
   initialize_project(project)
   manifest = project / "texsys.toml"
@@ -104,8 +106,9 @@ def test_locked_module_import_preserves_private_scope_and_detects_drift(tmp_path
     stream.write('\n[dependencies]\nequipment = { path = "../equipment", version = "0.1.0" }\n')
   use = {"instances": {"Group": {"component": "Imported"}}}
   write_sdl(project, "system.sdl.json", "Station", use, {"Imported": f"@equipment/{GROUP}"})
-  assert check_project(project).status == "fail"
+  assert check_project(project).status == "error"
   lock_project(project)
+  sync_project(project)
   assert check_project(project).status == "pass"
   index = library_index(project, "src", [str(library)])
   assert len(index["sources"]) == 1 and index["sources"][0]["locked"]

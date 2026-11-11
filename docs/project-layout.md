@@ -66,7 +66,7 @@ build = "build"
 | 实现环境锁文件 | `uv.lock`、`package-lock.json`   |
 | 设计依赖锁     | `texsys.lock`                    |
 
-这些文件不是 `texsys.toml` 的替代品。Python／Node 文件描述实现环境；`texsys.toml` 的 `[dependencies]` 声明设计依赖，`texsys.lock` 固定完整解析结果。支持本地开发路径包和本机／共享目录 registry 中的不可变版本包；前者规则见 [ADR-0006](adr/0006-design-dependency-management.md)，可迁移能力包由 [ADR-0024](adr/0024-portable-capability-packages.md) 扩展。
+这些文件不是 `texsys.toml` 的替代品。Python／Node 文件描述实现环境；`texsys.toml` 的 `[dependencies]` 声明设计依赖，`texsys.lock` 固定完整解析结果。支持本地开发路径包和本机／共享目录 registry 中的不可变版本包；前者规则见 [ADR-0006](adr/0006-design-dependency-management.md)，可迁移能力包由 [ADR-0024](adr/0024-portable-capability-packages.md) 扩展，CLI 导入、部件分类及 IDE 隔离遵循 [ADR-0025](adr/0025-package-component-ide-boundaries.md)。
 
 ```bash
 uv run texsys add ../package
@@ -110,3 +110,5 @@ uv run texsys remove package
 - 可选依赖或锁文件缺失只表示未识别，不表示项目无效。
 
 `init` 在已初始化项目上重跑时补齐缺失目录；没有需要创建的内容时报告 `No changes needed`。已有清单必须可读取且使用受支持的布局，发生冲突时停止，不覆盖原文件。
+
+项目依赖声明直接在通用文本编辑器中查看和修改，CLI 负责导入、锁定与同步。Studio 不提供专用依赖 activity 或页面，部件引用只消费已导入的明确部件导出；IDE 插件的安装与实现依赖不进入项目锁。`module.toml` 是部件内部资产清单，发布身份以外层包名称、版本和导出入口为准。

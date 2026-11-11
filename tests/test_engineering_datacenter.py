@@ -15,7 +15,7 @@ from texsys.engineering import (
   run_engineering,
 )
 from texsys.project import ProjectError
-from texsys_datacenter.engineering import DESIGN_SCENARIOS, FwsChangeAdapter
+from texsys_datacenter.engineering import DESIGN_SCENARIOS
 
 
 REPO = Path(__file__).parents[1]
@@ -102,7 +102,7 @@ def test_expected_regression_failures_do_not_turn_a_shortage_into_an_engineering
   for scenario in data["scenarios"].values():
     scenario["expected"] = "fail"
   path.write_text(json.dumps(data))
-  result = FwsChangeAdapter().evaluate(fws_project)
+  result = run_engineering(fws_project, ADAPTER)["result"]
   assert result["execution"] == "completed"
   assert result["verification"] == "pass"
   assert result["assessment"] == "fail"
@@ -123,7 +123,7 @@ def test_evaluation_profile_keeps_geometry_conflicts_visible(fws_project):
   data = json.loads(path.read_text())
   data["trains"]["HeatRejection-B"]["legs"]["supply"]["overhead_m"] = 3.35
   path.write_text(json.dumps(data))
-  result = FwsChangeAdapter().evaluate(fws_project)
+  result = run_engineering(fws_project, ADAPTER)["result"]
   geometry = next(check for check in result["checks"] if check["id"] == "fws:geometry")
   assert geometry["status"] == "fail" and geometry["actual"] > 0
   assert geometry["evidence"]
@@ -153,7 +153,7 @@ def test_named_scenario_cannot_claim_an_unmodeled_outage_or_phase(fws_project, c
     unit["scenarios"]["supply-a-out"]["unavailable"] = []
     unit_path.write_text(json.dumps(unit))
   path.write_text(json.dumps(data))
-  result = FwsChangeAdapter().evaluate(fws_project)
+  result = run_engineering(fws_project, ADAPTER)["result"]
   assert result["execution"] == "completed"
   assert result["assessment"] == "indeterminate"
   assert not result["scope_verified"] and "工况范围未成立" in result["scope"]

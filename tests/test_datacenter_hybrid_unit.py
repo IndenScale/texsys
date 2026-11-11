@@ -6,7 +6,7 @@ import shutil
 from pxr import Gf, Usd, UsdGeom
 import pytest
 
-from texsys.api import build
+from project_process import build_project as build
 from texsys.dependencies import lock_project
 from texsys.usd_brep import _prim_name
 from texsys_electrical.protection import Breaker, CircuitSection, FaultSource, Impedance, SourceCondition, check_radial_fault

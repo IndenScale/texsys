@@ -3,8 +3,9 @@ from io import BytesIO
 from types import SimpleNamespace
 
 import pytest
+import tomllib
 
-from texsys.dependencies import lock_project
+from texsys.dependencies import add_dependency, lock_project
 from texsys.project import ProjectError, initialize_project
 from texsys.studio import server
 from texsys.studio.design import design_index
@@ -64,6 +65,7 @@ def create_vendor(root, version="1.0"):
   catalog.write_text(json.dumps({"schema_version": 1, "models": {
     "pump-80": {"family": "Chilled water pump", "manufacturer": root.name, "model": "P-80"},
   }}))
+  write_manifest(root, '\n[package]\nkind = "component"\n[package.exports]\ncomponents = ["src/library"]\n')
   return catalog
 
 
@@ -86,46 +88,71 @@ def test_external_library_browse_keeps_sources_distinct_and_does_not_change_proj
   assert not (project / "texsys.lock").exists()
 
 
-def test_library_reference_pins_reviewed_entry_and_updates_only_explicitly(tmp_path):
+def test_requested_library_source_maps_exact_folder_with_existing_dependencies(tmp_path):
+  project, installed, external, rules = (tmp_path / name for name in ("project", "installed", "external", "rules"))
+  initialize_project(project)
+  create_vendor(installed)
+  create_vendor(external)
+  initialize_project(rules)
+  write_manifest(rules, '\n[package]\nkind = "capability"\n')
+  add_dependency(project, installed, "1.0")
+  before = (project / "texsys.toml").read_bytes(), (project / "texsys.lock").read_bytes()
+  requested = ["../external", str(installed), "../missing", str(rules), str(external)]
+  index = library_index(project, "src", requested)
+  sources = {item["name"]: item["id"] for item in index["sources"]}
+  assert [item["name"] for item in index["sources"]] == ["installed", "external"]
+  assert index["requested_sources"] == [
+    {"folder": "../external", "source_id": sources["external"]},
+    {"folder": str(installed), "source_id": sources["installed"]},
+    {"folder": str(external), "source_id": sources["external"]},
+  ]
+  assert len(index["source_errors"]) == 2
+  assert before == ((project / "texsys.toml").read_bytes(), (project / "texsys.lock").read_bytes())
+
+
+def test_library_selection_requires_cli_import_and_never_updates_dependencies(tmp_path):
   project, vendor = tmp_path / "project", tmp_path / "vendor"
   initialize_project(project)
-  catalog = create_vendor(vendor)
+  create_vendor(vendor)
   old = library_index(project, "src", [str(vendor)])["sources"][0]
+  assert not old["locked"] and "texsys add" in old["cli_hint"]
   request = {"folder": str(vendor), "digest": old["digest"], "entry": "src/library/models.json#pump-80"}
+  before = (project / "texsys.toml").read_bytes()
+  with pytest.raises(ProjectError, match="texsys add"):
+    reference_library_entry(project, request)
+  assert (project / "texsys.toml").read_bytes() == before
+  assert not (project / "texsys.lock").exists()
+
+  add_dependency(project, vendor, "1.0")
+  locked = (project / "texsys.lock").read_bytes()
+  declarations = tomllib.loads((project / "texsys.toml").read_text())["dependencies"]
   reference_library_entry(project, request)
+  selected = (project / "texsys.toml").read_bytes()
   reference_library_entry(project, request)
+  assert selected == (project / "texsys.toml").read_bytes()
+  assert (project / "texsys.lock").read_bytes() == locked
+  assert tomllib.loads(selected.decode())["dependencies"] == declarations
   lock_project(project, check=True)
-  index = library_index(project, "src", [])
-  assert index["sources"][0]["locked"]
-  assert len(index["references"]) == 1
+  index = library_index(project, "src", [str(vendor)])
+  assert len(index["sources"]) == 1 and index["sources"][0]["locked"]
+  assert len(index["references"]) == 1 and index["references"][0]["state"] == "current"
 
   manifest = vendor / "texsys.toml"
   manifest.write_text(manifest.read_text().replace('version = "1.0"', 'version = "2.0"'))
-  with pytest.raises(ProjectError, match="contents changed"):
+  with pytest.raises(ProjectError):
     reference_library_entry(project, request)
-  latest = library_index(project, "src", [str(vendor)])["sources"][0]
-  before = (project / "texsys.lock").read_bytes()
-  request["digest"] = latest["digest"]
-  with pytest.raises(ProjectError, match="dependency 'vendor' changed"):
-    reference_library_entry(project, request)
-  assert (project / "texsys.lock").read_bytes() == before
-
-  request["previous_digest"] = old["digest"]
-  catalog.write_text('{"schema_version": 1, "models": {}}')
-  request["digest"] = library_index(project, "src", [str(vendor)])["sources"][0]["digest"]
-  with pytest.raises(ProjectError, match="public library entry"):
-    reference_library_entry(project, request)
-  assert (project / "texsys.lock").read_bytes() == before
-
-  catalog.write_text(json.dumps({"schema_version": 1, "models": {
-    "pump-80": {"family": "Pump", "manufacturer": "vendor", "model": "P-80"},
-  }}))
-  request["digest"] = library_index(project, "src", [str(vendor)])["sources"][0]["digest"]
-  reference_library_entry(project, request)
-  lock_project(project, check=True)
+  assert (project / "texsys.lock").read_bytes() == locked
+  add_dependency(project, vendor, "2.0")
+  locked = (project / "texsys.lock").read_bytes()
   index = library_index(project, "src", [])
-  assert [(source["version"], source["locked"]) for source in index["sources"]] == [("2.0", True)]
-  assert [record["digest"] for record in index["references"]] == [request["digest"]]
+  assert index["references"][0]["state"] == "needs-review"
+  request["digest"] = index["sources"][0]["digest"]
+  with pytest.raises(ProjectError, match="Review the project component references"):
+    reference_library_entry(project, request)
+  request["previous_digest"] = old["digest"]
+  reference_library_entry(project, request)
+  assert (project / "texsys.lock").read_bytes() == locked
+  assert library_index(project, "src", [])["references"][0]["state"] == "current"
 
 
 def test_library_api_requires_session_and_exposes_locked_reference(tmp_path, monkeypatch):
@@ -160,6 +187,7 @@ def test_library_api_requires_session_and_exposes_locked_reference(tmp_path, mon
     assert request(operation, authorized=False)[0] == 403
     status, index = request(operation)
     assert status == 200 and not index["references"]
+    add_dependency(project, vendor, "1.0")
     status, record = request({"action": "reference", "folder": str(vendor),
                               "digest": index["sources"][0]["digest"], "entry": "src/library/models.json#pump-80"})
     assert status == 200 and record["version"] == "1.0"

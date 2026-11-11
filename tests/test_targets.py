@@ -60,7 +60,7 @@ def test_explicit_target_builds_only_selected_contract(tmp_path: Path, monkeypat
   root = copied_project(tmp_path)
   calls = []
   package = FakePackage((definition("demo:a", calls), definition("demo:b", calls)))
-  monkeypatch.setattr("texsys.execution.installed_packages", lambda: (package,))
+  monkeypatch.setattr("texsys.execution.project_packages", lambda root: (package,))
 
   result = build_project(root, ("demo:a",), scope={"zone": "plant"})
 
@@ -93,7 +93,7 @@ def test_build_reports_input_changes_and_marks_outputs_partial(tmp_path, monkeyp
     return TargetResult("pass", (Artifact("data", "build/data.json"),))
 
   package = FakePackage((TargetDefinition("demo:a", "fake", "1.2.3", build),))
-  monkeypatch.setattr("texsys.execution.installed_packages", lambda: (package,))
+  monkeypatch.setattr("texsys.execution.project_packages", lambda root: (package,))
   result = build_project(root, ("demo:a",))
   report = json.loads(result.report.read_text())
   assert result.status == report["status"] == "error"
@@ -116,7 +116,7 @@ def test_build_rejects_old_lock_after_direct_removal_of_all_dependencies(tmp_pat
   project_manifest.write_bytes(initial_manifest)
 
   target = FakePackage((definition("demo:a", []),))
-  monkeypatch.setattr("texsys.execution.installed_packages", lambda: (target,))
+  monkeypatch.setattr("texsys.execution.project_packages", lambda root: (target,))
   with pytest.raises(ProjectError, match="out of date"):
     build_project(root, ("demo:a",))
 
@@ -137,7 +137,7 @@ def test_default_targets_resolve_dependencies_once_in_order(tmp_path: Path, monk
       definition("demo:c", calls),
     )
   )
-  monkeypatch.setattr("texsys.execution.installed_packages", lambda: (package,))
+  monkeypatch.setattr("texsys.execution.project_packages", lambda root: (package,))
 
   result = build_project(root)
 
@@ -155,8 +155,8 @@ def test_stage_binding_resolves_default_targets(tmp_path: Path, monkeypatch) -> 
   )
   calls = []
   monkeypatch.setattr(
-    "texsys.execution.installed_packages",
-    lambda: (FakePackage((definition("demo:a", calls),)),),
+    "texsys.execution.project_packages",
+    lambda root: (FakePackage((definition("demo:a", calls),)),),
   )
 
   result = build_project(root)
@@ -175,7 +175,7 @@ def test_target_resolution_rejects_missing_unknown_cycle_and_profile(tmp_path: P
       definition("demo:c", calls),
     )
   )
-  monkeypatch.setattr("texsys.execution.installed_packages", lambda: (package,))
+  monkeypatch.setattr("texsys.execution.project_packages", lambda root: (package,))
 
   with pytest.raises(ProjectError, match="No build target selected"):
     build_project(root)
@@ -194,7 +194,7 @@ def test_target_failure_is_structured_build_error(tmp_path: Path, monkeypatch) -
     raise ValueError("backend failed")
 
   package = FakePackage((TargetDefinition("demo:broken", "fake", "1.2.3", broken),))
-  monkeypatch.setattr("texsys.execution.installed_packages", lambda: (package,))
+  monkeypatch.setattr("texsys.execution.project_packages", lambda root: (package,))
 
   result = build_project(root, ("demo:broken",))
 
@@ -208,7 +208,7 @@ def test_cli_accepts_repeatable_target_profile_and_scope(tmp_path: Path, monkeyp
   root = copied_project(tmp_path)
   calls = []
   package = FakePackage((definition("demo:a", calls), definition("demo:b", calls)))
-  monkeypatch.setattr("texsys.execution.installed_packages", lambda: (package,))
+  monkeypatch.setattr("texsys.execution.project_packages", lambda root: (package,))
 
   result = runner.invoke(
     app,

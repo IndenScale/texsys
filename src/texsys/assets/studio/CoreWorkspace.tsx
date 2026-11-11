@@ -37,7 +37,12 @@ import {
   type DesignView,
   type LibrarySource,
 } from "./DesignNavigation";
-import { LibraryFolders, readLibraryFolders, saveLibraryFolders } from "./LibraryFolders";
+import {
+  LibraryFolders,
+  readLibraryFolders,
+  requestedLibrarySource,
+  saveLibraryFolders,
+} from "./LibraryFolders";
 import { FileIcon } from "./FileIcon";
 import { EditorActionButton } from "./EditorActionButton";
 import { ToolbarButton } from "./ToolbarButton";
@@ -62,17 +67,9 @@ import { isSourceEditCommand, type EditorMenuCommand, type CommandItem } from ".
 import { Settings, type TitlebarSettings } from "./Settings";
 import { Keycaps } from "./Keycaps";
 import { EngineeringDocument } from "./EngineeringDocument";
-import { PackageDocument } from "./PackageDocument";
 
 type Activity =
-  | "explorer"
-  | "search"
-  | "scm"
-  | "extensions"
-  | "library"
-  | "instances"
-  | "engineering"
-  | "packages";
+  "explorer" | "search" | "scm" | "extensions" | "library" | "instances" | "engineering";
 function isCoreActivity(id: string): id is Activity {
   return coreItems.some((item) => item.id === id);
 }
@@ -88,7 +85,6 @@ type Document = {
   cursorLine?: number;
   design?: { selection: DesignSelection; view: DesignView };
   engineering?: boolean;
-  packages?: boolean;
   untitled?: string;
 };
 type FileRequest = {
@@ -121,14 +117,12 @@ const coreItems: { id: Activity; label: string; icon: string; shortcutKey?: stri
   { id: "explorer", label: "文件资源管理器", icon: "files", shortcutKey: "E" },
   { id: "search", label: "搜索", icon: "search", shortcutKey: "F" },
   { id: "scm", label: "源代码管理", icon: "branch", shortcutKey: "G" },
-  { id: "packages", label: "包管理", icon: "module" },
   { id: "extensions", label: "扩展", icon: "extensions" },
   { id: "library", label: "部件库", icon: "library" },
   { id: "instances", label: "项目实例", icon: "system" },
 ];
 const coreSidebarTitles: Record<Activity, string> = {
   engineering: "工程变更",
-  packages: "包管理",
   explorer: "文件资源管理器",
   search: "搜索",
   scm: "源代码管理",
@@ -319,7 +313,7 @@ export function CoreWorkspaceProvider({
   }
   async function addLibraryFolder(path: string) {
     const index = await api<DesignIndex>("/api/library", { action: "index", folders: [path] });
-    const source = index.sources[0];
+    const source = requestedLibrarySource(index, path);
     if (!source) throw new Error(index.source_errors[0]?.message ?? t("无法读取库目录"));
     if (libraryFolders.includes(source.path)) throw new Error(t("此库目录已经添加。"));
     if (libraryFolders.length >= 16) throw new Error(t("最多可添加 16 个库目录。"));
@@ -455,7 +449,6 @@ export function CoreWorkspaceProvider({
     activeTab === "source" &&
     !active?.design &&
     !active?.engineering &&
-    !active?.packages &&
     !active?.untitled &&
     !active?.loading &&
     !active?.error
@@ -514,7 +507,6 @@ export function CoreWorkspaceProvider({
     !!active &&
     !active.design &&
     !active.engineering &&
-    !active.packages &&
     !active.loading &&
     !active.error &&
     !active.reason &&
@@ -637,20 +629,6 @@ export function CoreWorkspaceProvider({
         : [...previous, { path, saved: "", content: "", version: "", engineering: true }],
     );
   }
-  function openPackages(recordHistory = true) {
-    const path = "\0packages";
-    setSettingsActive(false);
-    setSearchEditorActive(false);
-    setDiffActive(false);
-    setActivePath(path);
-    setDocumentActive(true);
-    if (recordHistory) setHistory((previous) => visitDocument(previous, path));
-    setDocuments((previous) =>
-      previous.some((item) => item.path === path)
-        ? previous
-        : [...previous, { path, saved: "", content: "", version: "", packages: true }],
-    );
-  }
   const openFile = async (
     path: string,
     {
@@ -665,10 +643,6 @@ export function CoreWorkspaceProvider({
       fromDiskSearch?: boolean;
     } = {},
   ) => {
-    if (path === "\0packages") {
-      openPackages(recordHistory);
-      return;
-    }
     if (path === "\0engineering") {
       openEngineering(recordHistory);
       return;
@@ -1554,13 +1528,6 @@ export function CoreWorkspaceProvider({
           <span>{t("打开工程变更")}</span>
         </button>
       </NavigatorPage>
-      <NavigatorPage hidden={activity !== "packages"} aria-label={t("包管理")}>
-        <p className="core-hint">{t("安装、同步和更新项目使用的工程能力包。")}</p>
-        <button className="core-activity-row" onClick={() => openPackages()}>
-          <Icon name="module" />
-          <span>{t("打开包管理")}</span>
-        </button>
-      </NavigatorPage>
       <NavigatorPage hidden={activity !== "extensions"} aria-label={t("已加载的扩展")}>
         {state.plugins.length ? (
           <ul className="core-activity-list">
@@ -1933,28 +1900,22 @@ export function CoreWorkspaceProvider({
         const module = designIndex?.library.some(
           (item) => item.kind === "modules" && item.definition === scope?.key,
         );
-        const title = document.packages
-          ? t("包管理")
-          : document.engineering
-            ? t("工程变更")
-            : selection
-              ? (("occurrence" in selection ? selection.occurrence.at(-1) : undefined) ??
-                scope?.definition?.name ??
-                t("模型"))
-              : (document.untitled ?? document.path.split("/").pop());
+        const title = document.engineering
+          ? t("工程变更")
+          : selection
+            ? (("occurrence" in selection ? selection.occurrence.at(-1) : undefined) ??
+              scope?.definition?.name ??
+              t("模型"))
+            : (document.untitled ?? document.path.split("/").pop());
         return (
           <DocumentTab
             key={document.path}
             selected={activeTab === "source" && activePath === document.path}
             tabStop={tabStop === "source" && activePath === document.path}
-            title={
-              document.packages || document.engineering || selection || document.untitled
-                ? title
-                : document.path
-            }
+            title={document.engineering || selection || document.untitled ? title : document.path}
             closeLabel={t("关闭 {0}", {
               "0":
-                document.packages || document.engineering || selection
+                document.engineering || selection
                   ? (title ?? "")
                   : (document.untitled ?? document.path),
             })}
@@ -1966,7 +1927,6 @@ export function CoreWorkspaceProvider({
                 !document.untitled &&
                 !document.design &&
                 !document.engineering &&
-                !document.packages &&
                 !document.loading &&
                 !document.error
               )
@@ -1979,9 +1939,7 @@ export function CoreWorkspaceProvider({
               setDiffActive(false);
             }}
           >
-            {document.packages ? (
-              <Icon name="module" size={14} />
-            ) : document.engineering ? (
+            {document.engineering ? (
               <Icon name="compare" size={14} />
             ) : selection ? (
               <Icon name={module ? "module" : "system"} size={14} />
@@ -2056,7 +2014,7 @@ export function CoreWorkspaceProvider({
     diff && !diff.historical ? gitPathInProject(diff.path, gitStatus?.project_prefix) : undefined;
   const activeDirty = !!active && active.content !== active.saved;
   const designEntry =
-    designIndex && active && !active.design && !active.engineering && !active.packages
+    designIndex && active && !active.design && !active.engineering
       ? [
           designIndex.root,
           ...designIndex.library.filter((item) => !item.source).map((item) => item.definition),
@@ -2075,7 +2033,6 @@ export function CoreWorkspaceProvider({
   ) : active &&
     !active.design &&
     !active.engineering &&
-    !active.packages &&
     !active.loading &&
     !active.error &&
     !active.reason ? (
@@ -2170,7 +2127,7 @@ export function CoreWorkspaceProvider({
         </div>
       </div>
     </div>
-  ) : active.engineering || active.packages ? null : active.design ? (
+  ) : active.engineering ? null : active.design ? (
     designIndex ? (
       <DesignDocument
         index={designIndex}
@@ -2300,12 +2257,7 @@ export function CoreWorkspaceProvider({
       <div className="core-heading">
         <strong>{t("文件属性")}</strong>
       </div>
-      {active &&
-      !active.design &&
-      !active.engineering &&
-      !active.packages &&
-      !diffActive &&
-      !searchEditorActive ? (
+      {active && !active.design && !active.engineering && !diffActive && !searchEditorActive ? (
         <dl>
           <dt>{t("路径")}</dt>
           <dd>{active.untitled ?? active.path}</dd>
@@ -2337,10 +2289,7 @@ export function CoreWorkspaceProvider({
       <>
         <div
           className="core-editor-page"
-          hidden={
-            settingsActive ||
-            ((!!active?.engineering || !!active?.packages) && !searchEditorActive && !diffActive)
-          }
+          hidden={settingsActive || (!!active?.engineering && !searchEditorActive && !diffActive)}
         >
           {editorContent}
         </div>
@@ -2358,21 +2307,6 @@ export function CoreWorkspaceProvider({
               hasUnsaved={dirty}
               designIndex={designIndexRevision === state.project.revision ? designIndex : undefined}
               openDesign={openDesign}
-            />
-          </div>
-        )}
-        {documents.some((item) => item.packages) && (
-          <div
-            className="core-editor-page"
-            hidden={settingsActive || !active?.packages || searchEditorActive || diffActive}
-          >
-            <PackageDocument
-              key={state.project.path}
-              api={api}
-              refresh={refresh}
-              revision={state.project.revision}
-              hasUnsaved={dirty}
-              openFile={(path) => void openFile(path)}
             />
           </div>
         )}
@@ -2405,7 +2339,13 @@ export function CoreWorkspaceProvider({
           onDismiss={() => setExplorerMenu(undefined)}
         />
       )}
-      {(form || closePath || revertPath || linePrompt || showShortcuts || diskComparison) && (
+      {(form ||
+        closePath ||
+        revertPath ||
+        linePrompt ||
+        showShortcuts ||
+        diskComparison ||
+        libraryDialog) && (
         <DialogLayer
           cancel={() => {
             if (!busy) {
@@ -2415,6 +2355,7 @@ export function CoreWorkspaceProvider({
               setLinePrompt(undefined);
               setShowShortcuts(false);
               setDiskComparison(undefined);
+              setLibraryDialog(false);
             }
           }}
         >

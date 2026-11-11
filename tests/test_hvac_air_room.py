@@ -1,12 +1,14 @@
 import json
 from pathlib import Path
 import shutil
+import tomllib
 import xml.etree.ElementTree as ET
 
 from pxr import Usd, UsdGeom
 import pytest
+from cli_process import ProjectCliRunner
 
-from texsys.api import build
+from project_process import build_project as build
 from texsys.dependencies import lock_project, sync_project
 from texsys.project import initialize_project
 from texsys.studio.library_sources import library_index, reference_library_entry
@@ -110,6 +112,9 @@ def test_air_room_reports_obstructed_aisle_and_insufficient_backup_airflow(air_r
 
 
 def test_air_room_is_a_versioned_library_source_with_syncable_module_assets(air_room, tmp_path):
+  # Publishing this example's reusable definitions is an explicit package role.
+  with (air_room / "texsys.toml").open("a") as manifest:
+    manifest.write('\n[package]\nkind = "component"\n[package.exports]\ncomponents = ["src/library"]\n')
   consumer = tmp_path / "consumer"
   initialize_project(consumer)
   index = library_index(consumer, "src", [str(air_room), str(REPO / "packages/structure")])
@@ -118,7 +123,13 @@ def test_air_room_is_a_versioned_library_source_with_syncable_module_assets(air_
   assert all(item["kind"] == "modules" for item in index["library"])
   source = next(item for item in index["sources"] if item["name"] == "hvac-air-cooled-room")
   entry = "src/library/modules/rack-42u/rack-42u.sdl.json#Rack42U"
+  imported = ProjectCliRunner().invoke(None, ["add", str(air_room), "-p", str(consumer)])
+  assert imported.exit_code == 0, imported.output
+  locked = (consumer / "texsys.lock").read_bytes()
+  dependencies = tomllib.loads((consumer / "texsys.toml").read_text())["dependencies"]
   reference_library_entry(consumer, {"folder": str(air_room), "digest": source["digest"], "entry": entry})
+  assert (consumer / "texsys.lock").read_bytes() == locked
+  assert tomllib.loads((consumer / "texsys.toml").read_text())["dependencies"] == dependencies
   lock_project(consumer, check=True)
   sync_project(consumer)
   asset = consumer / "build/dependencies/hvac-air-cooled-room/src/library/modules/rack-42u/assets/geometry.usda"

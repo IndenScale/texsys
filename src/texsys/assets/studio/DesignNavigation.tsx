@@ -54,6 +54,8 @@ export type LibrarySource = {
   version: string;
   digest: string;
   locked: boolean;
+  kind?: "component";
+  cli_hint?: string;
 };
 type SaveLibraryReference = (
   source: LibrarySource,
@@ -68,6 +70,7 @@ export type DesignIndex = {
   tag_errors: string[];
   instance_tags: Record<string, CatalogTags>;
   sources: LibrarySource[];
+  requested_sources?: { folder: string; source_id: string }[];
   source_errors: { path: string; message: string }[];
   references: { package: string; version: string; digest: string; entry: string }[];
 };
@@ -485,7 +488,7 @@ export function DesignDocument({
   const source = index.sources.find((item) => item.id === definition.source);
   const libraryItem = index.library.find((item) => item.definition === scope.key);
   const reference =
-    source && !source.locked && definition.entry && libraryItem?.owner === null ? (
+    source && definition.entry && libraryItem?.owner === null ? (
       <LibraryReference
         key={scope.key + source.digest}
         entry={definition.entry}
@@ -718,7 +721,7 @@ function LibraryReference({
   save: SaveLibraryReference;
 }) {
   const [busy, setBusy] = useState(false);
-  const [confirmUpdate, setConfirmUpdate] = useState(false);
+  const [confirmReview, setConfirmReview] = useState(false);
   const [error, setError] = useState("");
   const pinned = references.some(
     (item) => item.package === source.name && item.entry === entry && item.digest === source.digest,
@@ -726,6 +729,13 @@ function LibraryReference({
   const previous = references.find(
     (item) => item.package === source.name && item.digest !== source.digest,
   );
+  if (!source.locked)
+    return (
+      <div className="core-hint">
+        <p>{t("此部件包尚未按当前版本导入项目。请先在终端导入，再刷新部件库。")}</p>
+        {source.cli_hint && <code>{source.cli_hint}</code>}
+      </div>
+    );
   return (
     <div>
       {pinned ? (
@@ -736,15 +746,15 @@ function LibraryReference({
           className="core-design-source"
           disabled={busy}
           onClick={async () => {
-            if (previous && !confirmUpdate) {
-              setConfirmUpdate(true);
+            if (previous && !confirmReview) {
+              setConfirmReview(true);
               return;
             }
             setBusy(true);
             setError("");
             try {
               await save(source, entry, previous?.digest);
-              setConfirmUpdate(false);
+              setConfirmReview(false);
             } catch (failure) {
               setError(String(failure));
             } finally {
@@ -752,13 +762,14 @@ function LibraryReference({
             }
           }}
         >
-          {t(previous ? (confirmUpdate ? "确认更新" : "更新项目库…") : "引用到项目")}
+          {t(previous ? (confirmReview ? "确认引用版本" : "复核部件引用") : "引用到项目")}
         </button>
       )}
-      {previous && confirmUpdate && (
+      {previous && confirmReview && (
         <p className="core-hint">
-          {t("此操作将更新项目中对此库的所有引用。")} {previous.version} → {source.version}{" "}
-          <button type="button" disabled={busy} onClick={() => setConfirmUpdate(false)}>
+          {t("将部件引用更新到已导入的锁定版本，项目依赖保持不变。")} {previous.version} →{" "}
+          {source.version}{" "}
+          <button type="button" disabled={busy} onClick={() => setConfirmReview(false)}>
             {t("取消")}
           </button>
         </p>

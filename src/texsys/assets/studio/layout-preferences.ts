@@ -95,10 +95,14 @@ export function readLayoutPreferences(project: string, defaults: StudioLayout): 
                     defaults.bottomHeight,
                   ),
                   sidebarActivity:
-                    typeof layout.sidebarActivity === "string" ? layout.sidebarActivity : undefined,
+                    layout.sidebarActivity === "packages"
+                      ? "explorer"
+                      : typeof layout.sidebarActivity === "string"
+                        ? layout.sidebarActivity
+                        : undefined,
                   ...(Array.isArray(layout.hiddenActivities) && {
                     hiddenActivities: layout.hiddenActivities.filter(
-                      (id): id is string => typeof id === "string",
+                      (id): id is string => typeof id === "string" && id !== "packages",
                     ),
                   }),
                   ...(Array.isArray(layout.hiddenBottomTabs) && {

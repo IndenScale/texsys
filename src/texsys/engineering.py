@@ -28,7 +28,7 @@ from texsys.dependencies import lock_project
 from texsys.evidence import canonical_digest, file_digest
 from texsys.execution import _input_digests
 from texsys.formal import VALUE_STATES, _atomic_write, _load_json
-from texsys.packages import installed_packages, project_packages
+from texsys.packages import project_packages
 from texsys.project import ProjectError, inspect_project, project_write_lock
 
 ASSESSMENTS = {"pass", "fail", "indeterminate"}
@@ -68,7 +68,7 @@ def _lock_error(root):
 
 
 def _discover(root):
-  packages = project_packages(root, installed=installed_packages)
+  packages = project_packages(root)
   found = {}
   for package in packages:
     for adapter in package.engineering_adapters():

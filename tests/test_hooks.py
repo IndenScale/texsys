@@ -39,7 +39,7 @@ def project(tmp_path: Path, monkeypatch, status="pass"):
   shutil.copytree(EXAMPLE, root)
   calls = []
   package = FakePackage(calls, status)
-  monkeypatch.setattr("texsys.execution.installed_packages", lambda: (package,))
+  monkeypatch.setattr("texsys.execution.project_packages", lambda root: (package,))
   return root, calls
 
 

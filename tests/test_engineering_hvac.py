@@ -15,7 +15,6 @@ from texsys.engineering import (
   run_engineering,
 )
 from texsys.project import ProjectError
-from texsys_hvac_dynamics.engineering import HvacCapacityChangeAdapter
 
 
 REPO = Path(__file__).parents[1]
@@ -129,7 +128,7 @@ def test_actual_scenario_cannot_silently_change_declared_review_scope(station, c
     scenario["initial"] = {"mode": "specified", "states": {state.identity: float(initial[i])
                                                          for i, state in enumerate(network.states)}}
   path.write_text(json.dumps(scenario))
-  result = HvacCapacityChangeAdapter().evaluate(station)
+  result = run_engineering(station, ADAPTER)["result"]
   assert result["assessment"] == "indeterminate" and not result["scope_verified"]
   assert result["solver_execution"] == "completed"
   scope = _check(result, "hvac:scenario-scope")
@@ -142,7 +141,7 @@ def test_additional_assertion_failure_is_not_hidden_by_the_two_selected_temperat
   scenario = json.loads(path.read_text())
   scenario["assertions"].append({"variable": "ColdStation.CT-01.outlet_temperature_c", "operator": "<=", "unit": "degC", "value": 20})
   path.write_text(json.dumps(scenario))
-  result = HvacCapacityChangeAdapter().evaluate(station)
+  result = run_engineering(station, ADAPTER)["result"]
   assert result["scope_verified"] and result["assessment"] == "fail"
   extra = _check(result, "hvac:assertion:ColdStation.CT-01.outlet_temperature_c:2")
   assert extra["status"] == "fail" and extra["design"] == {"occurrence": ["CT-01"]}

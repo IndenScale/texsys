@@ -13,9 +13,10 @@ from urllib.request import Request, urlopen
 
 import pytest
 
-from texsys.dependencies import lock_project
+from texsys.dependencies import add_registry_dependency, lock_project
 from texsys.evidence import write_json
 from texsys.project import ProjectError
+from texsys.registry import publish_package
 from texsys.studio import StudioPlugin, discover_plugins
 from texsys.studio.runtime import Conflict, StudioRuntime, git_context, revision
 from texsys.studio.server import create_server
@@ -166,6 +167,51 @@ def test_background_check_uses_copy_and_marks_result_stale_after_edit(runtime):
   assert restarted.state()["jobs"][0]["id"] == job["id"]
   report = restarted.state()["data"]["texsys:hvac"]["reports"][0]
   assert report["current"] is False
+
+
+def test_same_ide_executes_two_project_solver_versions_without_host_imports(tmp_path, monkeypatch):
+  monkeypatch.setenv("TEXSYS_CACHE_DIR", str(tmp_path / "cache"))
+  registry = tmp_path / "registry"
+  projects = []
+  for version in ("0.1.0", "0.1.1"):
+    author = tmp_path / f"author-{version}"
+    shutil.copytree(ROOT / "packages/hvac-dynamics", author,
+                    ignore=shutil.ignore_patterns("build", "__pycache__", "*.egg-info"))
+    for relative in ("texsys.toml", "pyproject.toml", "src/texsys_hvac_dynamics/__init__.py"):
+      file = author / relative
+      file.write_text(file.read_text().replace('version = "0.1.0"', f'version = "{version}"'))
+    publish_package(author, registry)
+    shutil.rmtree(author)
+    root = tmp_path / f"project-{version}"
+    shutil.copytree(ROOT / "examples/hvac-dynamic-station", root,
+                    ignore=shutil.ignore_patterns("build", "texsys.toml", "texsys.lock"))
+    (root / "texsys.toml").write_text(f'''schema_version = 1
+[project]
+name = "project-{version}"
+[layout]
+source = "src"
+assets = "assets"
+build = "build"
+''')
+    add_registry_dependency(root, "hvac-dynamics", version, registry)
+    projects.append(root)
+  snapshots = []
+  for root, version in zip(projects, ("0.1.0", "0.1.1")):
+    runtime = StudioRuntime(root)
+    try:
+      assert [item["id"] for item in runtime.state()["plugins"]] == ["texsys:hvac"]
+      # Editing validates through the project's checker in another process.
+      runtime.edit(request_for(runtime, value=24))
+      job = runtime.submit({"plugin": "texsys:hvac", "revision": revision(root), "action": "check", "options": {}})
+      finished = wait_for_job(runtime, job["id"])
+      assert finished["state"] == "completed", finished
+      assert finished["result"]["status"] == "pass", finished
+      executed = finished["result"]["runtime"]
+      assert [(item["name"], item["version"]) for item in executed] == [("hvac-dynamics", version)]
+      snapshots.append(executed[0]["digest"])
+    finally:
+      runtime.close()
+  assert snapshots[0] != snapshots[1]
 
 
 def test_cancellation_and_interrupted_record_are_explicit(runtime):

@@ -1,8 +1,5 @@
 /** Interface messages. Chinese source text is the stable lookup key. */
-import { packageEnglishMessages } from "./package-messages";
-
 export const englishMessages: Record<string, string> = {
-  ...packageEnglishMessages,
   应用菜单: "Application menu",
   更多: "More",
   更多菜单: "More menus",
@@ -26,9 +23,12 @@ export const englishMessages: Record<string, string> = {
   引用到项目: "Reference in Project",
   已引用到项目: "Referenced in project",
   已锁定: "Locked",
-  "更新项目库…": "Update Project Library…",
-  确认更新: "Confirm Update",
-  "此操作将更新项目中对此库的所有引用。": "This updates all project references to this library.",
+  复核部件引用: "Review Component References",
+  确认引用版本: "Confirm Reference Version",
+  "将部件引用更新到已导入的锁定版本，项目依赖保持不变。":
+    "Update component references to the imported locked version. Project dependencies stay unchanged.",
+  "此部件包尚未按当前版本导入项目。请先在终端导入，再刷新部件库。":
+    "This component package version is not imported. Import it in the terminal, then refresh the Library.",
   "请先保存项目清单的修改。": "Save your project manifest changes first.",
   族: "Family",
   厂家: "Manufacturer",

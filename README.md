@@ -84,7 +84,7 @@ uv run texsys studio -p examples/hvac-dynamic-station --hmr
 
 ## 工程变更与证据
 
-可复用的模型、规则、求解器适配和包自身测试通过工程能力包发布；项目实例、工况和接受记录保留在项目。`texsys package` 管理共享文件仓库中的明确版本，`add / sync` 将能力还原到项目。Tex Studio 的「包管理」展示依赖、同步、运行要求和包测试状态；完整使用方式与首期边界见 [工程能力包](docs/package-management.md)。
+可复用的模型、规则、求解器适配和包自身测试通过工程能力包发布；项目实例、工况和接受记录保留在项目。`texsys package` 管理共享文件仓库中的明确版本，`add / sync` 将能力还原到项目。在 Tex Studio 的通用文本编辑器中查看和编辑 `texsys.toml`，通过终端执行包命令；部件库只消费部件包的明确导出，IDE 插件独立管理；完整使用方式与首期边界见 [工程能力包](docs/package-management.md)。
 
 数据中心混合冷却示例提供 `datacenter:fws-change`，将已有设施水管路几何、压损和泵组配流接入工程变更流程。Studio 左侧「工程变更」打开相同操作的图形入口。CLI 和 Studio 共用 [工程变更与证据契约](spec/engineering/01-change-evidence.md)；当前接受限于声明的概念工况，不是整个数据中心的工程批准。
 

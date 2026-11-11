@@ -4,12 +4,12 @@ import shutil
 
 import pytest
 from pxr import Usd
-from typer.testing import CliRunner
+from cli_process import ProjectCliRunner
 
 from texsys.cli import app
 from texsys.packages import installed_packages
 
-runner = CliRunner()
+runner = ProjectCliRunner()
 ROOT = Path(__file__).parents[1]
 EXAMPLE = ROOT / "examples" / "hvac-cold-station"
 PACKAGES = ROOT / "packages"

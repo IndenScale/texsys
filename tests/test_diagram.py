@@ -5,18 +5,19 @@ import shutil
 import xml.etree.ElementTree as ET
 
 import pytest
-from typer.testing import CliRunner
+from cli_process import ProjectCliRunner
 
 from texsys.cli import app
-from texsys.execution import build_project
-from texsys.formal import check_project
+from project_process import build_project, check_project
 from texsys_diagram import apply_overlay, check_document, digest, resolve_symbol
 CATALOG_VERSION = "test-fixture/1"
 CATALOG = {"family:ChilledWaterPump": {"id": "test-pump", "ports": {"inlet": {"kind": "chilled-water", "direction": "in"}, "outlet": {"kind": "chilled-water", "direction": "out"}}}}
 
 ROOT = Path(__file__).parents[1]
 EXAMPLE = ROOT / "examples/hvac-system-schematic"
-runner = CliRunner()
+
+
+runner = ProjectCliRunner()
 
 
 @pytest.fixture

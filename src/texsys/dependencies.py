@@ -613,6 +613,7 @@ def _package_row(package: LockedPackage, root: Path) -> dict:
           "direct": package.direct, "dependencies": list(package.dependencies),
           "installed": state == "ready", "state": state, "runtime": runtime,
           "description": metadata.get("description", ""), "scope": metadata.get("scope", ""),
+          "kind": metadata.get("kind"), "exports": metadata.get("exports", {}),
           "capabilities": metadata.get("capabilities", []), "tests": metadata.get("tests", []),
           "include": metadata.get("include", []), "diagnostics": errors}
 

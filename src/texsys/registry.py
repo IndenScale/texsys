@@ -15,6 +15,7 @@ import zipfile
 import tomlkit
 
 from texsys.project import MANIFEST_NAME, ProjectError, inspect_project
+from texsys.component_exports import component_exports
 
 
 HEADER = "texsys-package.json"
@@ -74,8 +75,9 @@ def package_metadata(root: Path) -> dict:
   from texsys.dependencies import _read_manifest
   data = _read_manifest(root)
   metadata = data.get("package", {})
-  if not isinstance(metadata, dict) or metadata.get("kind") != "capability":
-    raise ProjectError("Publishing requires [package] kind = 'capability'; projects are not packages by default.")
+  if not isinstance(metadata, dict) or metadata.get("kind") not in {"capability", "component"}:
+    raise ProjectError("Publishing requires [package] kind = 'capability' or 'component'; projects are not packages by default.")
+  component_exports(root, data)
   for key in ("description", "scope"):
     if key in metadata and not isinstance(metadata[key], str):
       raise ProjectError(f"package.{key} must be text.")
@@ -144,7 +146,7 @@ def _archive(source: Path, versions: dict[str, str], output: Path) -> dict:
               "description": metadata.get("description", ""), "scope": metadata.get("scope", ""),
               "capabilities": metadata.get("capabilities", []), "limitations": metadata.get("limitations", []),
               "tests": metadata.get("tests", []), "include": metadata.get("include", []),
-              "runtime": metadata.get("runtime"),
+              "runtime": metadata.get("runtime"), "kind": metadata["kind"], "exports": metadata.get("exports", {}),
               "files": [{"path": name, "size": len(content), "digest": _digest(content)} for name, content in sorted(files.items())]}
     files[HEADER] = (json.dumps(header, ensure_ascii=False, sort_keys=True, indent=2) + "\n").encode()
     output.mkdir(parents=True, exist_ok=True)
@@ -266,6 +268,9 @@ def read_archive(path: Path, destination: Path | None = None) -> dict:
       raise ProjectError("Archive content digest, inventory or runtime metadata mismatch.")
     for key, default in (("description", ""), ("scope", ""), ("capabilities", []), ("limitations", []), ("tests", []), ("include", [])):
       if metadata.get(key, default) != header.get(key):
+        raise ProjectError(f"Archive {key} metadata mismatch.")
+    for key, default in (("kind", "capability"), ("exports", {})):
+      if metadata.get(key, default) != header.get(key, default):
         raise ProjectError(f"Archive {key} metadata mismatch.")
     if destination is not None:
       if destination.exists() and any(destination.iterdir()):

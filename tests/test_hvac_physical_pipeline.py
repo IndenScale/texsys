@@ -1,28 +1,30 @@
 import json
 from pathlib import Path
-import runpy
+import subprocess
+import sys
 import shutil
 import xml.etree.ElementTree as ET
 
 import pytest
 
-from texsys.api import build
+from project_process import build_project as build
 from texsys.dependencies import lock_project
 
 ROOT = Path(__file__).parents[1]
 
 
 @pytest.fixture
-def pipeline(tmp_path, capsys):
+def pipeline(tmp_path):
   root = tmp_path / 'station'
   shutil.copytree(ROOT / 'examples/hvac-dynamic-station', root, ignore=shutil.ignore_patterns('build'))
   (root / 'build').mkdir()
   manifest = root / 'texsys.toml'
   manifest.write_text(manifest.read_text().replace('"../../packages/', f'"{ROOT / "packages"}/'))
   lock_project(root)
-  script = runpy.run_path(str(ROOT / 'examples/build-deliverables/run.py'))
-  assert script['main'](['all', '--project', str(root)]) == 0
-  output = json.loads(capsys.readouterr().out)
+  result = subprocess.run([sys.executable, '-B', str(ROOT / 'examples/build-deliverables/run.py'),
+                           'all', '--project', str(root)], capture_output=True, text=True, check=False, timeout=180)
+  assert result.returncode == 0, result.stderr + result.stdout
+  output = json.loads(result.stdout)
   assert output['verification'] == 'pass' and output['engineering_status'] == 'fail'
   return root
 

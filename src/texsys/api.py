@@ -9,6 +9,7 @@ from texsys.engineering import (accept_engineering, apply_engineering_change, in
 from texsys.execution import ExecutionResult, build_project as build, evaluate_project as evaluate
 from texsys.formal import check_project as check, lint_project as lint
 from texsys.project import ProjectError
+from texsys.project_operations import run_project_operation
 from texsys.registry import pack_package, package_details, publish_package, search_packages
 from texsys.package_tests import test_capability_package
 
@@ -18,4 +19,5 @@ __all__ = [
   "accept_engineering", "apply_engineering_change", "inspect_engineering", "plan_engineering_change", "run_engineering",
   "add_registry_dependency", "apply_dependency_change", "dependency_status", "plan_dependency_change",
   "pack_package", "package_details", "publish_package", "search_packages", "test_capability_package",
+  "run_project_operation",
 ]

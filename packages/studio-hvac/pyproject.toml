@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 name = "texsys-studio-hvac"
 version = "0.1.0"
 requires-python = ">=3.11"
-dependencies = ["texsys", "texsys-hvac-graphics", "texsys-hvac-diagram", "texsys-hvac-dynamics", "texsys-hvac-bom"]
+dependencies = ["texsys", "texsys-hvac-graphics"]
 
 [project.entry-points."texsys.studio"]
 hvac = "texsys_studio_hvac:plugin"
@@ -20,6 +20,3 @@ texsys_studio_hvac = ["assets/*"]
 [tool.uv.sources]
 texsys = { workspace = true }
 texsys-hvac-graphics = { workspace = true }
-texsys-hvac-diagram = { workspace = true }
-texsys-hvac-dynamics = { workspace = true }
-texsys-hvac-bom = { workspace = true }

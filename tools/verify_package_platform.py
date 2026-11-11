@@ -33,7 +33,8 @@ def main():
   cache = output / "cache"
   commands = output / "commands"
   commands.mkdir()
-  env = {**os.environ, "TEXSYS_CACHE_DIR": str(cache), "PYTHONDONTWRITEBYTECODE": "1"}
+  os.environ["TEXSYS_CACHE_DIR"] = str(cache)
+  env = {**os.environ, "PYTHONDONTWRITEBYTECODE": "1"}
   log = []
 
   def cli(*args, project=None, expected=0, json_result=False):
@@ -127,6 +128,31 @@ def main():
   assert upgraded["result"]["assessment"] == "pass"
   assert upgraded["toolchain_digest"] != baseline["toolchain_digest"]
   assert upgraded["acceptance"] == "unreviewed"
+  # The same IDE plugin must run each project's own version, without importing
+  # its private implementation dependencies into the engineering process.
+  from texsys.studio.runtime import StudioRuntime
+  studio_checks = []
+  for project, expected_version in ((a, "0.1.1"), (b, "0.1.0")):
+    studio = StudioRuntime(project)
+    try:
+      state = studio.state()
+      job = studio.submit({"plugin": "texsys:hvac", "action": "check", "options": {},
+                           "revision": state["project"]["revision"]})
+      deadline = time.monotonic() + 60
+      while time.monotonic() < deadline:
+        current = next(item for item in studio.state()["jobs"] if item["id"] == job["id"])
+        if current["state"] != "running":
+          break
+        time.sleep(.05)
+      assert current["state"] == "completed", current
+      response = json.loads((project / "build/studio/jobs" / job["id"] / "response.json").read_text())
+      runtime = next(item for item in response["runtime"] if item["name"] == "hvac-dynamics")
+      assert runtime["version"] == expected_version
+      assert response["status"] == "pass"
+      studio_checks.append({"project": project.name, "job_id": job["id"], "status": response["status"],
+                            "runtime": runtime})
+    finally:
+      studio.close()
   # Use verified local cache while the registry is absent.
   offline_registry = output / "registry-offline"
   registry.rename(offline_registry)
@@ -143,10 +169,26 @@ def main():
   assert restored["result"]["assessment"] == "pass"
   assert restored["toolchain_digest"] == baseline["toolchain_digest"]
   status = cli("package", "status", project=a, json_result=True)
+  from texsys.studio.library_sources import library_index, reference_library_entry
+  index = library_index(a, "src", [])
+  sources = {item["name"]: item for item in index["sources"]}
+  assert set(sources) == {"hvac-equipment", "structure"}, sources
+  equipment = sources["hvac-equipment"]
+  selected = next(item for item in index["library"] if item.get("source") == equipment["id"] and item["owner"] is None)
+  definition = index["definitions"][selected["definition"]]
+  before_dependencies = tomlkit.parse((a / "texsys.toml").read_text())["dependencies"].unwrap()
+  before_lock = (a / "texsys.lock").read_bytes()
+  reference = reference_library_entry(a, {"folder": equipment["path"], "digest": equipment["digest"],
+                                          "entry": definition["entry"]})
+  assert tomlkit.parse((a / "texsys.toml").read_text())["dependencies"].unwrap() == before_dependencies
+  assert (a / "texsys.lock").read_bytes() == before_lock
   summary = {"status": "pass", "scope": "capability-package-distribution-and-project-isolation",
              "source_removed": not author.exists(), "offline_cache_restored": True,
              "project_inputs_isolated": True, "plain_sync_kept_version": True,
              "upgrade_invalidated_acceptance": True, "rollback_reproduced_toolchain": True,
+             "ide_project_versions_isolated": True, "studio_checks": studio_checks,
+             "component_sources": sorted(sources), "component_reference": reference,
+             "component_reference_kept_dependencies": True,
              "baseline": {k: baseline[k] for k in ("run_id", "toolchain_digest", "evidence_digest")},
              "failed": {k: failed[k] for k in ("run_id", "toolchain_digest", "evidence_digest")},
              "upgraded": {k: upgraded[k] for k in ("run_id", "toolchain_digest", "evidence_digest")},
