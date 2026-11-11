@@ -1,0 +1,440 @@
+{
+  "schema_version": 1,
+  "id": "cold-station-reported-acceptance-20241231",
+  "kind": "report-declared-configuration",
+  "reviewed_on": "2026-11-11",
+  "professional_confirmation": "pending",
+  "sources": [
+    {
+      "id": "initial-report",
+      "label": "初验报告",
+      "sha256": "c713fe42417db3fc099455e32c042b5b72f47f12c0c21a15486e7dcb26303ea1",
+      "evidence_kind": "acceptance_report_statement"
+    },
+    {
+      "id": "initial-record-template",
+      "label": "未填选初验表",
+      "sha256": "b66b95fa8bf855dd2245d95d9c880bff06d0b55da1c77541af7c88c26e266eff",
+      "evidence_kind": "unchecked_form_template"
+    },
+    {
+      "id": "final-report",
+      "label": "终验报告",
+      "sha256": "79e9a656ae43d786754e1ffff29beb56f50365fd909b2f79685f33c4e48463bf",
+      "evidence_kind": "acceptance_report_statement"
+    },
+    {
+      "id": "ba-rectification",
+      "label": "BA整改记录",
+      "sha256": "22b87686fb3688822fe85eed69beb37186ba7c64d99adc6479ae6dc37ce2850f",
+      "evidence_kind": "reported_defect_with_ui_snapshot"
+    },
+    {
+      "id": "initial-record-scan",
+      "label": "初验检查扫描件",
+      "sha256": "8fb7e4e30342b5758211c74c69848472afac3da78b2cd5c2b6d10fe729a95f03",
+      "evidence_kind": "qualitative_acceptance_check_record"
+    },
+    {
+      "id": "initial-record-scan-copy",
+      "label": "初验检查扫描副本",
+      "sha256": "fa331ef751a88555d201d91125ce185f9fe9d66a0aa702a161e704eeda558065",
+      "evidence_kind": "qualitative_acceptance_check_record"
+    },
+    {
+      "id": "final-record-scan",
+      "label": "终验检查扫描件",
+      "sha256": "805db3cc55860101e4caf23bf36092390da4bf69c138d1dba127f3b2911acbb2",
+      "evidence_kind": "qualitative_acceptance_check_record"
+    }
+  ],
+  "configuration": {
+    "chiller_count": {
+      "value": 2,
+      "unit": "1",
+      "state": "assumed",
+      "source_id": "final-report",
+      "location": "word/document.xml 正文第 33 段",
+      "meaning": "报告所列冷机数量；不等于已核实的当前可用台数。"
+    },
+    "per_chiller_capacity_kw": {
+      "value": 75,
+      "unit": "kW",
+      "state": "assumed",
+      "source_id": "final-report",
+      "location": "word/document.xml 正文第 33 段",
+      "meaning": "报告所列单台冷机制冷能力；额定工况、厂家曲线与实测能力未核实。"
+    },
+    "reported_total_capacity_kw": {
+      "value": 150,
+      "unit": "kW",
+      "state": "assumed",
+      "source_id": "final-report",
+      "location": "word/document.xml 正文第 33 段",
+      "meaning": "报告声明的冷冻水系统总制冷能力；不叠加板换或末端容量。"
+    },
+    "air_load_count": {
+      "value": 7,
+      "unit": "1",
+      "state": "assumed",
+      "source_id": "final-report",
+      "location": "word/document.xml 正文第 36 段",
+      "meaning": "报告所列15 kW假负载机柜数量；运行同时率未声明。"
+    },
+    "per_air_load_kw": {
+      "value": 15,
+      "unit": "kW",
+      "state": "assumed",
+      "source_id": "final-report",
+      "location": "word/document.xml 正文第 36 段",
+      "meaning": "报告所列单个假负载机柜能力；本审查把它作为名义热负荷上限假设。"
+    },
+    "liquid_load_count": {
+      "value": 2,
+      "unit": "1",
+      "state": "assumed",
+      "source_id": "final-report",
+      "location": "word/document.xml 正文第 36 段",
+      "meaning": "报告所列45 kW冷板式液冷机柜数量；不再仅按早期图纸预留解释。"
+    },
+    "per_liquid_load_kw": {
+      "value": 45,
+      "unit": "kW",
+      "state": "assumed",
+      "source_id": "final-report",
+      "location": "word/document.xml 正文第 36 段",
+      "meaning": "报告所列液冷机柜能力；是否与风冷负荷同时进入同一冷源边界未确认。"
+    }
+  },
+  "facts": [
+    {
+      "id": "declared-cold-source",
+      "evidence_kind": "report_declared_configuration",
+      "statement": "报告将 150 kW 定义为主被动水冷冷冻水系统的总制冷能力，并列设计 2 台 75 kW 水冷涡旋式冷水机组。",
+      "references": [
+        {
+          "source_id": "initial-report",
+          "location": "word/document.xml body paragraph 33"
+        },
+        {
+          "source_id": "final-report",
+          "location": "word/document.xml body paragraph 33"
+        }
+      ],
+      "values": {
+        "cold_source_total_capacity_kw": 150,
+        "chiller_count": 2,
+        "chiller_per_unit_capacity_kw": 75,
+        "chiller_type": "水冷涡旋式冷水机组"
+      },
+      "limitation": "是报告声明的设计/建设配置，非实测能力、厂家曲线或特定工况下的可用能力；150 kW 不是全实验室总用电功率。"
+    },
+    {
+      "id": "declared-heat-exchangers-pumps",
+      "evidence_kind": "report_declared_configuration",
+      "statement": "报告列 2 台换热量 80 kW 的板式换热器和 8 台水泵。",
+      "references": [
+        {
+          "source_id": "initial-report",
+          "location": "word/document.xml body paragraph 33"
+        },
+        {
+          "source_id": "final-report",
+          "location": "word/document.xml body paragraph 33"
+        }
+      ],
+      "values": {
+        "plate_heat_exchanger_count": 2,
+        "plate_heat_exchanger_per_unit_capacity_kw": 80,
+        "pump_count": 8
+      },
+      "limitation": "报告未给出泵额定流量/扬程、型号或换热器额定温差。板换与冷机容量不能直接相加为冷源容量。"
+    },
+    {
+      "id": "declared-towers",
+      "evidence_kind": "report_declared_configuration",
+      "statement": "报告列 4 台 16 m³/h 开式冷却塔。",
+      "references": [
+        {
+          "source_id": "initial-report",
+          "location": "word/document.xml body paragraph 34"
+        },
+        {
+          "source_id": "final-report",
+          "location": "word/document.xml body paragraph 34"
+        }
+      ],
+      "values": {
+        "tower_count": 4,
+        "tower_type": "开式冷却塔",
+        "tower_per_unit_declared_flow_m3_h": 16
+      },
+      "limitation": "16 m³/h 为报告列示流量，不是热功率。未给出进出水温度、湿球条件、厂家型号或性能曲线。"
+    },
+    {
+      "id": "declared-dummy-loads",
+      "evidence_kind": "report_declared_configuration",
+      "statement": "报告列 7 架 15 kW 假负载机柜、2 架 45 kW 冷板式液冷机柜及 1 架冷板式液冷 CDU。",
+      "references": [
+        {
+          "source_id": "initial-report",
+          "location": "word/document.xml body paragraph 36"
+        },
+        {
+          "source_id": "final-report",
+          "location": "word/document.xml body paragraph 36"
+        }
+      ],
+      "values": {
+        "air_dummy_rack_count": 7,
+        "air_dummy_rack_per_unit_kw": 15,
+        "liquid_cooled_rack_count": 2,
+        "liquid_cooled_rack_per_unit_kw": 45,
+        "cdu_count": 1
+      },
+      "limitation": "设备声明，没有全负荷同时运行、同时率或设计工况承诺；45 kW 已作为所列机柜配置，不再仅以早期图纸预留项解释，但运行边界仍不明。"
+    },
+    {
+      "id": "declared-air-conditioners",
+      "evidence_kind": "report_declared_configuration",
+      "statement": "报告列 4 台 30 kW 双盘管冷冻水空调。",
+      "references": [
+        {
+          "source_id": "initial-report",
+          "location": "word/document.xml body paragraph 36"
+        },
+        {
+          "source_id": "final-report",
+          "location": "word/document.xml body paragraph 36"
+        }
+      ],
+      "values": {
+        "air_conditioner_count": 4,
+        "per_unit_capacity_kw": 30,
+        "type": "双盘管冷冻水空调"
+      },
+      "limitation": "为末端换热能力的报告列值；不能当作新增假负载或与冷源能力直接相加。"
+    },
+    {
+      "id": "initial-acceptance",
+      "evidence_kind": "acceptance_report_statement",
+      "statement": "初验报告声明 2024-12-02 按设计及技术规范完成安装与单机调试，施工质量合格并同意初验通过，同时列有 5 项整改问题。",
+      "references": [
+        {
+          "source_id": "initial-report",
+          "location": "word/document.xml body paragraphs 40, 42–49"
+        }
+      ],
+      "values": {
+        "acceptance_date": "2024-12-02",
+        "stated_outcome": "passed",
+        "open_items_count": 5
+      },
+      "limitation": "结论范围是建设质量现场抽查、安装及单机调试；不等于定量热性能或节能验收。"
+    },
+    {
+      "id": "initial-residuals",
+      "evidence_kind": "reported_defects",
+      "statement": "初验列冷却塔漂水、部分流量/温度/压力传感器校准与控制软件完善、防火封堵、个别水泵异响、冷却塔水盘浮球阀更换。",
+      "references": [
+        {
+          "source_id": "initial-report",
+          "location": "word/document.xml body paragraphs 44–49"
+        }
+      ],
+      "values": {
+        "required_rectification_due_date": "2024-12-15"
+      },
+      "limitation": "这是当时的遗留问题清单；当前状态不能由该清单直接判断。"
+    },
+    {
+      "id": "final-acceptance",
+      "evidence_kind": "acceptance_report_statement",
+      "statement": "终验报告声明 2024-12-25 完成初验遗留问题整改，2024-12-31 现场抽查后认为安装、单机调试和施工质量合格，同意终验通过。",
+      "references": [
+        {
+          "source_id": "final-report",
+          "location": "word/document.xml body paragraphs 40, 42–43"
+        }
+      ],
+      "values": {
+        "reported_rectification_date": "2024-12-25",
+        "acceptance_date": "2024-12-31",
+        "stated_outcome": "passed",
+        "scope": ["建设质量现场抽查", "安装", "单机调试"]
+      },
+      "limitation": "认可报告所声明的终验结论及范围；未见按额定工况测得的冷量、流量/扬程或节能率记录。不能将 Texsys 后续 0D 容量假设审查解释为否认该终验。"
+    },
+    {
+      "id": "final-residual",
+      "evidence_kind": "reported_defect",
+      "statement": "终验报告仍列剩余 4 台冷却塔水盘浮球阀需更换为铜质，要求 2025-01-03 前完成。",
+      "references": [
+        {
+          "source_id": "final-report",
+          "location": "word/document.xml body paragraphs 44–45"
+        }
+      ],
+      "values": {
+        "remaining_tower_float_valve_count": 4,
+        "required_rectification_due_date": "2025-01-03",
+        "closure_record_in_reviewed_sources": false
+      },
+      "limitation": "未读取到对应关闭记录；不据此断言目前仍未完成。"
+    },
+    {
+      "id": "blank-docx-form",
+      "evidence_kind": "unchecked_form_template",
+      "statement": "初步验收记录 DOCX 四大类外观与单机测试行的合格/不合格框均未填选。",
+      "references": [
+        {
+          "source_id": "initial-record-template",
+          "location": "word/document.xml table 1 rows 5–8"
+        }
+      ],
+      "limitation": "该 DOCX 是未填选表格，不能单独作为通过记录；通过记录应引用实际扫描附件。"
+    },
+    {
+      "id": "checked-acceptance-records",
+      "evidence_kind": "qualitative_acceptance_check_record",
+      "statement": "三份 PDF 的页 1 四大类检查项均勾选合格：机房设备、冷站设备、群控配电/传感器/PLC、室外冷却塔，检查说明均为外观及单机测试。",
+      "references": [
+        {
+          "source_id": "initial-record-scan",
+          "location": "page 1, inspection rows 1–4, acceptance result column"
+        },
+        {
+          "source_id": "initial-record-scan-copy",
+          "location": "page 1, inspection rows 1–4, acceptance result column"
+        },
+        {
+          "source_id": "final-record-scan",
+          "location": "page 1, inspection rows 1–4, acceptance result column"
+        }
+      ],
+      "values": {
+        "checked_categories": 4,
+        "quantitative_test_values_in_checked_rows": 0
+      },
+      "limitation": "可证明附件记载定性检查通过；没有型号、测试工况、实测冷量、Q–H/效率曲线或原始测量日志。两个初验扫描件内容相近，不作为两次独立测试。未读取签名区。"
+    },
+    {
+      "id": "ba-temperature-defect",
+      "evidence_kind": "reported_defect",
+      "statement": "BA 整改单记载一次侧水温显示不一致，冷却塔出水与主管温度相差 0.4°C，并要求传感器校准。",
+      "references": [
+        {
+          "source_id": "ba-rectification",
+          "location": "word/document.xml body paragraph 3"
+        }
+      ],
+      "values": {
+        "reported_temperature_display_difference_degC": 0.4
+      },
+      "limitation": "缺陷描述，不是校准结果或传感器精度；单凭两点差值不能判断物理原因。整改单无完整可用日期，不能确定与终验的先后关系。"
+    },
+    {
+      "id": "ba-flow-defect",
+      "evidence_kind": "reported_defect_with_ui_snapshot",
+      "statement": "整改单记载冷冻水主流量读数失真且调节后仍为 1；第二张截图圈定的读数为 1.0 m³/h。",
+      "references": [
+        {
+          "source_id": "ba-rectification",
+          "location": "word/document.xml body paragraph 5; word/media/image2.jpeg, circled chilled-water flow reading"
+        }
+      ],
+      "values": {
+        "reported_stuck_value": 1,
+        "screenshot_displayed_value": 1.0,
+        "screenshot_unit": "m³/h",
+        "usable_for_model_calibration": false
+      },
+      "limitation": "原资料明确将该点判断为失真；没有完整可读时间戳、测点地址或独立量测，不能作为真实系统流量。"
+    },
+    {
+      "id": "ba-point-identity-request",
+      "evidence_kind": "rectification_requirement",
+      "statement": "要求 BA 图上塔、泵、板换、主机、电动阀和空调增加编号，并与控制柜编号一致。",
+      "references": [
+        {
+          "source_id": "ba-rectification",
+          "location": "word/document.xml body paragraph 8"
+        }
+      ],
+      "limitation": "说明需要完善对象到现场设备的标识一致性，不提供已落实的完整映射。"
+    },
+    {
+      "id": "ba-history-request",
+      "evidence_kind": "rectification_requirement",
+      "statement": "要求显示变频器实时输出功率并保存历史；室外参数及塔、泵、板换、主机的流量和进出水温度按小时平均存储。",
+      "references": [
+        {
+          "source_id": "ba-rectification",
+          "location": "word/document.xml body paragraphs 9–10"
+        }
+      ],
+      "values": {
+        "requested_aggregation": "hourly_mean"
+      },
+      "limitation": "为整改需求，不能证明历史数据已保存、可导出或满足瞬态分析采样要求。"
+    },
+    {
+      "id": "ba-ui-snapshot",
+      "evidence_kind": "historical_ui_snapshot",
+      "statement": "第一张嵌入截图显示冷源系统图及温度、压力、流量、泵频率、阀门开度等数值；可见 4 个塔图元。",
+      "references": [
+        {
+          "source_id": "ba-rectification",
+          "location": "word/media/image1.jpeg"
+        }
+      ],
+      "limitation": "截图是界面显示证据。完整时间戳不可读，且同一整改单记载测点失真，不能提升为经过校准的运行数据或性能试验。"
+    }
+  ],
+  "cross_source_differences": [
+    {
+      "topic": "冷却塔",
+      "earlier_source": "施工说明图纸核读为2台80 kW闭式冷却塔（待专业确认）",
+      "later_report": "初验与终验报告均声明4台16 m³/h开式冷却塔",
+      "interpretation": "数量、类型与量纲不同，需要版本/设备身份对照；不将其自动归因于某次已批准变更。"
+    },
+    {
+      "topic": "水泵",
+      "earlier_source": "施工说明图纸核读4台16 m³/h水泵（待专业确认）",
+      "later_report": "初验与终验报告声明8台水泵，未列每台流量",
+      "interpretation": "需要澄清回路及设备覆盖范围；不能用早期单点流量补齐后期8台泵。"
+    },
+    {
+      "topic": "机柜负荷",
+      "earlier_source": "施工说明核读9×15 kW=135 kW，其中两处各45 kW液冷预留关系未明",
+      "later_report": "初验与终验报告列7×15 kW假负载机柜及2×45 kW液冷机柜",
+      "interpretation": "后期配置提供195 kW算术和基础，但未声明同时运行；保留早期图纸与后期配置差异。"
+    },
+    {
+      "topic": "算法设备索引",
+      "earlier_source": "冷却侧I/O主机1–3、泵1–6、塔1–4/1–5",
+      "later_report": "报告冷机2台、泵8台、塔4台",
+      "interpretation": "算法槽位不能自动映射为安装设备；接口适配需设备标识和模式语义。"
+    }
+  ],
+  "unresolved": [
+    "液冷/风冷运行并发条件与模式",
+    "设计及额定工况",
+    "设备型号与性能曲线",
+    "测点身份、校准和真实时序",
+    "各回路边界与潜在寄生热负荷"
+  ],
+  "evidence_assessment": {
+    "acceptance_report_configuration_available": true,
+    "qualitative_single_unit_checks_available": true,
+    "reported_historical_defects_available": true,
+    "equipment_manufacturer_model_verified": false,
+    "rated_operating_conditions_verified": false,
+    "quantitative_capacity_test_values_available": false,
+    "manufacturer_performance_commitments_available": false,
+    "calibrated_time_series_available": false,
+    "texsys_engineering_acceptance_established": false,
+    "limitation": "本结论仅限定本次所核读7份材料；不推断压缩包其他资料是否含厂家型号或性能依据。报告中的承建/整改单位也不能自动视为各设备厂家。"
+  },
+  "acceptance_boundary": "原报告声明的安装、单机调试和建设质量终验保留其原有范围。本快照不将其转为Texsys真实性能接受，也不以假设容量审查否认原终验。"
+}

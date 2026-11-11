@@ -131,6 +131,18 @@ inspect 的 `comparison` 比较当前适配器最近两次有效读取的运行�
 
 公开重跑入口为 `uv run --locked tools/verify_hvac_engineering_poc.py`。脚本使用独立副本，记录数字事务及另一个副本中的未知状态源编辑，两类操作不混同。
 
+## 真实资料容量审查的当前范围
+
+`hvac:reference-capacity` 在既有 `hvac-cold-station` 项目中读取 `assets/reference/cold-station-acceptance.json`，用 `src/reference-capacity.study.json` 的全文件摘要绑定源快照。原始报告不参与运行时外部文件读取；冻结的脱敏事实参与项目输入修订。该项目原有通用设备布局模型保持独立，不虚构从报告设备到通用 SDL 实例的映射。
+
+快照参数保留源 ID、原件 SHA-256、位置、含义、单位和状态；源 ID 必须唯一且引用可解析。缺失、无数值状态、量纲不符、错误整数数量、越界路径或摘要失配不能获得默认计算值。摘要匹配只证明消费了绑定的快照，不证明原件真实性或设备实测能力。
+
+可编辑输入为风冷／液冷负荷率和可用冷机台数，均属审查假设；检查可用台数的整数语义及不超过所列冷机数量。账面负荷是各类数量乘单台声明量再乘该类负荷率；可用账面容量只按冷机计算，不叠加板换、末端或冷却塔数据。零以上的最低余量要求可以更严格，不能用负值豁免缺额。
+
+`arithmetic_execution` 分别记录 `completed`／`not-run`；`solver_execution:not-run` 明示未进行真实性能求解。任一数值检查不满足则总体 `fail`，否则因真实工况、性能曲线与独立现场数据未确认而为 `indeterminate`。当前不能接受该范围的运行。报告中原有建设质量终验记录不自动转为 Texsys 接受，也不被这项条件性审查撤销。
+
+公开重跑入口为 `uv run --locked tools/verify_reference_engineering_poc.py`；它验证假设变更、反例、恢复、接受拒绝及来源变更，不将流程验证通过解释为工程通过。
+
 ## Studio 交换接口
 
 接口沿用本地会话授权与同源校验。详见 [工作台契约](../studio/01-workbench.md#工程变更与证据文档)。

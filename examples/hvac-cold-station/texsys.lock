@@ -24,7 +24,7 @@ name = "hvac-checks"
 version = "0.1.0"
 source = "path"
 path = "../../packages/hvac-checks"
-digest = "sha256:6a87989d1ae787678fa5b19528223796f744ac350d50a8e5660f2d3099e97952"
+digest = "sha256:eb85911321f4a95d0e5f13c8246acfea181fe73aed131d60facabb636d41400e"
 direct = true
 dependencies = ["hvac-equipment"]
 

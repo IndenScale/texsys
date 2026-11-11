@@ -4,17 +4,17 @@
 
 ## 目录
 
-| 路径                      | 用途                                                     |
-| ------------------------- | -------------------------------------------------------- |
-| `minimal/`                | 两个泵串联的最小有效项目                                 |
-| `hvac-cold-station/`      | 设备布置、粗几何安装事件与 Python 设计校核切片           |
-| `hvac-system-schematic/`  | 冷机、两类泵、负荷和冷却塔的双环路出图，含行为定义与参数 |
-| `fixtures/invalid/`       | 未定义引用、介质和方向冲突等失败反例                     |
-| `fixtures/large/`         | 120 个泵实例的确定性规模桩数据                           |
-| `hvac-dynamic-station/`   | 同源 SDL 的 BOM、双图纸、集总物理模型与三种动态工况      |
-| `hvac-air-cooled-room/`   | 风冷机房轴网、钢构、架空地板、机柜布置与风量及显冷量预算 |
-| `datacenter-hybrid-unit/` | A/B 配电、风液冷工况与 W 型楼承板概念单元                |
-| `build-deliverables/`     | BOM、系统图、原理图的命令行与 Python 调用示例及可执行脚本   |
+| 路径                      | 用途                                                       |
+| ------------------------- | ---------------------------------------------------------- |
+| `minimal/`                | 两个泵串联的最小有效项目                                   |
+| `hvac-cold-station/`      | 设备布置、安装与环境概念校核；真实验收配置的条件性容量审查 |
+| `hvac-system-schematic/`  | 冷机、两类泵、负荷和冷却塔的双环路出图，含行为定义与参数   |
+| `fixtures/invalid/`       | 未定义引用、介质和方向冲突等失败反例                       |
+| `fixtures/large/`         | 120 个泵实例的确定性规模桩数据                             |
+| `hvac-dynamic-station/`   | 同源 SDL 的 BOM、双图纸、集总物理模型与三种动态工况        |
+| `hvac-air-cooled-room/`   | 风冷机房轴网、钢构、架空地板、机柜布置与风量及显冷量预算   |
+| `datacenter-hybrid-unit/` | A/B 配电、风液冷工况与 W 型楼承板概念单元                  |
+| `build-deliverables/`     | BOM、系统图、原理图的命令行与 Python 调用示例及可执行脚本  |
 
 需要查命令、参数和函数返回值时，直接阅读 [统一交付物与工况调用示例](build-deliverables/README.md)。该目录是调用示例，不是新的 SDL 项目。
 

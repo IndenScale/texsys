@@ -49,6 +49,10 @@ class HvacChecksPackage(TexsysPackage):
   name = "hvac-checks"
   version = "0.1.0"
 
+  def engineering_adapters(self):
+    from .reference_engineering import ReferenceCapacityAdapter
+    return (ReferenceCapacityAdapter(),)
+
   def targets(self):
     return (TargetDefinition("hvac:design-checks", self.name, self.version, self.build_checks,
                              profiles=("engineering",), default_profile="engineering"),)
