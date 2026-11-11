@@ -24,7 +24,7 @@ name = "datacenter"
 version = "0.1.0"
 source = "path"
 path = "../../packages/datacenter"
-digest = "sha256:12706e29903f08036e5c4ae16aed02966f90057192b28c10061bb1294a80f2c5"
+digest = "sha256:0db874f913278b3af0c967f6f809f7123b2e70833b99fd773b44c4411cb32ea5"
 direct = true
 dependencies = ["architecture", "controls", "electrical", "fire-protection", "hvac-dynamics", "hvac-equipment", "plumbing", "spatial", "structure"]
 
@@ -51,7 +51,7 @@ name = "hvac-dynamics"
 version = "0.1.0"
 source = "path"
 path = "../../packages/hvac-dynamics"
-digest = "sha256:a6b41f394ca7c38b40d9a8b3d74ad19d2c901834d810006f0ddc0217634a6270"
+digest = "sha256:66fbdffde20c8f1688cc4b089f31bc2af93a61c96c6f3253090f2df1900339db"
 direct = false
 dependencies = []
 

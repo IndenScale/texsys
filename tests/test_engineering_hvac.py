@@ -8,13 +8,9 @@ import pytest
 
 from texsys.dependencies import lock_project
 from texsys.engineering import (
-  accept_engineering,
-  apply_engineering_change,
   inspect_engineering,
-  plan_engineering_change,
   run_engineering,
 )
-from texsys.project import ProjectError
 
 
 REPO = Path(__file__).parents[1]
@@ -38,21 +34,18 @@ def _binding(root):
   return json.loads((root / "src/system.sdl.json").read_text())["components"]["Chiller"]["behavior"]["parameters"]["capacity_kw"]
 
 
-def _change(root, capacity):
-  state = inspect_engineering(root, ADAPTER)
-  request = {"adapter": ADAPTER, "revision": state["revision"], "changes": [{"input_id": CAPACITY, "value": capacity}]}
-  preview = plan_engineering_change(root, request)
-  assert preview["status"] == "pass"
-  assert {item["id"] for item in preview["impacts"]} == {"hvac:capacity-model", "hvac:load-step", "unregistered-disciplines"}
-  assert preview["impacts"][0]["objects"] == ["ColdStation.CH-01"]
-  assert apply_engineering_change(root, request, preview["plan"])["applied"]
+def _write_capacity(root, capacity):
+  path = root / "src/system.sdl.json"
+  source = json.loads(path.read_text())
+  source["components"]["Chiller"]["behavior"]["parameters"]["capacity_kw"]["value"] = capacity
+  path.write_text(json.dumps(source, indent=2) + "\n")
 
 
 def _check(result, identity):
   return next(item for item in result["checks"] if item["id"] == identity)
 
 
-def test_second_adapter_capacity_change_preserves_sources_and_closes_review_loop(station):
+def test_capacity_source_change_preserves_sources_and_reproduces_results(station):
   state = inspect_engineering(station, ADAPTER)
   assert state["selected"]["id"] == ADAPTER
   item = state["inputs"][0]
@@ -71,13 +64,12 @@ def test_second_adapter_capacity_change_preserves_sources_and_closes_review_loop
   assert _check(result, "hvac:assertion:ColdStation.CH-01#chilled.outlet_temperature_c:1")["design"] == {"occurrence": ["CH-01"]}
   assert {item["id"] for item in result["other_scenarios"]} == {"pump-speed", "pump-trip"}
   assert all(item["assessment"] == "not-assessed" for item in result["other_scenarios"])
-  review = accept_engineering(station, ADAPTER, baseline["run_id"], "概念模型审查员", "接受声明工况的概念结论；不涉及设备选型签核。")
-  assert review["limitations"]
+  assert result["limitations"]
 
-  _change(station, 60)
+  _write_capacity(station, 60)
   binding = _binding(station)
   assert binding == {**original_binding, "value": 60}
-  assert inspect_engineering(station, ADAPTER)["reviews"][0]["state"] == "needs-review"
+  assert inspect_engineering(station, ADAPTER)["latest"]["freshness"] == "inputs-changed"
   failed = run_engineering(station, ADAPTER)
   assert failed["execution"] == "completed" and failed["current"]
   assert failed["result"]["assessment"] == "fail"
@@ -95,17 +87,13 @@ def test_second_adapter_capacity_change_preserves_sources_and_closes_review_loop
   assert effective["value"] == 60 and effective["design"] == {"occurrence": ["CH-01"]}
   assert effective["source"]["description"] == original_binding["source"]
   assert effective["source"]["path"] == "src/system.sdl.json"
-  with pytest.raises(ProjectError, match="passing"):
-    accept_engineering(station, ADAPTER, failed["run_id"], "概念模型审查员", "温度超限不能接受。")
 
-  _change(station, 120)
+  _write_capacity(station, 120)
   repaired = run_engineering(station, ADAPTER)
   assert repaired["result"]["assessment"] == "pass" and repaired["current"]
   assert _binding(station) == original_binding
   assert _check(repaired["result"], LOAD_TEMPERATURE)["actual"] == _check(result, LOAD_TEMPERATURE)["actual"]
-  final_review = accept_engineering(station, ADAPTER, repaired["run_id"], "概念模型审查员", "容量恢复后重算，接受本次明确范围。")
-  assert final_review["evidence_digest"] == repaired["evidence_digest"]
-  assert (station / final_review["path"]).is_file()
+  assert inspect_engineering(station, ADAPTER)["latest"]["evidence_digest"] == repaired["evidence_digest"]
 
 
 @pytest.mark.parametrize("change", ["smaller-load", "weaker-limit", "different-control", "specified-initial"])
@@ -161,12 +149,10 @@ def test_unresolved_capacity_is_not_defaulted_or_presented_as_a_solver_run(stati
   assert run["result"]["solver_execution"] == "not-run"
   assert run["result"]["diagnostics"][0]["code"] == "H_UNRESOLVED"
   assert "value" not in _binding(station)
-  with pytest.raises(ProjectError, match="passing"):
-    accept_engineering(station, ADAPTER, run["run_id"], "审查员", "未知输入不可接受。")
 
 
 def test_unrealizable_initial_state_is_execution_error_not_a_temperature_verdict(station):
-  _change(station, 20)
+  _write_capacity(station, 20)
   run = run_engineering(station, ADAPTER)
   assert run["execution"] == "error" and run["result"]["assessment"] == "indeterminate"
   assert any("initialization failed" in item["message"] for item in run["diagnostics"])

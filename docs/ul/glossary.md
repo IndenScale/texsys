@@ -201,10 +201,9 @@ project/
 
 | 首选用语 | 使用边界 | 定义来源 |
 | --- | --- | --- |
-| 工程变更（Engineering Change） | 对声明的工程输入形成可预览、可校验并绑定输入修订的修改；首版限单个 JSON 源文件的数值字段 | [变更事务](../../spec/engineering/01-change-evidence.md#计划与单源事务) |
-| 工程判定（Assessment） | 对声明工况和判据判断满足、不满足或无法判定，与工具完成和算例回归符合性分别表达 | [运行与状态](../../spec/engineering/01-change-evidence.md#运行状态与比较) |
-| 证据适用性（Freshness） | 当前输入、依赖、工具与运行记录是否一致；首版采用项目级保守失效 | [适用性](../../spec/engineering/01-change-evidence.md#项目级保守失效) |
-| 工程接受记录（Engineering Review Record） | 具名记录对准确证据及其限制的接受理由；首版本地记录不提供身份认证、数字签名或正式工程批准 | [证据与接受](../../spec/engineering/01-change-evidence.md#证据完整性与接受) |
+| 工程变更（Engineering Change） | 对版本库中工程源文件的修改，以 Git diff 表达，通过声明的构建和工程检查检验 | [Git 与构建](../adr/0026-git-build-workflow-and-devops-boundary.md) |
+| 工程判定（Assessment） | 对声明工况和判据判断满足、不满足或无法判定，与工具完成和算例回归符合性分别表达 | [运行与状态](../../spec/engineering/01-change-evidence.md#执行与结果) |
+| 证据适用性（Freshness） | 当前输入、依赖、工具与运行记录是否一致；首版采用项目级保守失效 | [适用性](../../spec/engineering/01-change-evidence.md#执行与结果) |
 
 ## 维护方式
 

@@ -53,3 +53,4 @@ adr/NNNN-short-title.md
 | [0023](0023-design-commitments-and-professional-activities.md)           | 区分设计承诺层级与专业活动并统一容量归属                    | 已接受                                 |
 | [0024](0024-portable-capability-packages.md)                             | 可移动工程能力包与项目锁定执行                              | 已接受；修订 0006 来源范围与 0010 执行发现 |
 | [0025](0025-package-component-ide-boundaries.md) | 明确 CLI 项目依赖、部件包与 IDE 插件独立边界 | 已接受；修订 0024 与 0021 |
+| [0026](0026-git-build-workflow-and-devops-boundary.md) | 工程变更使用 Git 与构建，DevOps 集成不纳入 POC | 已接受 |

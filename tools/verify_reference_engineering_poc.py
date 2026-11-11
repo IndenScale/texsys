@@ -1,8 +1,7 @@
-"""Replay conditional capacity review from a reported configuration, without engineering acceptance."""
+"""Edit conditional capacity assumptions and rerun checks with ordinary Git diffs."""
 
 import argparse
 from datetime import datetime, timezone
-import difflib
 import hashlib
 import json
 import math
@@ -12,6 +11,8 @@ import subprocess
 import sys
 import time
 import uuid
+
+from poc_git import git_baseline, git_diff
 
 
 REPO = Path(__file__).resolve().parents[1]
@@ -40,15 +41,6 @@ def require(condition, message):
     raise RuntimeError(message)
 
 
-def replace_value(document, pointer, value):
-  parts = [part.replace("~1", "/").replace("~0", "~") for part in pointer[1:].split("/")]
-  current = document
-  for part in parts[:-1]:
-    current = current[int(part)] if isinstance(current, list) else current[part]
-  key = int(parts[-1]) if isinstance(current, list) else parts[-1]
-  current[key] = value
-
-
 def metrics(record):
   checks = {item["id"]: item for item in record["result"]["checks"]}
   require(all(identity in checks for identity in METRICS), "Capacity review did not provide the agreed numerical checks.")
@@ -67,14 +59,13 @@ def verify_run(record, assessment, expected):
               for identity, value in zip(METRICS, expected, strict=True)), f"Unexpected capacity arithmetic: {actual}.")
   field = next((item for item in result["checks"] if item["id"] == "reference:field-verification"), None)
   require(field is not None and field["status"] == "indeterminate", "Unverified real performance must remain indeterminate.")
-  require(record["acceptance"] == "unreviewed", "Reported configuration alone must not restore acceptance.")
 
 
 def run_summary(record):
   return {key: record[key] for key in ("run_id", "revision", "toolchain_digest", "evidence_digest", "execution")} | {
     "assessment": record["result"]["assessment"], "solver_execution": record["result"]["solver_execution"],
     "arithmetic_execution": record["result"]["arithmetic_execution"], "checks": record["result"]["checks"],
-    "current": record["current"], "acceptance_at_run": record["acceptance"], "path": record["path"],
+    "current": record["current"], "freshness": record["freshness"], "path": record["path"],
   }
 
 
@@ -92,10 +83,10 @@ def main():
   edits.mkdir()
   log, operations = [], []
   summary = {
-    "status": "running", "workflow_verification": "running", "engineering_acceptance": "not-permitted",
+    "status": "running", "workflow_verification": "running",
     "created_at": datetime.now(timezone.utc).isoformat(), "adapter": ADAPTER,
     "scope": "终验报告声明配置的条件 0D 容量审查与证据机制验收；不是物理仿真、真实性能通过或工程接受。",
-    "success_meaning": "status=pass 仅表示预期的未定、失败、失效与拒绝接受流程均已验证；不是任何方案的真实工程 pass。",
+    "success_meaning": "status=pass 仅表示预期的未定、失败、失效与输入恢复均已验证；不是任何方案的真实性能通过。",
     "original_example": str(example), "all_project_operations_in_isolated_copies": True,
     "replay_script": {"path": Path(__file__).resolve().relative_to(REPO).as_posix(), "sha256": digest(Path(__file__))},
   }
@@ -126,7 +117,7 @@ def main():
     require(process.returncode == expected, f"Unexpected exit {process.returncode}; expected {expected}. Inspect {stdout}.")
     result = json.loads(process.stdout) if arguments[0] == "engineering" else process.stdout
     if isinstance(result, dict):
-      entry.update({key: result[key] for key in ("revision", "run_id", "evidence_digest", "toolchain_digest", "plan") if key in result})
+      entry.update({key: result[key] for key in ("revision", "run_id", "evidence_digest", "toolchain_digest") if key in result})
       if result.get("latest"):
         entry["latest_run"] = {key: result["latest"][key] for key in ("run_id", "revision", "evidence_digest")}
       write_json(output / "commands.json", log)
@@ -138,36 +129,19 @@ def main():
   def run(project=root, expected=3):
     return cli("engineering", "run", ADAPTER, project=project, expected=expected)
 
-  def reject_acceptance(record, project=root):
-    response = cli("engineering", "accept", ADAPTER, record["run_id"],
-                   "--actor", "自动化条件审查拒绝路径测试员",
-                   "--rationale", "仅测试未定或失败证据不可接受；不授权将报告声明配置提升为真实工程通过。",
-                   project=project, expected=2)
-    require(response["status"] == "error", "An unverified or failed conditional review was accepted.")
-
-  def change(state, value):
-    request = {"adapter": ADAPTER, "revision": state["revision"],
-               "changes": [{"input_id": identity, "value": value} for identity in FRACTIONS]}
-    path = output / f"change-{len(log):02d}.json"
-    write_json(path, request)
+  def change(value):
     before = (root / STUDY).read_text(encoding="utf-8")
-    plan = cli("engineering", "plan", str(path))
-    require(plan["status"] == "pass" and plan["impacts"], "Expected a valid change preview with declared impacts.")
-    applied = cli("engineering", "apply", str(path), "--plan", plan["plan"])
-    require(applied["applied"], "Expected the reviewed utilization changes to be applied.")
-    after = (root / STUDY).read_text(encoding="utf-8")
-    expected_document = json.loads(before)
-    for item in plan["changes"]:
-      require(item["file"] == STUDY, "Utilization changes must stay in the declared study source.")
-      replace_value(expected_document, item["pointer"], item["after"])
-    require(json.loads(after) == expected_document, "Numeric changes modified other facts, states or source endorsements.")
+    document = json.loads(before)
+    for key in ("air_load_fraction", "liquid_load_fraction"):
+      document["assumptions"][key]["value"] = value
+    write_json(root / STUDY, document)
     name = f"fractions-{value:g}"
     (edits / f"{name}.before.json").write_text(before, encoding="utf-8")
-    (edits / f"{name}.after.json").write_text(after, encoding="utf-8")
-    write_json(edits / f"{name}.json", {"operation": "engineering-plan-apply", "project": "project", "file": STUDY,
-      "request": path.relative_to(output).as_posix(), "plan": plan["plan"], "changes": plan["changes"],
-      "before_sha256": digest(edits / f"{name}.before.json"), "after_sha256": digest(root / STUDY),
-      "diff": "\n".join(difflib.unified_diff(before.splitlines(), after.splitlines(), f"a/{STUDY}", f"b/{STUDY}", lineterm=""))})
+    (edits / f"{name}.after.json").write_bytes((root / STUDY).read_bytes())
+    diff = git_diff(root, edits / f"{name}.diff", STUDY)
+    require(bool(diff), "Utilization edit did not produce a Git diff.")
+    write_json(edits / f"{name}.json", {"operation": "direct-source-edit", "project": "project", "file": STUDY,
+      "before_sha256": digest(edits / f"{name}.before.json"), "after_sha256": digest(root / STUDY), "diff": diff})
     require(read_json(root / STUDY)["reference"] == original_reference, "Changing utilization altered the bound reference source.")
     require(digest(root / SNAPSHOT) == original_digests[SNAPSHOT], "Changing utilization altered reported reference facts.")
 
@@ -188,6 +162,8 @@ def main():
                "reference_binding": original_reference, "snapshot_sha256": digest(root / SNAPSHOT),
                "snapshot": read_json(root / SNAPSHOT), "state_note": "保留报告引用、位置及事实状态；转录事实不升级为实测性能。"})
     cli("lock")
+    summary["git_baseline"] = git_baseline(root)
+    original_study = (root / STUDY).read_text(encoding="utf-8")
     initial = inspect_state()
     require(initial["selected"]["id"] == ADAPTER and not initial["dependency_error"], "Reference adapter or locked dependencies unavailable.")
     inputs = {item["id"]: item for item in initial["inputs"]}
@@ -195,10 +171,9 @@ def main():
             and inputs["reference.available-chillers"]["value"] == 2, "Expected the .6/.6 utilization with two available chillers.")
     baseline = run()
     verify_run(baseline, "indeterminate", (117, 150, 33))
-    reject_acceptance(baseline)
     summary["baseline"] = run_summary(baseline)
 
-    change(initial, 1)
+    change(1)
     stale = inspect_state()
     require(stale["latest"]["run_id"] == baseline["run_id"] and stale["latest"]["freshness"] == "inputs-changed",
             "Changed assumptions retained applicability of the previous result.")
@@ -206,19 +181,16 @@ def main():
     verify_run(failed, "fail", (195, 150, -45))
     margin = next(item for item in failed["result"]["checks"] if item["id"] == "reference:capacity-margin")
     require(margin["status"] == "fail" and margin["limit"] == 0 and margin["operator"] == ">=", "Capacity shortfall lacks an explicit failed margin check.")
-    reject_acceptance(failed)
     summary["failed"] = run_summary(failed)
 
-    change(inspect_state(), .6)
+    (root / STUDY).write_text(original_study, encoding="utf-8")
+    require(not git_diff(root, edits / "restored.diff", STUDY), "Restored assumptions differ from the Git baseline.")
     repaired = run()
     verify_run(repaired, "indeterminate", (117, 150, 33))
     require(repaired["run_id"] not in {baseline["run_id"], failed["run_id"]}, "Restored assumptions reused a historical run identity.")
     checks_before = {item["id"]: (item["status"], item.get("actual")) for item in baseline["result"]["checks"]}
     checks_after = {item["id"]: (item["status"], item.get("actual")) for item in repaired["result"]["checks"]}
     require(checks_before == checks_after, "Restored assumptions did not reproduce baseline check values and verdicts.")
-    reject_acceptance(repaired)
-    restored = inspect_state()
-    require(restored["reviews"] == [], "A review acceptance was created despite unverified real performance.")
     summary["repaired"] = run_summary(repaired)
 
     untrusted = output / "project-reference-mismatch"
@@ -241,7 +213,7 @@ def main():
       "file": SNAPSHOT, "pointer": FACT_POINTER, "before": original_fact, "after": fact,
       "unchanged_reference_binding": original_reference, "before_sha256": digest(edits / "reference-mismatch.before.json"),
       "after_sha256": digest(snapshot), "reason": "故意改写独立副本中的报告转录值，保留旧引用摘要以验证来源绑定拒绝路径；不改原始资料。",
-      "diff": "\n".join(difflib.unified_diff(before.splitlines(), after.splitlines(), f"a/{SNAPSHOT}", f"b/{SNAPSHOT}", lineterm=""))}
+      "diff": git_diff(untrusted, edits / "reference-mismatch.diff", SNAPSHOT)}
     write_json(edits / "reference-mismatch.json", source_edit)
     operation(source_edit)
     require(read_json(untrusted / STUDY)["reference"] == original_reference, "Mismatch test must not update the study's bound digest.")
@@ -256,8 +228,6 @@ def main():
             "Reference digest mismatch lacks an explicit diagnostic or still publishes derived quantities.")
     require(not any(item["id"] in METRICS and item.get("actual") is not None for item in result["checks"]),
             "A source mismatch still exposes usable numerical capacity checks.")
-    reject_acceptance(mismatch, untrusted)
-    require(inspect_state(untrusted)["reviews"] == [], "Mismatched reference facts received an acceptance record.")
     require(all(digest(example / file) == value for file, value in original_digests.items()), "Original example inputs changed during verification.")
     summary.update(status="pass", workflow_verification="pass", mismatch=run_summary(mismatch),
                    reference_provenance="reference-provenance.json", reference_mismatch_edit="source-edits/reference-mismatch.json",
@@ -270,7 +240,7 @@ def main():
                    finished_at=datetime.now(timezone.utc).isoformat())
     write_json(output / "summary.json", summary)
     print(json.dumps({"status": summary["status"], "workflow_verification": summary["workflow_verification"],
-                      "engineering_acceptance": "not-permitted", "output": str(output), "summary": str(output / "summary.json")}, indent=2))
+                      "output": str(output), "summary": str(output / "summary.json")}, indent=2))
 
 
 if __name__ == "__main__":

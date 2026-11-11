@@ -288,12 +288,14 @@ test("layout preferences keep project and discipline state separate and tolerate
     readLayoutPreferences("/example/a", defaults).layouts["texsys:hvac"].bottomTab,
     "tasks",
   );
-  saved.layouts["texsys:hvac"].sidebarActivity = "packages";
-  saved.layouts["texsys:hvac"].hiddenActivities = ["packages", "scm"];
-  writeLayoutPreferences("/example/a", saved);
-  const restored = readLayoutPreferences("/example/a", defaults).layouts["texsys:hvac"];
-  assert.equal(restored.sidebarActivity, "explorer");
-  assert.deepEqual(restored.hiddenActivities, ["scm"]);
+  for (const retired of ["packages", "engineering"]) {
+    saved.layouts["texsys:hvac"].sidebarActivity = retired;
+    saved.layouts["texsys:hvac"].hiddenActivities = ["packages", "engineering", "scm"];
+    writeLayoutPreferences("/example/a", saved);
+    const restored = readLayoutPreferences("/example/a", defaults).layouts["texsys:hvac"];
+    assert.equal(restored.sidebarActivity, "explorer");
+    assert.deepEqual(restored.hiddenActivities, ["scm"]);
+  }
   stored.set([...stored.keys()][0], "{incomplete");
   assert.deepEqual(readLayoutPreferences("/example/a", defaults), { discipline: "", layouts: {} });
 });

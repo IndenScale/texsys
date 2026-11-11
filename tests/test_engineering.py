@@ -4,15 +4,15 @@ import sys
 
 import pytest
 
-from texsys import engineering as engineering
+from texsys import engineering
 from texsys.dependencies import add_dependency, lock_project
 from texsys.packages import TexsysPackage
 from texsys.project import ProjectError, initialize_project, project_write_lock
 
 
 class WaterAdapter:
-  id = "water:route-change"
-  name = "管路变更"
+  id = "water:route-check"
+  name = "管路检查"
   version = "1"
 
   def supports(self, root):
@@ -23,10 +23,6 @@ class WaterAdapter:
     return [{"id": "length", "label": "管路长度", "file": "src/route.study.json",
              "pointer": "/route/length_m", "unit": "m", "object_ref": "water.Route-01",
              "value": value, "min": 1, "max": 100}]
-
-  def impact(self, root, changes):
-    return [{"from": changes[0]["object_ref"], "to": "water.Pump-01", "reason": "管长影响水头损失",
-             "checks": ["pressure-budget"]}]
 
   def evaluate(self, root):
     length = self.inputs(root)[0]["value"]
@@ -61,99 +57,57 @@ def project(tmp_path, monkeypatch):
   return root, adapter
 
 
-def change(root, value):
-  state = engineering.inspect_engineering(root)
-  return {"adapter": state["selected"]["id"], "revision": state["revision"],
-          "changes": [{"input_id": "length", "value": value}]}
+def write_length(root, value):
+  path = root / "src/route.study.json"
+  document = json.loads(path.read_text())
+  document["route"]["length_m"] = value
+  path.write_text(json.dumps(document))
 
 
-def apply(root, value):
-  request = change(root, value)
-  plan = engineering.plan_engineering_change(root, request)
-  return engineering.apply_engineering_change(root, request, plan["plan"])
-
-
-def test_engineering_change_recompute_repair_and_accept_lifecycle(project):
+def test_source_edit_recompute_and_repair_preserve_run_evidence(project):
   root, adapter = project
+  source = root / "src/route.study.json"
+  before = source.read_bytes()
   initial = engineering.run_engineering(root, adapter.id)
   assert initial["execution"] == "completed" and initial["result"]["assessment"] == "pass"
-  assert initial["current"] and initial["acceptance"] == "unreviewed"
-  first_review = engineering.accept_engineering(root, adapter.id, initial["run_id"], "Engineer", "Budget checked.")
-  assert first_review["state"] == "accepted"
-  assert (root / first_review["path"]).is_file()
-  assert first_review["evidence"]["result"]["limitations"] == ["Concept model with assumed roughness."]
-  before = (root / "src/route.study.json").read_bytes()
-  requested = change(root, 40)
-  plan = engineering.plan_engineering_change(root, requested)
-  assert (root / "src/route.study.json").read_bytes() == before
-  assert plan["changes"][0]["before"] == 10 and plan["changes"][0]["after"] == 40
-  assert plan["impacts"][0]["checks"] == ["pressure-budget"]
-  assert "src/route.study.json" in plan["diff"]
-  assert engineering.apply_engineering_change(root, requested, plan["plan"])["applied"]
+  assert initial["current"] and initial["result"]["limitations"] == ["Concept model with assumed roughness."]
+  assert source.read_bytes() == before
+  saved_initial = (root / initial["path"]).read_bytes()
+  write_length(root, 40)
   state = engineering.inspect_engineering(root)
   assert state["latest"]["freshness"] == "inputs-changed"
-  assert state["reviews"][0]["state"] == "needs-review"
   failed = engineering.run_engineering(root, adapter.id)
   assert failed["current"] and failed["execution"] == "completed"
-  assert failed["result"]["verification"] == "pass"
-  assert failed["result"]["assessment"] == "fail"
-  with pytest.raises(ProjectError, match="Only current"):
-    engineering.accept_engineering(root, adapter.id, failed["run_id"], "Engineer", "Cannot accept this.")
+  assert failed["result"]["verification"] == "pass" and failed["result"]["assessment"] == "fail"
   comparison = engineering.inspect_engineering(root)["comparison"]
   assert comparison["base_run_id"] == initial["run_id"]
   assert comparison["checks"][0]["before"]["actual"] == 20
   assert comparison["checks"][0]["after"]["actual"] == 80
-  assert apply(root, 15)["applied"]
+  write_length(root, 15)
   repaired = engineering.run_engineering(root, adapter.id)
-  review = engineering.accept_engineering(root, adapter.id, repaired["run_id"], "Engineer", "Changed route, verified pressure.")
-  state = engineering.inspect_engineering(root)
-  assert state["latest"]["acceptance"] == "accepted"
-  assert state["revision"] == repaired["revision"]  # Review records do not invalidate the calculation.
-  assert review["evidence_digest"] == repaired["evidence_digest"]
+  assert repaired["result"]["assessment"] == "pass"
+  assert engineering.inspect_engineering(root)["revision"] == repaired["revision"]
   rerun = engineering.run_engineering(root, adapter.id)
-  assert rerun["run_id"] != repaired["run_id"] and rerun["acceptance"] == "unreviewed"
+  assert rerun["run_id"] != repaired["run_id"]
   assert engineering.inspect_engineering(root)["comparison"]["checks"] == []
-  assert apply(root, 16)["applied"]
-  assert all(item["state"] == "needs-review" for item in engineering.inspect_engineering(root)["reviews"])
+  assert (root / initial["path"]).read_bytes() == saved_initial
+  write_length(root, 16)
+  assert all(not item["current"] for item in engineering.inspect_engineering(root)["runs"])
 
 
-def test_plan_rejects_changed_inputs_and_tampered_request(project):
-  root, _ = project
-  request = change(root, 15)
-  plan = engineering.plan_engineering_change(root, request)
+@pytest.mark.parametrize("value", [True, False, float("nan"), float("inf"), "20", None, 10 ** 1000])
+def test_invalid_numeric_source_is_rejected_without_being_rewritten(project, value):
+  root, adapter = project
+  write_length(root, value)
   before = (root / "src/route.study.json").read_bytes()
-  tampered = {**request, "changes": [{"input_id": "length", "value": 16}]}
-  with pytest.raises(ProjectError, match="digest differs"):
-    engineering.apply_engineering_change(root, tampered, plan["plan"])
+  with pytest.raises(ProjectError):
+    engineering.run_engineering(root, adapter.id)
   assert (root / "src/route.study.json").read_bytes() == before
-  (root / "assets/environment.txt").write_text("New environment.")
-  assert engineering.apply_engineering_change(root, request, plan["plan"])["status"] == "conflict"
-  assert (root / "src/route.study.json").read_bytes() == before
-
-
-@pytest.mark.parametrize("value", [True, False, float("nan"), float("inf"), "20", 0, 101, None, 10 ** 1000])
-def test_invalid_numeric_changes_never_touch_sources(project, value):
-  root, _ = project
-  before = (root / "src/route.study.json").read_bytes()
-  with pytest.raises(ProjectError, match="finite"):
-    engineering.plan_engineering_change(root, change(root, value))
-  assert (root / "src/route.study.json").read_bytes() == before
-
-
-def test_noop_preserves_original_file_and_invalid_changes_are_rejected(project):
-  root, _ = project
-  before = (root / "src/route.study.json").read_bytes()
-  assert apply(root, 10)["applied"] is False
-  assert (root / "src/route.study.json").read_bytes() == before
-  request = change(root, 15)
-  for changes in ([{"input_id": "missing", "value": 15}], request["changes"] * 2,
-                  [{"input_id": "length", "value": 15, "file": "src/other.json"}]):
-    with pytest.raises(ProjectError, match="unique declared"):
-      engineering.plan_engineering_change(root, {**request, "changes": changes})
+  assert not list((root / "build/engineering/runs").glob("*.json"))
 
 
 @pytest.mark.parametrize("design", [{"definition": "water.Route"}, {"occurrence": ["plant", "route"]}])
-def test_explicit_design_selection_survives_plan_run_and_review(project, monkeypatch, design):
+def test_explicit_design_selection_survives_inspection_and_run(project, monkeypatch, design):
   root, adapter = project
   original_inputs, original_evaluate = adapter.inputs, adapter.evaluate
   monkeypatch.setattr(adapter, "inputs", lambda root: [{**original_inputs(root)[0], "design": design}])
@@ -168,17 +122,12 @@ def test_explicit_design_selection_survives_plan_run_and_review(project, monkeyp
   state = engineering.inspect_engineering(root)
   assert state["inputs"][0]["design"] == design
   assert state["inputs"][0]["object_ref"] == "water.Route-01"
-  request = change(root, 12)
-  plan = engineering.plan_engineering_change(root, request)
-  assert plan["changes"][0]["design"] == design
-  assert engineering.apply_engineering_change(root, request, plan["plan"])["applied"]
+  write_length(root, 12)
   run = engineering.run_engineering(root, adapter.id)
   assert run["input_values"][0]["design"] == design
   assert run["result"]["checks"][0]["design"] == design
   assert run["result"]["checks"][0]["object_ref"] == "water.Pump-01"
   assert run["result"]["extraction"][0]["design"] == design
-  review = engineering.accept_engineering(root, adapter.id, run["run_id"], "Engineer", "Explicit model selection checked.")
-  assert review["evidence"]["result"]["checks"][0]["design"] == design
 
 
 @pytest.mark.parametrize("design", [
@@ -188,18 +137,14 @@ def test_explicit_design_selection_survives_plan_run_and_review(project, monkeyp
   {"definition": "water.Route", "occurrence": ["route"]},
   {"definition": "water.Route", "extra": "unchecked"},
 ])
-def test_invalid_input_design_cannot_be_applied_even_with_an_earlier_valid_plan(project, monkeypatch, design):
+def test_invalid_input_design_is_rejected_before_evaluation(project, monkeypatch, design):
   root, adapter = project
-  request = change(root, 12)
-  plan = engineering.plan_engineering_change(root, request)
   original = adapter.inputs
   before = (root / "src/route.study.json").read_bytes()
   monkeypatch.setattr(adapter, "inputs", lambda root: [{**original(root)[0], "design": design}])
   with pytest.raises(ProjectError, match="design selection"):
-    engineering.apply_engineering_change(root, request, plan["plan"])
-  assert (root / "src/route.study.json").read_bytes() == before
-  with pytest.raises(ProjectError, match="design selection"):
     engineering.run_engineering(root, adapter.id)
+  assert (root / "src/route.study.json").read_bytes() == before
   assert not list((root / "build/engineering/runs").glob("*.json"))
 
 
@@ -223,8 +168,6 @@ def test_invalid_result_design_is_not_saved_as_engineering_evidence(project, mon
   assert "design selection" in run["diagnostics"][0]["message"]
   saved = json.loads((root / run["path"]).read_text())
   assert saved["result"]["checks"] == [] and saved["result"]["extraction"] == []
-  with pytest.raises(ProjectError, match="Only current"):
-    engineering.accept_engineering(root, adapter.id, run["run_id"], "Engineer", "Invalid selection.")
 
 
 def test_optional_adapter_description_and_design_are_not_inferred(project, monkeypatch):
@@ -247,7 +190,7 @@ def test_invalid_adapter_description_is_rejected(project, monkeypatch, descripti
     engineering.inspect_engineering(root)
 
 
-def test_known_numeric_change_cannot_retain_source_endorsement(project, monkeypatch):
+def test_input_provenance_is_recorded_from_each_source_revision(project, monkeypatch):
   root, adapter = project
   source = root / "src/route.study.json"
   document = json.loads(source.read_text())
@@ -261,50 +204,37 @@ def test_known_numeric_change_cannot_retain_source_endorsement(project, monkeypa
 
   monkeypatch.setattr(adapter, "inputs", inputs)
   before = source.read_bytes()
-  assert apply(root, 10)["applied"] is False
+  measured = engineering.run_engineering(root, adapter.id)
+  assert measured["execution"] == "completed" and measured["input_values"][0]["state"] == "known"
   assert source.read_bytes() == before
-  run = engineering.run_engineering(root, adapter.id)
-  assert run["execution"] == "completed" and run["input_values"][0]["state"] == "known"
-  request = change(root, 12)
-  with pytest.raises(ProjectError, match="known.*source endorsement.*source and state"):
-    engineering.plan_engineering_change(root, request)
-  with pytest.raises(ProjectError, match="known.*source endorsement"):
-    engineering.apply_engineering_change(root, request, "cannot-bypass-source-protection")
-  assert source.read_bytes() == before
-  # A separate source-aware workflow explicitly replaces the measured basis.
-  document["route"].update(state="assumed", source="Design alternative B, assumed route")
+  document["route"].update(length_m=12, state="assumed", source="Design alternative B, assumed route")
   source.write_text(json.dumps(document))
-  assert apply(root, 12)["applied"]
-  changed = json.loads(source.read_text())["route"]
-  assert changed["length_m"] == 12 and changed["state"] == "assumed"
-  assert changed["source"] == "Design alternative B, assumed route"
+  alternative = engineering.run_engineering(root, adapter.id)
+  assert alternative["input_values"][0]["state"] == "assumed"
+  assert alternative["input_values"][0]["source"] == "Design alternative B, assumed route"
+  assert measured["input_values"][0]["source"] == "Measured route, survey A"
+  assert engineering.inspect_engineering(root)["runs"][1]["freshness"] == "inputs-changed"
 
 
 @pytest.mark.parametrize("state", ["unknown", "missing", "not-applicable", "failed", None, True, "estimated", {}])
-def test_non_numeric_or_invalid_input_state_cannot_be_applied(project, monkeypatch, state):
+def test_numeric_evidence_rejects_non_numeric_or_invalid_input_state(project, monkeypatch, state):
   root, adapter = project
-  request = change(root, 12)
-  plan = engineering.plan_engineering_change(root, request)
   original = adapter.inputs
   before = (root / "src/route.study.json").read_bytes()
   monkeypatch.setattr(adapter, "inputs", lambda root: [{**original(root)[0], "state": state}])
   with pytest.raises(ProjectError, match="input.*state"):
-    engineering.apply_engineering_change(root, request, plan["plan"])
+    engineering.run_engineering(root, adapter.id)
   assert (root / "src/route.study.json").read_bytes() == before
 
 
-def test_existing_project_lock_serializes_writes_and_runs(project):
+def test_existing_project_lock_serializes_runs(project):
   root, adapter = project
-  request = change(root, 12)
-  plan = engineering.plan_engineering_change(root, request)
   with project_write_lock(root):
-    with pytest.raises(ProjectError, match="locked"):
-      engineering.apply_engineering_change(root, request, plan["plan"])
     with pytest.raises(ProjectError, match="locked"):
       engineering.run_engineering(root, adapter.id)
 
 
-def test_external_input_mutation_during_run_is_preserved_but_cannot_be_accepted(project, monkeypatch):
+def test_external_input_mutation_during_run_invalidates_evidence(project, monkeypatch):
   root, adapter = project
   original = adapter.evaluate
 
@@ -316,12 +246,10 @@ def test_external_input_mutation_during_run_is_preserved_but_cannot_be_accepted(
   monkeypatch.setattr(adapter, "evaluate", mutate)
   run = engineering.run_engineering(root, adapter.id)
   assert run["execution"] == "error" and not run["inputs_consistent"]
-  assert run["result"]["assessment"] == "pass"  # Distinct from execution/input validity.
+  assert run["result"]["assessment"] == "pass"  # Separate from execution/input validity.
   assert not run["current"]
   assert run["diagnostics"][0]["code"] == "ENGINEERING_INPUT_CHANGED"
   assert (root / run["path"]).is_file()
-  with pytest.raises(ProjectError, match="Only current"):
-    engineering.accept_engineering(root, adapter.id, run["run_id"], "Engineer", "Stale inputs.")
 
 
 def test_deleted_adapter_input_during_run_still_records_execution_failure(project, monkeypatch):
@@ -339,89 +267,43 @@ def test_deleted_adapter_input_during_run_still_records_execution_failure(projec
   assert (root / run["path"]).is_file()
 
 
-def test_input_change_during_impact_analysis_rejects_plan(project, monkeypatch):
+def test_input_change_while_capturing_tools_is_rejected(project, monkeypatch):
   root, adapter = project
-  request = change(root, 12)
-
-  def mutate(path, changes):
-    (path / "assets/concurrent.txt").write_text("Changed while impact is being calculated.")
-    return []
-
-  monkeypatch.setattr(adapter, "impact", mutate)
-  plan = engineering.plan_engineering_change(root, request)
-  assert plan["status"] == "conflict" and plan["plan"] is None
-  assert json.loads((root / "src/route.study.json").read_text())["route"]["length_m"] == 10
-
-
-def test_change_during_final_acceptance_tool_scan_is_rejected_before_recording(project, monkeypatch):
-  root, adapter = project
-  run = engineering.run_engineering(root, adapter.id)
   original = engineering._toolchain
-  calls = 0
 
-  def change_after_snapshot(packages, adapter):
-    nonlocal calls
+  def mutate(packages, adapter):
     result = original(packages, adapter)
-    calls += 1
-    if calls == 2:
-      (root / "src/route.study.json").write_text('{"route":{"length_m":80}}')
+    write_length(root, 80)
     return result
 
-  monkeypatch.setattr(engineering, "_toolchain", change_after_snapshot)
+  monkeypatch.setattr(engineering, "_toolchain", mutate)
   with pytest.raises(ProjectError, match="changed while capturing"):
-    engineering.accept_engineering(root, adapter.id, run["run_id"], "Engineer", "Source changed during acceptance.")
-  assert not list((root / "reviews/engineering").glob("*.json"))
-  assert not engineering.inspect_engineering(root)["latest"]["current"]
-
-
-def test_change_while_publishing_review_never_returns_current_acceptance(project, monkeypatch):
-  root, adapter = project
-  run = engineering.run_engineering(root, adapter.id)
-  original = engineering._write_record
-
-  def change_after_publication(path, record):
-    original(path, record)
-    (root / "src/route.study.json").write_text('{"route":{"length_m":80}}')
-
-  monkeypatch.setattr(engineering, "_write_record", change_after_publication)
-  with pytest.raises(ProjectError, match="changed while publishing"):
-    engineering.accept_engineering(root, adapter.id, run["run_id"], "Engineer", "Source changed during publication.")
-  assert engineering.inspect_engineering(root)["reviews"][0]["state"] == "needs-review"
+    engineering.run_engineering(root, adapter.id)
+  assert not list((root / "build/engineering/runs").glob("*.json"))
 
 
 def test_missing_dependency_invalidates_existing_evidence(project):
   root, adapter = project
-  run = engineering.run_engineering(root, adapter.id)
-  engineering.accept_engineering(root, adapter.id, run["run_id"], "Engineer", "Checked.")
+  engineering.run_engineering(root, adapter.id)
   manifest = root / "texsys.toml"
   manifest.write_text(manifest.read_text() + '\n[dependencies]\nmissing = {path = "../missing", version = "1"}\n')
   state = engineering.inspect_engineering(root)
   assert state["dependency_error"]
   assert state["latest"]["freshness"] == "dependency-invalid"
-  assert state["reviews"][0]["state"] == "needs-review"
   with pytest.raises(ProjectError):
     engineering.run_engineering(root, adapter.id)
-  with pytest.raises(ProjectError):
-    engineering.plan_engineering_change(root, change(root, 12))
 
 
-def test_adapter_version_change_invalidates_evidence_and_plans(project):
+def test_adapter_version_change_invalidates_existing_evidence(project):
   root, adapter = project
-  run = engineering.run_engineering(root, adapter.id)
-  engineering.accept_engineering(root, adapter.id, run["run_id"], "Engineer", "Checked.")
-  requested = change(root, 12)
-  plan = engineering.plan_engineering_change(root, requested)
+  engineering.run_engineering(root, adapter.id)
   adapter.version = "2"
   state = engineering.inspect_engineering(root)
-  assert state["latest"]["freshness"] == "tools-changed"
-  assert state["reviews"][0]["state"] == "needs-review"
-  with pytest.raises(ProjectError, match="digest differs"):
-    engineering.apply_engineering_change(root, requested, plan["plan"])
-  with pytest.raises(ProjectError, match="Only current"):
-    engineering.accept_engineering(root, adapter.id, run["run_id"], "Engineer", "Old tool.")
+  assert state["latest"]["freshness"] == "tools-changed" and not state["latest"]["current"]
+  assert engineering.run_engineering(root, adapter.id)["current"]
 
 
-def test_tampered_evidence_is_visible_as_diagnostic_and_rejected(project):
+def test_tampered_evidence_is_visible_as_diagnostic(project):
   root, adapter = project
   run = engineering.run_engineering(root, adapter.id)
   path = root / run["path"]
@@ -430,8 +312,6 @@ def test_tampered_evidence_is_visible_as_diagnostic_and_rejected(project):
   path.write_text(json.dumps(record))
   state = engineering.inspect_engineering(root)
   assert state["latest"] is None and "integrity" in state["diagnostics"][0]["message"]
-  with pytest.raises(ProjectError, match="integrity"):
-    engineering.accept_engineering(root, adapter.id, run["run_id"], "Engineer", "Tampered.")
 
 
 def test_run_errors_and_invalid_aggregate_do_not_claim_success(project, monkeypatch):
@@ -447,11 +327,9 @@ def test_run_errors_and_invalid_aggregate_do_not_claim_success(project, monkeypa
   run = engineering.run_engineering(root, adapter.id)
   assert run["execution"] == "error" and run["result"]["assessment"] == "indeterminate"
   assert "cannot hide" in run["diagnostics"][0]["message"]
-  with pytest.raises(ProjectError, match="Only current"):
-    engineering.accept_engineering(root, adapter.id, run["run_id"], "Engineer", "Invalid result.")
 
 
-def test_adapter_cannot_escape_sources_or_rewrite_two_files(project, monkeypatch, tmp_path):
+def test_adapter_inputs_stay_in_source_and_can_span_files(project, monkeypatch, tmp_path):
   root, adapter = project
   original = adapter.inputs
   outside = tmp_path / "outside.json"
@@ -462,30 +340,15 @@ def test_adapter_cannot_escape_sources_or_rewrite_two_files(project, monkeypatch
     with pytest.raises(ProjectError):
       engineering.inspect_engineering(root)
   (root / "src/link.json").unlink()
-  (root / "src/other.json").write_text(outside.read_text())
+  other = root / "src/other.json"
+  other.write_text(outside.read_text())
   monkeypatch.setattr(adapter, "inputs", lambda root: [original(root)[0], {**original(root)[0], "id": "other", "file": "src/other.json"}])
   state = engineering.inspect_engineering(root)
-  request = {"adapter": adapter.id, "revision": state["revision"],
-             "changes": [{"input_id": "length", "value": 11}, {"input_id": "other", "value": 12}]}
-  with pytest.raises(ProjectError, match="one source file"):
-    engineering.plan_engineering_change(root, request)
-  assert json.loads((root / "src/other.json").read_text())["route"]["length_m"] == 10
+  assert {item["file"] for item in state["inputs"]} == {"src/route.study.json", "src/other.json"}
+  assert json.loads(other.read_text())["route"]["length_m"] == 10
 
 
-def test_review_needs_named_actor_and_reason_and_stays_portable(project):
-  root, adapter = project
-  run = engineering.run_engineering(root, adapter.id)
-  for actor, reason in (("", "reason"), ("Engineer", " ")):
-    with pytest.raises(ProjectError, match="named reviewer"):
-      engineering.accept_engineering(root, adapter.id, run["run_id"], actor, reason)
-  review = engineering.accept_engineering(root, adapter.id, run["run_id"], "Engineer", "Within concept scope.")
-  (root / run["path"]).unlink()
-  state = engineering.inspect_engineering(root)
-  assert state["reviews"][0]["state"] == "accepted"
-  assert state["reviews"][0]["evidence"]["evidence_digest"] == review["evidence_digest"]
-
-
-def test_unsupported_project_has_no_engineering_actions(tmp_path, monkeypatch):
+def test_unsupported_project_has_no_engineering_adapter(tmp_path, monkeypatch):
   initialize_project(tmp_path)
   monkeypatch.setattr(engineering, "project_packages", lambda root: (WaterPackage(WaterAdapter()),))
   monkeypatch.setattr(engineering, "_worker_call", engineering._dispatch)
@@ -493,7 +356,7 @@ def test_unsupported_project_has_no_engineering_actions(tmp_path, monkeypatch):
   assert not state["available"] and state["selected"] is None and state["runs"] == []
 
 
-def test_fresh_worker_uses_current_code_for_inputs_plans_and_runs(tmp_path, monkeypatch):
+def test_fresh_worker_uses_current_code_for_inputs_and_runs(tmp_path, monkeypatch):
   """A long-lived caller must never label old loaded code with new disk hashes."""
   code = '''import json
 import os
@@ -508,7 +371,6 @@ class Adapter:
   def inputs(self, root):
     value=json.loads((root / "src/input.json").read_text())["length"]
     return [{"id":"length","label":f"Length factor {FACTOR}","file":"src/input.json","pointer":"/length","unit":"m","object_ref":"Route","value":value,"min":1,"max":100}]
-  def impact(self, root, changes): return [{"factor":FACTOR}]
   def evaluate(self, root):
     print("adapter log must not corrupt worker JSON")
     if os.environ.get("TEXSYS_AUDIT_PAUSE"):
@@ -542,7 +404,6 @@ package=Package()
   baseline = engineering.run_engineering(root, "audit:fresh-worker")
   assert baseline["result"]["assessment"] == "pass"
   assert baseline["toolchain"]["runner"] == "fresh-python-process"
-  engineering.accept_engineering(root, "audit:fresh-worker", baseline["run_id"], "Audit", "Initial code.")
   spec = importlib.util.spec_from_file_location("engineering_worker_audit_stale", source)
   stale = importlib.util.module_from_spec(spec)
   monkeypatch.setitem(sys.modules, spec.name, stale)
@@ -554,15 +415,11 @@ package=Package()
   monkeypatch.setattr(engineering, "project_packages", lambda root: (stale.Package(),))
   state = engineering.inspect_engineering(root, "audit:fresh-worker")
   assert state["inputs"][0]["label"] == "Length factor 1000"
-  assert not state["latest"]["current"] and state["reviews"][0]["state"] == "needs-review"
-  request = {"adapter": "audit:fresh-worker", "revision": state["revision"], "changes": [{"input_id": "length", "value": 12}]}
-  plan = engineering.plan_engineering_change(root, request)
-  assert plan["impacts"] == [{"factor": 1000}]
+  assert not state["latest"]["current"]
+  (root / "src/input.json").write_text('{"length":12}')
   run = engineering.run_engineering(root, "audit:fresh-worker")
-  assert run["execution"] == "completed" and run["result"]["checks"][0]["actual"] == 10000
+  assert run["execution"] == "completed" and run["result"]["checks"][0]["actual"] == 12000
   assert run["result"]["assessment"] == "fail"
-  with pytest.raises(ProjectError, match="Only current"):
-    engineering.accept_engineering(root, "audit:fresh-worker", run["run_id"], "Audit", "Must fail.")
   monkeypatch.setenv("TEXSYS_AUDIT_MUTATE_SOURCE", "1")
   changed = engineering.run_engineering(root, "audit:fresh-worker")
   assert changed["execution"] == "error" and not changed["current"]

@@ -1,14 +1,11 @@
-"""Shared engineering changes, immutable run evidence and explicit review records.
+"""Engineering evaluation and immutable evidence for declared project inputs.
 
-Adapters own domain meaning. This first contract edits numeric fields in one source
-file and conservatively invalidates evidence on any project input or tool change.
-Declared impact paths explain coverage; they are not a claim of complete dependency
-analysis or selective cache reuse.
+Adapters own domain meaning. Source files are edited through ordinary development
+tools; any project input or tool change invalidates previous run evidence.
 """
 
 from copy import deepcopy
 from datetime import datetime, timezone
-import difflib
 import inspect
 from importlib import metadata
 import json
@@ -40,7 +37,7 @@ def _project(path):
   root = Path(path).expanduser().resolve()
   project = inspect_project(root)
   if project is None:
-    raise ProjectError("Initialize the project before inspecting engineering changes.")
+    raise ProjectError("Initialize the project before inspecting engineering inputs.")
   for name in ("texsys.toml", "texsys.lock", project.source, project.assets, project.build):
     target = root / name
     if target.resolve() != target:
@@ -221,7 +218,7 @@ def _inputs(context):
       if not isinstance(state, str) or state not in VALUE_STATES:
         raise ProjectError(f"Invalid engineering input value state: {item['id']}")
       if state not in {"known", "assumed"}:
-        raise ProjectError(f"Engineering input state {state} forbids a numeric value; this transaction requires an existing known or assumed value: {item['id']}")
+        raise ProjectError(f"Engineering input state {state} forbids a numeric value; numeric evidence requires a known or assumed value: {item['id']}")
     location = (item["file"], item["pointer"])
     if item["id"] in seen or location in locations:
       raise ProjectError("Engineering input identities and source locations must be unique.")
@@ -287,30 +284,7 @@ def _freshness(context, run):
   return "current"
 
 
-def _reviews(context):
-  result, diagnostics = [], []
-  directory = _safe_directory(context["root"], "reviews/engineering")
-  if directory.is_relative_to(context["root"] / context["project"].source) or directory.is_relative_to(context["root"] / context["project"].assets):
-    raise ProjectError("Engineering review storage must be outside calculation inputs.")
-  for path in sorted(directory.glob("*.json"), reverse=True):
-    try:
-      review = _read_record(path, "decision_digest")
-      run = review["evidence"]
-      if review.get("adapter") != context["selected"]["id"]:
-        continue
-      if (run.get("evidence_digest") != canonical_digest({k: v for k, v in run.items() if k != "evidence_digest"})
-          or review.get("evidence_digest") != run.get("evidence_digest") or review.get("run_id") != run.get("run_id")):
-        raise ProjectError("Accepted evidence digest does not match the decision.")
-      freshness = _freshness(context, run)
-      result.append({**review, "freshness": freshness, "current": freshness == "current",
-                     "state": "accepted" if freshness == "current" else "needs-review",
-                     "path": path.relative_to(context["root"]).as_posix()})
-    except (ProjectError, KeyError, TypeError) as error:
-      diagnostics.append({"path": path.relative_to(context["root"]).as_posix(), "message": str(error)})
-  return result, diagnostics
-
-
-def _runs(context, reviews):
+def _runs(context):
   result, diagnostics = [], []
   directory = _run_directory(context)
   if directory.resolve() != directory:
@@ -323,9 +297,7 @@ def _runs(context, reviews):
       if run.get("run_id") != path.stem:
         raise ProjectError("Run file identity does not match its record.")
       freshness = _freshness(context, run)
-      accepted = [review for review in reviews if review["evidence_digest"] == run["evidence_digest"]]
       result.append({**run, "current": freshness == "current", "freshness": freshness,
-                     "acceptance": accepted[0]["state"] if accepted else "unreviewed",
                      "path": path.relative_to(context["root"]).as_posix()})
     except (ProjectError, KeyError, TypeError) as error:
       diagnostics.append({"path": path.relative_to(context["root"]).as_posix(), "message": str(error)})
@@ -349,18 +321,16 @@ def _comparison(before, after):
 
 
 def _inspect_engineering_local(path: Path, adapter_id: str | None = None) -> dict[str, Any]:
-  """Inspect editable engineering facts and recalculate historical applicability."""
+  """Inspect engineering inputs and recalculate historical evidence applicability."""
   context = _context(path, adapter_id)
   state = {"version": 1, "available": context["adapter"] is not None, "revision": context["revision"],
            "adapters": [entry[1] for entry in context["adapters"].values()], "selected": context["selected"],
            "coverage": COVERAGE, "dependency_error": context["dependency_error"], "inputs": [],
-           "runs": [], "latest": None, "reviews": [], "comparison": None, "diagnostics": []}
+           "runs": [], "latest": None, "comparison": None, "diagnostics": []}
   if context["adapter"] is None:
     return state
   state["inputs"] = _inputs(context)
-  state["reviews"], review_errors = _reviews(context)
-  state["runs"], run_errors = _runs(context, state["reviews"])
-  state["diagnostics"] = review_errors + run_errors
+  state["runs"], state["diagnostics"] = _runs(context)
   if state["runs"]:
     state["latest"] = state["runs"][0]
   if len(state["runs"]) > 1:
@@ -368,83 +338,6 @@ def _inspect_engineering_local(path: Path, adapter_id: str | None = None) -> dic
   if _records(context["root"], context["project"]) != context["records"]:
     raise ProjectError("Engineering inputs changed while reading. Refresh the current revision.")
   return state
-
-
-def _prepare(path, request):
-  if (not isinstance(request, dict) or set(request) != {"adapter", "revision", "changes"}
-      or not isinstance(request["adapter"], str) or not isinstance(request["revision"], str)
-      or not isinstance(request["changes"], list) or not request["changes"]):
-    raise ProjectError("Engineering change requires adapter, revision and a non-empty changes array.")
-  context = _context(path, request["adapter"], require=True)
-  result = {"status": "pass", "revision": context["revision"], "plan": None, "changes": [],
-            "impacts": [], "diff": "", "coverage": COVERAGE}
-  if request["revision"] != context["revision"]:
-    return context, {**result, "status": "conflict", "message": "Project inputs changed. Refresh and replan."}, None, None
-  if context["dependency_error"]:
-    raise ProjectError(context["dependency_error"])
-  inputs = {item["id"]: item for item in _inputs(context)}
-  seen, changes = set(), []
-  for requested in request["changes"]:
-    if (not isinstance(requested, dict) or set(requested) != {"input_id", "value"}
-        or not isinstance(requested["input_id"], str) or requested["input_id"] not in inputs
-        or requested["input_id"] in seen):
-      raise ProjectError("Each change must identify one unique declared engineering input and value.")
-    seen.add(requested["input_id"])
-    item, value = inputs[requested["input_id"]], requested["value"]
-    if not _number(value) or ("min" in item and value < item["min"]) or ("max" in item and value > item["max"]):
-      raise ProjectError(f"Engineering input must be finite and inside its declared bounds: {item['id']}")
-    if item.get("state") == "known" and value != item["value"]:
-      raise ProjectError(f"Cannot change known engineering input {item['id']} while retaining its source endorsement. First revise its source and state to an assumption, or use a workflow that updates the source together with the value.")
-    changes.append({"input_id": item["id"], "before": item["value"], "after": value,
-                    **{key: item[key] for key in ("file", "pointer", "label", "unit", "object_ref")},
-                    **{key: item[key] for key in ("design", "state") if key in item}})
-  files = {item["file"] for item in changes}
-  if len(files) != 1:
-    raise ProjectError("This engineering transaction supports one source file; split unrelated file changes explicitly.")
-  target = _source_path(context, next(iter(files)))
-  before = target.read_text(encoding="utf-8")
-  document = _load_json(before)
-  for change in changes:
-    parent, key = _pointer_parent(document, change["pointer"])
-    if parent[key] != change["before"]:
-      raise ProjectError("Engineering input changed while planning. Refresh and replan.")
-    parent[key] = change["after"]
-  after = json.dumps(document, ensure_ascii=False, allow_nan=False, indent=2) + "\n"
-  if all(item["before"] == item["after"] for item in changes):
-    after = before
-  impacts = context["adapter"].impact(context["root"], deepcopy(changes))
-  if not isinstance(impacts, list):
-    raise ProjectError("Engineering adapter impacts must be an array.")
-  result.update(changes=changes, impacts=impacts,
-                diff="\n".join(difflib.unified_diff(before.splitlines(), after.splitlines(),
-                               f"a/{changes[0]['file']}", f"b/{changes[0]['file']}", lineterm="")))
-  result["plan"] = canonical_digest({"request": request, "changes": changes, "impacts": impacts,
-                                     "output": after, "toolchain": context["toolchain_digest"]})
-  if _records(context["root"], context["project"]) != context["records"]:
-    return context, {**result, "status": "conflict", "plan": None, "message": "Inputs changed while planning."}, None, None
-  return context, result, target, after if after != before else None
-
-
-def _plan_engineering_change_local(path: Path, request: dict) -> dict[str, Any]:
-  """Preview numeric engineering changes and their declared impact paths."""
-  return _prepare(path, request)[1]
-
-
-def _apply_engineering_change_local(path: Path, request: dict, plan: str) -> dict[str, Any]:
-  """Apply exactly the reviewed plan under the shared project writer lock."""
-  root, _ = _project(path)
-  with project_write_lock(root):
-    context, result, target, after = _prepare(root, request)
-    if result["status"] != "pass":
-      return result
-    if not isinstance(plan, str) or result["plan"] != plan:
-      raise ProjectError("Engineering plan digest differs. Preview the exact change before applying it.")
-    if _records(root, context["project"]) != context["records"]:
-      return {**result, "status": "conflict", "plan": None}
-    if after is not None:
-      _atomic_write(target, after)
-    return {**result, "applied": after is not None,
-            "revision": canonical_digest(_records(root, context["project"]))}
 
 
 def _validate_result(result):
@@ -508,63 +401,20 @@ def _run_engineering_local(path: Path, adapter_id: str) -> dict[str, Any]:
       run["inputs_consistent"] = False
       run["execution"] = "error"
       run["diagnostics"].append({"code": "ENGINEERING_INPUT_CHANGED",
-                                 "message": "Inputs, dependencies or executing tools changed during this run; evidence cannot be accepted."})
+                                 "message": "Inputs, dependencies or executing tools changed during this run; evidence is not current."})
     run["evidence_digest"] = canonical_digest(run)
     output = _run_directory(context) / f"{run['run_id']}.json"
     _write_record(output, run)
     freshness = _freshness(latest, run)
-    return {**run, "current": freshness == "current", "freshness": freshness, "acceptance": "unreviewed",
+    return {**run, "current": freshness == "current", "freshness": freshness,
             "path": output.relative_to(root).as_posix()}
-
-
-def _accept_engineering_local(path: Path, adapter_id: str, run_id: str, actor: str, rationale: str) -> dict[str, Any]:
-  """Record a named review of exactly one current, successful engineering run.
-
-  This is an auditable local review record, not identity authentication, a digital
-  signature or a statement of suitability outside the adapter's declared scope.
-  """
-  if not isinstance(run_id, str) or not re.fullmatch(r"[0-9a-f]{32}", run_id):
-    raise ProjectError("Invalid engineering run identity.")
-  if not all(isinstance(value, str) and value.strip() and len(value) <= 4000 for value in (actor, rationale)):
-    raise ProjectError("Accepting engineering evidence requires a named reviewer and a reason.")
-  root, _ = _project(path)
-  with project_write_lock(root):
-    context = _context(root, adapter_id, require=True)
-    run = _read_record(_run_directory(context) / f"{run_id}.json", "evidence_digest")
-    if (run.get("run_id") != run_id or run.get("adapter") != context["selected"]
-        or _freshness(context, run) != "current" or run.get("execution") != "completed"
-        or run.get("result", {}).get("assessment") != "pass"):
-      raise ProjectError("Only current, consistent, successfully evaluated and passing engineering evidence can be accepted.")
-    _validate_result(run["result"])
-    directory = _safe_directory(root, "reviews/engineering")
-    if directory.is_relative_to(root / context["project"].source) or directory.is_relative_to(root / context["project"].assets):
-      raise ProjectError("Review records must be outside calculation inputs.")
-    review = {"version": 1, "decision_id": uuid.uuid4().hex, "created_at": datetime.now(timezone.utc).isoformat(),
-              "adapter": adapter_id, "run_id": run_id, "revision": run["revision"], "actor": actor.strip(),
-              "rationale": rationale.strip(), "decision": "accepted", "evidence_digest": run["evidence_digest"],
-              "limitations": run["result"]["limitations"], "evidence": run}
-    review["decision_digest"] = canonical_digest(review)
-    latest = _context(root, adapter_id, require=True)
-    if _freshness(latest, run) != "current":
-      raise ProjectError("Engineering inputs changed during review; refresh before accepting.")
-    output = directory / f"{review['decision_id']}.json"
-    _write_record(output, review)
-    # A non-cooperating editor can ignore the project lock. Never return a
-    # successful current acceptance if inputs changed while publishing it.
-    published = _context(root, adapter_id, require=True)
-    if _freshness(published, run) != "current":
-      raise ProjectError("Engineering inputs changed while publishing review; its historical record now needs review.")
-    return {**review, "state": "accepted", "current": True, "freshness": "current", "path": output.relative_to(root).as_posix()}
 
 
 def _dispatch(action, arguments):
   """Private worker protocol. Only known operations can be dispatched."""
   actions = {
     "inspect": _inspect_engineering_local,
-    "plan": _plan_engineering_change_local,
-    "apply": _apply_engineering_change_local,
     "run": _run_engineering_local,
-    "accept": _accept_engineering_local,
   }
   if action not in actions or not isinstance(arguments, list):
     raise ProjectError("Unknown engineering worker operation.")
@@ -574,9 +424,9 @@ def _dispatch(action, arguments):
 def _worker_call(action, arguments):
   """Use fresh loaded Python code for all domain and evidence operations.
 
-  The long-lived Studio process is only a transport. A new worker also handles
-  inputs/impact so a preview cannot combine old adapter code with a new source
-  digest. Its temporary pycache prefix prevents stale timestamp-based bytecode.
+  Each inspection and evaluation uses a fresh worker, so a long-lived caller
+  cannot combine old adapter code with a new source digest. Its temporary
+  pycache prefix prevents stale timestamp-based bytecode.
   """
   try:
     payload = json.dumps({"version": 1, "action": action, "arguments": arguments}, allow_nan=False)
@@ -627,17 +477,5 @@ def inspect_engineering(path: Path, adapter_id: str | None = None) -> dict[str, 
   return _worker_call("inspect", [str(Path(path).expanduser().resolve()), adapter_id])
 
 
-def plan_engineering_change(path: Path, request: dict) -> dict[str, Any]:
-  return _worker_call("plan", [str(Path(path).expanduser().resolve()), request])
-
-
-def apply_engineering_change(path: Path, request: dict, plan: str) -> dict[str, Any]:
-  return _worker_call("apply", [str(Path(path).expanduser().resolve()), request, plan])
-
-
 def run_engineering(path: Path, adapter_id: str) -> dict[str, Any]:
   return _worker_call("run", [str(Path(path).expanduser().resolve()), adapter_id])
-
-
-def accept_engineering(path: Path, adapter_id: str, run_id: str, actor: str, rationale: str) -> dict[str, Any]:
-  return _worker_call("accept", [str(Path(path).expanduser().resolve()), adapter_id, run_id, actor, rationale])

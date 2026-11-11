@@ -176,22 +176,6 @@ class ReferenceCapacityAdapter:
              "min": 0, "max": data["facts"]["chiller_count"] if key == "available_chillers" else 1}
             for key, (identity, label) in INPUTS.items()]
 
-  def impact(self, root: Path, changes: list[dict]):
-    data = _load(root)
-    for change in changes:
-      if change["input_id"] == "reference.available-chillers":
-        candidate = change["after"]
-        _require(_number(candidate) and 0 <= candidate <= data["facts"]["chiller_count"] and int(candidate) == candidate,
-                 "available_chillers 候选值必须为不超过来源声明台数的非负整数。")
-    return [{"id": "reference:conditional-capacity", "label": "重算条件负荷、可用账面制冷与余量",
-             "object_ref": f"reference:{data['snapshot']['id']}", "inputs": [item["input_id"] for item in changes],
-             "checks": ["reference:reported-total", "reference:conditional-load", "reference:available-capacity", "reference:capacity-margin"],
-             "evidence": _evidence(data, FACTS, INPUTS, requirement=True),
-             "message": "依照冻结源配置、显式假设与不低于 0 kW 的余量要求重算；项目输入变化使旧证据失效。"},
-            {"id": "reference:unverified-performance", "label": "实际性能与同时运行条件仍未确认",
-             "object_ref": f"reference:{data['snapshot']['id']}", "coverage": "unregistered",
-             "message": "不推断原 generic SDL 布局对应关系，不表示真实性能求解或现场数据已验证。"}]
-
   def evaluate(self, root: Path):
     base = {"solver_execution": "not-run", "analysis_method": "0D conditional capacity arithmetic",
             "verification": "not-run", "fidelity": "declared-configuration-with-assumptions", "targets": [],

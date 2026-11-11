@@ -2,7 +2,6 @@
 
 import argparse
 from datetime import datetime, timezone
-import difflib
 import hashlib
 import json
 from pathlib import Path
@@ -12,10 +11,11 @@ import sys
 import time
 import uuid
 
+from poc_git import git_baseline, git_diff
+
 
 REPO = Path(__file__).resolve().parents[1]
 ADAPTER = "hvac:capacity-change"
-INPUT = "hvac.chiller-capacity"
 CAPACITY_POINTER = "/components/Chiller/behavior/parameters/capacity_kw"
 SOURCE = "src/system.sdl.json"
 
@@ -41,7 +41,7 @@ def run_summary(record):
   return {key: record[key] for key in ("run_id", "revision", "toolchain_digest", "evidence_digest", "execution")} | {
     "assessment": record["result"]["assessment"],
     "solver_execution": record["result"]["solver_execution"],
-    "current": record["current"], "acceptance_at_run": record["acceptance"], "path": record["path"],
+    "current": record["current"], "freshness": record["freshness"], "path": record["path"],
   }
 
 
@@ -85,8 +85,7 @@ def main():
             f"Unexpected exit {process.returncode}; expected {expected}. Inspect {stdout}.")
     result = json.loads(process.stdout) if arguments[0] == "engineering" else process.stdout
     if isinstance(result, dict):
-      entry.update({key: result[key] for key in ("revision", "run_id", "evidence_digest", "toolchain_digest",
-                                                "decision_digest", "plan") if key in result})
+      entry.update({key: result[key] for key in ("revision", "run_id", "evidence_digest", "toolchain_digest") if key in result})
       if result.get("latest"):
         entry["latest_run"] = {key: result["latest"][key] for key in ("run_id", "revision", "evidence_digest")}
       write_json(output / "commands.json", log)
@@ -98,25 +97,19 @@ def main():
   def run(project=root, expected=0):
     return cli("engineering", "run", ADAPTER, project=project, expected=expected)
 
-  def accept(record, project=root, expected=0):
-    return cli("engineering", "accept", ADAPTER, record["run_id"],
-               "--actor", "自动化 HVAC CLI 概念验证测试员",
-               "--rationale", "仅验证正常负荷阶跃概念模型与证据机制；不代表真实工程、现场或设备选型签核。",
-               project=project, expected=expected)
-
-  def change(state, value):
-    request = {"adapter": ADAPTER, "revision": state["revision"], "changes": [{"input_id": INPUT, "value": value}]}
-    path = output / f"change-{len(log):02d}.json"
-    write_json(path, request)
-    plan = cli("engineering", "plan", str(path))
-    require(plan["status"] == "pass" and plan["impacts"], "Expected a valid change preview with declared impacts.")
-    applied = cli("engineering", "apply", str(path), "--plan", plan["plan"])
-    require(applied["applied"], "Expected the reviewed capacity change to be applied.")
+  def change(value):
+    document = json.loads(original_source)
+    binding(document)["value"] = value
+    write_json(root / SOURCE, document)
+    diff = git_diff(root, output / f"source-edits/capacity-{value:g}.diff", SOURCE)
+    require(bool(diff), "Capacity edit did not produce a Git diff.")
     require(binding(json.loads((root / SOURCE).read_text(encoding="utf-8"))) == {**original_binding, "value": value},
-            "Numeric transaction changed the capacity's original source, unit or state.")
+            "Direct capacity edit changed its source, unit or state.")
 
   try:
     cli("lock")
+    summary["git_baseline"] = git_baseline(root)
+    original_source = (root / SOURCE).read_text(encoding="utf-8")
     initial = inspect_state()
     require(initial["selected"]["id"] == ADAPTER and not initial["dependency_error"], "HVAC adapter or dependencies unavailable.")
     original_binding = binding(json.loads((root / SOURCE).read_text(encoding="utf-8")))
@@ -124,17 +117,14 @@ def main():
     baseline = run()
     require(baseline["execution"] == "completed" and baseline["result"]["assessment"] == "pass"
             and baseline["result"]["solver_execution"] == "completed" and baseline["current"], "Baseline did not pass a current solver run.")
-    baseline_review = accept(baseline)
-    require(baseline_review["state"] == "accepted", "Baseline acceptance was not recorded.")
-    summary["baseline"] = run_summary(baseline) | {"review": baseline_review["path"]}
-    change(initial, 60)
+    summary["baseline"] = run_summary(baseline)
+    change(60)
     stale = inspect_state()
-    require(stale["latest"]["freshness"] == "inputs-changed"
-            and all(review["state"] == "needs-review" for review in stale["reviews"]), "Capacity change retained an old acceptance.")
+    require(stale["latest"]["freshness"] == "inputs-changed" and not stale["latest"]["current"],
+            "Capacity change retained applicability of the old run.")
     failed = run(expected=1)
     require(failed["execution"] == "completed" and failed["result"]["assessment"] == "fail"
             and failed["result"]["solver_execution"] == "completed" and failed["current"], "60 kW did not produce a completed engineering failure.")
-    require(accept(failed, expected=2)["status"] == "error", "A failing run was accepted.")
     failures = [check for check in failed["result"]["checks"] if check["status"] == "fail"]
     require(bool(failures), "Failure has no failed engineering checks.")
     temperature = next(check for check in failures if check.get("evidence", {}).get("variable") == "ColdStation.LOAD-01.outlet_temperature_c")
@@ -143,24 +133,25 @@ def main():
             "Temperature failure lacks an actual limit violation or its sampled timing.")
     summary["failed"] = run_summary(failed) | {"failed_check_count": len(failures), "first_failure": failures[0],
                                               "first_violation_time_s": first, "peak_time_s": peak}
-    change(inspect_state(), 120)
+    (root / SOURCE).write_text(original_source, encoding="utf-8")
+    require(not git_diff(root, output / "source-edits/restored.diff", SOURCE),
+            "Restored source differs from the Git baseline.")
     repaired = run()
     require(repaired["execution"] == "completed" and repaired["result"]["assessment"] == "pass"
-            and repaired["current"] and repaired["acceptance"] == "unreviewed", "Repaired run was not a new unreviewed pass.")
+            and repaired["current"], "Repaired run was not a current pass.")
     require(repaired["run_id"] != baseline["run_id"], "Rerun reused the earlier run identity.")
     old_checks = {check["id"]: (check["status"], check.get("actual")) for check in baseline["result"]["checks"]}
     new_checks = {check["id"]: (check["status"], check.get("actual")) for check in repaired["result"]["checks"]}
     require(old_checks == new_checks, "Restored capacity did not reproduce baseline check values and verdicts.")
-    review = accept(repaired)
     final = inspect_state()
-    require(final["latest"]["acceptance"] == "accepted" and review["evidence_digest"] == repaired["evidence_digest"],
-            "Repaired acceptance is not bound to the new evidence.")
-    summary["repaired"] = run_summary(repaired) | {"review": review["path"], "decision_digest": review["decision_digest"]}
+    require(final["latest"]["run_id"] == repaired["run_id"] and final["latest"]["current"],
+            "Restored run is not the current result.")
+    summary["repaired"] = run_summary(repaired)
 
     unknown_root = output / "project-unknown"
     shutil.copytree(root, unknown_root, ignore=shutil.ignore_patterns(".texsys-write.lock"))
     copied = inspect_state(unknown_root)
-    require(copied["latest"]["acceptance"] == "accepted", "Copied baseline evidence is not initially current.")
+    require(copied["latest"]["current"], "Copied baseline result is not initially current.")
     source = unknown_root / SOURCE
     before = source.read_text(encoding="utf-8")
     document = json.loads(before)
@@ -169,26 +160,22 @@ def main():
     del binding(document)["value"]
     after = json.dumps(document, ensure_ascii=False, allow_nan=False, indent=2) + "\n"
     edits = output / "source-edits"
-    edits.mkdir()
+    edits.mkdir(exist_ok=True)
     (edits / "unknown.before.json").write_text(before, encoding="utf-8")
     source.write_text(after, encoding="utf-8")
     (edits / "unknown.after.json").write_text(after, encoding="utf-8")
     write_json(edits / "unknown.json", {"operation": "direct-source-edit", "project": "project-unknown", "file": SOURCE,
       "pointer": CAPACITY_POINTER, "before": previous_binding, "after": binding(document),
       "before_sha256": digest(edits / "unknown.before.json"), "after_sha256": digest(source),
-      "reason": "显式设置待定输入并删除 value；此操作不属于当前仅支持数值修改的 engineering plan/apply 事务。",
-      "diff": "\n".join(difflib.unified_diff(before.splitlines(), after.splitlines(), f"a/{SOURCE}", f"b/{SOURCE}", lineterm=""))})
+      "reason": "直接将源文件输入设为待定并删除 value。",
+      "diff": git_diff(unknown_root, edits / "unknown.diff", SOURCE)})
     unresolved_state = inspect_state(unknown_root)
     require(unresolved_state["inputs"] == [] and unresolved_state["latest"]["freshness"] == "inputs-changed"
-            and all(item["state"] == "needs-review" for item in unresolved_state["reviews"]),
-            "Unknown capacity retained editable numeric input or an old acceptance.")
+            and not unresolved_state["latest"]["current"],
+            "Unknown capacity retained a numeric input or an applicable old result.")
     unresolved = run(unknown_root, expected=3)
     require(unresolved["execution"] == "completed" and unresolved["result"]["assessment"] == "indeterminate"
             and unresolved["result"]["solver_execution"] == "not-run", "Unknown capacity was treated as a solved engineering result.")
-    require(accept(unresolved, unknown_root, expected=2)["status"] == "error", "Unknown-input result was accepted.")
-    unknown_final = inspect_state(unknown_root)
-    require(unknown_final["latest"]["acceptance"] == "unreviewed"
-            and all(item["state"] == "needs-review" for item in unknown_final["reviews"]), "Unknown-input run restored an earlier acceptance.")
     require("value" not in binding(json.loads(source.read_text(encoding="utf-8"))), "Unknown capacity acquired a default value.")
     require(digest(example / SOURCE) == original_source_digest, "Original example source changed during verification.")
     summary.update(status="pass", unresolved=run_summary(unresolved) | {"source_edit": "source-edits/unknown.json"},

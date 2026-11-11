@@ -15,12 +15,12 @@ texsys 得名于「文本化系统」，目标是让复杂系统像软件一样�
 | 数据中心概念研究 | 供电、FWS/TCS、空气环境、控制、热维持、结构、建筑与消防等有限跨专业计算；参数与判据仍有算例假设 |
 | 模块库与资产     | 私有定义、递归实例、锁定引入、模块资产和端口绑定；完整能力边界与厂家证据尚待补齐 |
 | 通用构建组件     | 专业无关的 BOM 投影、快照、映射、比较与检查内核，通过显式契约组合专业规则                                    |
-| 工程反馈基础     | 同源冷站及数据中心支管几何—水力—泵组配流；变更、证据和接受的公共流程正在贯通 |
+| 工程反馈基础     | 同源冷站及数据中心支管几何—水力—泵组配流；源文件变更、构建检查与结果产物正在贯通 |
 | 系统图／原理图   | TypeScript 共享工程图元、React/SVG、draw.io、离线交互与工况回放                                              |
 
 项目当前处于**可执行参考实现与工程 POC 建设阶段**。JSON 交换子集、形式检查、路径与发布包依赖、暖通链路和数据中心概念计算已可执行；最终 SDL 文本语法、通用工程事实／结论模型及真实工程接受尚未完成。Python 支持准稳态水力与集总热动态，既有 OpenModelica 路线对三个暖通工况有独立比较记录；几何包括 USD 包络、路由和有限空间校核，通用精确几何与高保真求解仍未完成。见 [项目进度审查](docs/progress.md) 和 [完整目标台账](docs/engineering-poc.md)。
 
-Tex Studio 已提供本地网页插件宿主、通用项目编辑、模块库／实例导航、场景预览与暖通工作台，支持实例参数编辑、后台检查、出图、仿真和结果回放。跨专业对象视图和工程变更闭环仍在贯通；领域计算存在不等于相应专业界面已可用。Electron 桌面端与远程协作尚未实现。
+Tex Studio 已提供本地网页插件宿主、通用项目编辑、模块库／实例导航、场景预览与暖通工作台，支持实例参数编辑、后台检查、出图、仿真和结果回放。跨专业对象视图仍在贯通；工程变更复用 Git 与命令行检查，领域计算存在不等于相应专业界面已可用。Electron 桌面端与远程协作尚未实现。
 
 ## 文档地图
 
@@ -40,7 +40,7 @@ Tex Studio 已提供本地网页插件宿主、通用项目编辑、模块库／
 | [plugins/hvac/](plugins/hvac/README.md)            | 暖通领域插件：设备模型、静态规则、输出格式、简易求解器 | 领域扩展，不含核心语义                 |
 | [spec/sdl/](spec/sdl/00-overview.md)               | SDL 规范                                               | **权威**：语义怎么定义                 |
 | [构建规范](spec/build/00-overview.md)              | 构建目标、目标物料清单与构建钩子执行契约               | **权威**：构建怎么选择与闭环           |
-| [工程变更与证据](spec/engineering/01-change-evidence.md) | 数值变更、保守失效、运行与概念接受的本地契约       | **权威**：当前工程变更子集的行为和边界 |
+| [工程变更与证据](spec/engineering/01-change-evidence.md) | Git／构建工作流与检查产物契约       | **权威**：当前工程变更子集的行为和边界 |
 | [设计自动化原理/](设计自动化原理/00-前言与导读.md) | 方法论书                                               | 背景论证，**不构成约束**               |
 
 同一件事只在一处定义。若发现重复，以本表标注的权威来源为准，并删除复述。
@@ -84,56 +84,19 @@ uv run texsys studio -p examples/hvac-dynamic-station --hmr
 
 ## 工程变更与证据
 
-可复用的模型、规则、求解器适配和包自身测试通过工程能力包发布；项目实例、工况和接受记录保留在项目。`texsys package` 管理共享文件仓库中的明确版本，`add / sync` 将能力还原到项目。在 Tex Studio 的通用文本编辑器中查看和编辑 `texsys.toml`，通过终端执行包命令；部件库只消费部件包的明确导出，IDE 插件独立管理；完整使用方式与首期边界见 [工程能力包](docs/package-management.md)。
+可复用的模型、规则、求解器适配和包自身测试通过工程能力包发布；项目实例、工况和计算结果保留在项目。`texsys package` 管理共享文件仓库中的明确版本，`add / sync` 将能力还原到项目。在 Tex Studio 的通用文本编辑器中查看和编辑 `texsys.toml`，通过终端执行包命令；部件库只消费部件包的明确导出，IDE 插件独立管理；完整使用方式与首期边界见 [工程能力包](docs/package-management.md)。
 
-数据中心混合冷却示例提供 `datacenter:fws-change`，将已有设施水管路几何、压损和泵组配流接入工程变更流程。Studio 左侧「工程变更」打开相同操作的图形入口。CLI 和 Studio 共用 [工程变更与证据契约](spec/engineering/01-change-evidence.md)；当前接受限于声明的概念工况，不是整个数据中心的工程批准。
+工程变更直接修改版本库中的源文件，以 `git diff` 表达差异，再运行构建和检查。Studio 不提供专用工程变更 GUI。POC 负责退出码、诊断与结果文件；合并门禁、失败可视化和协作通知由 DevOps 平台承接，范围见 [ADR-0026](docs/adr/0026-git-build-workflow-and-devops-boundary.md)。
 
-完整 CLI 反例可在项目副本中重跑：
-
-```bash
-uv run --locked tools/verify_engineering_poc.py
-```
-
-脚本在 `build/engineering-poc/` 新建独立目录，通过公开命令完成基线接受、缩径与路由修改、旧证据失效、缺冷失败、拒绝接受失败方案、修复及重新接受。目录保留命令输出、修订、运行记录和汇总；不会改写标准示例。自动化接受记录明确标注为 POC 测试，不代表工程责任人的签核。
-
-先读取可编辑输入和修订，再计算基线。所有示例从仓库根目录执行；若依赖锁检查失败，先核实依赖变更，不能把更新锁文件当作验证替代。
+现有工程检查命令在声明范围内执行实际判据，从仓库根目录运行：
 
 ```bash
-uv run --locked texsys engineering inspect --adapter datacenter:fws-change -p examples/datacenter-hybrid-unit
+git diff -- examples/hvac-dynamic-station/src
+uv run --locked texsys engineering run hvac:capacity-change -p examples/hvac-dynamic-station
 uv run --locked texsys engineering run datacenter:fws-change -p examples/datacenter-hybrid-unit
 ```
 
-下面的请求有意缩小机柜列配水管内径，用于观察缺冷反例。将 JSON 保存为 `/tmp/fws-change.json`，把 `revision` 占位符替换为最新 inspect 返回的值。修改前保留输入原值，供后续修复使用。
-
-```json
-{
-  "adapter": "datacenter:fws-change",
-  "revision": "sha256:替换为最新inspect返回的revision",
-  "changes": [
-    { "input_id": "fws.spine-x", "value": 46.5 },
-    { "input_id": "fws.row-diameter", "value": 0.05 }
-  ]
-}
-```
-
-预览返回具体差异、已登记影响及计划摘要。检查后，将下面的 `--plan` 占位符替换为本次预览返回的 `plan`；请求或输入改变后必须重新预览。
-
-```bash
-uv run --locked texsys engineering plan /tmp/fws-change.json -p examples/datacenter-hybrid-unit
-uv run --locked texsys engineering apply /tmp/fws-change.json --plan 'sha256:替换为预览返回的plan' -p examples/datacenter-hybrid-unit
-uv run --locked texsys engineering run datacenter:fws-change -p examples/datacenter-hybrid-unit
-uv run --locked texsys engineering inspect --adapter datacenter:fws-change -p examples/datacenter-hybrid-unit
-```
-
-工程不满足时 run 返回退出码 1，并保留具体机房、供冷值、需求和提取量。修复时先重新 inspect，用新 revision 和修改前的原值生成新的请求，再执行 plan、apply 和 run。仓库示例的初始主配水管 X 坐标为 46.4 m，机柜列配水管内径为 0.16 m；应以实际读取的基线为准。
-
-检查修复后的范围、判据和限制后，将下列占位符替换为当前通过运行的 `run_id`、实际审阅者和接受理由：
-
-```bash
-uv run --locked texsys engineering accept datacenter:fws-change '替换为run_id' --actor '实际审阅者' --rationale '说明接受的概念工况、复核依据及保留限制' -p examples/datacenter-hybrid-unit
-```
-
-接受记录位于项目 `reviews/engineering/`，可随版本库保存；运行记录位于构建目录。后续输入或工具变化会重新计算证据适用性。该记录是具名本地审查，没有身份认证或数字签名；实际交互和工程验证结果分别登记在 [POC 台账](docs/engineering-poc.md)。
+工程不满足、执行错误和无法判定分别返回非零退出码，结果保存在项目构建目录。普通 `texsys build` 仅执行选定目标，目前不会自动运行全部工程适配器；模型编译成功或预期反例回归成功均不能替代实际工程判据。
 
 ## 交付物构建与检查
 
@@ -168,7 +131,7 @@ uv run --locked --only-group docs-lint tools/check_doc_language.py --base main -
 
 ## 下一步（按优先级）
 
-1. 贯通已有 FWS 几何反馈的修改、影响、重算、失败解释、修复与概念接受，在 CLI 和 Studio 中使用同一操作契约。
+1. 通过源文件修改、Git diff 和命令行检查贯通 FWS 几何反馈、重算、失败解释与修复。
 2. 补齐公共对象／结论模型、证据失效、语义比较与组合变更检查，明确未覆盖的影响与工程条件。
 3. 以可核实设备资料验证小场景，由第二位使用者复算；在第二个项目检验复用并记录新增工作。
 4. 根据真实需求发展能力包、执行环境复现与外部工具接入。逐项状态和证明要求见 [工程 POC 台账](docs/engineering-poc.md)。

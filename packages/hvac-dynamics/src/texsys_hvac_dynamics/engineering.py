@@ -115,22 +115,6 @@ class HvacCapacityChangeAdapter:
                                description=binding.get("source")),
              "description": "修改定义级假设；所有未覆盖 capacity_kw 的 Chiller 实例共同受影响。求解要求能力严格大于零。"}]
 
-  def impact(self, root: Path, changes: list[dict]) -> list[dict]:
-    source, _ = _paths(root)
-    sdl = _read(source)
-    instances = sdl["components"]["ColdStation"]["instances"]
-    affected = [f"ColdStation.{name}" for name, item in instances.items()
-                if item["component"] == "Chiller" and "capacity_kw" not in item.get("parameters", {})]
-    return [
-      {"id": "hvac:capacity-model", "label": "重编译冷机能力约束", "object_ref": "ColdStation.CH-01",
-       "inputs": [item["input_id"] for item in changes], "objects": affected,
-       "message": "从 SDL 定义重新编译实际实例参数；实例覆盖保持有效，容量限制进入既有冷机热响应方程。"},
-      {"id": "hvac:load-step", "label": "复算正常负荷阶跃与守恒", "object_ref": "ColdStation",
-       "scenarios": [SCENARIO], "message": "容量限制改变制冷功率，影响水温轨迹及冷却侧排热；复核全部声明断言、质量与能量守恒。"},
-      {"id": "unregistered-disciplines", "label": "范围外专业待复核", "coverage": "unregistered",
-       "object_ref": "ColdStation", "message": "故障与冗余、设备选型、电气、结构及施工影响未覆盖；不能据此认定不受影响。"},
-    ]
-
   def evaluate(self, root: Path) -> dict:
     source, scenario_path = _paths(root)
     source_file = source.relative_to(root).as_posix()

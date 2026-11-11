@@ -1,6 +1,6 @@
 # 冷站设备布置与真实资料输入审查
 
-本项目保留原有设备布置、安装事件和通风／露点概念校核，并通过工程变更入口审查一份冻结的真实验收报告配置。两部分分别声明对象和范围；参考资料里的两台冷机没有被映射成原概念模型中的单台通用冷机。
+本项目保留原有设备布置、安装事件和通风／露点概念校核，并通过命令行检查一份冻结的真实验收报告配置。两部分分别声明对象和范围；参考资料里的两台冷机没有被映射成原概念模型中的单台通用冷机。
 
 ## 两组输入的用途
 
@@ -41,7 +41,7 @@ uv run --locked texsys engineering inspect --adapter hvac:reference-capacity -p 
 uv run --locked texsys engineering run hvac:reference-capacity -p examples/hvac-cold-station
 ```
 
-初始工程判定应为 `indeterminate`，CLI 退出码为 3。`arithmetic_execution: completed` 表示上述算术已执行；`solver_execution: not-run` 表示真实热力／水力性能求解没有运行。运行成功与工程可接受分别判断，当前证据不能通过 `engineering accept`。
+初始工程判定应为 `indeterminate`，CLI 退出码为 3。`arithmetic_execution: completed` 表示上述算术已执行；`solver_execution: not-run` 表示真实热力／水力性能求解没有运行。运行成功与工程可接受分别判断，当前资料不足以判定真实装置性能满足要求。
 
 完整流程验证使用独立副本，不修改标准示例：
 
@@ -49,11 +49,11 @@ uv run --locked texsys engineering run hvac:reference-capacity -p examples/hvac-
 uv run --locked tools/verify_reference_engineering_poc.py
 ```
 
-脚本检查基线、假设修改、旧证据失效、容量反例、恢复、接受拒绝以及快照变化后摘要不匹配。脚本本身通过仅说明流程符合预期，不能改写领域结果中的 `indeterminate` 或 `fail`。
+脚本检查基线、源文件修改与 Git diff、旧证据失效、容量反例、恢复以及快照变化后摘要不匹配。脚本本身通过仅说明流程符合预期，不能改写领域结果中的 `indeterminate` 或 `fail`。
 
 ## 审查与继续建模
 
-在承载本项目的 Tex Studio 中打开「工程变更」，选择「真实资料容量审查」，查看来源、负荷率、影响和逐项判据。所有数值变更先预览，再应用与重算。当前运行的 Studio 项目可能不同；实例管理遵循仓库 `AGENTS.md`，不另起第二个实例。
+用通用文本编辑器修改 `src/reference-capacity.study.json` 中的负荷率、可用台数或容量余量要求，通过 `git diff` 审查修改，再执行上述 `engineering inspect/run` 命令查看输入、逐项判据和计算结果。Tex Studio 中可直接使用文件资源管理器、文本编辑器、Source Control 与终端完成这些操作。
 
 原资料之间的塔类型、数量、泵数量和机柜配置差异保留在快照中，不能静默选择某个版本代替全部事实。终验报告声明的安装、单机调试和建设质量结论保留其原范围；本工具新增审查不取代该历史决定。
 

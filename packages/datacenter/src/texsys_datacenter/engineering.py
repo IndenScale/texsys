@@ -169,22 +169,6 @@ class FwsChangeAdapter:
       })
     return result
 
-  def impact(self, root: Path, changes: list[dict]) -> list[dict]:
-    return [
-      {"id": "fws-route-extraction", "label": "重新提取管路几何与水力参数",
-       "object_ref": "FWS/floor-branches", "inputs": [item["input_id"] for item in changes],
-       "targets": [TARGET], "message": "同一管段身份重新计算中心线长度、内径和弯头损失，再进入设施水泵组配流。"},
-      {"id": "fws-delivery", "label": "复核三个设计工况的逐机房供冷",
-       "object_ref": "FWS/cooling-delivery", "scenarios": list(DESIGN_SCENARIOS),
-       "targets": [TARGET], "message": "配流受管段流速和泵扬程约束；总量满足仍需逐机房检查，避免局部缺冷被汇总掩盖。"},
-      {"id": "fws-geometry", "label": "复核管路与已建模结构的净距",
-       "object_ref": "FWS/clearance", "targets": [TARGET],
-       "message": "检查 A/B 管路、已有设施水及排液路由、钢柱、楼板和梁底净距。"},
-      {"id": "unregistered-disciplines", "label": "其他专业待复核", "coverage": "unregistered",
-       "object_ref": "Building", "targets": [],
-       "message": "TCS、热响应、控制、电气、结构承载、消防和施工影响尚未纳入本 adapter；不得视为不受影响。"},
-    ]
-
   def evaluate(self, root: Path) -> dict:
     # The evaluation profile continues after a valid negative design conclusion.
     # Invalid inputs and solver errors still stop the ordinary build runner.

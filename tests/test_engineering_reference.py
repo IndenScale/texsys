@@ -9,14 +9,11 @@ import pytest
 from cli_process import ProjectCliRunner
 from texsys.dependencies import lock_project
 from texsys.engineering import (
-  accept_engineering,
-  apply_engineering_change,
   inspect_engineering,
-  plan_engineering_change,
   run_engineering,
 )
 from texsys.evidence import file_digest, write_json
-from texsys.project import ProjectError, initialize_project
+from texsys.project import initialize_project
 
 
 REPO = Path(__file__).parents[1]
@@ -67,25 +64,18 @@ def _rebind_snapshot(root, snapshot):
   write_json(root / STUDY, study)
 
 
-def _change(root, values):
-  state = inspect_engineering(root, ADAPTER)
-  request = {"adapter": ADAPTER, "revision": state["revision"],
-             "changes": [{"input_id": key, "value": value} for key, value in values.items()]}
-  plan = plan_engineering_change(root, request)
-  assert plan["status"] == "pass" and plan["impacts"][0]["evidence"]["facts"]
-  assert apply_engineering_change(root, request, plan["plan"])["applied"]
+def _write_assumptions(root, **values):
+  study = _read(root, STUDY)
+  for key, value in values.items():
+    study["assumptions"][key]["value"] = value
+  write_json(root / STUDY, study)
 
 
 def _check(run, identity):
   return next(item for item in run["result"]["checks"] if item["id"] == f"reference:{identity}")
 
 
-def _reject_acceptance(root, run):
-  with pytest.raises(ProjectError, match="passing"):
-    accept_engineering(root, ADAPTER, run["run_id"], "概念参考审查测试员", "声明资料与条件算术不能替代现场验证。")
-
-
-def test_public_reference_lifecycle_never_promotes_declarations_to_engineering_acceptance(reference):
+def test_source_changes_never_promote_report_declarations_to_verified_performance(reference):
   root = reference
   state = inspect_engineering(root, ADAPTER)
   assert {item["id"] for item in state["inputs"]} == {
@@ -111,21 +101,17 @@ def test_public_reference_lifecycle_never_promotes_declarations_to_engineering_a
   assert evidence["facts"][0]["pointer"].startswith("/configuration/")
   assert evidence["snapshot"]["digest"] == file_digest(root / SNAPSHOT)
   assert all("design" not in item for item in result["checks"] + result["extraction"])
-  _reject_acceptance(root, baseline)
-  _change(root, {"reference.air-load-fraction": 1, "reference.liquid-load-fraction": 1})
+  _write_assumptions(root, air_load_fraction=1, liquid_load_fraction=1)
   assert inspect_engineering(root, ADAPTER)["latest"]["freshness"] == "inputs-changed"
   failed = run_engineering(root, ADAPTER)
   assert failed["result"]["assessment"] == "fail" and failed["execution"] == "completed"
   assert _check(failed, "conditional-load")["actual"] == 195
   assert _check(failed, "capacity-margin")["actual"] == -45
   assert _check(failed, "capacity-margin")["status"] == "fail"
-  _reject_acceptance(root, failed)
-  _change(root, {"reference.air-load-fraction": .6, "reference.liquid-load-fraction": .6})
+  _write_assumptions(root, air_load_fraction=.6, liquid_load_fraction=.6)
   repaired = run_engineering(root, ADAPTER)
-  assert repaired["result"]["assessment"] == "indeterminate" and repaired["acceptance"] == "unreviewed"
+  assert repaired["result"]["assessment"] == "indeterminate" and repaired["current"]
   assert _check(repaired, "capacity-margin")["actual"] == 33
-  _reject_acceptance(root, repaired)
-  assert not list((root / "reviews/engineering").glob("*.json"))
 
 
 def test_digest_mismatch_cannot_silently_use_new_facts_and_rebinding_still_checks_source_consistency(reference):
@@ -141,7 +127,6 @@ def test_digest_mismatch_cannot_silently_use_new_facts_and_rebinding_still_check
   assert invalid["result"]["arithmetic_execution"] == "not-run" and invalid["result"]["extraction"] == []
   assert invalid["result"]["diagnostics"][0]["code"] == "REFERENCE_DIGEST_MISMATCH"
   assert "摘要不匹配" in _check(invalid, "snapshot")["message"]
-  _reject_acceptance(root, invalid)
   _rebind_snapshot(root, snapshot)
   changed = run_engineering(root, ADAPTER)
   assert changed["result"]["assessment"] == "fail"
@@ -204,25 +189,14 @@ def test_invalid_study_bindings_or_source_paths_stop_arithmetic(reference, case)
   run = run_engineering(reference, ADAPTER)
   assert run["result"]["assessment"] == "indeterminate" and run["result"]["arithmetic_execution"] == "not-run"
   assert run["result"]["extraction"] == []
-  _reject_acceptance(reference, run)
 
 
-def test_numeric_bounds_zero_availability_and_stricter_requirement(reference):
-  state = inspect_engineering(reference, ADAPTER)
-  before = (reference / STUDY).read_bytes()
-  with pytest.raises(ProjectError, match="非负整数"):
-    plan_engineering_change(reference, {"adapter": ADAPTER, "revision": state["revision"],
-                            "changes": [{"input_id": "reference.available-chillers", "value": 1.5}]})
-  assert (reference / STUDY).read_bytes() == before
-  for identity, value in (("reference.available-chillers", 3), ("reference.air-load-fraction", 1.01)):
-    with pytest.raises(ProjectError, match="bounds"):
-      plan_engineering_change(reference, {"adapter": ADAPTER, "revision": state["revision"],
-                              "changes": [{"input_id": identity, "value": value}]})
-  _change(reference, {"reference.available-chillers": 0})
+def test_zero_availability_and_stricter_requirement(reference):
+  _write_assumptions(reference, available_chillers=0)
   zero = run_engineering(reference, ADAPTER)
   assert zero["result"]["assessment"] == "fail" and zero["result"]["arithmetic_execution"] == "completed"
   assert _check(zero, "available-capacity")["actual"] == 0 and _check(zero, "capacity-margin")["actual"] == -117
-  _change(reference, {"reference.available-chillers": 2})
+  _write_assumptions(reference, available_chillers=2)
   study = _read(reference, STUDY)
   study["requirements"]["min_margin_kw"]["value"] = 34
   write_json(reference / STUDY, study)
@@ -241,7 +215,6 @@ def test_source_author_claim_cannot_upgrade_field_verification(reference):
   result = run_engineering(reference, ADAPTER)
   assert result["result"]["assessment"] == "indeterminate" and not result["result"]["source_content_verified"]
   assert _check(result, "field-verification")["status"] == "indeterminate"
-  _reject_acceptance(reference, result)
 
 
 def test_repository_reference_fixture_is_reproducible_without_original_documents(tmp_path):

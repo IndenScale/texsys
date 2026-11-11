@@ -104,10 +104,6 @@ def main():
   failed = cli("engineering", "run", "hvac:capacity-change", project=b, expected=1, json_result=True)
   assert baseline["result"]["assessment"] == "pass" and failed["result"]["assessment"] == "fail"
   assert baseline["toolchain_digest"] == failed["toolchain_digest"]
-  cli("engineering", "accept", "hvac:capacity-change", baseline["run_id"], "--actor", "能力包机制验收",
-      "--rationale", "只接受预设概念工况以验证版本失效，不代表真实设备接受。", project=a)
-  cli("engineering", "accept", "hvac:capacity-change", failed["run_id"], "--actor", "能力包机制验收",
-      "--rationale", "失败结果必须拒绝。", project=b, expected=2)
   test_a = cli("package", "test", "hvac-dynamics", project=a, json_result=True)
   test_b = cli("package", "test", "hvac-checks", project=b, json_result=True)
   assert test_a["status"] == test_b["status"] == "pass"
@@ -115,19 +111,16 @@ def main():
   before_b = (b / "texsys.lock").read_bytes()
   cli("sync", project=a)
   assert (a / "texsys.lock").read_bytes() == before_a  # v0.1.1 exists, sync keeps v0.1.0.
-  request = output / "upgrade.json"
-  request.write_text(json.dumps({"action": "update", "name": "hvac-dynamics", "version": "0.1.1"}))
-  plan = cli("package", "plan", request, project=a, json_result=True)
-  cli("package", "apply", request, "--plan", plan["plan"], project=a, json_result=True)
+  cli("add", "hvac-dynamics", "--version", "0.1.1", "--registry", registry, project=a)
   stale = inspect(a)
-  assert stale["latest"]["freshness"] != "current"
-  assert stale["reviews"][0]["state"] == "needs-review"
+  assert stale["latest"]["run_id"] == baseline["run_id"]
+  assert stale["latest"]["freshness"] != "current" and not stale["latest"]["current"]
   assert (b / "texsys.lock").read_bytes() == before_b
   assert digest(a / "src/system.sdl.json") == a_source
   upgraded = cli("engineering", "run", "hvac:capacity-change", project=a, json_result=True)
   assert upgraded["result"]["assessment"] == "pass"
   assert upgraded["toolchain_digest"] != baseline["toolchain_digest"]
-  assert upgraded["acceptance"] == "unreviewed"
+  assert upgraded["current"] and upgraded["freshness"] == "current"
   # The same IDE plugin must run each project's own version, without importing
   # its private implementation dependencies into the engineering process.
   from texsys.studio.runtime import StudioRuntime
@@ -162,9 +155,7 @@ def main():
     cli("check", project=b)
   finally:
     offline_registry.rename(registry)
-  request.write_text(json.dumps({"action": "update", "name": "hvac-dynamics", "version": "0.1.0"}))
-  rollback = cli("package", "plan", request, project=a, json_result=True)
-  cli("package", "apply", request, "--plan", rollback["plan"], project=a, json_result=True)
+  cli("add", "hvac-dynamics", "--version", "0.1.0", "--registry", registry, project=a)
   restored = cli("engineering", "run", "hvac:capacity-change", project=a, json_result=True)
   assert restored["result"]["assessment"] == "pass"
   assert restored["toolchain_digest"] == baseline["toolchain_digest"]
@@ -185,7 +176,7 @@ def main():
   summary = {"status": "pass", "scope": "capability-package-distribution-and-project-isolation",
              "source_removed": not author.exists(), "offline_cache_restored": True,
              "project_inputs_isolated": True, "plain_sync_kept_version": True,
-             "upgrade_invalidated_acceptance": True, "rollback_reproduced_toolchain": True,
+             "upgrade_invalidated_previous_run": True, "previous_run_freshness": stale["latest"]["freshness"], "rollback_reproduced_toolchain": True,
              "ide_project_versions_isolated": True, "studio_checks": studio_checks,
              "component_sources": sorted(sources), "component_reference": reference,
              "component_reference_kept_dependencies": True,
@@ -196,7 +187,7 @@ def main():
              "package_tests": [test_a, test_b], "package_status": status,
              "commands": len(log), "command_elapsed_s": round(sum(item["elapsed_s"] for item in log), 3),
              "script_digest": digest(Path(__file__)),
-             "limitations": ["概念模型与自动化接受，不是现场性能验证。", "宿主Python与SciPy等第三方依赖预先具备；不是完整离线环境还原。",
+             "limitations": ["概念模型与自动化检查，不是现场性能验证。", "宿主Python与SciPy等第三方依赖预先具备；不是完整离线环境还原。",
                              "0.1.1是隔离作者副本中的版本升级机制用例，未改变物理方程，也未发布到公共仓库。"],
              "finished_at": datetime.now(timezone.utc).isoformat()}
   (output / "summary.json").write_text(json.dumps(summary, ensure_ascii=False, indent=2) + "\n")
