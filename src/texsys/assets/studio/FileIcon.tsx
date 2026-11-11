@@ -67,7 +67,7 @@ export function FileIcon({ path, size = 16 }: { path: string; size?: number }) {
             y="16"
             textAnchor="middle"
             fontSize="10"
-            fontWeight="600"
+            fontWeight="500"
             fill="currentColor"
           >
             JS

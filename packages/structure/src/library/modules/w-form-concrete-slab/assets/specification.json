@@ -1,0 +1,22 @@
+{
+  "schema_version": 1,
+  "state": "assumed",
+  "basis": "Texsys 结构专业库方案定义",
+  "envelope_m": [0.72, 2, 0.17],
+  "properties": {
+    "role": "permanent-form",
+    "implementation": "texsys_structure.deck.DeckSlab",
+    "profile_defaults": {
+      "profile_m": [
+        [0, 0.06],
+        [0.06, 0],
+        [0.12, 0.045],
+        [0.18, 0],
+        [0.24, 0.06]
+      ],
+      "thickness_m": 0.0012,
+      "slab_top_m": 0.17
+    }
+  },
+  "limitations": "浇筑阶段钢板承担模板作用，使用阶段采用独立钢筋混凝土承载。承载与配筋参数由项目提供。"
+}

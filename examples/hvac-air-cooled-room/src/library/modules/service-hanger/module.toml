@@ -1,0 +1,34 @@
+schema_version = 1
+name = "支吊架"
+version = "0.1.0"
+entry = "service-hanger.sdl.json"
+
+[assets.geometry]
+kind = "geometry"
+path = "assets/geometry.usda"
+source = "风冷机房参考库方案假设"
+fidelity = "方案级实体与接口定位"
+
+[assets.symbol]
+kind = "symbol"
+path = "assets/symbol.svg"
+source = "风冷机房参考库方案假设"
+fidelity = "带端口锚点的功能示意"
+
+[assets.specification]
+kind = "specification"
+path = "assets/specification.json"
+source = "风冷机房参考库方案假设"
+fidelity = "有单位的方案假设"
+
+[port_bindings.anchor_a]
+geometry = "/Module/Ports/anchor_a"
+symbol = "port-anchor_a"
+
+[port_bindings.anchor_b]
+geometry = "/Module/Ports/anchor_b"
+symbol = "port-anchor_b"
+
+[port_bindings.tray_bearing]
+geometry = "/Module/Ports/tray_bearing"
+symbol = "port-tray_bearing"

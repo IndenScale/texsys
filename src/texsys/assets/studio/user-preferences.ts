@@ -21,7 +21,7 @@ export const defaultEditorPreferences = {
 } satisfies Partial<UserPreferences>;
 
 export const defaultTerminalPreferences = { terminalFontSize: 12 };
-const defaults = {
+export const defaultUserPreferences: Readonly<UserPreferences> = {
   ...defaultEditorPreferences,
   ...defaultTerminalPreferences,
   autoSave: false,
@@ -39,30 +39,37 @@ function readPreferences(raw: string | null): UserPreferences {
     if (saved && typeof saved === "object") {
       const { editorWordWrap, editorLineNumbers, editorMinimap } = saved;
       return {
-        editorFontSize: fontSize(saved.editorFontSize, defaults.editorFontSize),
+        editorFontSize: fontSize(saved.editorFontSize, defaultUserPreferences.editorFontSize),
         editorWordWrap:
           editorWordWrap === "on" || editorWordWrap === "off"
             ? editorWordWrap
-            : defaults.editorWordWrap,
+            : defaultUserPreferences.editorWordWrap,
         editorLineNumbers:
-          typeof editorLineNumbers === "boolean" ? editorLineNumbers : defaults.editorLineNumbers,
-        editorMinimap: typeof editorMinimap === "boolean" ? editorMinimap : defaults.editorMinimap,
-        terminalFontSize: fontSize(saved.terminalFontSize, defaults.terminalFontSize),
-        autoSave: saved.autoSave === true,
-        confirmBeforeUnload: saved.confirmBeforeUnload !== false,
+          typeof editorLineNumbers === "boolean"
+            ? editorLineNumbers
+            : defaultUserPreferences.editorLineNumbers,
+        editorMinimap:
+          typeof editorMinimap === "boolean" ? editorMinimap : defaultUserPreferences.editorMinimap,
+        terminalFontSize: fontSize(saved.terminalFontSize, defaultUserPreferences.terminalFontSize),
+        autoSave:
+          typeof saved.autoSave === "boolean" ? saved.autoSave : defaultUserPreferences.autoSave,
+        confirmBeforeUnload:
+          typeof saved.confirmBeforeUnload === "boolean"
+            ? saved.confirmBeforeUnload
+            : defaultUserPreferences.confirmBeforeUnload,
       };
     }
   } catch {
     // Malformed browser storage falls back to the existing workbench defaults.
   }
-  return defaults;
+  return defaultUserPreferences;
 }
 
 function initialPreferences() {
   try {
     return readPreferences(localStorage.getItem(storageKey));
   } catch {
-    return defaults;
+    return defaultUserPreferences;
   }
 }
 
@@ -95,6 +102,6 @@ export function useUserPreferences() {
       return () => listeners.delete(listener);
     },
     getPreferences,
-    () => defaults,
+    () => defaultUserPreferences,
   );
 }

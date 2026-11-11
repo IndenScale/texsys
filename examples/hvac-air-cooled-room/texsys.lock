@@ -1,0 +1,29 @@
+schema_version = 1
+manifest_digest = "sha256:d6fa916d74cf5d18aa5f1f7e6993d4ee70dd643dbc90e4047a05656b79c73b42"
+
+[[packages]]
+name = "hvac-equipment"
+version = "0.1.0"
+source = "path"
+path = "../../packages/hvac-equipment"
+digest = "sha256:3320fc4dd604a9f389fc116fdb3ad40f411bb0c86ee9ac1ac3af989fcec2c150"
+direct = true
+dependencies = []
+
+[[packages]]
+name = "spatial"
+version = "0.1.0"
+source = "path"
+path = "../../packages/spatial"
+digest = "sha256:c6468793e45cee7eebbf206a4fe99a62983f13efe16526ac3eb855558c8b1332"
+direct = true
+dependencies = []
+
+[[packages]]
+name = "structure"
+version = "0.1.0"
+source = "path"
+path = "../../packages/structure"
+digest = "sha256:3164797c3151bfc8cb5d150339b4de0fd56fe574cf6e41d83622b7d403c7a15d"
+direct = true
+dependencies = ["spatial"]

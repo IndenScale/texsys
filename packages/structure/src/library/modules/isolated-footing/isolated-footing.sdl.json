@@ -1,0 +1,20 @@
+{
+  "components": {
+    "IsolatedFooting": {
+      "ports": {
+        "column_seat": {
+          "direction": "inout",
+          "kind": "structural-bearing",
+          "max_connections": 1
+        },
+        "ground": {
+          "direction": "inout",
+          "kind": "ground-bearing",
+          "max_connections": 1
+        }
+      }
+    }
+  },
+  "root": "IsolatedFooting",
+  "schema_version": 1
+}

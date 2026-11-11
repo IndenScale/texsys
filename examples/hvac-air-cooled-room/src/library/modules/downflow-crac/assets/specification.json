@@ -1,0 +1,24 @@
+{
+  "basis": "风冷机房参考库方案假设",
+  "envelope_m": [
+    1.2,
+    1.2,
+    2.134
+  ],
+  "frame": {
+    "front": "-Y",
+    "origin": "设备落地面西南角，出风口低于原点",
+    "units": "m",
+    "up_axis": "Z"
+  },
+  "limitations": "用于机房方案布置，容量和风量为机房预算假设，性能曲线与机组数据待选型。",
+  "properties": {
+    "cabinet_height_m": 2.0,
+    "discharge_drop_m": 0.12,
+    "frame_origin": "设备落地面，出风口低于原点",
+    "nominal_airflow_m3_s": 4.5,
+    "nominal_sensible_kw": 60
+  },
+  "schema_version": 1,
+  "state": "assumed"
+}

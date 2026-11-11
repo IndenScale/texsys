@@ -1,0 +1,60 @@
+{
+  "schema_version": 1,
+  "root": "CoolantDistributionUnit",
+  "components": {
+    "CoolantDistributionUnit": {
+      "ports": {
+        "facility_in": {
+          "kind": "fws",
+          "direction": "in",
+          "max_connections": 1
+        },
+        "facility_out": {
+          "kind": "fws",
+          "direction": "out",
+          "max_connections": 1
+        },
+        "power": {
+          "kind": "ac-power",
+          "direction": "in",
+          "max_connections": 1
+        },
+        "tcs_return": {
+          "kind": "tcs",
+          "direction": "in",
+          "max_connections": 1
+        },
+        "tcs_supply": {
+          "kind": "tcs",
+          "direction": "out",
+          "max_connections": 1
+        }
+      },
+      "behavior": {
+        "reference": "assets/behavior.json",
+        "state": "assumed",
+        "source": "Texsys 暖通专业库方案假设",
+        "parameters": {
+          "nameplate_capacity": {
+            "value": 350,
+            "unit": "kW",
+            "state": "assumed",
+            "source": "Texsys 暖通专业库方案假设"
+          },
+          "minimum_approach": {
+            "value": 3,
+            "unit": "K",
+            "state": "assumed",
+            "source": "Texsys 暖通专业库方案假设"
+          },
+          "electrical_input": {
+            "value": 15,
+            "unit": "kW",
+            "state": "assumed",
+            "source": "Texsys 暖通专业库方案假设"
+          }
+        }
+      }
+    }
+  }
+}

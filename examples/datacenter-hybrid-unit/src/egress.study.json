@@ -1,0 +1,120 @@
+{
+  "schema_version": 1,
+  "state": "assumed",
+  "basis": "单体概念疏散算例。人员数量、允许距离、通行能力系数、门和附建楼梯包络均为可替换的算例输入。",
+  "layout": {
+    "hall_spines_x_m": [2, 48.5],
+    "service_spine_x_m": 59,
+    "aisle_before_row_m": 0.5,
+    "aisle_clear_width_m": 0.95,
+    "unit_occupants": 2,
+    "service_origins": {
+      "Electrical": 6,
+      "Cooling": 6
+    }
+  },
+  "stair_wall": {
+    "substrate": "stair-wall-demo",
+    "required_min": {
+      "integrity": 120,
+      "insulation": 120
+    }
+  },
+  "door_types": {
+    "compartment": {
+      "rating_min": {
+        "integrity": 120,
+        "insulation": 120
+      },
+      "self_closing": true,
+      "unlocked_in_egress": true,
+      "evidence": "防火分隔门的演示选型参数。"
+    },
+    "stair": {
+      "rating_min": {
+        "integrity": 120,
+        "insulation": 120
+      },
+      "self_closing": true,
+      "unlocked_in_egress": true,
+      "evidence": "楼梯入口门的演示选型参数。"
+    },
+    "discharge": {
+      "rating_min": {
+        "integrity": 120,
+        "insulation": 120
+      },
+      "self_closing": true,
+      "unlocked_in_egress": true,
+      "evidence": "楼梯首层室外出口门的演示选型参数。"
+    }
+  },
+  "minimum_width_m": {
+    "access": 0.9,
+    "door": 1,
+    "stair": 1.1,
+    "discharge": 1.1
+  },
+  "people_per_m": {
+    "access": 300,
+    "door": 300,
+    "stair": 150,
+    "discharge": 150
+  },
+  "max_common_access_m": 10,
+  "cases": {
+    "common-access-limit-reduced": {
+      "closed_links": [],
+      "closed_exits": [],
+      "max_access_m": 115,
+      "max_common_access_m": 8,
+      "min_exits": 2,
+      "expected": "fail"
+    },
+    "normal": {
+      "closed_links": [],
+      "closed_exits": [],
+      "max_access_m": 115,
+      "min_exits": 2,
+      "expected": "pass"
+    },
+    "west-exit-out": {
+      "closed_links": [],
+      "closed_exits": ["West"],
+      "max_access_m": 115,
+      "min_exits": 1,
+      "expected": "pass"
+    },
+    "east-exit-out": {
+      "closed_links": [],
+      "closed_exits": ["East"],
+      "max_access_m": 115,
+      "min_exits": 1,
+      "expected": "pass"
+    },
+    "both-exits-out": {
+      "closed_links": [],
+      "closed_exits": ["West", "East"],
+      "max_access_m": 115,
+      "min_exits": 1,
+      "expected": "fail"
+    },
+    "west-out-east-discharge-restricted": {
+      "closed_links": [],
+      "closed_exits": ["West"],
+      "width_overrides_m": {
+        "Discharge-East": 1.2
+      },
+      "max_access_m": 115,
+      "min_exits": 1,
+      "expected": "fail"
+    },
+    "level-three-east-stair-door-closed": {
+      "closed_links": ["L03/StairDoor-East"],
+      "closed_exits": [],
+      "max_access_m": 115,
+      "min_exits": 2,
+      "expected": "fail"
+    }
+  }
+}

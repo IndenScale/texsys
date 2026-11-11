@@ -1,0 +1,13 @@
+{
+  "schema_version": 1,
+  "state": "assumed",
+  "model": "two-loop-rated-point",
+  "parameters": {
+    "nameplate_capacity": "kW",
+    "minimum_approach": "K",
+    "electrical_input": "kW"
+  },
+  "site_inputs": ["facility_loop_conditions", "technology_loop_conditions"],
+  "method": "minimum-of-two-loop-heat-rates-and-nameplate-with-approach",
+  "limitations": "用于方案额定点。参数示意，项目按实测或制造商资料选型。"
+}

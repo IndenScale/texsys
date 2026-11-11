@@ -1,0 +1,118 @@
+{
+  "schema_version": 1,
+  "state": "assumed",
+  "basis": "冷通道以机柜前面为界。按实际送风管段、送风箱、末端开口和回风格栅的等效阻力计算配风。机柜固定抽风，缺少的冷空气由热区回流补足。热区完全混合，水汽分压给定。阻力系数、静压和环境限值为算例输入。",
+  "layout_case": "full-local-rack-starved",
+  "design_cases": ["initial-normal", "full-normal", "full-a-power-out", "full-local-one-crac-out"],
+  "rack_airflow_m3_s": 3,
+  "minimum_recirculation": 0.04,
+  "layout": {
+    "cold_aisle_xyxy_m": [0.4, 2.5, 2.8, 3.5],
+    "minimum_aisle_width_m": 1,
+    "rack_height_m": 2.2,
+    "rack_fronts": {
+      "Rack-01": "+Y",
+      "Rack-02": "+Y",
+      "Rack-03": "-Y",
+      "Rack-04": "-Y"
+    }
+  },
+  "limits": {
+    "inlet_min_c": 18,
+    "inlet_max_c": 27,
+    "rh_min": 0.2,
+    "rh_max": 0.75,
+    "max_dew_point_c": 15,
+    "min_condensation_margin_c": 2
+  },
+  "supplies": {
+    "PrecisionAir-A": {
+      "supply_port": "supply",
+      "return_port": "return",
+      "static_limit_pa": 750,
+      "bypass_conductance": 0.055,
+      "terminal_loss_coefficient": {
+        "Rack-01": 0.42,
+        "Rack-02": 0.44,
+        "Rack-03": 0.46,
+        "Rack-04": 0.48
+      }
+    },
+    "PrecisionAir-B": {
+      "supply_port": "supply",
+      "return_port": "return",
+      "static_limit_pa": 750,
+      "bypass_conductance": 0.055,
+      "terminal_loss_coefficient": {
+        "Rack-01": 0.4,
+        "Rack-02": 0.42,
+        "Rack-03": 0.48,
+        "Rack-04": 0.52
+      }
+    }
+  },
+  "cases": {
+    "initial-normal": {
+      "building_scenario": "initial-normal",
+      "expected": "pass"
+    },
+    "full-normal": {
+      "building_scenario": "full-normal",
+      "expected": "pass"
+    },
+    "full-a-power-out": {
+      "building_scenario": "full-supply-a-out",
+      "expected": "pass"
+    },
+    "full-local-one-crac-out": {
+      "building_scenario": "full-normal",
+      "local_changes": {
+        "L03/Unit-01-01": {
+          "unavailable_air_units": ["PrecisionAir-B"]
+        }
+      },
+      "expected": "pass"
+    },
+    "full-local-rack-starved": {
+      "building_scenario": "full-normal",
+      "local_changes": {
+        "L03/Unit-01-01": {
+          "blocked_branches": {
+            "PrecisionAir-A": ["Rack-04"],
+            "PrecisionAir-B": ["Rack-04"]
+          }
+        }
+      },
+      "expected": "fail"
+    },
+    "full-local-containment-open": {
+      "building_scenario": "full-normal",
+      "local_changes": {
+        "L02/Unit-03-03": {
+          "minimum_recirculation": {
+            "Rack-03": 0.55
+          }
+        }
+      },
+      "expected": "fail"
+    },
+    "full-local-humid": {
+      "building_scenario": "full-normal",
+      "local_changes": {
+        "L04/Unit-02-01": {
+          "dew_point_c": 21
+        }
+      },
+      "expected": "fail"
+    },
+    "full-local-both-cracs-out": {
+      "building_scenario": "full-normal",
+      "local_changes": {
+        "L03/Unit-01-01": {
+          "unavailable_air_units": ["PrecisionAir-A", "PrecisionAir-B"]
+        }
+      },
+      "expected": "fail"
+    }
+  }
+}

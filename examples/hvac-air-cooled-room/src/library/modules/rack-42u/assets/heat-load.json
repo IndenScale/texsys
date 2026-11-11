@@ -1,0 +1,10 @@
+{
+  "assumptions": [
+    "稳态，IT 电功率全部计入机房显热"
+  ],
+  "input": "it_load_kw",
+  "kind": "steady-heat-load",
+  "output": "sensible_heat_kw",
+  "relation": "sensible_heat_kw = it_load_kw",
+  "schema_version": 1
+}

@@ -85,7 +85,11 @@ export const studioMenus: MenuGroup[] = [
         keywords: "New Text File Untitled",
       },
       { id: "file.new", label: "新建文件…", icon: "new-file", keywords: "New File Create File" },
-      { id: "file.newWindow", label: "新建标签页", keywords: "New Tab Empty Workspace 新建窗口" },
+      {
+        id: "file.newWindow",
+        label: "新建窗口",
+        keywords: "New Window New Tab Empty Workspace 新建标签页",
+      },
       { id: "file.open", label: "打开文件…", separator: true, icon: "file", keywords: "Open File" },
       { id: "file.recent", label: "打开最近的文件…", keywords: "Open Recent Files" },
       {

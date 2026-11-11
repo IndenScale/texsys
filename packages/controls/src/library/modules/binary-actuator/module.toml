@@ -1,0 +1,22 @@
+schema_version = 1
+name = "二位执行器"
+version = "0.1.0"
+entry = "binary-actuator.sdl.json"
+
+[assets.symbol]
+kind = "symbol"
+path = "assets/symbol.svg"
+source = "Texsys 控制与监测库方案定义"
+fidelity = "控制功能与端口锚点"
+
+[assets.behavior]
+kind = "behavior"
+path = "assets/behavior.json"
+source = "Texsys 控制与监测库方案定义"
+fidelity = "二值接口与逻辑约定"
+
+[port_bindings.command]
+symbol = "port-command"
+
+[port_bindings.feedback]
+symbol = "port-feedback"

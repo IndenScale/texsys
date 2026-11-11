@@ -1,0 +1,22 @@
+{
+  "basis": "风冷机房参考库方案假设",
+  "envelope_m": [
+    0.024,
+    0.024,
+    0.45
+  ],
+  "frame": {
+    "front": "-Y",
+    "origin": "包络最小角",
+    "units": "m",
+    "up_axis": "Z"
+  },
+  "limitations": "不含螺纹细节，材质、抗拉、锚固和抗震要求待校核。",
+  "properties": {
+    "connection": "两端螺母示意",
+    "length_m": 0.45,
+    "nominal_diameter_m": 0.012
+  },
+  "schema_version": 1,
+  "state": "assumed"
+}

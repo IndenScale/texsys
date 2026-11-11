@@ -1,0 +1,30 @@
+{
+  "components": {
+    "EthernetSwitch": {
+      "ports": {
+        "copper": {
+          "direction": "inout",
+          "kind": "ethernet-rj45",
+          "max_connections": 1
+        },
+        "fiber": {
+          "direction": "inout",
+          "kind": "fiber-lc-duplex-sm",
+          "max_connections": 1
+        },
+        "mount": {
+          "direction": "inout",
+          "kind": "rack-mount",
+          "max_connections": 1
+        },
+        "power": {
+          "direction": "in",
+          "kind": "ac-equipment",
+          "max_connections": 1
+        }
+      }
+    }
+  },
+  "root": "EthernetSwitch",
+  "schema_version": 1
+}

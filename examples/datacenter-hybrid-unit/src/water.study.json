@@ -1,0 +1,164 @@
+{
+  "schema_version": 1,
+  "state": "assumed",
+  "basis": "湿干混合排热的方案算例。原水、处理、水箱、排放与水质判据均为可替换输入。",
+  "heat_rejection": {
+    "HeatRejection-A": {
+      "rejection_per_cooling": 1.08,
+      "wet_fraction": 0.9,
+      "latent_fraction": 0.85,
+      "water_density_kg_m3": 997,
+      "latent_heat_kj_kg": 2400,
+      "specific_heat_kj_kgk": 4.18,
+      "range_k": 6,
+      "drift_fraction": 5e-5,
+      "cycles": 4,
+      "basin_tds_limit_mg_l": 400
+    },
+    "HeatRejection-B": {
+      "rejection_per_cooling": 1.08,
+      "wet_fraction": 0.9,
+      "latent_fraction": 0.85,
+      "water_density_kg_m3": 997,
+      "latent_heat_kj_kg": 2400,
+      "specific_heat_kj_kgk": 4.18,
+      "range_k": 6,
+      "drift_fraction": 5e-5,
+      "cycles": 4,
+      "basin_tds_limit_mg_l": 400
+    }
+  },
+  "sources": {
+    "Municipal": {
+      "capacity_m3_h": 100,
+      "tds_mg_l": 350
+    },
+    "Reclaimed": {
+      "capacity_m3_h": 90,
+      "tds_mg_l": 800
+    }
+  },
+  "treatments": {
+    "Treatment-A": {
+      "sources": ["Municipal", "Reclaimed"],
+      "capacity_m3_h": 85,
+      "recovery": 0.8,
+      "tds_pass_fraction": 0.1,
+      "max_feed_tds_mg_l": 1200,
+      "power_feed": "Incoming-A"
+    },
+    "Treatment-B": {
+      "sources": ["Municipal", "Reclaimed"],
+      "capacity_m3_h": 85,
+      "recovery": 0.75,
+      "tds_pass_fraction": 0.12,
+      "max_feed_tds_mg_l": 1200,
+      "power_feed": "Incoming-B"
+    }
+  },
+  "treated_storage": {
+    "usable_m3": 300,
+    "initial_m3": 180,
+    "initial_tds_mg_l": 70,
+    "envelope_m": [12, 12, 3]
+  },
+  "product_tds_limit_mg_l": 110,
+  "cases": {
+    "initial-normal": {
+      "expected": "pass",
+      "intervals": [
+        {
+          "start_h": 0,
+          "end_h": 24,
+          "building_scenario": "initial-normal",
+          "outfall_m3_h": 45
+        }
+      ]
+    },
+    "full-normal": {
+      "expected": "pass",
+      "intervals": [
+        {
+          "start_h": 0,
+          "end_h": 24,
+          "building_scenario": "full-normal",
+          "outfall_m3_h": 45
+        }
+      ]
+    },
+    "single-treatment-reclaimed": {
+      "expected": "pass",
+      "intervals": [
+        {
+          "start_h": 0,
+          "end_h": 8,
+          "building_scenario": "full-supply-a-out",
+          "outfall_m3_h": 45,
+          "unavailable_sources": ["Municipal"]
+        }
+      ]
+    },
+    "two-hour-source-outage": {
+      "expected": "pass",
+      "intervals": [
+        {
+          "start_h": 0,
+          "end_h": 2,
+          "building_scenario": "full-normal",
+          "outfall_m3_h": 45,
+          "unavailable_sources": ["Municipal", "Reclaimed"]
+        },
+        {
+          "start_h": 2,
+          "end_h": 8,
+          "building_scenario": "full-normal",
+          "outfall_m3_h": 45
+        }
+      ]
+    },
+    "four-hour-source-outage": {
+      "expected": "fail",
+      "intervals": [
+        {
+          "start_h": 0,
+          "end_h": 4,
+          "building_scenario": "full-normal",
+          "outfall_m3_h": 45,
+          "unavailable_sources": ["Municipal", "Reclaimed"]
+        },
+        {
+          "start_h": 4,
+          "end_h": 8,
+          "building_scenario": "full-normal",
+          "outfall_m3_h": 45
+        }
+      ]
+    },
+    "reclaimed-quality-excursion": {
+      "expected": "fail",
+      "intervals": [
+        {
+          "start_h": 0,
+          "end_h": 5,
+          "building_scenario": "full-normal",
+          "outfall_m3_h": 45,
+          "unavailable_sources": ["Municipal"],
+          "tds_overrides_mg_l": {
+            "Reclaimed": 1500
+          }
+        }
+      ]
+    },
+    "outfall-restricted": {
+      "expected": "fail",
+      "intervals": [
+        {
+          "start_h": 0,
+          "end_h": 8,
+          "building_scenario": "full-normal",
+          "outfall_m3_h": 15
+        }
+      ]
+    }
+  }
+}

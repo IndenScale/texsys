@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 156" role="img" aria-label="液冷分配单元 CDU">
+<rect x="75" y="28" width="150" height="88" rx="10" fill="#e1eff4" stroke="#245064" stroke-width="2"/>
+<text x="150" y="66" fill="#163949" font-family="sans-serif" font-size="14" font-weight="700" text-anchor="middle">COOLANT DISTRIBUTION</text>
+<text x="150" y="87" fill="#396476" font-family="sans-serif" font-size="12" text-anchor="middle">液冷分配单元 CDU</text>
+<path d="M75 47L30 47" stroke="#246889" stroke-width="2"/>
+<circle id="port-facility_in" data-port="facility_in" cx="30" cy="47" r="4" fill="#246889"><title>facility_in (in)</title></circle>
+<path d="M225 47L270 47" stroke="#246889" stroke-width="2"/>
+<circle id="port-facility_out" data-port="facility_out" cx="270" cy="47" r="4" fill="#246889"><title>facility_out (out)</title></circle>
+<path d="M150 116L150 144" stroke="#9b6415" stroke-width="2"/>
+<circle id="port-power" data-port="power" cx="150" cy="144" r="4" fill="#9b6415"><title>power (in)</title></circle>
+<path d="M75 96L30 96" stroke="#217c76" stroke-width="2"/>
+<circle id="port-tcs_return" data-port="tcs_return" cx="30" cy="96" r="4" fill="#217c76"><title>tcs_return (in)</title></circle>
+<path d="M225 96L270 96" stroke="#217c76" stroke-width="2"/>
+<circle id="port-tcs_supply" data-port="tcs_supply" cx="270" cy="96" r="4" fill="#217c76"><title>tcs_supply (out)</title></circle>
+</svg>

@@ -1,0 +1,34 @@
+schema_version = 1
+name = "钢筋混凝土梁"
+version = "0.1.1"
+entry = "reinforced-concrete-beam.sdl.json"
+
+[assets.geometry]
+kind = "geometry"
+path = "assets/geometry.usda"
+source = "texsys 结构专业库方案样件"
+fidelity = "方案级包络、钢筋与接口定位"
+
+[assets.symbol]
+kind = "symbol"
+path = "assets/symbol.svg"
+source = "texsys 结构专业库方案样件"
+fidelity = "带接口锚点的构造示意"
+
+[assets.specification]
+kind = "specification"
+path = "assets/specification.json"
+source = "texsys 结构专业库方案样件"
+fidelity = "有单位的方案假设及可复现几何参数"
+
+[port_bindings.bearing_a]
+geometry = "/Module/Ports/bearing_a"
+symbol = "port-bearing_a"
+
+[port_bindings.bearing_b]
+geometry = "/Module/Ports/bearing_b"
+symbol = "port-bearing_b"
+
+[port_bindings.rebar_bond_point]
+geometry = "/Module/Ports/rebar_bond_point"
+symbol = "port-rebar_bond_point"

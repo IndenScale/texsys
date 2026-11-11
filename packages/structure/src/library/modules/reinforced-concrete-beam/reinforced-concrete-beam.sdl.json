@@ -1,0 +1,24 @@
+{
+  "components": {
+    "ReinforcedConcreteBeam": {
+      "ports": {
+        "bearing_a": {
+          "direction": "inout",
+          "kind": "structural-bearing",
+          "max_connections": 1
+        },
+        "bearing_b": {
+          "direction": "inout",
+          "kind": "structural-bearing",
+          "max_connections": 1
+        },
+        "rebar_bond_point": {
+          "direction": "inout",
+          "kind": "reinforcement-reference"
+        }
+      }
+    }
+  },
+  "root": "ReinforcedConcreteBeam",
+  "schema_version": 1
+}

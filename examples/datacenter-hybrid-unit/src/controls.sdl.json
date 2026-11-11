@@ -1,0 +1,63 @@
+{
+  "schema_version": 1,
+  "root": "RackCoolingControls",
+  "imports": {
+    "BinarySensor": "@controls/library/modules/binary-sensor/binary-sensor.sdl.json",
+    "BinaryActuator": "@controls/library/modules/binary-actuator/binary-actuator.sdl.json",
+    "ConfirmedChangeover": "@controls/library/modules/confirmed-changeover/confirmed-changeover.sdl.json"
+  },
+  "components": {
+    "RackCoolingControls": {
+      "instances": {
+        "LeakDetector": {
+          "component": "BinarySensor"
+        },
+        "BackupFlowSwitch": {
+          "component": "BinarySensor"
+        },
+        "SupplyIsolation": {
+          "component": "BinaryActuator"
+        },
+        "ReturnIsolation": {
+          "component": "BinaryActuator"
+        },
+        "BackupEnable": {
+          "component": "BinaryActuator"
+        },
+        "RackChangeover": {
+          "component": "ConfirmedChangeover"
+        }
+      },
+      "connections": [
+        {
+          "from": "LeakDetector.state",
+          "to": "RackChangeover.fault"
+        },
+        {
+          "from": "RackChangeover.close_supply",
+          "to": "SupplyIsolation.command"
+        },
+        {
+          "from": "SupplyIsolation.feedback",
+          "to": "RackChangeover.supply_closed"
+        },
+        {
+          "from": "RackChangeover.close_return",
+          "to": "ReturnIsolation.command"
+        },
+        {
+          "from": "ReturnIsolation.feedback",
+          "to": "RackChangeover.return_closed"
+        },
+        {
+          "from": "RackChangeover.enable_backup",
+          "to": "BackupEnable.command"
+        },
+        {
+          "from": "BackupFlowSwitch.state",
+          "to": "RackChangeover.backup_proof"
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,230 @@
+{
+  "schema_version": 1,
+  "state": "assumed",
+  "frame": "L01",
+  "axes": {
+    "x": {
+      "A": 0,
+      "B": 3.6
+    },
+    "y": {
+      "1": 0,
+      "2": 8
+    }
+  },
+  "bay": [
+    ["A", "1"],
+    ["B", "2"]
+  ],
+  "deck_role": "permanent-form",
+  "deck": {},
+  "loads": {
+    "steel_unit_weight_kn_m3": 77,
+    "pour": {
+      "concrete_unit_weight_kn_m3": 25,
+      "additional_uniform_kn_m2": 1.5
+    },
+    "service": {
+      "concrete_unit_weight_kn_m3": 24,
+      "additional_uniform_kn_m2": 0.5
+    }
+  },
+  "rack_placements": {
+    "Rack-01": {
+      "anchor": ["A", "1"],
+      "offset_m": [0.6, 1.3],
+      "size_m": [0.8, 1.2]
+    },
+    "Rack-02": {
+      "anchor": ["A", "1"],
+      "offset_m": [1.8, 1.3],
+      "size_m": [0.8, 1.2]
+    },
+    "Rack-03": {
+      "anchor": ["A", "1"],
+      "offset_m": [0.6, 3.5],
+      "size_m": [0.8, 1.2]
+    },
+    "Rack-04": {
+      "anchor": ["A", "1"],
+      "offset_m": [1.8, 3.5],
+      "size_m": [0.8, 1.2]
+    }
+  },
+  "opening_requests": {
+    "FWS-Penetration": {
+      "origin_m": [2.9, 4.35],
+      "size_m": [0.3, 0.4],
+      "service": "FWS"
+    }
+  },
+  "structural_screening": {
+    "basis": "完整单向简支条带的概念复核。额定强度、有效刚度、荷载系数、支承线和变形限值均为算例假设。",
+    "strip_edges_x_m": [0, 0.72, 1.44, 2.16, 2.88, 3.6],
+    "permanent_supports": {
+      "Beam-Y01": {
+        "y_m": 0,
+        "reaction_kn_per_m": {
+          "pour": 25,
+          "service": 45
+        }
+      },
+      "Beam-YMid": {
+        "y_m": 3,
+        "reaction_kn_per_m": {
+          "pour": 25,
+          "service": 45
+        }
+      },
+      "Beam-Y02": {
+        "y_m": 6,
+        "reaction_kn_per_m": {
+          "pour": 25,
+          "service": 45
+        }
+      },
+      "Beam-Y03": {
+        "y_m": 8,
+        "reaction_kn_per_m": {
+          "pour": 25,
+          "service": 45
+        }
+      }
+    },
+    "temporary_supports": {
+      "Shore-Y01": {
+        "y_m": 1.5,
+        "reaction_kn_per_m": {
+          "pour": 22
+        }
+      },
+      "Shore-Y02": {
+        "y_m": 4.5,
+        "reaction_kn_per_m": {
+          "pour": 22
+        }
+      },
+      "Shore-Y03": {
+        "y_m": 7,
+        "reaction_kn_per_m": {
+          "pour": 22
+        }
+      }
+    },
+    "rack_contacts": {
+      "FL": {
+        "position_fraction": [0.125, 0.125],
+        "load_fraction": 0.25
+      },
+      "FR": {
+        "position_fraction": [0.875, 0.125],
+        "load_fraction": 0.25
+      },
+      "RL": {
+        "position_fraction": [0.125, 0.875],
+        "load_fraction": 0.25
+      },
+      "RR": {
+        "position_fraction": [0.875, 0.875],
+        "load_fraction": 0.25
+      }
+    },
+    "pour_point_loads": {
+      "Construction-Point": {
+        "x_m": 1.08,
+        "y_m": 0.75,
+        "kn": 1.25
+      }
+    },
+    "ratings": {
+      "pour": {
+        "moment_kn_m_per_m": 4.5,
+        "shear_kn_per_m": 12,
+        "ei_kn_m2_per_m": 75,
+        "deflection_span_ratio": 180
+      },
+      "service": {
+        "moment_kn_m_per_m": 22,
+        "shear_kn_per_m": 28,
+        "ei_kn_m2_per_m": 1800,
+        "deflection_span_ratio": 300
+      }
+    },
+    "load_factors": {
+      "pour": {
+        "strength": {
+          "deck_and_concrete": 1.2,
+          "additional_uniform": 1.4,
+          "point": 1.4
+        },
+        "deflection": {
+          "deck_and_concrete": 1,
+          "additional_uniform": 1,
+          "point": 1
+        }
+      },
+      "service": {
+        "strength": {
+          "deck_and_concrete": 1.2,
+          "additional_uniform": 1.4,
+          "point": 1.2
+        },
+        "deflection": {
+          "deck_and_concrete": 1,
+          "additional_uniform": 1,
+          "point": 1
+        }
+      }
+    },
+    "cases": {
+      "pour-shored": {
+        "phase": "pour",
+        "include_temporary": true,
+        "expected": "pass"
+      },
+      "pour-unshored": {
+        "phase": "pour",
+        "include_temporary": false,
+        "expected": "fail"
+      },
+      "service": {
+        "phase": "service",
+        "include_temporary": false,
+        "expected": "pass"
+      },
+      "service-empty": {
+        "phase": "service",
+        "include_temporary": false,
+        "include_rack_loads": false,
+        "expected": "pass"
+      }
+    },
+    "steel_support_beams": {
+      "types": {
+        "H300-example": {
+          "section_m": {
+            "depth": 0.3,
+            "width": 0.15,
+            "web": 0.008,
+            "flange": 0.012
+          },
+          "modulus_gpa": 200,
+          "moment_kn_m": 80,
+          "shear_kn": 85,
+          "deflection_span_ratio": 360
+        }
+      },
+      "assignments": {
+        "Beam-Y01": "H300-example",
+        "Beam-YMid": "H300-example",
+        "Beam-Y02": "H300-example",
+        "Beam-Y03": "H300-example"
+      }
+    },
+    "equipment_contacts": {
+      "effective_depth_m": 0.075,
+      "bearing_limit_kpa": 4500,
+      "punching_limit_kpa": 450
+    }
+  }
+}

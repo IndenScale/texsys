@@ -1,0 +1,9 @@
+{
+  "schema_version": 1,
+  "state": "assumed",
+  "kind": "room",
+  "description": "可用空间边界、楼层及用途",
+  "coordinate_unit": "m",
+  "fidelity": "concept",
+  "implementation": "texsys_architecture.Space"
+}

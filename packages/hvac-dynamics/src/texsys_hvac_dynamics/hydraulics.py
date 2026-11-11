@@ -10,7 +10,7 @@ import math
 import numpy as np
 from scipy.optimize import least_squares
 
-from .domain import Branch, PhysicalModel, PhysicsInputError
+from .domain import PhysicalModel, PhysicsInputError
 from .scenario import Scenario
 
 
@@ -42,6 +42,11 @@ def pipe_loss(flow: float, *, diameter: float, length: float, roughness: float,
     mix = min(1.0, (reynolds - 2300) / 1700)
     friction = laminar * (1-mix) + turbulent * mix
   return friction + minor_loss * density * flow * abs(flow) / (2 * area**2)
+
+
+def pump_head_m(flow: float, shutoff_head_m: float, curve_m_per_m6_s2: float, speed_ratio: float) -> float:
+  """Quadratic pump head at the given relative speed and single-pump flow."""
+  return shutoff_head_m * speed_ratio**2 - curve_m_per_m6_s2 * flow * abs(flow)
 
 
 class HydraulicNetwork:
@@ -83,8 +88,8 @@ class HydraulicNetwork:
     component = self.components[branch.component]
     if component.kind != "pump":
       return 0.0
-    head = component.number("shutoff_head_m", "m", positive=True) * speed**2
-    head -= component.number("curve_m_per_m6_s2", "s2/m5", positive=True) * flow * abs(flow)
+    head = pump_head_m(flow, component.number("shutoff_head_m", "m", positive=True),
+                       component.number("curve_m_per_m6_s2", "s2/m5", positive=True), speed)
     return self.model.density_kg_m3 * self.model.gravity_m_s2 * head
 
   def solve(self, scenario: Scenario, time: float) -> HydraulicSolution:

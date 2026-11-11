@@ -1,0 +1,36 @@
+schema_version = 1
+name = "扁钢与钢筋不可逆压接节点"
+version = "0.1.0"
+entry = "flat-strip-rebar-compression.sdl.json"
+
+[assets.geometry]
+kind = "geometry"
+path = "assets/geometry.usda"
+source = "Texsys 电气专业库方案样件"
+fidelity = "米制构造包络与端口位姿"
+
+[assets.symbol]
+kind = "symbol"
+path = "assets/symbol.svg"
+source = "Texsys 电气专业库方案样件"
+fidelity = "带端口锚点的等电位连接示意"
+
+[assets.specification]
+kind = "specification"
+path = "assets/specification.json"
+source = "Texsys 电气专业库方案样件"
+fidelity = "方案参数与接口坐标"
+
+[assets.behavior]
+kind = "behavior"
+path = "assets/behavior.json"
+source = "Texsys 电气专业库方案样件"
+fidelity = "设计配接检查与导通电阻模型"
+
+[port_bindings.tape]
+geometry = "/Module/Ports/tape"
+symbol = "port-tape"
+
+[port_bindings.rebar]
+geometry = "/Module/Ports/rebar"
+symbol = "port-rebar"

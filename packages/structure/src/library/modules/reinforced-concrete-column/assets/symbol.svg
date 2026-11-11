@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 150" role="img">
+  <title>钢筋混凝土柱</title>
+  <text x="120" y="19" text-anchor="middle" font-size="14" font-family="sans-serif" fill="#173148">钢筋混凝土柱</text>
+  <g fill="#e4eaee" stroke="#254759" stroke-width="2">
+    <rect x="94" y="34" width="52" height="67"/><path d="M104 39v57m32-57v57M99 48h42m-42 14h42m-42 14h42m-42 14h42" fill="none"/>
+  </g>
+  <g id="port-base" data-port="base">
+    <circle cx="72" cy="117" r="5" fill="#f7fdff" stroke="#187e94" stroke-width="2"/>
+    <text x="72" y="139" text-anchor="middle" font-family="sans-serif" font-size="12" fill="#234761">base</text>
+  </g>
+  <g id="port-top" data-port="top">
+    <circle cx="168" cy="117" r="5" fill="#f7fdff" stroke="#187e94" stroke-width="2"/>
+    <text x="168" y="139" text-anchor="middle" font-family="sans-serif" font-size="12" fill="#234761">top</text>
+  </g>
+</svg>

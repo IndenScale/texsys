@@ -1,0 +1,680 @@
+#usda 1.0
+(
+    defaultPrim = "Module"
+    metersPerUnit = 1
+    upAxis = "Z"
+)
+
+def Xform "Module"
+{
+    def Scope "Geometry"
+    {
+        def Cube "Concrete"
+        {
+            color3f[] primvars:displayColor = [(0.63, 0.6, 0.54)]
+            float[] primvars:displayOpacity = [0.26]
+            double size = 1
+            double3 xformOp:scale = (0.35, 0.35, 2.7)
+            double3 xformOp:translate = (0.175, 0.175, 1.35)
+            uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
+        }
+
+        def Cylinder "Bar_001"
+        {
+            uniform token axis = "Z"
+            double height = 2.6300000000000003
+            color3f[] primvars:displayColor = [(0.28, 0.39, 0.48)]
+            double radius = 0.01
+            double3 xformOp:translate = (0.05500000000000001, 0.05500000000000001, 1.35)
+            uniform token[] xformOpOrder = ["xformOp:translate"]
+        }
+
+        def Cylinder "Bar_002"
+        {
+            uniform token axis = "Z"
+            double height = 2.6300000000000003
+            color3f[] primvars:displayColor = [(0.28, 0.39, 0.48)]
+            double radius = 0.01
+            double3 xformOp:translate = (0.05500000000000001, 0.295, 1.35)
+            uniform token[] xformOpOrder = ["xformOp:translate"]
+        }
+
+        def Cylinder "Bar_003"
+        {
+            uniform token axis = "Z"
+            double height = 2.6300000000000003
+            color3f[] primvars:displayColor = [(0.28, 0.39, 0.48)]
+            double radius = 0.01
+            double3 xformOp:translate = (0.295, 0.05500000000000001, 1.35)
+            uniform token[] xformOpOrder = ["xformOp:translate"]
+        }
+
+        def Cylinder "Bar_004"
+        {
+            uniform token axis = "Z"
+            double height = 2.6300000000000003
+            color3f[] primvars:displayColor = [(0.28, 0.39, 0.48)]
+            double radius = 0.01
+            double3 xformOp:translate = (0.295, 0.295, 1.35)
+            uniform token[] xformOpOrder = ["xformOp:translate"]
+        }
+
+        def Cylinder "Bar_005"
+        {
+            uniform token axis = "X"
+            double height = 0.26999999999999996
+            color3f[] primvars:displayColor = [(0.28, 0.39, 0.48)]
+            double radius = 0.005
+            double3 xformOp:translate = (0.175, 0.04, 0.04)
+            uniform token[] xformOpOrder = ["xformOp:translate"]
+        }
+
+        def Cylinder "Bar_006"
+        {
+            uniform token axis = "X"
+            double height = 0.26999999999999996
+            color3f[] primvars:displayColor = [(0.28, 0.39, 0.48)]
+            double radius = 0.005
+            double3 xformOp:translate = (0.175, 0.31, 0.04)
+            uniform token[] xformOpOrder = ["xformOp:translate"]
+        }
+
+        def Cylinder "Bar_007"
+        {
+            uniform token axis = "Y"
+            double height = 0.26999999999999996
+            color3f[] primvars:displayColor = [(0.28, 0.39, 0.48)]
+            double radius = 0.005
+            double3 xformOp:translate = (0.04, 0.175, 0.04)
+            uniform token[] xformOpOrder = ["xformOp:translate"]
+        }
+
+        def Cylinder "Bar_008"
+        {
+            uniform token axis = "Y"
+            double height = 0.26999999999999996
+            color3f[] primvars:displayColor = [(0.28, 0.39, 0.48)]
+            double radius = 0.005
+            double3 xformOp:translate = (0.31, 0.175, 0.04)
+            uniform token[] xformOpOrder = ["xformOp:translate"]
+        }
+
+        def Cylinder "Bar_009"
+        {
+            uniform token axis = "X"
+            double height = 0.26999999999999996
+            color3f[] primvars:displayColor = [(0.28, 0.39, 0.48)]
+            double radius = 0.005
+            double3 xformOp:translate = (0.175, 0.04, 0.22714285714285715)
+            uniform token[] xformOpOrder = ["xformOp:translate"]
+        }
+
+        def Cylinder "Bar_010"
+        {
+            uniform token axis = "X"
+            double height = 0.26999999999999996
+            color3f[] primvars:displayColor = [(0.28, 0.39, 0.48)]
+            double radius = 0.005
+            double3 xformOp:translate = (0.175, 0.31, 0.22714285714285715)
+            uniform token[] xformOpOrder = ["xformOp:translate"]
+        }
+
+        def Cylinder "Bar_011"
+        {
+            uniform token axis = "Y"
+            double height = 0.26999999999999996
+            color3f[] primvars:displayColor = [(0.28, 0.39, 0.48)]
+            double radius = 0.005
+            double3 xformOp:translate = (0.04, 0.175, 0.22714285714285715)
+            uniform token[] xformOpOrder = ["xformOp:translate"]
+        }
+
+        def Cylinder "Bar_012"
+        {
+            uniform token axis = "Y"
+            double height = 0.26999999999999996
+            color3f[] primvars:displayColor = [(0.28, 0.39, 0.48)]
+            double radius = 0.005
+            double3 xformOp:translate = (0.31, 0.175, 0.22714285714285715)
+            uniform token[] xformOpOrder = ["xformOp:translate"]
+        }
+
+        def Cylinder "Bar_013"
+        {
+            uniform token axis = "X"
+            double height = 0.26999999999999996
+            color3f[] primvars:displayColor = [(0.28, 0.39, 0.48)]
+            double radius = 0.005
+            double3 xformOp:translate = (0.175, 0.04, 0.41428571428571426)
+            uniform token[] xformOpOrder = ["xformOp:translate"]
+        }
+
+        def Cylinder "Bar_014"
+        {
+            uniform token axis = "X"
+            double height = 0.26999999999999996
+            color3f[] primvars:displayColor = [(0.28, 0.39, 0.48)]
+            double radius = 0.005
+            double3 xformOp:translate = (0.175, 0.31, 0.41428571428571426)
+            uniform token[] xformOpOrder = ["xformOp:translate"]
+        }
+
+        def Cylinder "Bar_015"
+        {
+            uniform token axis = "Y"
+            double height = 0.26999999999999996
+            color3f[] primvars:displayColor = [(0.28, 0.39, 0.48)]
+            double radius = 0.005
+            double3 xformOp:translate = (0.04, 0.175, 0.41428571428571426)
+            uniform token[] xformOpOrder = ["xformOp:translate"]
+        }
+
+        def Cylinder "Bar_016"
+        {
+            uniform token axis = "Y"
+            double height = 0.26999999999999996
+            color3f[] primvars:displayColor = [(0.28, 0.39, 0.48)]
+            double radius = 0.005
+            double3 xformOp:translate = (0.31, 0.175, 0.41428571428571426)
+            uniform token[] xformOpOrder = ["xformOp:translate"]
+        }
+
+        def Cylinder "Bar_017"
+        {
+            uniform token axis = "X"
+            double height = 0.26999999999999996
+            color3f[] primvars:displayColor = [(0.28, 0.39, 0.48)]
+            double radius = 0.005
+            double3 xformOp:translate = (0.175, 0.04, 0.6014285714285715)
+            uniform token[] xformOpOrder = ["xformOp:translate"]
+        }
+
+        def Cylinder "Bar_018"
+        {
+            uniform token axis = "X"
+            double height = 0.26999999999999996
+            color3f[] primvars:displayColor = [(0.28, 0.39, 0.48)]
+            double radius = 0.005
+            double3 xformOp:translate = (0.175, 0.31, 0.6014285714285715)
+            uniform token[] xformOpOrder = ["xformOp:translate"]
+        }
+
+        def Cylinder "Bar_019"
+        {
+            uniform token axis = "Y"
+            double height = 0.26999999999999996
+            color3f[] primvars:displayColor = [(0.28, 0.39, 0.48)]
+            double radius = 0.005
+            double3 xformOp:translate = (0.04, 0.175, 0.6014285714285715)
+            uniform token[] xformOpOrder = ["xformOp:translate"]
+        }
+
+        def Cylinder "Bar_020"
+        {
+            uniform token axis = "Y"
+            double height = 0.26999999999999996
+            color3f[] primvars:displayColor = [(0.28, 0.39, 0.48)]
+            double radius = 0.005
+            double3 xformOp:translate = (0.31, 0.175, 0.6014285714285715)
+            uniform token[] xformOpOrder = ["xformOp:translate"]
+        }
+
+        def Cylinder "Bar_021"
+        {
+            uniform token axis = "X"
+            double height = 0.26999999999999996
+            color3f[] primvars:displayColor = [(0.28, 0.39, 0.48)]
+            double radius = 0.005
+            double3 xformOp:translate = (0.175, 0.04, 0.7885714285714286)
+            uniform token[] xformOpOrder = ["xformOp:translate"]
+        }
+
+        def Cylinder "Bar_022"
+        {
+            uniform token axis = "X"
+            double height = 0.26999999999999996
+            color3f[] primvars:displayColor = [(0.28, 0.39, 0.48)]
+            double radius = 0.005
+            double3 xformOp:translate = (0.175, 0.31, 0.7885714285714286)
+            uniform token[] xformOpOrder = ["xformOp:translate"]
+        }
+
+        def Cylinder "Bar_023"
+        {
+            uniform token axis = "Y"
+            double height = 0.26999999999999996
+            color3f[] primvars:displayColor = [(0.28, 0.39, 0.48)]
+            double radius = 0.005
+            double3 xformOp:translate = (0.04, 0.175, 0.7885714285714286)
+            uniform token[] xformOpOrder = ["xformOp:translate"]
+        }
+
+        def Cylinder "Bar_024"
+        {
+            uniform token axis = "Y"
+            double height = 0.26999999999999996
+            color3f[] primvars:displayColor = [(0.28, 0.39, 0.48)]
+            double radius = 0.005
+            double3 xformOp:translate = (0.31, 0.175, 0.7885714285714286)
+            uniform token[] xformOpOrder = ["xformOp:translate"]
+        }
+
+        def Cylinder "Bar_025"
+        {
+            uniform token axis = "X"
+            double height = 0.26999999999999996
+            color3f[] primvars:displayColor = [(0.28, 0.39, 0.48)]
+            double radius = 0.005
+            double3 xformOp:translate = (0.175, 0.04, 0.9757142857142859)
+            uniform token[] xformOpOrder = ["xformOp:translate"]
+        }
+
+        def Cylinder "Bar_026"
+        {
+            uniform token axis = "X"
+            double height = 0.26999999999999996
+            color3f[] primvars:displayColor = [(0.28, 0.39, 0.48)]
+            double radius = 0.005
+            double3 xformOp:translate = (0.175, 0.31, 0.9757142857142859)
+            uniform token[] xformOpOrder = ["xformOp:translate"]
+        }
+
+        def Cylinder "Bar_027"
+        {
+            uniform token axis = "Y"
+            double height = 0.26999999999999996
+            color3f[] primvars:displayColor = [(0.28, 0.39, 0.48)]
+            double radius = 0.005
+            double3 xformOp:translate = (0.04, 0.175, 0.9757142857142859)
+            uniform token[] xformOpOrder = ["xformOp:translate"]
+        }
+
+        def Cylinder "Bar_028"
+        {
+            uniform token axis = "Y"
+            double height = 0.26999999999999996
+            color3f[] primvars:displayColor = [(0.28, 0.39, 0.48)]
+            double radius = 0.005
+            double3 xformOp:translate = (0.31, 0.175, 0.9757142857142859)
+            uniform token[] xformOpOrder = ["xformOp:translate"]
+        }
+
+        def Cylinder "Bar_029"
+        {
+            uniform token axis = "X"
+            double height = 0.26999999999999996
+            color3f[] primvars:displayColor = [(0.28, 0.39, 0.48)]
+            double radius = 0.005
+            double3 xformOp:translate = (0.175, 0.04, 1.162857142857143)
+            uniform token[] xformOpOrder = ["xformOp:translate"]
+        }
+
+        def Cylinder "Bar_030"
+        {
+            uniform token axis = "X"
+            double height = 0.26999999999999996
+            color3f[] primvars:displayColor = [(0.28, 0.39, 0.48)]
+            double radius = 0.005
+            double3 xformOp:translate = (0.175, 0.31, 1.162857142857143)
+            uniform token[] xformOpOrder = ["xformOp:translate"]
+        }
+
+        def Cylinder "Bar_031"
+        {
+            uniform token axis = "Y"
+            double height = 0.26999999999999996
+            color3f[] primvars:displayColor = [(0.28, 0.39, 0.48)]
+            double radius = 0.005
+            double3 xformOp:translate = (0.04, 0.175, 1.162857142857143)
+            uniform token[] xformOpOrder = ["xformOp:translate"]
+        }
+
+        def Cylinder "Bar_032"
+        {
+            uniform token axis = "Y"
+            double height = 0.26999999999999996
+            color3f[] primvars:displayColor = [(0.28, 0.39, 0.48)]
+            double radius = 0.005
+            double3 xformOp:translate = (0.31, 0.175, 1.162857142857143)
+            uniform token[] xformOpOrder = ["xformOp:translate"]
+        }
+
+        def Cylinder "Bar_033"
+        {
+            uniform token axis = "X"
+            double height = 0.26999999999999996
+            color3f[] primvars:displayColor = [(0.28, 0.39, 0.48)]
+            double radius = 0.005
+            double3 xformOp:translate = (0.175, 0.04, 1.35)
+            uniform token[] xformOpOrder = ["xformOp:translate"]
+        }
+
+        def Cylinder "Bar_034"
+        {
+            uniform token axis = "X"
+            double height = 0.26999999999999996
+            color3f[] primvars:displayColor = [(0.28, 0.39, 0.48)]
+            double radius = 0.005
+            double3 xformOp:translate = (0.175, 0.31, 1.35)
+            uniform token[] xformOpOrder = ["xformOp:translate"]
+        }
+
+        def Cylinder "Bar_035"
+        {
+            uniform token axis = "Y"
+            double height = 0.26999999999999996
+            color3f[] primvars:displayColor = [(0.28, 0.39, 0.48)]
+            double radius = 0.005
+            double3 xformOp:translate = (0.04, 0.175, 1.35)
+            uniform token[] xformOpOrder = ["xformOp:translate"]
+        }
+
+        def Cylinder "Bar_036"
+        {
+            uniform token axis = "Y"
+            double height = 0.26999999999999996
+            color3f[] primvars:displayColor = [(0.28, 0.39, 0.48)]
+            double radius = 0.005
+            double3 xformOp:translate = (0.31, 0.175, 1.35)
+            uniform token[] xformOpOrder = ["xformOp:translate"]
+        }
+
+        def Cylinder "Bar_037"
+        {
+            uniform token axis = "X"
+            double height = 0.26999999999999996
+            color3f[] primvars:displayColor = [(0.28, 0.39, 0.48)]
+            double radius = 0.005
+            double3 xformOp:translate = (0.175, 0.04, 1.5371428571428571)
+            uniform token[] xformOpOrder = ["xformOp:translate"]
+        }
+
+        def Cylinder "Bar_038"
+        {
+            uniform token axis = "X"
+            double height = 0.26999999999999996
+            color3f[] primvars:displayColor = [(0.28, 0.39, 0.48)]
+            double radius = 0.005
+            double3 xformOp:translate = (0.175, 0.31, 1.5371428571428571)
+            uniform token[] xformOpOrder = ["xformOp:translate"]
+        }
+
+        def Cylinder "Bar_039"
+        {
+            uniform token axis = "Y"
+            double height = 0.26999999999999996
+            color3f[] primvars:displayColor = [(0.28, 0.39, 0.48)]
+            double radius = 0.005
+            double3 xformOp:translate = (0.04, 0.175, 1.5371428571428571)
+            uniform token[] xformOpOrder = ["xformOp:translate"]
+        }
+
+        def Cylinder "Bar_040"
+        {
+            uniform token axis = "Y"
+            double height = 0.26999999999999996
+            color3f[] primvars:displayColor = [(0.28, 0.39, 0.48)]
+            double radius = 0.005
+            double3 xformOp:translate = (0.31, 0.175, 1.5371428571428571)
+            uniform token[] xformOpOrder = ["xformOp:translate"]
+        }
+
+        def Cylinder "Bar_041"
+        {
+            uniform token axis = "X"
+            double height = 0.26999999999999996
+            color3f[] primvars:displayColor = [(0.28, 0.39, 0.48)]
+            double radius = 0.005
+            double3 xformOp:translate = (0.175, 0.04, 1.7242857142857144)
+            uniform token[] xformOpOrder = ["xformOp:translate"]
+        }
+
+        def Cylinder "Bar_042"
+        {
+            uniform token axis = "X"
+            double height = 0.26999999999999996
+            color3f[] primvars:displayColor = [(0.28, 0.39, 0.48)]
+            double radius = 0.005
+            double3 xformOp:translate = (0.175, 0.31, 1.7242857142857144)
+            uniform token[] xformOpOrder = ["xformOp:translate"]
+        }
+
+        def Cylinder "Bar_043"
+        {
+            uniform token axis = "Y"
+            double height = 0.26999999999999996
+            color3f[] primvars:displayColor = [(0.28, 0.39, 0.48)]
+            double radius = 0.005
+            double3 xformOp:translate = (0.04, 0.175, 1.7242857142857144)
+            uniform token[] xformOpOrder = ["xformOp:translate"]
+        }
+
+        def Cylinder "Bar_044"
+        {
+            uniform token axis = "Y"
+            double height = 0.26999999999999996
+            color3f[] primvars:displayColor = [(0.28, 0.39, 0.48)]
+            double radius = 0.005
+            double3 xformOp:translate = (0.31, 0.175, 1.7242857142857144)
+            uniform token[] xformOpOrder = ["xformOp:translate"]
+        }
+
+        def Cylinder "Bar_045"
+        {
+            uniform token axis = "X"
+            double height = 0.26999999999999996
+            color3f[] primvars:displayColor = [(0.28, 0.39, 0.48)]
+            double radius = 0.005
+            double3 xformOp:translate = (0.175, 0.04, 1.9114285714285717)
+            uniform token[] xformOpOrder = ["xformOp:translate"]
+        }
+
+        def Cylinder "Bar_046"
+        {
+            uniform token axis = "X"
+            double height = 0.26999999999999996
+            color3f[] primvars:displayColor = [(0.28, 0.39, 0.48)]
+            double radius = 0.005
+            double3 xformOp:translate = (0.175, 0.31, 1.9114285714285717)
+            uniform token[] xformOpOrder = ["xformOp:translate"]
+        }
+
+        def Cylinder "Bar_047"
+        {
+            uniform token axis = "Y"
+            double height = 0.26999999999999996
+            color3f[] primvars:displayColor = [(0.28, 0.39, 0.48)]
+            double radius = 0.005
+            double3 xformOp:translate = (0.04, 0.175, 1.9114285714285717)
+            uniform token[] xformOpOrder = ["xformOp:translate"]
+        }
+
+        def Cylinder "Bar_048"
+        {
+            uniform token axis = "Y"
+            double height = 0.26999999999999996
+            color3f[] primvars:displayColor = [(0.28, 0.39, 0.48)]
+            double radius = 0.005
+            double3 xformOp:translate = (0.31, 0.175, 1.9114285714285717)
+            uniform token[] xformOpOrder = ["xformOp:translate"]
+        }
+
+        def Cylinder "Bar_049"
+        {
+            uniform token axis = "X"
+            double height = 0.26999999999999996
+            color3f[] primvars:displayColor = [(0.28, 0.39, 0.48)]
+            double radius = 0.005
+            double3 xformOp:translate = (0.175, 0.04, 2.0985714285714288)
+            uniform token[] xformOpOrder = ["xformOp:translate"]
+        }
+
+        def Cylinder "Bar_050"
+        {
+            uniform token axis = "X"
+            double height = 0.26999999999999996
+            color3f[] primvars:displayColor = [(0.28, 0.39, 0.48)]
+            double radius = 0.005
+            double3 xformOp:translate = (0.175, 0.31, 2.0985714285714288)
+            uniform token[] xformOpOrder = ["xformOp:translate"]
+        }
+
+        def Cylinder "Bar_051"
+        {
+            uniform token axis = "Y"
+            double height = 0.26999999999999996
+            color3f[] primvars:displayColor = [(0.28, 0.39, 0.48)]
+            double radius = 0.005
+            double3 xformOp:translate = (0.04, 0.175, 2.0985714285714288)
+            uniform token[] xformOpOrder = ["xformOp:translate"]
+        }
+
+        def Cylinder "Bar_052"
+        {
+            uniform token axis = "Y"
+            double height = 0.26999999999999996
+            color3f[] primvars:displayColor = [(0.28, 0.39, 0.48)]
+            double radius = 0.005
+            double3 xformOp:translate = (0.31, 0.175, 2.0985714285714288)
+            uniform token[] xformOpOrder = ["xformOp:translate"]
+        }
+
+        def Cylinder "Bar_053"
+        {
+            uniform token axis = "X"
+            double height = 0.26999999999999996
+            color3f[] primvars:displayColor = [(0.28, 0.39, 0.48)]
+            double radius = 0.005
+            double3 xformOp:translate = (0.175, 0.04, 2.285714285714286)
+            uniform token[] xformOpOrder = ["xformOp:translate"]
+        }
+
+        def Cylinder "Bar_054"
+        {
+            uniform token axis = "X"
+            double height = 0.26999999999999996
+            color3f[] primvars:displayColor = [(0.28, 0.39, 0.48)]
+            double radius = 0.005
+            double3 xformOp:translate = (0.175, 0.31, 2.285714285714286)
+            uniform token[] xformOpOrder = ["xformOp:translate"]
+        }
+
+        def Cylinder "Bar_055"
+        {
+            uniform token axis = "Y"
+            double height = 0.26999999999999996
+            color3f[] primvars:displayColor = [(0.28, 0.39, 0.48)]
+            double radius = 0.005
+            double3 xformOp:translate = (0.04, 0.175, 2.285714285714286)
+            uniform token[] xformOpOrder = ["xformOp:translate"]
+        }
+
+        def Cylinder "Bar_056"
+        {
+            uniform token axis = "Y"
+            double height = 0.26999999999999996
+            color3f[] primvars:displayColor = [(0.28, 0.39, 0.48)]
+            double radius = 0.005
+            double3 xformOp:translate = (0.31, 0.175, 2.285714285714286)
+            uniform token[] xformOpOrder = ["xformOp:translate"]
+        }
+
+        def Cylinder "Bar_057"
+        {
+            uniform token axis = "X"
+            double height = 0.26999999999999996
+            color3f[] primvars:displayColor = [(0.28, 0.39, 0.48)]
+            double radius = 0.005
+            double3 xformOp:translate = (0.175, 0.04, 2.472857142857143)
+            uniform token[] xformOpOrder = ["xformOp:translate"]
+        }
+
+        def Cylinder "Bar_058"
+        {
+            uniform token axis = "X"
+            double height = 0.26999999999999996
+            color3f[] primvars:displayColor = [(0.28, 0.39, 0.48)]
+            double radius = 0.005
+            double3 xformOp:translate = (0.175, 0.31, 2.472857142857143)
+            uniform token[] xformOpOrder = ["xformOp:translate"]
+        }
+
+        def Cylinder "Bar_059"
+        {
+            uniform token axis = "Y"
+            double height = 0.26999999999999996
+            color3f[] primvars:displayColor = [(0.28, 0.39, 0.48)]
+            double radius = 0.005
+            double3 xformOp:translate = (0.04, 0.175, 2.472857142857143)
+            uniform token[] xformOpOrder = ["xformOp:translate"]
+        }
+
+        def Cylinder "Bar_060"
+        {
+            uniform token axis = "Y"
+            double height = 0.26999999999999996
+            color3f[] primvars:displayColor = [(0.28, 0.39, 0.48)]
+            double radius = 0.005
+            double3 xformOp:translate = (0.31, 0.175, 2.472857142857143)
+            uniform token[] xformOpOrder = ["xformOp:translate"]
+        }
+
+        def Cylinder "Bar_061"
+        {
+            uniform token axis = "X"
+            double height = 0.26999999999999996
+            color3f[] primvars:displayColor = [(0.28, 0.39, 0.48)]
+            double radius = 0.005
+            double3 xformOp:translate = (0.175, 0.04, 2.66)
+            uniform token[] xformOpOrder = ["xformOp:translate"]
+        }
+
+        def Cylinder "Bar_062"
+        {
+            uniform token axis = "X"
+            double height = 0.26999999999999996
+            color3f[] primvars:displayColor = [(0.28, 0.39, 0.48)]
+            double radius = 0.005
+            double3 xformOp:translate = (0.175, 0.31, 2.66)
+            uniform token[] xformOpOrder = ["xformOp:translate"]
+        }
+
+        def Cylinder "Bar_063"
+        {
+            uniform token axis = "Y"
+            double height = 0.26999999999999996
+            color3f[] primvars:displayColor = [(0.28, 0.39, 0.48)]
+            double radius = 0.005
+            double3 xformOp:translate = (0.04, 0.175, 2.66)
+            uniform token[] xformOpOrder = ["xformOp:translate"]
+        }
+
+        def Cylinder "Bar_064"
+        {
+            uniform token axis = "Y"
+            double height = 0.26999999999999996
+            color3f[] primvars:displayColor = [(0.28, 0.39, 0.48)]
+            double radius = 0.005
+            double3 xformOp:translate = (0.31, 0.175, 2.66)
+            uniform token[] xformOpOrder = ["xformOp:translate"]
+        }
+    }
+
+    def "Ports"
+    {
+        def Xform "base"
+        {
+            custom double3 texsys:normal = (0, 0, -1)
+            double3 xformOp:translate = (0.175, 0.175, 0)
+            uniform token[] xformOpOrder = ["xformOp:translate"]
+        }
+
+        def Xform "top"
+        {
+            custom double3 texsys:normal = (0, 0, 1)
+            double3 xformOp:translate = (0.175, 0.175, 2.7)
+            uniform token[] xformOpOrder = ["xformOp:translate"]
+        }
+    }
+}
+

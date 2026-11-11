@@ -13,7 +13,7 @@ from texsys.studio.runtime import Conflict, input_records, snapshot_project
 from texsys_hvac_dynamics.domain import compile_model, PhysicsUnresolved
 
 MANIFEST = {"id": "texsys:hvac", "name": "Tex Studio HVAC", "discipline": "暖通", "version": "0.1.0", "api_version": 1,
-            "capabilities": ["system-view", "equipment-table", "parameter-edit", "symbols", "source", "check", "build", "simulate", "results"]}
+            "capabilities": ["system-view", "scene-preview", "equipment-table", "parameter-edit", "symbols", "source", "check", "build", "simulate", "results"]}
 
 
 def read_json(file):

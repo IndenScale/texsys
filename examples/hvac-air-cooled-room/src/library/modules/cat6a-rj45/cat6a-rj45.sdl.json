@@ -1,0 +1,20 @@
+{
+  "components": {
+    "Cat6ARJ45": {
+      "ports": {
+        "end_a": {
+          "direction": "inout",
+          "kind": "ethernet-rj45",
+          "max_connections": 1
+        },
+        "end_b": {
+          "direction": "inout",
+          "kind": "ethernet-rj45",
+          "max_connections": 1
+        }
+      }
+    }
+  },
+  "root": "Cat6ARJ45",
+  "schema_version": 1
+}

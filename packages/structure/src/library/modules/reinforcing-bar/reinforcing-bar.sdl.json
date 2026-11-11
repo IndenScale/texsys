@@ -1,0 +1,9 @@
+{
+  "components": {
+    "ReinforcingBar": {
+      "ports": {}
+    }
+  },
+  "root": "ReinforcingBar",
+  "schema_version": 1
+}

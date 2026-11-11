@@ -23,6 +23,8 @@ class HvacEquipmentPackage(TexsysPackage):
   version = "0.1.0"
 
   def targets(self) -> tuple[TargetDefinition, ...]:
+    from texsys_hvac_equipment.air_room import build_air_room
+
     return (
       TargetDefinition(
         id="hvac:equipment-layout",
@@ -31,6 +33,14 @@ class HvacEquipmentPackage(TexsysPackage):
         builder=self.build_layout,
         profiles=("engineering",),
         default_profile="engineering",
+      ),
+      TargetDefinition(
+        id="hvac:air-room",
+        package_name=self.name,
+        package_version=self.version,
+        builder=build_air_room,
+        profiles=("review",),
+        default_profile="review",
       ),
     )
 

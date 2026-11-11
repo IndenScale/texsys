@@ -1,0 +1,22 @@
+{
+  "basis": "风冷机房参考库方案假设",
+  "envelope_m": [
+    0.6,
+    0.045,
+    0.492
+  ],
+  "frame": {
+    "front": "-Y",
+    "origin": "包络最小角",
+    "units": "m",
+    "up_axis": "Z"
+  },
+  "limitations": "用于定位吊点与桥架支承面，荷载、间距及抗震设计待校核。",
+  "properties": {
+    "channel_length_m": 0.6,
+    "clear_rod_spacing_m": 0.52,
+    "rod_length_m": 0.45
+  },
+  "schema_version": 1,
+  "state": "assumed"
+}

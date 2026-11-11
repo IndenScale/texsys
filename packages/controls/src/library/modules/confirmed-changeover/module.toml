@@ -1,0 +1,37 @@
+schema_version = 1
+name = "反馈确认切换控制器"
+version = "0.1.0"
+entry = "confirmed-changeover.sdl.json"
+
+[assets.symbol]
+kind = "symbol"
+path = "assets/symbol.svg"
+source = "Texsys 控制与监测库方案定义"
+fidelity = "控制功能与端口锚点"
+
+[assets.behavior]
+kind = "behavior"
+path = "assets/behavior.json"
+source = "Texsys 控制与监测库方案定义"
+fidelity = "二值接口与逻辑约定"
+
+[port_bindings.fault]
+symbol = "port-fault"
+
+[port_bindings.supply_closed]
+symbol = "port-supply_closed"
+
+[port_bindings.return_closed]
+symbol = "port-return_closed"
+
+[port_bindings.backup_proof]
+symbol = "port-backup_proof"
+
+[port_bindings.close_supply]
+symbol = "port-close_supply"
+
+[port_bindings.close_return]
+symbol = "port-close_return"
+
+[port_bindings.enable_backup]
+symbol = "port-enable_backup"

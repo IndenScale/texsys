@@ -1,0 +1,26 @@
+schema_version = 1
+name = "钢筋混凝土墙体"
+version = "0.1.0"
+entry = "reinforced-concrete-wall.sdl.json"
+
+[assets.geometry]
+kind = "geometry"
+path = "assets/geometry.usda"
+source = "texsys 结构专业库方案样件"
+fidelity = "方案级包络、钢筋与接口定位"
+
+[assets.symbol]
+kind = "symbol"
+path = "assets/symbol.svg"
+source = "texsys 结构专业库方案样件"
+fidelity = "带接口锚点的构造示意"
+
+[assets.specification]
+kind = "specification"
+path = "assets/specification.json"
+source = "texsys 结构专业库方案样件"
+fidelity = "有单位的方案假设及可复现几何参数"
+
+[port_bindings.base]
+geometry = "/Module/Ports/base"
+symbol = "port-base"

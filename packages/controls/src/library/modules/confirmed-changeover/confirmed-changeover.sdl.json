@@ -1,0 +1,64 @@
+{
+  "schema_version": 1,
+  "root": "ConfirmedChangeover",
+  "components": {
+    "ConfirmedChangeover": {
+      "ports": {
+        "fault": {
+          "kind": "binary-state",
+          "direction": "in",
+          "max_connections": 1
+        },
+        "supply_closed": {
+          "kind": "binary-state",
+          "direction": "in",
+          "max_connections": 1
+        },
+        "return_closed": {
+          "kind": "binary-state",
+          "direction": "in",
+          "max_connections": 1
+        },
+        "backup_proof": {
+          "kind": "binary-state",
+          "direction": "in",
+          "max_connections": 1
+        },
+        "close_supply": {
+          "kind": "binary-command",
+          "direction": "out",
+          "max_connections": 1
+        },
+        "close_return": {
+          "kind": "binary-command",
+          "direction": "out",
+          "max_connections": 1
+        },
+        "enable_backup": {
+          "kind": "binary-command",
+          "direction": "out",
+          "max_connections": 1
+        }
+      },
+      "behavior": {
+        "reference": "assets/behavior.json",
+        "state": "assumed",
+        "source": "Texsys 控制与监测库方案定义",
+        "parameters": {
+          "isolation_timeout": {
+            "value": 12,
+            "unit": "s",
+            "state": "assumed",
+            "source": "Texsys 控制与监测库方案定义"
+          },
+          "proof_timeout": {
+            "value": 9,
+            "unit": "s",
+            "state": "assumed",
+            "source": "Texsys 控制与监测库方案定义"
+          }
+        }
+      }
+    }
+  }
+}

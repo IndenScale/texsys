@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 150" role="img">
+  <title>钢筋混凝土设备基座</title>
+  <text x="120" y="19" text-anchor="middle" font-size="14" font-family="sans-serif" fill="#173148">钢筋混凝土设备基座</text>
+  <g fill="#e4eaee" stroke="#254759" stroke-width="2">
+    <rect x="55" y="51" width="130" height="44"/><path d="M62 60h116m-116 26h116" fill="none"/>
+  </g>
+  <g id="port-base" data-port="base">
+    <circle cx="72" cy="117" r="5" fill="#f7fdff" stroke="#187e94" stroke-width="2"/>
+    <text x="72" y="139" text-anchor="middle" font-family="sans-serif" font-size="12" fill="#234761">base</text>
+  </g>
+  <g id="port-seat" data-port="seat">
+    <circle cx="168" cy="117" r="5" fill="#f7fdff" stroke="#187e94" stroke-width="2"/>
+    <text x="168" y="139" text-anchor="middle" font-family="sans-serif" font-size="12" fill="#234761">seat</text>
+  </g>
+</svg>

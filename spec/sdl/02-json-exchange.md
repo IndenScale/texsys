@@ -11,6 +11,7 @@
 | `schema_version` | 整数，`1` 或 `2` | 交换模式版本                |
 | `root`           | 字符串           | 顶层 Component 名称         |
 | `components`     | 对象             | 以名称索引的 Component 定义 |
+| `imports`        | 对象，可选       | 以别名索引的部件库文件路径  |
 
 标识符以 ASCII 字母开头，后续可以包含 ASCII 字母、数字、下划线和连字符。JSON 对象顺序不承载语义，重复键和非标准数值无效。
 
@@ -57,7 +58,27 @@ Connection 是 `connections` 数组中的对象。端点 `from` 和 `to` 使用 
 - 同一 Port 的连接数不得超过 `max_connections`；
 - 不允许把一个 Port 连接到自身。
 
-当前交换表示覆盖单文件 Component 引用和有限标量行为参数。匿名 Net、Placement 和约束求解属于后续交换能力。
+当前交换表示覆盖 Component 引用和有限标量行为参数。匿名 Net、Placement 和约束求解属于后续交换能力。
+
+## 部件库引用
+
+同一文件内按 `components` 的名称引用。跨文件时，在引用方文档声明 `imports`，再由实例的 `component` 字段使用导入别名。别名与本文件的 Component 名称共用命名空间，且仅在本文件可见。导入目标是目标文档的 `root`，目标内部引用仍按目标文档的作用域解析。
+
+```json
+{
+  "imports": {
+    "PumpGroup": "library/modules/pump-group/pump-group.sdl.json"
+  }
+}
+```
+
+路径相对于项目配置的 `layout.source`，使用 `/`，禁止绝对路径、`.`、`..` 和符号链接。项目部件库的 `cells/` 与 `devices/` 目录可直接保存 SDL 文件，`modules/<名称>/<名称>.sdl.json` 识别为模块入口。模块入口旁的 `library/` 采用相同布局，可以递归包含子模块。
+
+模块入口旁可提供 `module.toml` 声明版本、交付资产与端口绑定。 [模块包目录与资产清单](04-module-package.md)
+
+模块部件库中的定义仅允许该模块目录内的文档显式引用。项目部件库中的定义可以由项目内任一 SDL 文档显式引用。导入模块不会向引用方公开该模块的私有定义。找不到目标或超出可见范围报告 `L014`，实例组合成环报告 `L015`。
+
+导入锁定的依赖库使用 `@<包名>/library/…`。路径相对于该包的 `layout.source`，目标须为其库入口。解析前校验项目的 `texsys.lock` 及依赖内容。项目可以引用锁定依赖图中的包。依赖文档引用其他包时，该包须是它声明的依赖。依赖文档内的普通 `library/…` 路径仍在该包内解析，模块部件库的私有范围同样适用。
 
 ## 显式网络（v2）
 

@@ -1,0 +1,251 @@
+{
+  "schema_version": 1,
+  "state": "assumed",
+  "design_it_kw": 40000,
+  "frame": "Building",
+  "unit_height_m": 5,
+  "levels_m": {
+    "L01": 0,
+    "L02": 7,
+    "L03": 14,
+    "L04": 21
+  },
+  "layout": {
+    "floor_m": [60, 54],
+    "unit_m": [8, 8],
+    "pitch_m": [9, 9],
+    "origin_m": [4, 4],
+    "count": [5, 5],
+    "reserves": {
+      "Electrical": {
+        "origin_m": [50, 4],
+        "size_m": [8, 18],
+        "role": "electrical-room"
+      },
+      "Cooling": {
+        "origin_m": [50, 24],
+        "size_m": [8, 18],
+        "role": "cooling-room"
+      },
+      "FWS-Riser-A": {
+        "origin_m": [50, 45],
+        "size_m": [3, 4],
+        "role": "service-riser"
+      },
+      "FWS-Riser-B": {
+        "origin_m": [55, 45],
+        "size_m": [3, 4],
+        "role": "service-riser"
+      },
+      "Liquid-Collection": {
+        "origin_m": [50, 1],
+        "size_m": [4, 2],
+        "role": "liquid-collection"
+      }
+    }
+  },
+  "full_phase": "full",
+  "phases": {
+    "initial": {
+      "levels": ["L01", "L02"],
+      "it_kw": 20000
+    },
+    "full": {
+      "levels": ["L01", "L02", "L03", "L04"],
+      "it_kw": 40000
+    }
+  },
+  "nominal_unit_scenario": "normal",
+  "shared_power": {
+    "Incoming-A": {
+      "unit_source": "Utility-A",
+      "capacity_kw": 65000
+    },
+    "Incoming-B": {
+      "unit_source": "Utility-B",
+      "capacity_kw": 65000
+    }
+  },
+  "shared_heat_rejection": {
+    "HeatRejection-A": {
+      "unit_plants": ["FacilityPlant-A"],
+      "power_feed": "Incoming-A",
+      "capacity_kw": 31000
+    },
+    "HeatRejection-B": {
+      "unit_plants": ["FacilityPlant-B"],
+      "power_feed": "Incoming-B",
+      "capacity_kw": 31000
+    }
+  },
+  "scenarios": {
+    "initial-normal": {
+      "phase": "initial",
+      "unit_scenario": "normal",
+      "unavailable_power": [],
+      "unavailable_heat_rejection": [],
+      "expected": "pass"
+    },
+    "full-normal": {
+      "phase": "full",
+      "unit_scenario": "normal",
+      "unavailable_power": [],
+      "unavailable_heat_rejection": [],
+      "expected": "pass"
+    },
+    "full-supply-a-out": {
+      "phase": "full",
+      "unit_scenario": "supply-a-out",
+      "unavailable_power": ["Incoming-A"],
+      "unavailable_heat_rejection": [],
+      "expected": "pass"
+    },
+    "full-shared-heat-rejection-out": {
+      "phase": "full",
+      "unit_scenario": "normal",
+      "unavailable_power": [],
+      "unavailable_heat_rejection": ["HeatRejection-A", "HeatRejection-B"],
+      "expected": "fail"
+    },
+    "full-riser-a-out": {
+      "phase": "full",
+      "unit_scenario": "normal",
+      "unavailable_power": [],
+      "unavailable_heat_rejection": [],
+      "unavailable_risers": ["FWS-Riser-A"],
+      "expected": "pass"
+    },
+    "full-l03-returns-out": {
+      "phase": "full",
+      "unit_scenario": "normal",
+      "unavailable_power": [],
+      "unavailable_heat_rejection": [],
+      "unavailable_fws_segments": ["A-L03-return", "B-L03-return"],
+      "expected": "fail"
+    },
+    "full-l03-leak-isolated": {
+      "phase": "full",
+      "unit_scenario": "normal",
+      "unavailable_power": [],
+      "unavailable_heat_rejection": [],
+      "leak_zones": ["Leak-L03-A"],
+      "expected": "pass"
+    },
+    "full-l03-leak-valve-stuck": {
+      "phase": "full",
+      "unit_scenario": "normal",
+      "unavailable_power": [],
+      "unavailable_heat_rejection": [],
+      "leak_zones": ["Leak-L03-A"],
+      "stuck_open_valves": ["IV-L03-A-R"],
+      "expected": "fail"
+    },
+    "full-l03-leak-detector-out": {
+      "phase": "full",
+      "unit_scenario": "normal",
+      "unavailable_power": [],
+      "unavailable_heat_rejection": [],
+      "leak_zones": ["Leak-L03-A"],
+      "expected": "fail",
+      "unavailable_detectors": ["LD-L03-A"]
+    },
+    "full-supply-a-out-one-b-pump-lost": {
+      "phase": "full",
+      "unit_scenario": "supply-a-out",
+      "unavailable_power": ["Incoming-A"],
+      "unavailable_heat_rejection": [],
+      "expected": "pass",
+      "unavailable_fws_pumps": ["FWS-P-B1"]
+    },
+    "full-supply-a-out-two-b-pumps-lost": {
+      "phase": "full",
+      "unit_scenario": "supply-a-out",
+      "unavailable_power": ["Incoming-A"],
+      "unavailable_heat_rejection": [],
+      "expected": "fail",
+      "unavailable_fws_pumps": ["FWS-P-B1", "FWS-P-B2"]
+    },
+    "full-supply-a-out-b-head-derated": {
+      "phase": "full",
+      "unit_scenario": "supply-a-out",
+      "unavailable_power": ["Incoming-A"],
+      "unavailable_heat_rejection": [],
+      "expected": "fail",
+      "fws_pump_speed_limits": {
+        "HeatRejection-B": 0.75
+      }
+    },
+    "full-a-head-derated": {
+      "phase": "full",
+      "unit_scenario": "normal",
+      "unavailable_power": [],
+      "unavailable_heat_rejection": [],
+      "expected": "pass",
+      "fws_pump_speed_limits": {
+        "HeatRejection-A": 0.75
+      }
+    },
+    "full-l03-one-a-drop-out": {
+      "phase": "full",
+      "unit_scenario": "normal",
+      "unavailable_power": [],
+      "unavailable_heat_rejection": [],
+      "expected": "pass",
+      "unavailable_fws_branch_segments": [
+        "L03/HeatRejection-A/supply/drop/Tap-Unit-01-01--Unit-01-01"
+      ]
+    },
+    "full-l03-one-ab-drop-out": {
+      "phase": "full",
+      "unit_scenario": "normal",
+      "unavailable_power": [],
+      "unavailable_heat_rejection": [],
+      "expected": "fail",
+      "unavailable_fws_branch_segments": [
+        "L03/HeatRejection-A/supply/drop/Tap-Unit-01-01--Unit-01-01",
+        "L03/HeatRejection-B/return/drop/Unit-01-01--Tap-Unit-01-01"
+      ]
+    },
+    "full-l03-one-b-drop-out": {
+      "phase": "full",
+      "unit_scenario": "normal",
+      "unavailable_power": [],
+      "unavailable_heat_rejection": [],
+      "expected": "pass",
+      "unavailable_fws_branch_segments": [
+        "L03/HeatRejection-B/return/drop/Unit-01-01--Tap-Unit-01-01"
+      ]
+    },
+    "full-l03-shared-a-row-out": {
+      "phase": "full",
+      "unit_scenario": "normal",
+      "unavailable_power": [],
+      "unavailable_heat_rejection": [],
+      "expected": "pass",
+      "unavailable_fws_branch_segments": ["L03/HeatRejection-A/supply/row/Row-22--Tap-Unit-03-05"]
+    },
+    "full-a-source-and-b-drop-out": {
+      "phase": "full",
+      "unit_scenario": "supply-a-out",
+      "unavailable_power": ["Incoming-A"],
+      "unavailable_heat_rejection": [],
+      "expected": "fail",
+      "unavailable_fws_branch_segments": [
+        "L03/HeatRejection-B/return/drop/Unit-01-01--Tap-Unit-01-01"
+      ]
+    },
+    "full-a-source-and-b-drop-out-derated": {
+      "phase": "full",
+      "unit_scenario": "supply-a-out",
+      "unavailable_power": ["Incoming-A"],
+      "unavailable_heat_rejection": [],
+      "expected": "fail",
+      "unavailable_fws_branch_segments": [
+        "L03/HeatRejection-B/return/drop/Unit-01-01--Tap-Unit-01-01"
+      ],
+      "fws_pump_speed_limits": {
+        "HeatRejection-B": 0.75
+      }
+    }
+  }
+}

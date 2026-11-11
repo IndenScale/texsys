@@ -1,0 +1,48 @@
+schema_version = 1
+name = "液冷分配单元 CDU"
+version = "0.1.0"
+entry = "coolant-distribution-unit.sdl.json"
+
+[assets.geometry]
+kind = "geometry"
+path = "assets/geometry.usda"
+source = "Texsys 暖通专业库方案假设"
+fidelity = "设备包络与接口位姿"
+
+[assets.symbol]
+kind = "symbol"
+path = "assets/symbol.svg"
+source = "Texsys 暖通专业库方案假设"
+fidelity = "功能符号与端口锚点"
+
+[assets.specification]
+kind = "specification"
+path = "assets/specification.json"
+source = "Texsys 暖通专业库方案假设"
+fidelity = "坐标、接口和适用边界"
+
+[assets.behavior]
+kind = "behavior"
+path = "assets/behavior.json"
+source = "Texsys 暖通专业库方案假设"
+fidelity = "额定点求解约定"
+
+[port_bindings.facility_in]
+geometry = "/Module/Ports/facility_in"
+symbol = "port-facility_in"
+
+[port_bindings.facility_out]
+geometry = "/Module/Ports/facility_out"
+symbol = "port-facility_out"
+
+[port_bindings.power]
+geometry = "/Module/Ports/power"
+symbol = "port-power"
+
+[port_bindings.tcs_return]
+geometry = "/Module/Ports/tcs_return"
+symbol = "port-tcs_return"
+
+[port_bindings.tcs_supply]
+geometry = "/Module/Ports/tcs_supply"
+symbol = "port-tcs_supply"

@@ -1,0 +1,583 @@
+{
+  "components": {
+    "Busway": {
+      "ports": {
+        "in": {
+          "direction": "in",
+          "kind": "ac-power",
+          "max_connections": 1
+        },
+        "out": {
+          "direction": "out",
+          "kind": "ac-power",
+          "max_connections": 12
+        }
+      }
+    },
+    "FacilityPlant": {
+      "ports": {
+        "fws_return": {
+          "direction": "in",
+          "kind": "fws",
+          "max_connections": 1
+        },
+        "fws_supply": {
+          "direction": "out",
+          "kind": "fws",
+          "max_connections": 1
+        },
+        "power": {
+          "direction": "in",
+          "kind": "ac-power",
+          "max_connections": 1
+        }
+      }
+    },
+    "HybridUnit": {
+      "connections": [
+        {
+          "from": "Utility-A.supply",
+          "id": "link-1",
+          "to": "Transformer-A.primary"
+        },
+        {
+          "from": "Transformer-A.secondary",
+          "id": "link-2",
+          "to": "Switchboard-A.in"
+        },
+        {
+          "from": "Switchboard-A.out",
+          "id": "link-3",
+          "to": "UPS-A.in"
+        },
+        {
+          "from": "UPS-A.out",
+          "id": "link-4",
+          "to": "Busway-A.in"
+        },
+        {
+          "from": "Switchboard-A.out",
+          "id": "link-5",
+          "to": "FacilityPlant-A.power"
+        },
+        {
+          "from": "Switchboard-A.out",
+          "id": "link-6",
+          "to": "CDU-A.power"
+        },
+        {
+          "from": "Switchboard-A.out",
+          "id": "link-7",
+          "to": "PrecisionAir-A.power"
+        },
+        {
+          "from": "Busway-A.out",
+          "id": "link-8",
+          "to": "Rack-01.power_a"
+        },
+        {
+          "from": "Busway-A.out",
+          "id": "link-9",
+          "to": "Rack-02.power_a"
+        },
+        {
+          "from": "Busway-A.out",
+          "id": "link-10",
+          "to": "Rack-03.power_a"
+        },
+        {
+          "from": "Busway-A.out",
+          "id": "link-11",
+          "to": "Rack-04.power_a"
+        },
+        {
+          "from": "FacilityPlant-A.fws_supply",
+          "id": "link-12",
+          "to": "CDU-A.facility_in"
+        },
+        {
+          "from": "CDU-A.facility_out",
+          "id": "link-13",
+          "to": "FacilityPlant-A.fws_return"
+        },
+        {
+          "from": "CDU-A.tcs_supply",
+          "id": "link-14",
+          "to": "TcsSupply-A.in"
+        },
+        {
+          "from": "TcsReturn-A.out",
+          "id": "link-15",
+          "to": "CDU-A.tcs_return"
+        },
+        {
+          "from": "TcsSupply-A.out",
+          "id": "link-16",
+          "to": "Rack-01.tcs_in_a"
+        },
+        {
+          "from": "Rack-01.tcs_out_a",
+          "id": "link-17",
+          "to": "TcsReturn-A.in"
+        },
+        {
+          "from": "PrecisionAir-A.supply",
+          "id": "link-18",
+          "to": "Rack-01.air_in_a"
+        },
+        {
+          "from": "Rack-01.air_out_a",
+          "id": "link-19",
+          "to": "PrecisionAir-A.return"
+        },
+        {
+          "from": "TcsSupply-A.out",
+          "id": "link-20",
+          "to": "Rack-02.tcs_in_a"
+        },
+        {
+          "from": "Rack-02.tcs_out_a",
+          "id": "link-21",
+          "to": "TcsReturn-A.in"
+        },
+        {
+          "from": "PrecisionAir-A.supply",
+          "id": "link-22",
+          "to": "Rack-02.air_in_a"
+        },
+        {
+          "from": "Rack-02.air_out_a",
+          "id": "link-23",
+          "to": "PrecisionAir-A.return"
+        },
+        {
+          "from": "TcsSupply-A.out",
+          "id": "link-24",
+          "to": "Rack-03.tcs_in_a"
+        },
+        {
+          "from": "Rack-03.tcs_out_a",
+          "id": "link-25",
+          "to": "TcsReturn-A.in"
+        },
+        {
+          "from": "PrecisionAir-A.supply",
+          "id": "link-26",
+          "to": "Rack-03.air_in_a"
+        },
+        {
+          "from": "Rack-03.air_out_a",
+          "id": "link-27",
+          "to": "PrecisionAir-A.return"
+        },
+        {
+          "from": "TcsSupply-A.out",
+          "id": "link-28",
+          "to": "Rack-04.tcs_in_a"
+        },
+        {
+          "from": "Rack-04.tcs_out_a",
+          "id": "link-29",
+          "to": "TcsReturn-A.in"
+        },
+        {
+          "from": "PrecisionAir-A.supply",
+          "id": "link-30",
+          "to": "Rack-04.air_in_a"
+        },
+        {
+          "from": "Rack-04.air_out_a",
+          "id": "link-31",
+          "to": "PrecisionAir-A.return"
+        },
+        {
+          "from": "Utility-B.supply",
+          "id": "link-32",
+          "to": "Transformer-B.primary"
+        },
+        {
+          "from": "Transformer-B.secondary",
+          "id": "link-33",
+          "to": "Switchboard-B.in"
+        },
+        {
+          "from": "Switchboard-B.out",
+          "id": "link-34",
+          "to": "UPS-B.in"
+        },
+        {
+          "from": "UPS-B.out",
+          "id": "link-35",
+          "to": "Busway-B.in"
+        },
+        {
+          "from": "Switchboard-B.out",
+          "id": "link-36",
+          "to": "FacilityPlant-B.power"
+        },
+        {
+          "from": "Switchboard-B.out",
+          "id": "link-37",
+          "to": "CDU-B.power"
+        },
+        {
+          "from": "Switchboard-B.out",
+          "id": "link-38",
+          "to": "PrecisionAir-B.power"
+        },
+        {
+          "from": "Busway-B.out",
+          "id": "link-39",
+          "to": "Rack-01.power_b"
+        },
+        {
+          "from": "Busway-B.out",
+          "id": "link-40",
+          "to": "Rack-02.power_b"
+        },
+        {
+          "from": "Busway-B.out",
+          "id": "link-41",
+          "to": "Rack-03.power_b"
+        },
+        {
+          "from": "Busway-B.out",
+          "id": "link-42",
+          "to": "Rack-04.power_b"
+        },
+        {
+          "from": "FacilityPlant-B.fws_supply",
+          "id": "link-43",
+          "to": "CDU-B.facility_in"
+        },
+        {
+          "from": "CDU-B.facility_out",
+          "id": "link-44",
+          "to": "FacilityPlant-B.fws_return"
+        },
+        {
+          "from": "CDU-B.tcs_supply",
+          "id": "link-45",
+          "to": "TcsSupply-B.in"
+        },
+        {
+          "from": "TcsReturn-B.out",
+          "id": "link-46",
+          "to": "CDU-B.tcs_return"
+        },
+        {
+          "from": "TcsSupply-B.out",
+          "id": "link-47",
+          "to": "Rack-01.tcs_in_b"
+        },
+        {
+          "from": "Rack-01.tcs_out_b",
+          "id": "link-48",
+          "to": "TcsReturn-B.in"
+        },
+        {
+          "from": "PrecisionAir-B.supply",
+          "id": "link-49",
+          "to": "Rack-01.air_in_b"
+        },
+        {
+          "from": "Rack-01.air_out_b",
+          "id": "link-50",
+          "to": "PrecisionAir-B.return"
+        },
+        {
+          "from": "TcsSupply-B.out",
+          "id": "link-51",
+          "to": "Rack-02.tcs_in_b"
+        },
+        {
+          "from": "Rack-02.tcs_out_b",
+          "id": "link-52",
+          "to": "TcsReturn-B.in"
+        },
+        {
+          "from": "PrecisionAir-B.supply",
+          "id": "link-53",
+          "to": "Rack-02.air_in_b"
+        },
+        {
+          "from": "Rack-02.air_out_b",
+          "id": "link-54",
+          "to": "PrecisionAir-B.return"
+        },
+        {
+          "from": "TcsSupply-B.out",
+          "id": "link-55",
+          "to": "Rack-03.tcs_in_b"
+        },
+        {
+          "from": "Rack-03.tcs_out_b",
+          "id": "link-56",
+          "to": "TcsReturn-B.in"
+        },
+        {
+          "from": "PrecisionAir-B.supply",
+          "id": "link-57",
+          "to": "Rack-03.air_in_b"
+        },
+        {
+          "from": "Rack-03.air_out_b",
+          "id": "link-58",
+          "to": "PrecisionAir-B.return"
+        },
+        {
+          "from": "TcsSupply-B.out",
+          "id": "link-59",
+          "to": "Rack-04.tcs_in_b"
+        },
+        {
+          "from": "Rack-04.tcs_out_b",
+          "id": "link-60",
+          "to": "TcsReturn-B.in"
+        },
+        {
+          "from": "PrecisionAir-B.supply",
+          "id": "link-61",
+          "to": "Rack-04.air_in_b"
+        },
+        {
+          "from": "Rack-04.air_out_b",
+          "id": "link-62",
+          "to": "PrecisionAir-B.return"
+        }
+      ],
+      "instances": {
+        "Busway-A": {
+          "component": "Busway"
+        },
+        "Busway-B": {
+          "component": "Busway"
+        },
+        "CDU-A": {
+          "component": "CDU"
+        },
+        "CDU-B": {
+          "component": "CDU"
+        },
+        "FacilityPlant-A": {
+          "component": "FacilityPlant"
+        },
+        "FacilityPlant-B": {
+          "component": "FacilityPlant"
+        },
+        "PrecisionAir-A": {
+          "component": "PrecisionAir"
+        },
+        "PrecisionAir-B": {
+          "component": "PrecisionAir"
+        },
+        "Rack-01": {
+          "component": "HybridRack"
+        },
+        "Rack-02": {
+          "component": "HybridRack"
+        },
+        "Rack-03": {
+          "component": "HybridRack"
+        },
+        "Rack-04": {
+          "component": "HybridRack"
+        },
+        "Switchboard-A": {
+          "component": "Switchboard"
+        },
+        "Switchboard-B": {
+          "component": "Switchboard"
+        },
+        "TcsReturn-A": {
+          "component": "TcsReturn"
+        },
+        "TcsReturn-B": {
+          "component": "TcsReturn"
+        },
+        "TcsSupply-A": {
+          "component": "TcsSupply"
+        },
+        "TcsSupply-B": {
+          "component": "TcsSupply"
+        },
+        "Transformer-A": {
+          "component": "Transformer"
+        },
+        "Transformer-B": {
+          "component": "Transformer"
+        },
+        "UPS-A": {
+          "component": "UPS"
+        },
+        "UPS-B": {
+          "component": "UPS"
+        },
+        "Utility-A": {
+          "component": "Utility"
+        },
+        "Utility-B": {
+          "component": "Utility"
+        }
+      },
+      "nets": {
+        "Air-A": {
+          "connections": [
+            "link-18",
+            "link-19",
+            "link-22",
+            "link-23",
+            "link-26",
+            "link-27",
+            "link-30",
+            "link-31"
+          ],
+          "kind": "room-air"
+        },
+        "Air-B": {
+          "connections": [
+            "link-49",
+            "link-50",
+            "link-53",
+            "link-54",
+            "link-57",
+            "link-58",
+            "link-61",
+            "link-62"
+          ],
+          "kind": "room-air"
+        },
+        "FWS-A": {
+          "connections": [
+            "link-12",
+            "link-13"
+          ],
+          "kind": "fws"
+        },
+        "FWS-B": {
+          "connections": [
+            "link-43",
+            "link-44"
+          ],
+          "kind": "fws"
+        },
+        "TCS-A": {
+          "connections": [
+            "link-14",
+            "link-15",
+            "link-16",
+            "link-17",
+            "link-20",
+            "link-21",
+            "link-24",
+            "link-25",
+            "link-28",
+            "link-29"
+          ],
+          "kind": "tcs"
+        },
+        "TCS-B": {
+          "connections": [
+            "link-45",
+            "link-46",
+            "link-47",
+            "link-48",
+            "link-51",
+            "link-52",
+            "link-55",
+            "link-56",
+            "link-59",
+            "link-60"
+          ],
+          "kind": "tcs"
+        }
+      }
+    },
+    "Switchboard": {
+      "ports": {
+        "in": {
+          "direction": "in",
+          "kind": "ac-power",
+          "max_connections": 1
+        },
+        "out": {
+          "direction": "out",
+          "kind": "ac-power",
+          "max_connections": 12
+        }
+      }
+    },
+    "TcsReturn": {
+      "ports": {
+        "in": {
+          "direction": "in",
+          "kind": "tcs",
+          "max_connections": 4
+        },
+        "out": {
+          "direction": "out",
+          "kind": "tcs",
+          "max_connections": 1
+        }
+      }
+    },
+    "TcsSupply": {
+      "ports": {
+        "in": {
+          "direction": "in",
+          "kind": "tcs",
+          "max_connections": 1
+        },
+        "out": {
+          "direction": "out",
+          "kind": "tcs",
+          "max_connections": 4
+        }
+      }
+    },
+    "Transformer": {
+      "ports": {
+        "primary": {
+          "direction": "in",
+          "kind": "ac-power",
+          "max_connections": 1
+        },
+        "secondary": {
+          "direction": "out",
+          "kind": "ac-power",
+          "max_connections": 12
+        }
+      }
+    },
+    "UPS": {
+      "ports": {
+        "in": {
+          "direction": "in",
+          "kind": "ac-power",
+          "max_connections": 1
+        },
+        "out": {
+          "direction": "out",
+          "kind": "ac-power",
+          "max_connections": 12
+        }
+      }
+    },
+    "Utility": {
+      "ports": {
+        "supply": {
+          "direction": "out",
+          "kind": "ac-power",
+          "max_connections": 12
+        }
+      }
+    }
+  },
+  "root": "HybridUnit",
+  "schema_version": 2,
+  "imports": {
+    "CDU": "@hvac-equipment/library/modules/coolant-distribution-unit/coolant-distribution-unit.sdl.json",
+    "PrecisionAir": "@hvac-equipment/library/modules/precision-air-unit/precision-air-unit.sdl.json",
+    "HybridRack": "@hvac-equipment/library/modules/liquid-cooled-rack/liquid-cooled-rack.sdl.json"
+  }
+}

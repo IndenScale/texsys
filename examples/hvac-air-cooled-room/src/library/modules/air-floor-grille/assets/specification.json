@@ -1,0 +1,21 @@
+{
+  "basis": "风冷机房参考库方案假设",
+  "envelope_m": [
+    0.6,
+    0.6,
+    0.035
+  ],
+  "frame": {
+    "front": "-Y",
+    "origin": "包络最小角",
+    "units": "m",
+    "up_axis": "Z"
+  },
+  "limitations": "名义流量来自机房风量预算，实际压降与配风待校核。",
+  "properties": {
+    "nominal_airflow_m3_s": 0.28,
+    "pitch_m": 0.6
+  },
+  "schema_version": 1,
+  "state": "assumed"
+}

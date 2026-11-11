@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "state": "assumed",
+  "model": "independent-dual-circuit-rack",
+  "parameters": {
+    "rated_circuit_flow": "kg/s",
+    "maximum_circuit_flow": "kg/s",
+    "manifold_pair_drop": "kPa",
+    "quick_disconnect_pair_drop": "kPa",
+    "cold_plate_circuit_drop": "kPa",
+    "maximum_inlet_temperature": "degC",
+    "maximum_return_temperature": "degC"
+  },
+  "method": "每路压降按额定点与流量平方缩放。A/B 由独立歧管、快接和等效冷板回路组成，均可单独承担机柜液侧热负荷。",
+  "limitations": "算例以两个独立换热路径服务同一 IT 热负荷。实际设备应验证冗余拓扑、各流路的温压范围及额定热性能。"
+}

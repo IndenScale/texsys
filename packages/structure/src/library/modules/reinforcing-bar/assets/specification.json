@@ -1,0 +1,24 @@
+{
+  "basis": "texsys 结构专业库方案样件",
+  "envelope_m": [
+    0.016,
+    1.2,
+    0.016
+  ],
+  "frame": {
+    "origin": "包络最小角",
+    "units": "m",
+    "up_axis": "Z"
+  },
+  "interfaces": {},
+  "limitations": "采用公称直径的直圆柱表达。钢筋肋、弯折、下料和锚固另行确定。",
+  "properties": {
+    "reinforcement": {
+      "axis": 1,
+      "diameter_m": 0.016,
+      "pattern": "straight"
+    }
+  },
+  "schema_version": 1,
+  "state": "assumed"
+}

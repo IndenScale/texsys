@@ -1,0 +1,16 @@
+schema_version = 1
+name = "墙体构造"
+version = "0.1.0"
+entry = "wall-panel.sdl.json"
+
+[assets.plan]
+kind = "plan"
+path = "assets/plan.svg"
+source = "Texsys 建筑专业库方案定义"
+fidelity = "二维构造示意"
+
+[assets.specification]
+kind = "specification"
+path = "assets/specification.json"
+source = "Texsys 建筑专业库方案定义"
+fidelity = "墙轴面、厚度及可切割宿主"

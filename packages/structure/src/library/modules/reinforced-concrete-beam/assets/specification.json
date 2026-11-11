@@ -1,0 +1,56 @@
+{
+  "basis": "texsys 结构专业库方案样件",
+  "envelope_m": [
+    0.3,
+    2.4,
+    0.5
+  ],
+  "frame": {
+    "origin": "包络最小角",
+    "units": "m",
+    "up_axis": "Z"
+  },
+  "interfaces": {
+    "bearing_a": {
+      "normal": [
+        0,
+        0,
+        -1
+      ],
+      "position_m": [
+        0.15,
+        0.12,
+        0
+      ]
+    },
+    "bearing_b": {
+      "normal": [
+        0,
+        0,
+        -1
+      ],
+      "position_m": [
+        0.15,
+        2.28,
+        0
+      ]
+    },
+    "rebar_bond_point": {
+      "normal": [0, 1, 0],
+      "position_m": [0.055, 1.29, 0.445]
+    }
+  },
+  "limitations": "尺寸与配筋用于方案表达及构造校核，承载、抗震、锚固和施工详图需按具体项目确定。",
+  "properties": {
+    "reinforcement": {
+      "axis": 1,
+      "bar_diameter_m": 0.02,
+      "cover_m": 0.035,
+      "pattern": "cage",
+      "tie_diameter_m": 0.01,
+      "tie_spacing_m": 0.2
+    }
+  },
+  "schema_version": 1,
+  "state": "assumed"
+}

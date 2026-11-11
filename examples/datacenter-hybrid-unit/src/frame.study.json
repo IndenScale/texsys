@@ -1,0 +1,127 @@
+{
+  "schema_version": 1,
+  "state": "assumed",
+  "basis": "悬空首层及屋面的重力传递算例。主梁为简支，柱仅承轴力，基础采用服务荷载平均压力。",
+  "grid": {
+    "x": {
+      "X0": 0,
+      "X1A": 4,
+      "X1B": 7.6,
+      "X2A": 13,
+      "X2B": 16.6,
+      "X3A": 22,
+      "X3B": 25.6,
+      "X4A": 31,
+      "X4B": 34.6,
+      "X5A": 40,
+      "X5B": 43.6,
+      "XS": 49.4,
+      "XE": 60
+    },
+    "y": {
+      "Y0": 0,
+      "Y1": 9,
+      "Y2": 18,
+      "Y3": 27,
+      "Y4": 36,
+      "Y5": 45,
+      "Y6": 54
+    }
+  },
+  "steel_unit_weight_kn_m3": 77,
+  "factors": {
+    "strength": {
+      "permanent": 1.2,
+      "variable": 1.4
+    },
+    "service": {
+      "permanent": 1,
+      "variable": 1
+    }
+  },
+  "girder": {
+    "section_m": {
+      "depth": 0.7,
+      "width": 0.32,
+      "web": 0.015,
+      "flange": 0.027
+    },
+    "modulus_gpa": 200,
+    "moment_kn_m": 1050,
+    "shear_kn": 620,
+    "deflection_span_ratio": 360
+  },
+  "tie": {
+    "section_m": {
+      "depth": 0.4,
+      "width": 0.22,
+      "web": 0.01,
+      "flange": 0.016
+    },
+    "modulus_gpa": 200,
+    "moment_kn_m": 280,
+    "shear_kn": 220,
+    "deflection_span_ratio": 360
+  },
+  "column": {
+    "section_m": {
+      "depth": 0.41,
+      "width": 0.41,
+      "web": 0.016,
+      "flange": 0.026
+    },
+    "axial_limit_kn": 4200
+  },
+  "foundation": {
+    "column_base_m": -1.5,
+    "size_m": [3.2, 5, 0.6],
+    "unit_weight_kn_m3": 24,
+    "bearing_limit_kpa": 210
+  },
+  "infill_load": {
+    "permanent_kn_m2": 3.8,
+    "variable_kn_m2": 1.5
+  },
+  "equipment_zone_loads": {
+    "Electrical": {
+      "permanent_kn_m2": 3,
+      "variable_kn_m2": 1
+    },
+    "Cooling": {
+      "permanent_kn_m2": 4,
+      "variable_kn_m2": 1
+    }
+  },
+  "roof": {
+    "elevation_m": 28,
+    "load": {
+      "permanent_kn_m2": 1.25,
+      "variable_kn_m2": 1
+    },
+    "equipment_zone_loads": {
+      "Cooling": {
+        "permanent_kn_m2": 3.5,
+        "variable_kn_m2": 0.5
+      }
+    }
+  },
+  "unit_cases": {
+    "occupied": "service",
+    "empty": "service-empty"
+  },
+  "cases": {
+    "initial": {
+      "phase": "initial",
+      "expected": "pass"
+    },
+    "full": {
+      "phase": "full",
+      "expected": "pass"
+    },
+    "full-weak-bearing": {
+      "phase": "full",
+      "bearing_limit_kpa": 90,
+      "expected": "fail"
+    }
+  }
+}

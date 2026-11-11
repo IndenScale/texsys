@@ -1,0 +1,21 @@
+{
+  "schema_version": 1,
+  "root": "BinarySensor",
+  "components": {
+    "BinarySensor": {
+      "ports": {
+        "state": {
+          "kind": "binary-state",
+          "direction": "out",
+          "max_connections": 1
+        }
+      },
+      "behavior": {
+        "reference": "assets/behavior.json",
+        "state": "assumed",
+        "source": "Texsys 控制与监测库方案定义",
+        "parameters": {}
+      }
+    }
+  }
+}

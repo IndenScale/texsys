@@ -1,0 +1,32 @@
+{
+  "schema_version": 1,
+  "root": "ArchitectureFamilies",
+  "imports": {
+    "RoomSpace": "@architecture/library/modules/room-space/room-space.sdl.json",
+    "WallPanel": "@architecture/library/modules/wall-panel/wall-panel.sdl.json",
+    "DoorOpening": "@architecture/library/modules/door-opening/door-opening.sdl.json",
+    "ServiceShaft": "@architecture/library/modules/service-shaft/service-shaft.sdl.json",
+    "SwitchbackStair": "@architecture/library/modules/switchback-stair/switchback-stair.sdl.json"
+  },
+  "components": {
+    "ArchitectureFamilies": {
+      "instances": {
+        "RoomSpace": {
+          "component": "RoomSpace"
+        },
+        "WallPanel": {
+          "component": "WallPanel"
+        },
+        "DoorOpening": {
+          "component": "DoorOpening"
+        },
+        "ServiceShaft": {
+          "component": "ServiceShaft"
+        },
+        "SwitchbackStair": {
+          "component": "SwitchbackStair"
+        }
+      }
+    }
+  }
+}

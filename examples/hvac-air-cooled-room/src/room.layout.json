@@ -1,0 +1,75 @@
+{
+  "schema_version": 1,
+  "frame": { "id": "L01", "units": "m", "slab_elevation_m": 0.0, "up_axis": "Z" },
+  "axes": { "x": { "A": 0.0, "B": 6.0, "C": 12.0 }, "y": { "1": 0.0, "2": 4.2, "3": 8.4 } },
+  "steel": {
+    "column_lines": ["1", "3"],
+    "beam_top_m": 4.2,
+    "column_section_m": [0.25, 0.25, 0.012, 0.014],
+    "beam_section_m": [0.3, 0.15, 0.008, 0.012]
+  },
+  "raised_floor": {
+    "pitch_m": 0.6,
+    "finished_elevation_m": 0.45,
+    "panel_thickness_m": 0.035,
+    "solid_finish": "防静电 HPL 饰面钢质地板",
+    "grille_airflow_m3_s": 0.28
+  },
+  "rack": { "envelope_m": [0.6, 1.2, 2.0], "rack_units": 42, "mounting_width_in": 19 },
+  "rack_rows": [
+    {
+      "id": "RA",
+      "members": ["RA-01", "RA-02", "RA-03", "RA-04", "RA-05", "RA-06", "RA-07", "RA-08"],
+      "anchor": { "x_axis": "B", "y_axis": "2", "offset_m": [-2.4, -1.8] },
+      "front": "+Y"
+    },
+    {
+      "id": "RB",
+      "members": ["RB-01", "RB-02", "RB-03", "RB-04", "RB-05", "RB-06", "RB-07", "RB-08"],
+      "anchor": { "x_axis": "B", "y_axis": "2", "offset_m": [-2.4, 0.6] },
+      "front": "-Y"
+    }
+  ],
+  "rack_equipment": {
+    "PDU-A": { "rack": "RA-01", "u": 34 },
+    "PDU-B": { "rack": "RB-01", "u": 34 },
+    "SW-A": { "rack": "RA-01", "u": 30 },
+    "SW-B": { "rack": "RB-01", "u": 30 },
+    "SRV-A": { "rack": "RA-01", "u": 20 }
+  },
+  "cable_routes": {
+    "SM-01": {
+      "from": "SW-A.fiber",
+      "to": "SW-B.fiber",
+      "via": [
+        [3.7913, 3.57, 1.821275],
+        [3.7913, 3.57, 2.65],
+        [4.0087, 4.83, 2.65],
+        [4.0087, 4.83, 1.821275]
+      ]
+    },
+    "CAT6A-01": {
+      "from": "SW-A.copper",
+      "to": "SRV-A.management",
+      "via": [
+        [3.9913, 3.53, 1.821275],
+        [4.157, 3.53, 1.821275],
+        [4.157, 2.71, 1.399],
+        [3.9913, 2.71, 1.399]
+      ]
+    }
+  },
+  "cooling_units": {
+    "AC-01": { "origin_m": [0.6, 2.4], "envelope_m": [1.2, 1.2, 2.0] },
+    "AC-02": { "origin_m": [0.6, 4.8], "envelope_m": [1.2, 1.2, 2.0] }
+  },
+  "zones": {
+    "ColdAisle": { "kind": "cold-aisle", "bounds_m": [3.6, 3.6, 8.4, 4.8] },
+    "HotSouth": { "kind": "hot-aisle", "bounds_m": [3.6, 1.2, 8.4, 2.4] },
+    "HotNorth": { "kind": "hot-aisle", "bounds_m": [3.6, 6.0, 8.4, 7.2] },
+    "SupplyPlenum": { "kind": "underfloor-supply", "bounds_m": [0.0, 0.0, 12.0, 8.4] },
+    "RoomReturn": { "kind": "room-return", "bounds_m": [0.0, 0.0, 12.0, 8.4] }
+  },
+  "door": { "wall": "east", "opening_y_m": [3.6, 4.8] },
+  "clearances_m": { "cold_aisle": 1.2, "hot_aisle": 1.2, "side_access": 1.2 }
+}

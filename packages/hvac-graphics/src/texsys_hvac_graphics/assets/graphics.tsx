@@ -153,7 +153,7 @@ export function DiagramSvg({
           </marker>
         ))}
       </defs>
-      <text x="24" y="28" fontSize="20" fill="#173247" fontWeight="600">
+      <text x="24" y="28" fontSize="20" fill="#173247" fontWeight="500">
         {title}
       </text>
       <text x="24" y="50" fontSize="11" fill="#586b79">
@@ -247,7 +247,7 @@ export function DiagramSvg({
                 y={graphic.label_anchor.y}
                 textAnchor="middle"
                 fontSize="13"
-                fontWeight="600"
+                fontWeight="500"
                 fill="#173247"
               >
                 {node.label}

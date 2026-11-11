@@ -1,0 +1,25 @@
+{
+  "components": {
+    "RackServer": {
+      "ports": {
+        "management": {
+          "direction": "inout",
+          "kind": "ethernet-rj45",
+          "max_connections": 1
+        },
+        "mount": {
+          "direction": "inout",
+          "kind": "rack-mount",
+          "max_connections": 1
+        },
+        "power": {
+          "direction": "in",
+          "kind": "ac-equipment",
+          "max_connections": 1
+        }
+      }
+    }
+  },
+  "root": "RackServer",
+  "schema_version": 1
+}

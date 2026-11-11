@@ -1,5 +1,5 @@
 :root {
-  font-family: Arial, "PingFang SC", "Noto Sans CJK SC", sans-serif;
+  font-family: system-ui, "PingFang SC", "Noto Sans CJK SC", sans-serif;
   color: #173247;
   background: #edf2f5;
   font-synthesis: none;
@@ -9,6 +9,12 @@
 }
 body {
   margin: 0;
+}
+:where(strong) {
+  font-weight: 500;
+}
+:where(h1, h2, h3, h4, h5, h6, th) {
+  font-weight: 400;
 }
 button,
 input,
@@ -43,8 +49,8 @@ select:focus-visible {
   color: white;
 }
 .app-header strong {
-  font-size: 22px;
-  letter-spacing: -0.8px;
+  font-size: 18px;
+  font-weight: 500;
 }
 .app-header > span {
   font-size: 13px;
@@ -84,7 +90,7 @@ select:focus-visible {
 h1 {
   font-size: 21px;
   margin: 0 0 7px;
-  font-weight: 600;
+  font-weight: 500;
 }
 .workspace-heading p {
   margin: 0;
@@ -171,7 +177,7 @@ h1 {
 h2 {
   margin: 7px 0 0;
   font-size: 21px;
-  font-weight: 600;
+  font-weight: 500;
   overflow-wrap: anywhere;
 }
 .inspector section,
@@ -182,7 +188,7 @@ h2 {
 h3 {
   margin: 0 0 16px;
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 500;
 }
 dl {
   margin: 0;

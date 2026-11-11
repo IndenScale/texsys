@@ -1,0 +1,25 @@
+{
+  "components": {
+    "SteelSupport": {
+      "ports": {
+        "bearing_a": {
+          "direction": "inout",
+          "kind": "structural-bearing",
+          "max_connections": 1
+        },
+        "bearing_b": {
+          "direction": "inout",
+          "kind": "structural-bearing",
+          "max_connections": 1
+        },
+        "suspension": {
+          "direction": "inout",
+          "kind": "hanger-anchor",
+          "max_connections": 1
+        }
+      }
+    }
+  },
+  "root": "SteelSupport",
+  "schema_version": 1
+}

@@ -1,0 +1,60 @@
+#usda 1.0
+(
+    defaultPrim = "Module"
+    metersPerUnit = 1
+    upAxis = "Z"
+)
+
+def Xform "Module"
+{
+    def Scope "Geometry"
+    {
+        def Cylinder "Shaft"
+        {
+            uniform token axis = "Z"
+            double height = 0.45
+            color3f[] primvars:displayColor = [(0.58, 0.64, 0.68)]
+            double radius = 0.006
+            double3 xformOp:translate = (0.012, 0.012, 0.225)
+            uniform token[] xformOpOrder = ["xformOp:translate"]
+        }
+
+        def Cylinder "LowerNut"
+        {
+            uniform token axis = "Z"
+            double height = 0.012
+            color3f[] primvars:displayColor = [(0.3, 0.39, 0.48)]
+            double radius = 0.012
+            double3 xformOp:translate = (0.012, 0.012, 0.006)
+            uniform token[] xformOpOrder = ["xformOp:translate"]
+        }
+
+        def Cylinder "UpperNut"
+        {
+            uniform token axis = "Z"
+            double height = 0.012
+            color3f[] primvars:displayColor = [(0.3, 0.39, 0.48)]
+            double radius = 0.012
+            double3 xformOp:translate = (0.012, 0.012, 0.444)
+            uniform token[] xformOpOrder = ["xformOp:translate"]
+        }
+    }
+
+    def Scope "Ports"
+    {
+        def Xform "top"
+        {
+            custom double3 texsys:normal = (0, 0, 1)
+            double3 xformOp:translate = (0.012, 0.012, 0.45)
+            uniform token[] xformOpOrder = ["xformOp:translate"]
+        }
+
+        def Xform "bottom"
+        {
+            custom double3 texsys:normal = (0, 0, -1)
+            double3 xformOp:translate = (0.012, 0.012, 0)
+            uniform token[] xformOpOrder = ["xformOp:translate"]
+        }
+    }
+}
+

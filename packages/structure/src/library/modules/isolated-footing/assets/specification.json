@@ -1,0 +1,52 @@
+{
+  "basis": "texsys 结构专业库方案样件",
+  "envelope_m": [
+    1.5,
+    1.5,
+    0.45
+  ],
+  "frame": {
+    "origin": "包络最小角",
+    "units": "m",
+    "up_axis": "Z"
+  },
+  "interfaces": {
+    "column_seat": {
+      "normal": [
+        0,
+        0,
+        1
+      ],
+      "position_m": [
+        0.75,
+        0.75,
+        0.45
+      ]
+    },
+    "ground": {
+      "normal": [
+        0,
+        0,
+        -1
+      ],
+      "position_m": [
+        0.75,
+        0.75,
+        0
+      ]
+    }
+  },
+  "limitations": "尺寸与配筋用于方案表达及构造校核，承载、抗震、锚固和施工详图需按具体项目确定。图形中的柱脚定位仅为接口示意。",
+  "properties": {
+    "reinforcement": {
+      "cover_m": 0.06,
+      "diameter_m": 0.016,
+      "faces": 1,
+      "normal": 2,
+      "pattern": "mat",
+      "spacing_m": 0.18
+    }
+  },
+  "schema_version": 1,
+  "state": "assumed"
+}

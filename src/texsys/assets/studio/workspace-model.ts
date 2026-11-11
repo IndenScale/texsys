@@ -6,7 +6,16 @@ export function sourceFileFormat(path: string): string {
 }
 
 export type FileListing = { files: ProjectFile[]; directories: string[]; truncated: boolean };
-export type TreeEntry = { path: string; name: string; directory: boolean; depth: number };
+export type TreeEntry = {
+  path: string;
+  name: string;
+  detail?: string;
+  directory: boolean;
+  depth: number;
+  icon?: string;
+  virtual?: boolean;
+  opensDocument?: boolean;
+};
 export function visibleFileTree(listing: FileListing, expanded: Set<string>): TreeEntry[] {
   const children = new Map<string, TreeEntry[]>();
   const add = (path: string, directory: boolean) => {

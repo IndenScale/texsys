@@ -1,0 +1,113 @@
+{
+  "schema_version": 1,
+  "state": "assumed",
+  "basis": "A/B 为独立的单相 TCS 供回液回路。按管路实长和额定阻力校核定温差配流，机柜两路各具全液侧热负荷所需的独立换热能力。所有参数均为算例假设。",
+  "minimum_pipe_clearance_m": 0.025,
+  "fluid": { "density": 1000, "viscosity": 0.001 },
+  "pipe_types": {
+    "bend_loss": 0.4,
+    "header": {
+      "diameter_m": 0.08,
+      "outside_m": 0.09,
+      "roughness_m": 0.00005,
+      "max_velocity_m_s": 2.5,
+      "minor_loss_coefficient": 0.25,
+      "capacity_kg_s": 9
+    },
+    "branch": {
+      "diameter_m": 0.065,
+      "outside_m": 0.075,
+      "roughness_m": 0.00005,
+      "max_velocity_m_s": 2.5,
+      "minor_loss_coefficient": 0.5,
+      "capacity_kg_s": 5
+    },
+    "drop": {
+      "diameter_m": 0.04,
+      "outside_m": 0.05,
+      "roughness_m": 0.00005,
+      "max_velocity_m_s": 2.5,
+      "minor_loss_coefficient": 1.5,
+      "capacity_kg_s": 2.25
+    }
+  },
+  "trains": {
+    "CDU-A": {
+      "supply": { "rise_y_m": 5.35, "spine_x_m": 3.15, "tier_z_m": 2.45 },
+      "return": { "rise_y_m": 5.48, "spine_x_m": 3.28, "tier_z_m": 2.62 },
+      "pump": {
+        "pumps": ["CDU-A-TCS-Pump"],
+        "max_running": 1,
+        "shutoff_head_m": 16,
+        "curve_m_per_m6_s2": 60000,
+        "max_flow_m3_s_each": 0.009,
+        "efficiency": 0.7,
+        "reserve_kpa": 6,
+        "common_loss": { "rated_flow_m3_s": 0.0075, "rated_drop_kpa": 18 }
+      }
+    },
+    "CDU-B": {
+      "supply": { "rise_y_m": 5.61, "spine_x_m": 3.41, "tier_z_m": 2.79 },
+      "return": { "rise_y_m": 5.74, "spine_x_m": 3.54, "tier_z_m": 2.96 },
+      "pump": {
+        "pumps": ["CDU-B-TCS-Pump"],
+        "max_running": 1,
+        "shutoff_head_m": 16,
+        "curve_m_per_m6_s2": 60000,
+        "max_flow_m3_s_each": 0.009,
+        "efficiency": 0.7,
+        "reserve_kpa": 6,
+        "common_loss": { "rated_flow_m3_s": 0.0075, "rated_drop_kpa": 18 }
+      }
+    }
+  },
+  "cases": {
+    "initial-normal": { "building_scenario": "initial-normal", "expected": "pass" },
+    "full-normal": { "building_scenario": "full-normal", "expected": "pass" },
+    "full-a-power-out": { "building_scenario": "full-supply-a-out", "expected": "pass" },
+    "full-local-a-branch-takeover": {
+      "building_scenario": "full-normal",
+      "expected": "pass",
+      "local_changes": {
+        "L03/Unit-01-01": { "unavailable_segments": ["CDU-A/supply/drop-Rack-04"] }
+      }
+    },
+    "full-local-a-branch-backup-fws-blocked": {
+      "building_scenario": "full-l03-one-b-drop-out",
+      "expected": "fail",
+      "local_changes": {
+        "L03/Unit-01-01": { "unavailable_segments": ["CDU-A/supply/drop-Rack-04"] }
+      }
+    },
+    "full-local-rack-isolated": {
+      "building_scenario": "full-normal",
+      "expected": "fail",
+      "local_changes": {
+        "L03/Unit-01-01": {
+          "unavailable_segments": ["CDU-A/supply/drop-Rack-04", "CDU-B/return/drop-Rack-04"]
+        }
+      }
+    },
+    "full-local-pump-head-limited": {
+      "building_scenario": "full-normal",
+      "expected": "pass",
+      "local_changes": { "L03/Unit-01-01": { "pump_speed_limits": { "CDU-A": 0.5, "CDU-B": 0.5 } } }
+    },
+    "full-local-both-pumps-severely-limited": {
+      "building_scenario": "full-normal",
+      "expected": "fail",
+      "local_changes": {
+        "L03/Unit-01-01": { "pump_speed_limits": { "CDU-A": 0.35, "CDU-B": 0.35 } }
+      }
+    },
+    "full-limited-fws-and-tcs": {
+      "building_scenario": "full-supply-a-out-b-head-derated",
+      "expected": "fail",
+      "local_changes": { "L03/Unit-01-01": { "pump_speed_limits": { "CDU-B": 0.35 } } }
+    },
+    "full-local-fws-unavailable": {
+      "building_scenario": "full-l03-returns-out",
+      "expected": "fail"
+    }
+  }
+}

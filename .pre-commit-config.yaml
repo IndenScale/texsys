@@ -27,3 +27,8 @@ repos:
         language: system
         types_or: [javascript, jsx, ts, tsx]
         pass_filenames: true
+      - id: studio-no-bold
+        name: Reject bold typography in Tex Studio
+        entry: node tools/check_studio_typography.mjs
+        language: system
+        files: ^(src/texsys/assets/studio/|packages/(studio-[^/]+|[^/]+-graphics)/src/[^/]+/assets/).+\.(css|[cm]?js|jsx|ts|tsx)$

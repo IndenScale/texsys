@@ -1,0 +1,7 @@
+{
+  "schema_version": 1,
+  "state": "assumed",
+  "module": "binary-sensor",
+  "signal_quality": ["good", "bad", "stale"],
+  "rule": "二值观测携带时间戳和质量。"
+}

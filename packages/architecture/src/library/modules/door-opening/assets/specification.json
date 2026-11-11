@@ -1,0 +1,9 @@
+{
+  "schema_version": 1,
+  "state": "assumed",
+  "kind": "door",
+  "description": "宿主墙、净宽、净高及洞口位置",
+  "coordinate_unit": "m",
+  "fidelity": "concept",
+  "implementation": "texsys_architecture.Opening"
+}

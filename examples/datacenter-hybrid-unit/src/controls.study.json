@@ -1,0 +1,81 @@
+{
+  "schema_version": 1,
+  "state": "assumed",
+  "basis": "三层代表机柜的 A 路漏液与 B 路切换算例。检测、阀门行程、流量证明和复启斜率均为项目假设，热容和温度判据沿用热维持算例并按机柜负荷分配。",
+  "installation": {
+    "controller": "RackChangeover",
+    "room": "L03/Unit-01-01",
+    "rack": "Rack-04",
+    "leaking_segment": "CDU-A/supply/drop-Rack-04",
+    "backup_cdu": "CDU-B",
+    "proof_minimum_fraction": 0.95,
+    "valves": {
+      "SupplyIsolation": { "segment": "CDU-A/supply/drop-Rack-04", "travel_s": 3 },
+      "ReturnIsolation": { "segment": "CDU-A/return/drop-Rack-04", "travel_s": 4 }
+    }
+  },
+  "timing": { "detection_delay_s": 2, "proof_delay_s": 2, "restart_ramp_s": 6 },
+  "cases": {
+    "confirmed-fast-transfer": {
+      "expected": "pass",
+      "building_scenario": "full-normal",
+      "fault_at_s": 5,
+      "duration_s": 180
+    },
+    "detected-too-late": {
+      "expected": "fail",
+      "building_scenario": "full-normal",
+      "fault_at_s": 5,
+      "duration_s": 180,
+      "detection_delay_s": 60
+    },
+    "detector-silent": {
+      "expected": "fail",
+      "building_scenario": "full-normal",
+      "fault_at_s": 5,
+      "duration_s": 180,
+      "detector": "silent"
+    },
+    "detector-quality-bad": {
+      "expected": "fail",
+      "building_scenario": "full-normal",
+      "fault_at_s": 5,
+      "duration_s": 180,
+      "detector": "bad"
+    },
+    "return-valve-stuck": {
+      "expected": "fail",
+      "building_scenario": "full-normal",
+      "fault_at_s": 5,
+      "duration_s": 180,
+      "stuck_valves": ["ReturnIsolation"]
+    },
+    "return-feedback-stale": {
+      "expected": "fail",
+      "building_scenario": "full-normal",
+      "fault_at_s": 5,
+      "duration_s": 180,
+      "stale_feedback": ["ReturnIsolation"]
+    },
+    "backup-fws-path-blocked": {
+      "expected": "fail",
+      "building_scenario": "full-l03-one-b-drop-out",
+      "fault_at_s": 5,
+      "duration_s": 180
+    },
+    "backup-flow-switch-silent": {
+      "expected": "fail",
+      "building_scenario": "full-normal",
+      "fault_at_s": 5,
+      "duration_s": 180,
+      "flow_switch": "silent"
+    },
+    "backup-flow-lost-after-transfer": {
+      "expected": "fail",
+      "building_scenario": "full-normal",
+      "fault_at_s": 5,
+      "duration_s": 180,
+      "proof_loss_after_s": 30
+    }
+  }
+}

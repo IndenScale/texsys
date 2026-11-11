@@ -1,0 +1,89 @@
+{
+  "schema_version": 1,
+  "state": "assumed",
+  "basis": "独立基础与钢柱脚的方案筛查。沿用重力反力和支撑柱脚水平力，考虑基础底面偏心承压、无拉力接触、底面摩擦和局部土弹簧沉降。柱脚按铰接及四锚杆均分传力，强度组合和额定值均为算例假设。",
+  "layout_case": "full-equivalent-seismic-x",
+  "design_cases": ["initial-gravity", "full-gravity", "full-wind-x", "initial-wind-y"],
+  "settlement_limit_m": 0.025,
+  "differential_limit_ratio": 0.004,
+  "strength_lateral_factor": 1,
+  "uplift_permanent_factor": 0.9,
+  "soil_profiles": {
+    "reference": {
+      "friction_coefficient": 0.45,
+      "subgrade_kn_m3": 18000
+    },
+    "soft-local": {
+      "friction_coefficient": 0.45,
+      "subgrade_kn_m3": 5000
+    }
+  },
+  "column_base": {
+    "base_plate_size_m": [0.62, 0.62, 0.045],
+    "anchor_pitch_m": [0.5, 0.5],
+    "anchor_diameter_m": 0.028,
+    "anchor_embedment_m": 0.42,
+    "anchor_plate_edge_clearance_m": 0.035,
+    "anchor_tension_limit_kn": 110,
+    "anchor_shear_limit_kn": 85,
+    "plate_compression_limit_kn": 4200
+  },
+  "sections": {
+    "effective_depth_m": 0.5,
+    "bottom_flexure_kn_m_per_m": 600,
+    "top_flexure_kn_m_per_m": 250,
+    "one_way_kn_per_m": 460,
+    "punching_kn_per_m": 760
+  },
+  "cases": {
+    "initial-gravity": {
+      "gravity_case": "initial",
+      "soil_profile": "reference",
+      "expected": "pass"
+    },
+    "full-gravity": {
+      "gravity_case": "full",
+      "soil_profile": "reference",
+      "expected": "pass"
+    },
+    "full-weak-bearing": {
+      "gravity_case": "full-weak-bearing",
+      "soil_profile": "reference",
+      "expected": "fail"
+    },
+    "full-local-soft-ground": {
+      "gravity_case": "full",
+      "soil_profile": "reference",
+      "soil_overrides": {
+        "XS/Y4": "soft-local"
+      },
+      "expected": "fail"
+    },
+    "full-wind-x": {
+      "lateral_case": "full-wind-x",
+      "soil_profile": "reference",
+      "expected": "pass"
+    },
+    "initial-wind-y": {
+      "lateral_case": "initial-wind-y",
+      "soil_profile": "reference",
+      "expected": "pass"
+    },
+    "full-wind-one-bay-out": {
+      "lateral_case": "full-wind-one-bay-out",
+      "soil_profile": "reference",
+      "expected": "pass"
+    },
+    "full-wind-x-restraint-lost": {
+      "lateral_case": "full-wind-x-restraint-lost",
+      "soil_profile": "reference",
+      "expected": "fail"
+    },
+    "initial-wind-overturning": {
+      "lateral_case": "initial-wind-overturning",
+      "soil_profile": "reference",
+      "expected": "fail"
+    }
+  },
+  "matrix_soil_profile": "reference"
+}

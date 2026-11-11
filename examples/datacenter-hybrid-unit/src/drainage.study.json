@@ -1,0 +1,51 @@
+{
+  "schema_version": 1,
+  "state": "assumed",
+  "basis": "算例假设漏液量和截断时长，峰值按并发计算，集液槽仅使用有效储量。",
+  "receivers": {
+    "Collection-L01": {
+      "level": "L01",
+      "reserve": "Liquid-Collection",
+      "usable_l": 180
+    }
+  },
+  "segments": {
+    "Drain-L03-A": {
+      "start": "Inlet-L03-A",
+      "end": "Drain-Riser",
+      "capacity_l_s": 4
+    },
+    "Drain-Trunk": {
+      "start": "Drain-Riser",
+      "end": "Collection-L01",
+      "capacity_l_s": 5
+    }
+  },
+  "leak_releases": {
+    "Leak-L03-A": {
+      "inlet": "Inlet-L03-A",
+      "flow_l_s": 3,
+      "isolated_release_s": 30,
+      "unisolated_release_s": 180
+    }
+  },
+  "scenarios": {
+    "leak-isolated": {
+      "building_scenario": "full-l03-leak-isolated",
+      "expected": "pass"
+    },
+    "valve-stuck": {
+      "building_scenario": "full-l03-leak-valve-stuck",
+      "expected": "fail"
+    },
+    "drain-trunk-out": {
+      "building_scenario": "full-l03-leak-isolated",
+      "unavailable_drain_segments": ["Drain-Trunk"],
+      "expected": "fail"
+    },
+    "detector-out": {
+      "building_scenario": "full-l03-leak-detector-out",
+      "expected": "fail"
+    }
+  }
+}

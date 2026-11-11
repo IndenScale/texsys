@@ -1,0 +1,15 @@
+{
+  "components": {
+    "StructuralSlab": {
+      "ports": {
+        "bearing_surface": {
+          "direction": "inout",
+          "kind": "structural-bearing",
+          "max_connections": 1
+        }
+      }
+    }
+  },
+  "root": "StructuralSlab",
+  "schema_version": 1
+}

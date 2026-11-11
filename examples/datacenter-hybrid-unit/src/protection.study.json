@@ -1,0 +1,482 @@
+{
+  "schema_version": 1,
+  "state": "assumed",
+  "basis": "单个代表性机房单元的径向三相短路包络与时间—电流筛查。电源阻抗、电压系数、开关曲线和 UPS 限流均为算例输入。",
+  "voltage_kv": {
+    "Busway-A": 0.4,
+    "Busway-B": 0.4,
+    "CDU-A": 0.4,
+    "CDU-B": 0.4,
+    "FacilityPlant-A": 0.4,
+    "FacilityPlant-B": 0.4,
+    "Generator-A": 20,
+    "Generator-B": 20,
+    "Grid-A": 20,
+    "Grid-B": 20,
+    "Incoming-A": 20,
+    "Incoming-B": 20,
+    "PrecisionAir-A": 0.4,
+    "PrecisionAir-B": 0.4,
+    "Rack-01": 0.4,
+    "Rack-02": 0.4,
+    "Rack-03": 0.4,
+    "Rack-04": 0.4,
+    "Switchboard-A": 0.4,
+    "Switchboard-B": 0.4,
+    "Transformer-A": 0.4,
+    "Transformer-B": 0.4,
+    "UPS-A": 0.4,
+    "UPS-B": 0.4,
+    "Utility-A": 20,
+    "Utility-B": 20
+  },
+  "sources": {
+    "Grid-A": {
+      "minimum": {
+        "impedance": {
+          "r_ohm": 0.06,
+          "x_ohm": 0.95
+        },
+        "voltage_factor": 0.95
+      },
+      "maximum": {
+        "impedance": {
+          "r_ohm": 0.04,
+          "x_ohm": 0.55
+        },
+        "voltage_factor": 1.05
+      }
+    },
+    "Generator-A": {
+      "minimum": {
+        "impedance": {
+          "r_ohm": 0.2,
+          "x_ohm": 17
+        },
+        "voltage_factor": 0.95
+      },
+      "maximum": {
+        "impedance": {
+          "r_ohm": 0.12,
+          "x_ohm": 1.5
+        },
+        "voltage_factor": 1.05
+      },
+      "sustain_s": 0.7
+    },
+    "Grid-B": {
+      "minimum": {
+        "impedance": {
+          "r_ohm": 0.06,
+          "x_ohm": 0.95
+        },
+        "voltage_factor": 0.95
+      },
+      "maximum": {
+        "impedance": {
+          "r_ohm": 0.04,
+          "x_ohm": 0.55
+        },
+        "voltage_factor": 1.05
+      }
+    },
+    "Generator-B": {
+      "minimum": {
+        "impedance": {
+          "r_ohm": 0.2,
+          "x_ohm": 17
+        },
+        "voltage_factor": 0.95
+      },
+      "maximum": {
+        "impedance": {
+          "r_ohm": 0.12,
+          "x_ohm": 1.5
+        },
+        "voltage_factor": 1.05
+      },
+      "sustain_s": 0.7
+    }
+  },
+  "converters": {
+    "UPS-A": {
+      "minimum": {
+        "impedance": {
+          "r_ohm": 0.01,
+          "x_ohm": 0.015
+        },
+        "voltage_factor": 0.95,
+        "current_limit_ka": 0.9
+      },
+      "maximum": {
+        "impedance": {
+          "r_ohm": 0.008,
+          "x_ohm": 0.012
+        },
+        "voltage_factor": 1.05,
+        "current_limit_ka": 1.5
+      },
+      "sustain_s": 0.12
+    },
+    "UPS-B": {
+      "minimum": {
+        "impedance": {
+          "r_ohm": 0.01,
+          "x_ohm": 0.015
+        },
+        "voltage_factor": 0.95,
+        "current_limit_ka": 0.9
+      },
+      "maximum": {
+        "impedance": {
+          "r_ohm": 0.008,
+          "x_ohm": 0.012
+        },
+        "voltage_factor": 1.05,
+        "current_limit_ka": 1.5
+      },
+      "sustain_s": 0.12
+    }
+  },
+  "impedances": {
+    "MV-SourceLink": {
+      "r_ohm": 0.025,
+      "x_ohm": 0.08
+    },
+    "MV-Riser": {
+      "r_ohm": 0.1,
+      "x_ohm": 0.25
+    },
+    "LV-Referred-Transformer": {
+      "r_ohm": 0.002,
+      "x_ohm": 0.0118
+    },
+    "LV-Secondary": {
+      "r_ohm": 0.0004,
+      "x_ohm": 0.0002
+    },
+    "LV-CDU-Feeder": {
+      "r_ohm": 0.0018,
+      "x_ohm": 0.00045
+    },
+    "LV-UPS-Feeder": {
+      "r_ohm": 0.0006,
+      "x_ohm": 0.0004
+    },
+    "LV-Rack-Feeder": {
+      "r_ohm": 0.0015,
+      "x_ohm": 0.0005
+    }
+  },
+  "breakers": {
+    "MV-Source": {
+      "voltage_kv": 20,
+      "interrupt_ka": 16,
+      "curve": [
+        [0.1, 0.85, 1.1],
+        [0.4, 0.75, 1],
+        [5, 0.6, 0.9],
+        [16, 0.55, 0.8]
+      ]
+    },
+    "MV-Feeder": {
+      "voltage_kv": 20,
+      "interrupt_ka": 16,
+      "curve": [
+        [0.09, 0.53, 0.69],
+        [0.4, 0.46, 0.6],
+        [5, 0.37, 0.49],
+        [16, 0.32, 0.43]
+      ]
+    },
+    "LV-Main-A": {
+      "voltage_kv": 0.4,
+      "interrupt_ka": 25,
+      "curve": [
+        [1, 0.26, 0.4],
+        [7, 0.24, 0.33],
+        [12, 0.225, 0.32],
+        [20, 0.215, 0.3],
+        [65, 0.18, 0.26]
+      ]
+    },
+    "LV-CDU": {
+      "voltage_kv": 0.4,
+      "interrupt_ka": 25,
+      "curve": [
+        [0.25, 0.28, 0.4],
+        [7, 0.16, 0.24],
+        [12, 0.1, 0.16],
+        [16, 0.045, 0.065],
+        [24, 0.035, 0.05],
+        [65, 0.03, 0.045]
+      ]
+    },
+    "LV-UPS-Output": {
+      "voltage_kv": 0.4,
+      "interrupt_ka": 15,
+      "curve": [
+        [0.65, 0.2, 0.29],
+        [0.9, 0.17, 0.23],
+        [1.5, 0.13, 0.18],
+        [15, 0.07, 0.1]
+      ]
+    },
+    "LV-Rack": {
+      "voltage_kv": 0.4,
+      "interrupt_ka": 10,
+      "curve": [
+        [0.24, 0.11, 0.15],
+        [0.9, 0.04, 0.07],
+        [1.5, 0.029, 0.047],
+        [10, 0.02, 0.035]
+      ]
+    },
+    "LV-Main-B": {
+      "voltage_kv": 0.4,
+      "interrupt_ka": 15,
+      "curve": [
+        [1, 0.26, 0.4],
+        [7, 0.24, 0.33],
+        [12, 0.225, 0.32],
+        [20, 0.215, 0.3],
+        [65, 0.18, 0.26]
+      ]
+    },
+    "LV-Rack-High-Pickup": {
+      "voltage_kv": 0.4,
+      "interrupt_ka": 10,
+      "curve": [
+        [1.1, 0.05, 0.09],
+        [1.5, 0.035, 0.06],
+        [10, 0.025, 0.04]
+      ]
+    }
+  },
+  "sections": [
+    {
+      "from": "Grid-A",
+      "to": "Incoming-A",
+      "impedance": "MV-SourceLink",
+      "breaker": "MV-Source"
+    },
+    {
+      "from": "Generator-A",
+      "to": "Incoming-A",
+      "impedance": "MV-SourceLink",
+      "breaker": "MV-Source"
+    },
+    {
+      "from": "Incoming-A",
+      "to": "Utility-A",
+      "impedance": "MV-Riser",
+      "breaker": "MV-Feeder"
+    },
+    {
+      "from": "Utility-A",
+      "to": "Transformer-A",
+      "impedance": "LV-Referred-Transformer"
+    },
+    {
+      "from": "Transformer-A",
+      "to": "Switchboard-A",
+      "impedance": "LV-Secondary",
+      "breaker": "LV-Main-A"
+    },
+    {
+      "from": "Switchboard-A",
+      "to": "CDU-A",
+      "impedance": "LV-CDU-Feeder",
+      "breaker": "LV-CDU"
+    },
+    {
+      "from": "UPS-A",
+      "to": "Busway-A",
+      "impedance": "LV-UPS-Feeder",
+      "breaker": "LV-UPS-Output"
+    },
+    {
+      "from": "Busway-A",
+      "to": "Rack-01",
+      "impedance": "LV-Rack-Feeder",
+      "breaker": "LV-Rack"
+    },
+    {
+      "from": "Busway-A",
+      "to": "Rack-02",
+      "impedance": "LV-Rack-Feeder",
+      "breaker": "LV-Rack-High-Pickup"
+    },
+    {
+      "from": "Busway-A",
+      "to": "Rack-03",
+      "impedance": "LV-Rack-Feeder",
+      "breaker": "LV-Rack"
+    },
+    {
+      "from": "Busway-A",
+      "to": "Rack-04",
+      "impedance": "LV-Rack-Feeder",
+      "breaker": "LV-Rack"
+    },
+    {
+      "from": "Grid-B",
+      "to": "Incoming-B",
+      "impedance": "MV-SourceLink",
+      "breaker": "MV-Source"
+    },
+    {
+      "from": "Generator-B",
+      "to": "Incoming-B",
+      "impedance": "MV-SourceLink",
+      "breaker": "MV-Source"
+    },
+    {
+      "from": "Incoming-B",
+      "to": "Utility-B",
+      "impedance": "MV-Riser",
+      "breaker": "MV-Feeder"
+    },
+    {
+      "from": "Utility-B",
+      "to": "Transformer-B",
+      "impedance": "LV-Referred-Transformer"
+    },
+    {
+      "from": "Transformer-B",
+      "to": "Switchboard-B",
+      "impedance": "LV-Secondary",
+      "breaker": "LV-Main-B"
+    },
+    {
+      "from": "Switchboard-B",
+      "to": "CDU-B",
+      "impedance": "LV-CDU-Feeder",
+      "breaker": "LV-CDU"
+    },
+    {
+      "from": "UPS-B",
+      "to": "Busway-B",
+      "impedance": "LV-UPS-Feeder",
+      "breaker": "LV-UPS-Output"
+    },
+    {
+      "from": "Busway-B",
+      "to": "Rack-01",
+      "impedance": "LV-Rack-Feeder",
+      "breaker": "LV-Rack"
+    },
+    {
+      "from": "Busway-B",
+      "to": "Rack-02",
+      "impedance": "LV-Rack-Feeder",
+      "breaker": "LV-Rack"
+    },
+    {
+      "from": "Busway-B",
+      "to": "Rack-03",
+      "impedance": "LV-Rack-Feeder",
+      "breaker": "LV-Rack"
+    },
+    {
+      "from": "Busway-B",
+      "to": "Rack-04",
+      "impedance": "LV-Rack-Feeder",
+      "breaker": "LV-Rack"
+    }
+  ],
+  "faults": {
+    "cdu-a": {
+      "node": "L03/CDU-A",
+      "primary_max_clear_s": 0.25,
+      "backup_max_clear_s": 0.5,
+      "grading_s": 0.08
+    },
+    "main-a": {
+      "node": "L03/Switchboard-A",
+      "primary_max_clear_s": 0.4,
+      "backup_max_clear_s": 0.9,
+      "grading_s": 0.08
+    },
+    "main-b": {
+      "node": "L03/Switchboard-B",
+      "primary_max_clear_s": 0.4,
+      "backup_max_clear_s": 0.9,
+      "grading_s": 0.08
+    },
+    "busway-b": {
+      "node": "L03/Busway-B",
+      "primary_max_clear_s": 0.3,
+      "backup_max_clear_s": null,
+      "grading_s": 0.04
+    },
+    "rack-01": {
+      "node": "L03/Rack-01",
+      "primary_max_clear_s": 0.1,
+      "backup_max_clear_s": null,
+      "grading_s": 0.04
+    },
+    "rack-02": {
+      "node": "L03/Rack-02",
+      "primary_max_clear_s": 0.1,
+      "backup_max_clear_s": null,
+      "grading_s": 0.04
+    }
+  },
+  "cases": {
+    "grid-cdu-a": {
+      "fault": "cdu-a",
+      "standby_scenario": "full-grid-normal",
+      "at_s": 1,
+      "expected": "pass"
+    },
+    "generator-cdu-a": {
+      "fault": "cdu-a",
+      "standby_scenario": "full-transfer",
+      "at_s": 15,
+      "expected": "fail"
+    },
+    "battery-cdu-a-deenergized": {
+      "fault": "cdu-a",
+      "standby_scenario": "full-transfer",
+      "at_s": 6,
+      "expected": "deenergized"
+    },
+    "grid-main-a": {
+      "fault": "main-a",
+      "standby_scenario": "full-grid-normal",
+      "at_s": 1,
+      "expected": "pass"
+    },
+    "grid-main-b-breaking-duty": {
+      "fault": "main-b",
+      "standby_scenario": "full-grid-normal",
+      "at_s": 1,
+      "expected": "fail"
+    },
+    "grid-rack-inverter": {
+      "fault": "rack-01",
+      "standby_scenario": "full-grid-normal",
+      "at_s": 1,
+      "expected": "pass"
+    },
+    "battery-rack-inverter": {
+      "fault": "rack-01",
+      "standby_scenario": "full-transfer",
+      "at_s": 6,
+      "expected": "pass"
+    },
+    "battery-busway-b-sustain": {
+      "fault": "busway-b",
+      "standby_scenario": "full-transfer",
+      "at_s": 6,
+      "expected": "fail"
+    },
+    "battery-rack-high-pickup": {
+      "fault": "rack-02",
+      "standby_scenario": "full-transfer",
+      "at_s": 6,
+      "expected": "fail"
+    }
+  }
+}

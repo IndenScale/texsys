@@ -1,0 +1,81 @@
+{
+  "schema_version": 1,
+  "state": "assumed",
+  "basis": "Texsys 暖通专业库方案假设",
+  "envelope_m": [0.6, 0.8, 1.5],
+  "frame": {
+    "origin": "cabinet-minimum-corner",
+    "units": "m",
+    "up_axis": "Z"
+  },
+  "interfaces": {
+    "facility_in": {
+      "position_m": [0.12, 0.4, 1.5],
+      "normal": [0, 0, 1]
+    },
+    "facility_out": {
+      "position_m": [0.48, 0.4, 1.5],
+      "normal": [0, 0, 1]
+    },
+    "power": {
+      "position_m": [0.6, 0.4, 0.3],
+      "normal": [1, 0, 0]
+    },
+    "tcs_return": {
+      "position_m": [0.12, 0, 0.75],
+      "normal": [0, -1, 0]
+    },
+    "tcs_supply": {
+      "position_m": [0.48, 0, 0.75],
+      "normal": [0, -1, 0]
+    }
+  },
+  "properties": {
+    "geometry_parts": {
+      "Cabinet": {
+        "origin_m": [0, 0, 0],
+        "size_m": [0.6, 0.8, 1.5],
+        "color": [0.57, 0.68, 0.72]
+      },
+      "Panel": {
+        "origin_m": [0.04, 0, 0.11],
+        "size_m": [0.52, 0.03, 1.2],
+        "color": [0.22, 0.36, 0.44]
+      },
+      "Control": {
+        "origin_m": [0.12, 0, 1.04],
+        "size_m": [0.26, 0.018, 0.16],
+        "color": [0.16, 0.65, 0.64]
+      },
+      "ServiceBand": {
+        "origin_m": [0.07, 0, 0.58],
+        "size_m": [0.46, 0.025, 0.34],
+        "color": [0.33, 0.53, 0.58]
+      }
+    },
+    "installation_support": {
+      "state": "assumed",
+      "installed_mass_kg": 650,
+      "bearing_size_m": [0.09, 0.09],
+      "feet": {
+        "FL": {
+          "position_fraction": [0.2, 0.2],
+          "load_fraction": 0.25
+        },
+        "FR": {
+          "position_fraction": [0.8, 0.2],
+          "load_fraction": 0.25
+        },
+        "RL": {
+          "position_fraction": [0.2, 0.8],
+          "load_fraction": 0.25
+        },
+        "RR": {
+          "position_fraction": [0.8, 0.8],
+          "load_fraction": 0.25
+        }
+      }
+    }
+  },
+  "limitations": "方案包络与接口。设备尺寸、性能曲线、维护净距与连接尺寸需按项目核实。"
+}

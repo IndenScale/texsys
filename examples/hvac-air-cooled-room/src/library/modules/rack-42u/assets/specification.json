@@ -1,0 +1,25 @@
+{
+  "basis": "风冷机房参考库方案假设",
+  "envelope_m": [
+    0.6,
+    1.2,
+    2.0
+  ],
+  "frame": {
+    "front": "-Y",
+    "origin": "包络最小角",
+    "units": "m",
+    "up_axis": "Z"
+  },
+  "limitations": "机柜包络与机架位置用于方案布置，柜体承载和通风阻力待选型。",
+  "properties": {
+    "design_it_load_kw": 3.0,
+    "mounting_width_in": 19,
+    "rack_units": 42,
+    "rail_base_m": 0.06,
+    "rail_front_m": 0.1,
+    "unit_pitch_m": 0.04445
+  },
+  "schema_version": 1,
+  "state": "assumed"
+}

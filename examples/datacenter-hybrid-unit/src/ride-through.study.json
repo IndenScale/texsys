@@ -1,0 +1,81 @@
+{
+  "schema_version": 1,
+  "state": "assumed",
+  "basis": "单个 400 kW 机房单元的三热容动态算例。温度判据、等效热容、停流换热、冷却启动延迟和恢复斜率均为假设。",
+  "nodes": {
+    "rack_solid": {
+      "capacity_kj_k": 900,
+      "initial_c": 54,
+      "max_c": 64
+    },
+    "cold_zone_air": {
+      "capacity_kj_k": 480,
+      "initial_c": 25,
+      "max_c": 31
+    },
+    "tcs_bulk": {
+      "capacity_kj_k": 1600,
+      "initial_c": 35,
+      "max_c": 39.5
+    }
+  },
+  "transfer": {
+    "air_control_kw_k": 25,
+    "liquid_control_kw_k": 40,
+    "stagnant_transfer_fraction": 0.04
+  },
+  "restart": {
+    "air": {
+      "delay_s": 2,
+      "ramp_s": 5
+    },
+    "cdu": {
+      "delay_s": 4,
+      "ramp_s": 8
+    },
+    "fws": {
+      "delay_s": 6,
+      "ramp_s": 6
+    }
+  },
+  "liquid_pull_down_fraction": 0.12,
+  "max_step_s": 0.5,
+  "cases": {
+    "grid-steady": {
+      "standby_scenario": "full-grid-normal",
+      "expected": "pass"
+    },
+    "transfer-fast": {
+      "standby_scenario": "full-transfer",
+      "expected": "pass"
+    },
+    "transfer-delayed": {
+      "standby_scenario": "full-delayed-start",
+      "expected": "fail"
+    },
+    "delayed-start-recovery": {
+      "standby_scenario": "full-delayed-start-recovery",
+      "expected": "fail"
+    },
+    "local-transformer-outage": {
+      "standby_scenario": "full-l03-transformers-out",
+      "expected": "fail"
+    },
+    "circulation-without-fws": {
+      "standby_scenario": "full-generator-and-riser-out",
+      "expected": "fail"
+    },
+    "generation-and-pump-loss": {
+      "standby_scenario": "full-generator-and-b-pumps-out",
+      "expected": "fail"
+    },
+    "local-a-branch-out": {
+      "standby_scenario": "full-l03-one-a-drop-out",
+      "expected": "pass"
+    },
+    "local-ab-branch-out": {
+      "standby_scenario": "full-l03-one-ab-drop-out",
+      "expected": "fail"
+    }
+  }
+}

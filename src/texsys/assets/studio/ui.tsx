@@ -1,6 +1,7 @@
 import React from "react";
 
 const paths: Record<string, React.ReactNode> = {
+  extensions: <path d="M3 3h7v7H3zm0 11h7v7H3zm11 0h7v7h-7zM16.5 2l5.5 5.5-5.5 5.5L11 7.5z" />,
   settings: (
     <>
       <path d="m10 3-.6 2.4-2 .9-2.2-.7-2 3.4 1.7 1.7v2.6l-1.7 1.7 2 3.4 2.3-.7 2 .9L10 21h4l.6-2.4 2-.9 2.2.7 2-3.4-1.7-1.7v-2.6l1.7-1.7-2-3.4-2.3.7-2-.9L14 3Z" />
@@ -117,6 +118,13 @@ const paths: Record<string, React.ReactNode> = {
     </>
   ),
   folder: <path d="M3 7V5h6l2 2h10v13H3Z" />,
+  module: (
+    <>
+      <path d="M8 3H3v5m13-5h5v5M3 16v5h5m13-5v5h-5" />
+      <path d="m12 5 6 3.5v7L12 19l-6-3.5v-7L12 5Zm0 7 6-3.5M6 8.5l6 3.5v7" />
+    </>
+  ),
+  library: <path d="M4 4h4v16H4zm6 0h4v16h-4zm6 1 4-1 4 15-4 1z" />,
   logo: (
     <>
       <path d="M3 3l4 4m0 0h7m-7 0v7" />

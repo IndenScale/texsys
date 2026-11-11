@@ -1,0 +1,22 @@
+{
+  "basis": "texsys 结构专业库方案样件",
+  "envelope_m": [
+    0.15,
+    1.2,
+    0.3
+  ],
+  "frame": {
+    "front": "-Y",
+    "origin": "包络最小角",
+    "units": "m",
+    "up_axis": "Z"
+  },
+  "limitations": "用于方案占位与接口定位，承载力、连接节点和防火保护待结构设计。",
+  "properties": {
+    "material": "结构钢，牌号待定",
+    "section": "I 300×150×8×12",
+    "span_m": 1.2
+  },
+  "schema_version": 1,
+  "state": "assumed"
+}

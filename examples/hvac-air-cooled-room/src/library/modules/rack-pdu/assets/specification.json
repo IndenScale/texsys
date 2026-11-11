@@ -1,0 +1,22 @@
+{
+  "basis": "风冷机房参考库方案假设",
+  "envelope_m": [
+    0.4826,
+    0.16,
+    0.04445
+  ],
+  "frame": {
+    "front": "-Y",
+    "origin": "包络最小角",
+    "units": "m",
+    "up_axis": "Z"
+  },
+  "limitations": "电气端口为方案分配示意，插座规格、容量与保护待选型。",
+  "properties": {
+    "example_output_count": 2,
+    "input_voltage_v": 230,
+    "rack_units": 1
+  },
+  "schema_version": 1,
+  "state": "assumed"
+}

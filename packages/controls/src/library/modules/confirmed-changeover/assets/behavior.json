@@ -1,0 +1,12 @@
+{
+  "schema_version": 1,
+  "state": "assumed",
+  "module": "confirmed-changeover",
+  "signal_quality": ["good", "bad", "stale"],
+  "implementation": "texsys_controls.changeover.ConfirmedChangeover",
+  "parameters": {
+    "isolation_timeout": "s",
+    "proof_timeout": "s"
+  },
+  "rule": "收到隔离点的有效闭合反馈后允许备用回路启动。启动超时或证明丢失进入锁定。"
+}

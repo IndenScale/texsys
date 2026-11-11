@@ -1,0 +1,22 @@
+{
+  "schema_version": 1,
+  "state": "assumed",
+  "mechanism": "irreversible-compression",
+  "tape": {
+    "material": "hot-dip-galvanized-steel",
+    "width_mm": 40,
+    "thickness_mm": 4
+  },
+  "rebar": {
+    "material": "reinforcing-steel",
+    "diameter_mm": 20
+  },
+  "environment": "concrete-embedded",
+  "installation_records": [
+    "connector",
+    "tool",
+    "die",
+    "basis"
+  ],
+  "limitations": "此处适配尺寸和工法为算例假设。须由适用连接件及成套工具的资料证明实际工况。"
+}

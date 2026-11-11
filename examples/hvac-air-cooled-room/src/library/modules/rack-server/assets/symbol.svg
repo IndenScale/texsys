@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 134" role="img">
+  <title>机架式服务器 RackServer</title>
+  <rect x="76" y="12" width="208" height="110" rx="8" fill="#edf3f7" stroke="#234761" stroke-width="2"/>
+  <text x="180" y="33" text-anchor="middle" fill="#122d40" font-family="sans-serif" font-size="15">机架式服务器</text>
+  <g id="port-mount" data-port="mount">
+    <circle cx="76" cy="55" r="5" fill="#f7fdff" stroke="#187e94" stroke-width="2"/>
+    <text x="89" y="59" text-anchor="start" fill="#234761" font-family="sans-serif" font-size="12">mount</text>
+  </g>
+  <g id="port-power" data-port="power">
+    <circle cx="76" cy="81" r="5" fill="#f7fdff" stroke="#187e94" stroke-width="2"/>
+    <text x="89" y="85" text-anchor="start" fill="#234761" font-family="sans-serif" font-size="12">power</text>
+  </g>
+  <g id="port-management" data-port="management">
+    <circle cx="76" cy="107" r="5" fill="#f7fdff" stroke="#187e94" stroke-width="2"/>
+    <text x="89" y="111" text-anchor="start" fill="#234761" font-family="sans-serif" font-size="12">management</text>
+  </g>
+</svg>

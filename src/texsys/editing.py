@@ -11,11 +11,12 @@ from texsys.formal import (
   _atomic_write,
   _canonical_json,
   _check_schema,
-  _check_semantics,
   _load_json,
   _valid_identifier,
+  check_sdl_sources,
 )
 from texsys.project import ProjectError, inspect_project, project_write_lock
+from texsys.sdl_catalog import read_sdl_catalog
 
 _OPERATIONS = {
   "create-design": {"id"},
@@ -156,7 +157,14 @@ def _prepare(path: Path, request: dict) -> tuple[dict[str, Any], Path, str | Non
         diagnostics = (Diagnostic("A_OPERATION", "fail", relative, str(error), f"operations[{index}]"),)
         break
   if not diagnostics:
-    diagnostics = _check_schema(document, relative) or _check_semantics(document, relative)
+    diagnostics = _check_schema(document, relative)
+    if not diagnostics:
+      source = inspect_project(root).source
+      source_root = root / source
+      catalog = read_sdl_catalog(source_root, root, replacement=(target.relative_to(source_root).as_posix(), document))
+      diagnostics = tuple(item for item in catalog.diagnostics + check_sdl_sources(catalog.documents, source)
+                          if item.file == relative or item.rule == "L015" or item.file.startswith("@")
+                          or item.file == "texsys.lock")
   if diagnostics:
     result.update(status="fail", diagnostics=[item.as_dict() for item in diagnostics])
     return result, target, None

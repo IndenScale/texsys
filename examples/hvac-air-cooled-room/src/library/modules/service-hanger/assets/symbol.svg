@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 134" role="img">
+  <title>支吊架 ServiceHanger</title>
+  <rect x="76" y="12" width="208" height="110" rx="8" fill="#edf3f7" stroke="#234761" stroke-width="2"/>
+  <text x="180" y="33" text-anchor="middle" fill="#122d40" font-family="sans-serif" font-size="15">支吊架</text>
+  <g id="port-anchor_a" data-port="anchor_a">
+    <circle cx="76" cy="55" r="5" fill="#f7fdff" stroke="#187e94" stroke-width="2"/>
+    <text x="89" y="59" text-anchor="start" fill="#234761" font-family="sans-serif" font-size="12">anchor_a</text>
+  </g>
+  <g id="port-anchor_b" data-port="anchor_b">
+    <circle cx="284" cy="81" r="5" fill="#f7fdff" stroke="#187e94" stroke-width="2"/>
+    <text x="271" y="85" text-anchor="end" fill="#234761" font-family="sans-serif" font-size="12">anchor_b</text>
+  </g>
+  <g id="port-tray_bearing" data-port="tray_bearing">
+    <circle cx="76" cy="107" r="5" fill="#f7fdff" stroke="#187e94" stroke-width="2"/>
+    <text x="89" y="111" text-anchor="start" fill="#234761" font-family="sans-serif" font-size="12">tray_bearing</text>
+  </g>
+</svg>

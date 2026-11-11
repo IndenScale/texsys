@@ -10,6 +10,7 @@ export function ExplorerTree({
   expanded,
   selected,
   dirtyPaths,
+  label = t("项目文件"),
   select,
   toggle,
   open,
@@ -21,6 +22,7 @@ export function ExplorerTree({
   expanded: Set<string>;
   selected: string;
   dirtyPaths?: Set<string>;
+  label?: string;
   select: (path: string) => void;
   toggle: (path: string) => void;
   open: (path: string, keyboard: boolean) => void;
@@ -39,14 +41,14 @@ export function ExplorerTree({
     <div
       className="core-file-tree"
       role="tree"
-      aria-label={t("项目文件")}
+      aria-label={label}
       onKeyDown={(event) => {
-        if (event.key === "F2" && selectedEntry && rename) {
+        if (event.key === "F2" && selectedEntry && !selectedEntry.virtual && rename) {
           event.preventDefault();
           rename();
           return;
         }
-        if (event.key === "Delete" && selectedEntry && remove) {
+        if (event.key === "Delete" && selectedEntry && !selectedEntry.virtual && remove) {
           event.preventDefault();
           remove();
           return;
@@ -92,27 +94,37 @@ export function ExplorerTree({
           "",
           ...parts.slice(0, -1).map((_, index) => parts.slice(0, index + 1).join("/")),
         ];
-        return (
+        const split = entry.directory && entry.opensDocument;
+        const isExpanded = expanded.has(entry.path);
+        const indent = { "--tree-depth": entry.depth + 1 } as CSSProperties;
+        const row = (
           <button
             key={entry.path}
             tabIndex={entry.path === tabStop ? 0 : -1}
             role="treeitem"
             aria-level={entry.depth + 1}
+            aria-description={entry.detail}
             aria-selected={selected === entry.path}
-            aria-expanded={entry.directory ? expanded.has(entry.path) : undefined}
+            aria-expanded={entry.directory ? isExpanded : undefined}
             className={`core-tree-row ${selected === entry.path ? "selected" : ""}`}
-            style={{ "--tree-depth": entry.depth + 1 } as CSSProperties}
-            title={entry.path}
+            style={indent}
+            title={
+              entry.detail
+                ? `${entry.name} · ${entry.detail}`
+                : entry.virtual
+                  ? entry.name
+                  : entry.path
+            }
             onFocus={() => select(entry.path)}
             onContextMenu={(event) => {
-              if (!contextMenu) return;
+              if (entry.virtual || !contextMenu) return;
               event.preventDefault();
               select(entry.path);
               contextMenu(entry.path, event.clientX, event.clientY);
             }}
             onClick={(event) => {
               select(entry.path);
-              if (entry.directory) toggle(entry.path);
+              if (entry.directory && !split) toggle(entry.path);
               else open(entry.path, event.detail === 0);
             }}
           >
@@ -126,16 +138,47 @@ export function ExplorerTree({
               ))}
             </span>
             <span className="core-tree-twistie" aria-hidden="true">
-              {entry.directory && (
-                <Icon name="chevron" size={12} expanded={expanded.has(entry.path)} />
-              )}
+              {entry.directory && !split && <Icon name="chevron" size={12} expanded={isExpanded} />}
             </span>
             <span className="core-tree-icon" aria-hidden="true">
-              {entry.directory ? <Icon name="folder" size={16} /> : <FileIcon path={entry.path} />}
+              {entry.icon || entry.directory ? (
+                <Icon name={entry.icon ?? "folder"} size={16} />
+              ) : (
+                <FileIcon path={entry.path} />
+              )}
             </span>
             <span className="core-entry-name">{entry.name}</span>
+            {entry.detail && (
+              <small className="core-tree-detail" aria-hidden="true">
+                {entry.detail}
+              </small>
+            )}
             {dirtyPaths?.has(entry.path) && <span className="core-dirty" title={t("未保存")} />}
           </button>
+        );
+        if (!split) return row;
+        return (
+          <div
+            className="core-tree-document-folder"
+            role="presentation"
+            style={indent}
+            key={entry.path}
+          >
+            {row}
+            <button
+              type="button"
+              className="core-tree-document-toggle"
+              tabIndex={-1}
+              aria-label={t(isExpanded ? "折叠 {0}" : "展开 {0}", { 0: entry.name })}
+              aria-expanded={isExpanded}
+              onClick={(event) => {
+                (event.currentTarget.previousElementSibling as HTMLButtonElement).focus();
+                toggle(entry.path);
+              }}
+            >
+              <Icon name="chevron" size={12} expanded={isExpanded} />
+            </button>
+          </div>
         );
       })}
     </div>

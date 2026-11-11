@@ -1,0 +1,40 @@
+schema_version = 1
+name = "精密空调机组"
+version = "0.1.0"
+entry = "precision-air-unit.sdl.json"
+
+[assets.geometry]
+kind = "geometry"
+path = "assets/geometry.usda"
+source = "Texsys 暖通专业库方案假设"
+fidelity = "设备包络与接口位姿"
+
+[assets.symbol]
+kind = "symbol"
+path = "assets/symbol.svg"
+source = "Texsys 暖通专业库方案假设"
+fidelity = "功能符号与端口锚点"
+
+[assets.specification]
+kind = "specification"
+path = "assets/specification.json"
+source = "Texsys 暖通专业库方案假设"
+fidelity = "坐标、接口和适用边界"
+
+[assets.behavior]
+kind = "behavior"
+path = "assets/behavior.json"
+source = "Texsys 暖通专业库方案假设"
+fidelity = "额定点求解约定"
+
+[port_bindings.power]
+geometry = "/Module/Ports/power"
+symbol = "port-power"
+
+[port_bindings.return]
+geometry = "/Module/Ports/return"
+symbol = "port-return"
+
+[port_bindings.supply]
+geometry = "/Module/Ports/supply"
+symbol = "port-supply"

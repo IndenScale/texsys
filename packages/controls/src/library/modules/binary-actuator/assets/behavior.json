@@ -1,0 +1,7 @@
+{
+  "schema_version": 1,
+  "state": "assumed",
+  "module": "binary-actuator",
+  "signal_quality": ["good", "bad", "stale"],
+  "rule": "命令和实际位置反馈作为独立信号。"
+}

@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 166 100">
+  <rect x="28" y="14" width="110" height="72" rx="5" fill="#233746" stroke="#90b6c7" />
+  <text x="83" y="53" text-anchor="middle" font-size="11" fill="#e4f4f7">BINARY-SENSOR</text>
+  <circle id="port-state" data-port="state" cx="138" cy="24" r="3" fill="#b9e8eb" />
+</svg>

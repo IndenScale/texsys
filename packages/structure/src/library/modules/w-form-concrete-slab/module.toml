@@ -1,0 +1,22 @@
+schema_version = 1
+name = "W 型永久模板现浇楼板"
+version = "0.1.0"
+entry = "w-form-concrete-slab.sdl.json"
+
+[assets.geometry]
+kind = "geometry"
+path = "assets/geometry.usda"
+source = "Texsys 结构专业库方案定义"
+fidelity = "分体钢模板和混凝土样件"
+
+[assets.symbol]
+kind = "symbol"
+path = "assets/symbol.svg"
+source = "Texsys 结构专业库方案定义"
+fidelity = "构造截面示意"
+
+[assets.specification]
+kind = "specification"
+path = "assets/specification.json"
+source = "Texsys 结构专业库方案定义"
+fidelity = "默认截面和参数化生成约定"

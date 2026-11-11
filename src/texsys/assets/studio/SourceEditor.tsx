@@ -41,6 +41,12 @@ const languageByExtension: Record<string, string> = {
   yml: "yaml",
 };
 
+const markdownPunctuation = Object.fromEntries(
+  [..."，。！？；：、（）【】《》〈〉「」『』“”‘’…—"].map(
+    (character) => [character, true] as const,
+  ),
+);
+
 type ModelState = {
   model: editor.ITextModel;
   viewState: editor.ICodeEditorViewState | null;
@@ -153,6 +159,7 @@ export function SourceEditor({
   const callbacks = useRef({ onChange, onCursorLine });
   callbacks.current = { onChange, onCursorLine };
   const label = t("文件内容");
+  const language = languageByExtension[sourceFileFormat(path)] ?? "plaintext";
   const { editorFontSize, editorWordWrap, editorLineNumbers, editorMinimap } = useUserPreferences();
 
   useLayoutEffect(() => {
@@ -193,12 +200,12 @@ export function SourceEditor({
       lineNumbers: editorLineNumbers ? "on" : "off",
       wordWrap: editorWordWrap,
       minimap: { enabled: editorMinimap, renderCharacters: false, showSlider: "mouseover" },
+      unicodeHighlight: { allowedCharacters: language === "markdown" ? markdownPunctuation : {} },
     });
-  }, [label, editorFontSize, editorWordWrap, editorLineNumbers, editorMinimap]);
+  }, [label, language, editorFontSize, editorWordWrap, editorLineNumbers, editorMinimap]);
 
   useLayoutEffect(() => {
     const code = instance.current!;
-    const language = languageByExtension[sourceFileFormat(path)] ?? "plaintext";
     let next = models.get(path);
     if (next && next.model.getLanguageId() !== language)
       editor.setModelLanguage(next.model, language);
@@ -221,7 +228,7 @@ export function SourceEditor({
     code.setModel(next.model);
     if (next.viewState) code.restoreViewState(next.viewState);
     callbacks.current.onCursorLine(code.getPosition()?.lineNumber ?? 1);
-  }, [models, path, value]);
+  }, [models, path, value, language]);
 
   useLayoutEffect(() => {
     const code = instance.current;

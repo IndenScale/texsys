@@ -27,6 +27,17 @@ import { rememberRecentFile, type FileLocation } from "./search";
 import { useUserPreferences } from "./user-preferences";
 import { useCodeSearch } from "./CodeSearch";
 import { ExplorerTree } from "./ExplorerTree";
+import {
+  DesignDocument,
+  DesignExplorer,
+  designDocumentKey,
+  resolveDesign,
+  type DesignIndex,
+  type DesignSelection,
+  type DesignView,
+  type LibrarySource,
+} from "./DesignNavigation";
+import { LibraryFolders, readLibraryFolders, saveLibraryFolders } from "./LibraryFolders";
 import { FileIcon } from "./FileIcon";
 import { EditorActionButton } from "./EditorActionButton";
 import { ToolbarButton } from "./ToolbarButton";
@@ -51,9 +62,9 @@ import { isSourceEditCommand, type EditorMenuCommand, type CommandItem } from ".
 import { Settings, type TitlebarSettings } from "./Settings";
 import { Keycaps } from "./Keycaps";
 
-type Activity = "explorer" | "search" | "scm";
+type Activity = "explorer" | "search" | "scm" | "extensions" | "library" | "instances";
 function isCoreActivity(id: string): id is Activity {
-  return id === "explorer" || id === "search" || id === "scm";
+  return coreItems.some((item) => item.id === id);
 }
 type Document = {
   path: string;
@@ -65,6 +76,7 @@ type Document = {
   error?: string;
   location?: SearchMatch;
   cursorLine?: number;
+  design?: { selection: DesignSelection; view: DesignView };
   untitled?: string;
 };
 type FileRequest = {
@@ -92,15 +104,21 @@ type Core = {
 const CoreContext = createContext<Core | null>(null);
 export const useCoreWorkspace = () => useContext(CoreContext);
 const emptyListing: FileListing = { files: [], directories: [], truncated: false };
-const coreItems = [
+const coreItems: { id: Activity; label: string; icon: string; shortcutKey?: string }[] = [
   { id: "explorer", label: "文件资源管理器", icon: "files", shortcutKey: "E" },
   { id: "search", label: "搜索", icon: "search", shortcutKey: "F" },
   { id: "scm", label: "源代码管理", icon: "branch", shortcutKey: "G" },
-] as const;
+  { id: "extensions", label: "扩展", icon: "extensions" },
+  { id: "library", label: "部件库", icon: "library" },
+  { id: "instances", label: "项目实例", icon: "system" },
+];
 const coreSidebarTitles: Record<Activity, string> = {
   explorer: "文件资源管理器",
   search: "搜索",
   scm: "源代码管理",
+  extensions: "扩展",
+  library: "部件库",
+  instances: "项目实例",
 };
 const macKeys = /Mac|iPhone|iPad/.test(navigator.platform);
 const tabCloseKeys = macKeys ? "Delete Backspace" : "Delete";
@@ -273,6 +291,65 @@ export function CoreWorkspaceProvider({
   const [listing, setListing] = useState<FileListing>(emptyListing),
     [listingError, setListingError] = useState("");
   const [loadingFiles, setLoadingFiles] = useState(false);
+  const [designIndex, setDesignIndex] = useState<DesignIndex>();
+  const [designError, setDesignError] = useState("");
+  const [libraryFolders, setLibraryFolders] = useState(readLibraryFolders);
+  const [libraryDialog, setLibraryDialog] = useState(false);
+  const [libraryRevision, setLibraryRevision] = useState(0);
+  function changeLibraryFolders(paths: string[]) {
+    saveLibraryFolders(paths);
+    setLibraryFolders(paths);
+  }
+  async function addLibraryFolder(path: string) {
+    const index = await api<DesignIndex>("/api/library", { action: "index", folders: [path] });
+    const source = index.sources[0];
+    if (!source) throw new Error(index.source_errors[0]?.message ?? t("无法读取库目录"));
+    if (libraryFolders.includes(source.path)) throw new Error(t("此库目录已经添加。"));
+    if (libraryFolders.length >= 16) throw new Error(t("最多可添加 16 个库目录。"));
+    changeLibraryFolders([...libraryFolders, source.path]);
+  }
+  async function referenceLibrary(source: LibrarySource, entry: string, previousDigest?: string) {
+    if (documents.some((item) => item.path === "texsys.toml" && item.saved !== item.content)) {
+      throw new Error(t("请先保存项目清单的修改。"));
+    }
+    await api("/api/library", {
+      action: "reference",
+      folder: source.path,
+      digest: source.digest,
+      entry,
+      previous_digest: previousDigest,
+    });
+    setLibraryRevision((previous) => previous + 1);
+    await refresh();
+  }
+  useEffect(() => {
+    let current = true;
+    const request = libraryFolders.length
+      ? api<DesignIndex>("/api/library", { action: "index", folders: libraryFolders })
+      : api<DesignIndex>("/api/design-index");
+    void request.then(
+      (index) => {
+        if (current) {
+          setDesignIndex({
+            ...index,
+            sources: index.sources ?? [],
+            source_errors: index.source_errors ?? [],
+            references: index.references ?? [],
+          });
+          setDesignError("");
+        }
+      },
+      (error: unknown) => {
+        if (current) {
+          setDesignIndex(undefined);
+          setDesignError(String(error));
+        }
+      },
+    );
+    return () => {
+      current = false;
+    };
+  }, [api, libraryFolders, libraryRevision, state.project.revision, state.project.path]);
   const [expanded, setExpanded] = useState(new Set<string>(["src", "assets"]));
   const [explorerMenu, setExplorerMenu] = useState<{ x: number; y: number; path: string }>();
   const [rootOpen, setRootOpen] = useState(true),
@@ -357,7 +434,11 @@ export function CoreWorkspaceProvider({
             ? "source"
             : null;
   const terminalFile =
-    activeTab === "source" && !active?.untitled && !active?.loading && !active?.error
+    activeTab === "source" &&
+    !active?.design &&
+    !active?.untitled &&
+    !active?.loading &&
+    !active?.error
       ? active?.path
       : undefined;
   useEffect(() => {
@@ -411,6 +492,7 @@ export function CoreWorkspaceProvider({
   const canEditSource =
     activeTab === "source" &&
     !!active &&
+    !active.design &&
     !active.loading &&
     !active.error &&
     !active.reason &&
@@ -493,7 +575,32 @@ export function CoreWorkspaceProvider({
     };
     window.addEventListener("beforeunload", handler);
     return () => window.removeEventListener("beforeunload", handler);
-  }, [dirty]);
+  }, [dirty, confirmBeforeUnload]);
+  const openDesign = (selection: DesignSelection, view?: DesignView, recordHistory = true) => {
+    const path = designDocumentKey(selection);
+    setSettingsActive(false);
+    setSearchEditorActive(false);
+    setDiffActive(false);
+    setActivePath(path);
+    setDocumentActive(true);
+    if (recordHistory) setHistory((previous) => visitDocument(previous, path));
+    setDocuments((previous) =>
+      previous.some((item) => item.path === path)
+        ? previous.map((item) =>
+            item.path === path && view ? { ...item, design: { selection, view } } : item,
+          )
+        : [
+            ...previous,
+            {
+              path,
+              saved: "",
+              content: "",
+              version: "",
+              design: { selection, view: view ?? "model" },
+            },
+          ],
+    );
+  };
   const openFile = async (
     path: string,
     {
@@ -516,6 +623,15 @@ export function CoreWorkspaceProvider({
       setActivePath(path);
       setDocumentActive(true);
       if (recordHistory) setHistory((previous) => visitDocument(previous, path));
+      return;
+    }
+    if (path.startsWith("\0definition:")) {
+      openDesign({ definition: path.slice("\0definition:".length) }, undefined, recordHistory);
+      return;
+    }
+    if (path.startsWith("\0instance:")) {
+      const occurrence = path.slice("\0instance:".length);
+      openDesign({ occurrence: occurrence ? occurrence.split(".") : [] }, undefined, recordHistory);
       return;
     }
     setSourceFocus(focus ? { path, origin: document.activeElement } : undefined);
@@ -1072,7 +1188,15 @@ export function CoreWorkspaceProvider({
       }) ?? [],
     notify,
   });
-  const tree = visibleFileTree(listing, expanded);
+  const moduleDirectories = new Map<string, string>();
+  for (const entry of designIndex?.library ?? []) {
+    if (entry.folder) moduleDirectories.set(entry.folder, entry.definition);
+  }
+  const tree = visibleFileTree(listing, expanded).map((entry) =>
+    entry.directory && moduleDirectories.has(entry.path)
+      ? { ...entry, icon: "module", opensDocument: true }
+      : entry,
+  );
   useEffect(() => {
     if (!activityRequest) return;
     select(activityRequest.id);
@@ -1206,9 +1330,16 @@ export function CoreWorkspaceProvider({
             : [{ label: t("刷新源代码管理"), run: busy ? undefined : refreshScm }]),
         ]}
       />
-    ) : (
-      <Tool label={t("刷新资源")} icon="refresh" disabled={busy} onClick={() => void reload()} />
-    );
+    ) : activity === "library" ? (
+      <>
+        <Tool label={t("添加库目录…")} icon="new-folder" onClick={() => setLibraryDialog(true)} />
+        <Tool
+          label={t("刷新部件库")}
+          icon="refresh"
+          onClick={() => setLibraryRevision((value) => value + 1)}
+        />
+      </>
+    ) : null;
   const sidebar = (
     <NavigatorPanel
       className="core-sidebar"
@@ -1284,7 +1415,11 @@ export function CoreWorkspaceProvider({
                 return next;
               })
             }
-            open={(path, keyboard) => void openFile(path, { focus: keyboard })}
+            open={(path, keyboard) => {
+              const definition = moduleDirectories.get(path);
+              if (definition) openDesign({ definition }, "model");
+              else void openFile(path, { focus: keyboard });
+            }}
             contextMenu={(path, x, y) => setExplorerMenu({ path, x, y })}
             rename={() => startForm("rename")}
             remove={() => startForm("delete")}
@@ -1354,6 +1489,43 @@ export function CoreWorkspaceProvider({
           </>
         )}
       </NavigatorPage>
+      <NavigatorPage hidden={activity !== "extensions"} aria-label={t("已加载的扩展")}>
+        {state.plugins.length ? (
+          <ul className="core-activity-list">
+            {state.plugins.map((plugin) => (
+              <li className="core-activity-row" key={plugin.id}>
+                <Icon name="extensions" />
+                <span className="core-activity-name">
+                  <strong>{plugin.name}</strong>
+                  <small>
+                    {t(plugin.discipline)} · {plugin.version}
+                  </small>
+                </span>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="core-hint">{t("暂无已加载的扩展。")}</p>
+        )}
+      </NavigatorPage>
+      {(["library", "instances"] as const).map((mode) => (
+        <NavigatorPage key={mode} hidden={activity !== mode}>
+          {designError ? (
+            <p className="core-error" role="alert">
+              {designError}
+            </p>
+          ) : designIndex ? (
+            <DesignExplorer
+              mode={mode}
+              index={designIndex}
+              open={openDesign}
+              editTags={() => void openFile("texsys.toml")}
+            />
+          ) : (
+            <p className="core-hint">{t("读取中")}</p>
+          )}
+        </NavigatorPage>
+      ))}
     </NavigatorPanel>
   );
   const fileDialogTitle =
@@ -1370,6 +1542,15 @@ export function CoreWorkspaceProvider({
   const closingDocument = documents.find((item) => item.path === closePath);
   const dialogs = (
     <>
+      {libraryDialog && (
+        <LibraryFolders
+          folders={libraryFolders}
+          sources={designIndex?.sources ?? []}
+          add={addLibraryFolder}
+          remove={(path) => changeLibraryFolders(libraryFolders.filter((item) => item !== path))}
+          close={() => setLibraryDialog(false)}
+        />
+      )}
       {showShortcuts && (
         <div className="core-dialog-backdrop">
           <section
@@ -1674,34 +1855,52 @@ export function CoreWorkspaceProvider({
         nodes[next]?.click();
       }}
     >
-      {documents.map((document) => (
-        <DocumentTab
-          key={document.path}
-          selected={activeTab === "source" && activePath === document.path}
-          tabStop={tabStop === "source" && activePath === document.path}
-          title={document.untitled ?? document.path}
-          closeLabel={t("关闭 {0}", { "0": document.untitled ?? document.path })}
-          closeDisabled={closeDisabled}
-          closeShortcut={closeShortcut}
-          onClose={() => closeFileTab(document.path)}
-          onSelect={() => {
-            if (!document.untitled && !document.loading && !document.error)
-              rememberRecentFile(state.project.path, document.path);
-            setSettingsActive(false);
-            setSearchEditorActive(false);
-            setHistory((previous) => visitDocument(previous, document.path));
-            setActivePath(document.path);
-            setDocumentActive(true);
-            setDiffActive(false);
-          }}
-        >
-          <FileIcon path={document.path} />
-          <span>{document.untitled ?? document.path.split("/").pop()}</span>
-          {document.content !== document.saved && (
-            <span className="core-dirty" title={t("未保存")} />
-          )}
-        </DocumentTab>
-      ))}
+      {documents.map((document) => {
+        const selection = document.design?.selection;
+        const scope = selection && designIndex && resolveDesign(designIndex, selection);
+        const module = designIndex?.library.some(
+          (item) => item.kind === "modules" && item.definition === scope?.key,
+        );
+        const title = selection
+          ? (("occurrence" in selection ? selection.occurrence.at(-1) : undefined) ??
+            scope?.definition?.name ??
+            t("模型"))
+          : (document.untitled ?? document.path.split("/").pop());
+        return (
+          <DocumentTab
+            key={document.path}
+            selected={activeTab === "source" && activePath === document.path}
+            tabStop={tabStop === "source" && activePath === document.path}
+            title={selection || document.untitled ? title : document.path}
+            closeLabel={t("关闭 {0}", {
+              "0": selection ? (title ?? "") : (document.untitled ?? document.path),
+            })}
+            closeDisabled={closeDisabled}
+            closeShortcut={closeShortcut}
+            onClose={() => closeFileTab(document.path)}
+            onSelect={() => {
+              if (!document.untitled && !document.design && !document.loading && !document.error)
+                rememberRecentFile(state.project.path, document.path);
+              setSettingsActive(false);
+              setSearchEditorActive(false);
+              setHistory((previous) => visitDocument(previous, document.path));
+              setActivePath(document.path);
+              setDocumentActive(true);
+              setDiffActive(false);
+            }}
+          >
+            {selection ? (
+              <Icon name={module ? "module" : "system"} size={14} />
+            ) : (
+              <FileIcon path={document.path} />
+            )}
+            <span>{title}</span>
+            {document.content !== document.saved && (
+              <span className="core-dirty" title={t("未保存")} />
+            )}
+          </DocumentTab>
+        );
+      })}
       {searchDocumentOpen && (
         <DocumentTab
           selected={activeTab === "search"}
@@ -1762,6 +1961,13 @@ export function CoreWorkspaceProvider({
   const diffProjectPath =
     diff && !diff.historical ? gitPathInProject(diff.path, gitStatus?.project_prefix) : undefined;
   const activeDirty = !!active && active.content !== active.saved;
+  const designEntry =
+    designIndex && active && !active.design
+      ? [
+          designIndex.root,
+          ...designIndex.library.filter((item) => !item.source).map((item) => item.definition),
+        ].find((key) => key && designIndex.definitions[key]?.file === active.path)
+      : undefined;
   const editorActions = settingsActive ? null : searchEditorActive ? (
     codeSearch.editorActions
   ) : diffActive ? (
@@ -1772,8 +1978,15 @@ export function CoreWorkspaceProvider({
         onClick={() => void openFile(diffProjectPath)}
       />
     )
-  ) : active && !active.loading && !active.error && !active.reason ? (
+  ) : active && !active.design && !active.loading && !active.error && !active.reason ? (
     <>
+      {designEntry && (
+        <EditorActionButton
+          label={t("打开设计视图")}
+          icon="system"
+          onClick={() => openDesign({ definition: designEntry })}
+        />
+      )}
       {!active.untitled && (
         <>
           <EditorActionButton
@@ -1857,6 +2070,27 @@ export function CoreWorkspaceProvider({
         </div>
       </div>
     </div>
+  ) : active.design ? (
+    designIndex ? (
+      <DesignDocument
+        index={designIndex}
+        selection={active.design.selection}
+        view={active.design.view}
+        setView={(view) =>
+          setDocuments((previous) =>
+            previous.map((item) =>
+              item.path === active.path && item.design
+                ? { ...item, design: { ...item.design, view } }
+                : item,
+            ),
+          )
+        }
+        openFile={(path) => void openFile(path)}
+        referenceEntry={referenceLibrary}
+      />
+    ) : (
+      <Empty title={t("无法解析设计对象")}>{designError}</Empty>
+    )
   ) : active.loading ? (
     <Empty title={t("正在打开文件")}>{active.path}</Empty>
   ) : active.error || active.reason ? (
@@ -1966,7 +2200,7 @@ export function CoreWorkspaceProvider({
       <div className="core-heading">
         <strong>{t("文件属性")}</strong>
       </div>
-      {active && !diffActive && !searchEditorActive ? (
+      {active && !active.design && !diffActive && !searchEditorActive ? (
         <dl>
           <dt>{t("路径")}</dt>
           <dd>{active.untitled ?? active.path}</dd>
@@ -2101,10 +2335,12 @@ export function WorkbenchSurface({
     label,
     icon: <Icon name={icon} size={19} />,
     count: id === "scm" ? core.changeCount : undefined,
-    shortcut: [
-      ...(macKeys ? (id === "explorer" ? ["⇧", "⌘"] : ["⌃", "⇧"]) : ["Ctrl", "Shift"]),
-      shortcutKey,
-    ],
+    shortcut: shortcutKey
+      ? [
+          ...(macKeys ? (id === "explorer" ? ["⇧", "⌘"] : ["⌃", "⇧"]) : ["Ctrl", "Shift"]),
+          shortcutKey,
+        ]
+      : undefined,
   }));
   const hasTabs = core.hasCoreTabs || Boolean(tabs);
   return (

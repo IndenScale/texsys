@@ -1,0 +1,22 @@
+{
+  "basis": "风冷机房参考库方案假设",
+  "envelope_m": [
+    0.4826,
+    0.3,
+    0.04445
+  ],
+  "frame": {
+    "front": "-Y",
+    "origin": "包络最小角",
+    "units": "m",
+    "up_axis": "Z"
+  },
+  "limitations": "仅表达一组上联和接入口，光模块兼容性、链路预算和交换性能待选型。",
+  "properties": {
+    "access_connector": "RJ45",
+    "rack_units": 1,
+    "uplink_connector": "LC 双工单模光接口（方案）"
+  },
+  "schema_version": 1,
+  "state": "assumed"
+}

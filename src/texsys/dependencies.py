@@ -1,5 +1,6 @@
 """Local-path design dependency resolution, locking and synchronization."""
 
+from collections.abc import Callable
 from dataclasses import dataclass
 import hashlib
 import json
@@ -333,11 +334,18 @@ def _read_lock(root: Path) -> tuple[str, tuple[LockedPackage, ...]]:
 
 
 def _copy_package(package: LockedPackage, staging: Path) -> None:
+  project = inspect_project(package.root)
+  if project is None:
+    raise ProjectError(f"Dependency is not a texsys project: {package.root}")
+  destination_root = staging / package.name
+  for directory in (project.source, project.assets):
+    (destination_root / directory).mkdir(parents=True, exist_ok=True)
   for source in _package_files(package.root):
-    relative = source.relative_to(package.root)
-    destination = staging / package.name / relative
+    destination = destination_root / source.relative_to(package.root)
     destination.parent.mkdir(parents=True, exist_ok=True)
     shutil.copyfile(source, destination)
+  if _package_digest(destination_root) != package.digest:
+    raise ProjectError(f"Locked content changed while copying '{package.name}'; retry with stable inputs.")
 
 
 def sync_project(path: Path) -> tuple[LockedPackage, ...]:
@@ -405,8 +413,13 @@ def _dependency_inputs(root: Path) -> tuple[bytes, bytes | None]:
   return (root / MANIFEST_NAME).read_bytes(), lock.read_bytes() if lock.exists() else None
 
 
-def _publish_dependencies(root: Path, document: TOMLDocument, before: tuple[bytes, bytes | None]) -> LockResult:
+def _publish_dependencies(
+  root: Path, document: TOMLDocument, before: tuple[bytes, bytes | None],
+  on_resolved: Callable[[TOMLDocument, LockResult], None] | None = None,
+) -> LockResult:
   result = resolve_dependencies(root, document)
+  if on_resolved is not None:
+    on_resolved(document, result)
   if _dependency_inputs(root) != before:
     raise ProjectError("Dependency inputs changed while resolving. Retry with stable inputs.")
   changes = (
@@ -431,7 +444,11 @@ def _publish_dependencies(root: Path, document: TOMLDocument, before: tuple[byte
   return result
 
 
-def add_dependency(path: Path, source: Path, version: str | None = None) -> LockResult:
+def add_dependency(
+  path: Path, source: Path, version: str | None = None, *,
+  on_resolved: Callable[[TOMLDocument, LockResult], None] | None = None,
+) -> LockResult:
+  """Add a path package and optionally record metadata against the resolved lock."""
   root = path.expanduser().resolve()
   source = source.expanduser().resolve()
   package_project = inspect_project(source)
@@ -454,7 +471,7 @@ def add_dependency(path: Path, source: Path, version: str | None = None) -> Lock
         raise ProjectError("Dependency version must be a non-empty string.")
       declaration["version"] = version
     dependencies[package_project.name] = declaration
-    return _publish_dependencies(root, document, before)
+    return _publish_dependencies(root, document, before, on_resolved)
 
 
 def remove_dependency(path: Path, name: str) -> LockResult:

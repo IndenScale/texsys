@@ -1,0 +1,87 @@
+{
+  "schema_version": 1,
+  "state": "assumed",
+  "basis": "沿六道 X 向和四道 Y 向支撑跨布置钢筋混凝土拉梁，按基础侧面刚接传递轴力、剪力和弯矩。梁底不计土反力。独立基础沿用同一竖向土体刚度和摩擦系数。土体水平刚度为算例输入，达到底面摩擦上限后经拉梁重新分配水平力。",
+  "layout_case": "full-equivalent-seismic-x",
+  "horizontal_soil_stiffness_kn_m": 16000,
+  "beam": {
+    "width_m": 0.45,
+    "depth_m": 0.5,
+    "height_above_bearing_m": 0.3,
+    "elastic_modulus_gpa": 27,
+    "effective_ea_ratio": 0.5,
+    "effective_ei_ratio": 0.35,
+    "unit_weight_kn_m3": 24
+  },
+  "limits": {
+    "tension_kn": 360,
+    "compression_kn": 620,
+    "shear_kn": 280,
+    "moment_kn_m": 240,
+    "service_displacement_m": 0.01,
+    "strength_displacement_m": 0.025
+  },
+  "runs": {
+    "North-1": {
+      "axis": "x",
+      "line": "Y6",
+      "stations": ["X1B", "X2A"]
+    },
+    "North-2": {
+      "axis": "x",
+      "line": "Y6",
+      "stations": ["X3B", "X4A"]
+    },
+    "North-3": {
+      "axis": "x",
+      "line": "Y6",
+      "stations": ["X5B", "XS"]
+    },
+    "South-1": {
+      "axis": "x",
+      "line": "Y0",
+      "stations": ["X1B", "X2A"]
+    },
+    "South-2": {
+      "axis": "x",
+      "line": "Y0",
+      "stations": ["X3B", "X4A"]
+    },
+    "South-3": {
+      "axis": "x",
+      "line": "Y0",
+      "stations": ["X5B", "XS"]
+    },
+    "West-1": {
+      "axis": "y",
+      "line": "X0",
+      "stations": ["Y2", "Y3"]
+    },
+    "West-2": {
+      "axis": "y",
+      "line": "X0",
+      "stations": ["Y4", "Y5"]
+    },
+    "East-1": {
+      "axis": "y",
+      "line": "XE",
+      "stations": ["Y1", "Y2"]
+    },
+    "East-2": {
+      "axis": "y",
+      "line": "XE",
+      "stations": ["Y3", "Y4"]
+    }
+  },
+  "expected": {
+    "initial-gravity": "pass",
+    "full-gravity": "pass",
+    "full-weak-bearing": "fail",
+    "full-local-soft-ground": "fail",
+    "full-wind-x": "pass",
+    "initial-wind-y": "pass",
+    "full-wind-one-bay-out": "pass",
+    "full-wind-x-restraint-lost": "fail",
+    "initial-wind-overturning": "fail"
+  }
+}

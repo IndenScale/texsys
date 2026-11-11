@@ -1,0 +1,68 @@
+schema_version = 1
+name = "双回路液冷机柜"
+version = "0.1.0"
+entry = "liquid-cooled-rack.sdl.json"
+
+[assets.geometry]
+kind = "geometry"
+path = "assets/geometry.usda"
+source = "Texsys 暖通专业库方案假设"
+fidelity = "机柜包络与接口位姿"
+
+[assets.symbol]
+kind = "symbol"
+path = "assets/symbol.svg"
+source = "Texsys 暖通专业库方案假设"
+fidelity = "功能符号与端口锚点"
+
+[assets.specification]
+kind = "specification"
+path = "assets/specification.json"
+source = "Texsys 暖通专业库方案假设"
+fidelity = "坐标、接口和适用边界"
+
+[assets.behavior]
+kind = "behavior"
+path = "assets/behavior.json"
+source = "Texsys 暖通专业库方案假设"
+fidelity = "双独立回路与压降模型"
+
+[port_bindings.air_in_a]
+geometry = "/Module/Ports/air_in_a"
+symbol = "port-air_in_a"
+
+[port_bindings.air_in_b]
+geometry = "/Module/Ports/air_in_b"
+symbol = "port-air_in_b"
+
+[port_bindings.air_out_a]
+geometry = "/Module/Ports/air_out_a"
+symbol = "port-air_out_a"
+
+[port_bindings.air_out_b]
+geometry = "/Module/Ports/air_out_b"
+symbol = "port-air_out_b"
+
+[port_bindings.power_a]
+geometry = "/Module/Ports/power_a"
+symbol = "port-power_a"
+
+[port_bindings.power_b]
+geometry = "/Module/Ports/power_b"
+symbol = "port-power_b"
+
+[port_bindings.tcs_in_a]
+geometry = "/Module/Ports/tcs_in_a"
+symbol = "port-tcs_in_a"
+
+[port_bindings.tcs_in_b]
+geometry = "/Module/Ports/tcs_in_b"
+symbol = "port-tcs_in_b"
+
+[port_bindings.tcs_out_a]
+geometry = "/Module/Ports/tcs_out_a"
+symbol = "port-tcs_out_a"
+
+[port_bindings.tcs_out_b]
+geometry = "/Module/Ports/tcs_out_b"
+symbol = "port-tcs_out_b"

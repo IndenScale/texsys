@@ -1,0 +1,30 @@
+schema_version = 1
+name = "热浸镀锌扁钢"
+version = "0.1.0"
+entry = "galvanized-flat-strip.sdl.json"
+
+[assets.geometry]
+kind = "geometry"
+path = "assets/geometry.usda"
+source = "Texsys 电气专业库方案样件"
+fidelity = "米制构造包络与端口位姿"
+
+[assets.symbol]
+kind = "symbol"
+path = "assets/symbol.svg"
+source = "Texsys 电气专业库方案样件"
+fidelity = "带端口锚点的等电位连接示意"
+
+[assets.specification]
+kind = "specification"
+path = "assets/specification.json"
+source = "Texsys 电气专业库方案样件"
+fidelity = "方案参数与接口坐标"
+
+[port_bindings.end_a]
+geometry = "/Module/Ports/end_a"
+symbol = "port-end_a"
+
+[port_bindings.end_b]
+geometry = "/Module/Ports/end_b"
+symbol = "port-end_b"

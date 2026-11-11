@@ -1,0 +1,9 @@
+{
+  "schema_version": 1,
+  "state": "assumed",
+  "basis": "楼板洞口按管线贯穿、竖井封闭板和机房预留分别登记。具备同层管线连接时，撤销相应机房穿板预留。封闭板沿用典型 W 型钢模板楼板的最小混凝土厚度，独立表达且不计入主楼盖面内刚度。",
+  "unit_fws_opening_policy": "retire-when-served-above-floor",
+  "minimum_steel_clearance_m": 0.05,
+  "shaft_aperture_inset_m": 0.16,
+  "roof_coordination_depth_m": 0.14
+}

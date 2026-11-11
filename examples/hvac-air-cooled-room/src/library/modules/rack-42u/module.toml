@@ -1,0 +1,40 @@
+schema_version = 1
+name = "42U 机柜"
+version = "0.1.0"
+entry = "rack-42u.sdl.json"
+
+[assets.geometry]
+kind = "geometry"
+path = "assets/geometry.usda"
+source = "风冷机房参考库方案假设"
+fidelity = "方案级实体与接口定位"
+
+[assets.symbol]
+kind = "symbol"
+path = "assets/symbol.svg"
+source = "风冷机房参考库方案假设"
+fidelity = "带端口锚点的功能示意"
+
+[assets.specification]
+kind = "specification"
+path = "assets/specification.json"
+source = "风冷机房参考库方案假设"
+fidelity = "有单位的方案假设"
+
+[assets.heat_load]
+kind = "behavior"
+path = "assets/heat-load.json"
+source = "风冷机房稳态能量预算"
+fidelity = "显热恒等关系"
+
+[port_bindings.front]
+geometry = "/Module/Ports/front"
+symbol = "port-front"
+
+[port_bindings.rear]
+geometry = "/Module/Ports/rear"
+symbol = "port-rear"
+
+[port_bindings.rails]
+geometry = "/Module/Ports/rails"
+symbol = "port-rails"

@@ -1,0 +1,73 @@
+{
+  "schema_version": 1,
+  "state": "assumed",
+  "basis": "Texsys 暖通专业库方案假设",
+  "envelope_m": [0.8, 1.2, 2.2],
+  "frame": {
+    "origin": "cabinet-minimum-corner",
+    "units": "m",
+    "up_axis": "Z"
+  },
+  "interfaces": {
+    "tcs_in_a": {
+      "position_m": [0.15, 0.16, 2.2],
+      "normal": [0, 0, 1]
+    },
+    "tcs_out_a": {
+      "position_m": [0.31, 0.42, 2.2],
+      "normal": [0, 0, 1]
+    },
+    "tcs_in_b": {
+      "position_m": [0.48, 0.68, 2.2],
+      "normal": [0, 0, 1]
+    },
+    "tcs_out_b": {
+      "position_m": [0.64, 0.94, 2.2],
+      "normal": [0, 0, 1]
+    },
+    "power_a": {
+      "position_m": [0.13, 1.08, 2.2],
+      "normal": [0, 0, 1]
+    },
+    "power_b": {
+      "position_m": [0.69, 1.08, 2.2],
+      "normal": [0, 0, 1]
+    },
+    "air_in_a": {
+      "position_m": [0.2, 0, 1.1],
+      "normal": [0, -1, 0]
+    },
+    "air_in_b": {
+      "position_m": [0.6, 0, 1.1],
+      "normal": [0, -1, 0]
+    },
+    "air_out_a": {
+      "position_m": [0.2, 1.2, 1.1],
+      "normal": [0, 1, 0]
+    },
+    "air_out_b": {
+      "position_m": [0.6, 1.2, 1.1],
+      "normal": [0, 1, 0]
+    }
+  },
+  "properties": {
+    "geometry_parts": {
+      "Cabinet": {
+        "origin_m": [0, 0, 0],
+        "size_m": [0.8, 1.2, 2.2],
+        "color": [0.24, 0.31, 0.38]
+      },
+      "Door": {
+        "origin_m": [0.05, 0, 0.08],
+        "size_m": [0.7, 0.035, 2.04],
+        "color": [0.11, 0.16, 0.22]
+      },
+      "Indicator": {
+        "origin_m": [0.6, 0, 1.86],
+        "size_m": [0.08, 0.02, 0.09],
+        "color": [0.19, 0.76, 0.79]
+      }
+    }
+  },
+  "limitations": "方案级外壳及端口。内部歧管、快接、冷板采用等效阻力，制造商设备按项目核实。"
+}

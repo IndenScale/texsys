@@ -1,0 +1,36 @@
+{
+  "schema_version": 1,
+  "state": "assumed",
+  "interfaces": {
+    "tape": {
+      "position_m": [
+        -0.08,
+        0,
+        0.016
+      ],
+      "normal": [
+        -1,
+        0,
+        0
+      ]
+    },
+    "rebar": {
+      "position_m": [
+        0,
+        0,
+        0
+      ],
+      "normal": [
+        0,
+        1,
+        0
+      ]
+    }
+  },
+  "properties": {
+    "mechanism": "irreversible-compression",
+    "material": "concept-steel-sleeve",
+    "embedded_body_prim": "/Module/Geometry/CompressionSleeve"
+  },
+  "limitations": "名义方案样件。工程应用须提供适用产品、工法及验收证据。"
+}

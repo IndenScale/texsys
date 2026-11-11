@@ -1,0 +1,30 @@
+{
+  "components": {
+    "RackPDU": {
+      "ports": {
+        "feed": {
+          "direction": "in",
+          "kind": "ac-feed",
+          "max_connections": 1
+        },
+        "mount": {
+          "direction": "inout",
+          "kind": "rack-mount",
+          "max_connections": 1
+        },
+        "out_a": {
+          "direction": "out",
+          "kind": "ac-equipment",
+          "max_connections": 1
+        },
+        "out_b": {
+          "direction": "out",
+          "kind": "ac-equipment",
+          "max_connections": 1
+        }
+      }
+    }
+  },
+  "root": "RackPDU",
+  "schema_version": 1
+}

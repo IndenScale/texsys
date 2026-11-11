@@ -15,6 +15,7 @@ from urllib.parse import parse_qs, urlparse
 from texsys.project import ProjectError
 from .ai import AiSettings, draft_commit_message, is_ai_config_path, test_connection
 from .runtime import Conflict, StudioRuntime
+from .scene import ScenePreview
 from .files import file_operation, project_file, project_files, search_project
 from .search import replacement
 from .source_control import (repository, source_commit_diff, source_diff, source_history, source_operation,
@@ -112,6 +113,7 @@ def create_server(runtime: StudioRuntime, port=8710, frontend=None, token=None, 
   token = token or secrets.token_urlsafe(32)
   ai_settings = AiSettings()
   terminals = TerminalService()
+  scene = ScenePreview(runtime.root, runtime.project.build)
 
   def scm_root(scope):
     if scope not in {"project", "repository"}:
@@ -188,6 +190,13 @@ def create_server(runtime: StudioRuntime, port=8710, frontend=None, token=None, 
       try:
         if parsed.path == "/api/state":
           self._send(200, runtime.state())
+        elif parsed.path == "/api/design-index":
+          from .library_sources import library_index
+
+          self._send(200, library_index(runtime.root, runtime.project.source, []))
+        elif parsed.path == "/api/scene":
+          known = parse_qs(parsed.query).get("revision", [""])[0]
+          self._send(200, scene.read(known))
         elif parsed.path == "/api/ai/settings":
           self._send(200, ai_settings.read().public())
         elif parsed.path == "/api/files":
@@ -251,7 +260,17 @@ def create_server(runtime: StudioRuntime, port=8710, frontend=None, token=None, 
         body = json.loads(self.rfile.read(length))
         if not isinstance(body, dict):
           raise ProjectError("Request must be an object.")
-        if self.path == "/api/search/replace":
+        if self.path == "/api/library":
+          from .library_sources import library_index, reference_library_entry
+
+          if body.get("action") == "reference":
+            with runtime.lock:
+              result = reference_library_entry(runtime.root, body)
+          elif body.get("action") == "index":
+            result = library_index(runtime.root, runtime.project.source, body.get("folders"))
+          else:
+            raise ProjectError("Unknown library operation.")
+        elif self.path == "/api/search/replace":
           with runtime.lock:
             result = replacement(runtime.root, runtime.project.build, body)
         elif self.path == "/api/file":

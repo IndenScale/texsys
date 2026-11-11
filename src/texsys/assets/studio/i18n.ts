@@ -2,18 +2,19 @@ import { useSyncExternalStore } from "react";
 import { englishMessages } from "./messages";
 
 export type Locale = "zh-CN" | "en";
+export const defaultLocale: Locale = "zh-CN";
 export const localeStorageKey = "texsys.studio.locale";
 export const supportedLocales: readonly Locale[] = ["zh-CN", "en"];
 
 export function parseLocale(value: string | null): Locale {
-  return value === "en" ? "en" : "zh-CN";
+  return value === "en" ? "en" : defaultLocale;
 }
 
 function readLocale(): Locale {
   try {
     return parseLocale(localStorage.getItem(localeStorageKey));
   } catch {
-    return "zh-CN";
+    return defaultLocale;
   }
 }
 
@@ -36,7 +37,7 @@ export function setLocale(next: Locale) {
 if (typeof window !== "undefined") {
   window.addEventListener("storage", (event) => {
     if (event.key !== localeStorageKey && event.key !== null) return;
-    const next = event.key === null ? "zh-CN" : parseLocale(event.newValue);
+    const next = event.key === null ? defaultLocale : parseLocale(event.newValue);
     if (locale === next) return;
     locale = next;
     listeners.forEach((listener) => listener());
@@ -50,7 +51,7 @@ export function useLocale(): Locale {
       return () => listeners.delete(listener);
     },
     getLocale,
-    () => "zh-CN",
+    () => defaultLocale,
   );
 }
 

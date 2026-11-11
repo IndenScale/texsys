@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "root": "UnitFloor",
+  "imports": {
+    "DeckSlab": "@structure/library/modules/w-form-concrete-slab/w-form-concrete-slab.sdl.json"
+  },
+  "components": {
+    "UnitFloor": {
+      "instances": {
+        "FloorDeck": {
+          "component": "DeckSlab"
+        }
+      }
+    }
+  }
+}

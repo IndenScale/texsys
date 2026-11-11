@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 150 105">
+  <rect x="35" y="22" width="80" height="61" rx="3" fill="#243643" stroke="#8daaba" />
+  <text x="75" y="49" text-anchor="middle" fill="#e1f0f5" font-size="10">LIQUID RACK</text>
+  <text x="75" y="64" text-anchor="middle" fill="#bfdce5" font-size="9">A + B</text>
+  <circle id="port-power_a" data-port="power_a" cx="56" cy="22" r="3" fill="#b7e4e9" />
+  <circle id="port-power_b" data-port="power_b" cx="94" cy="22" r="3" fill="#b7e4e9" />
+  <circle id="port-tcs_in_a" data-port="tcs_in_a" cx="35" cy="33" r="3" fill="#b7e4e9" />
+  <circle id="port-tcs_out_a" data-port="tcs_out_a" cx="35" cy="46" r="3" fill="#b7e4e9" />
+  <circle id="port-tcs_in_b" data-port="tcs_in_b" cx="35" cy="59" r="3" fill="#b7e4e9" />
+  <circle id="port-tcs_out_b" data-port="tcs_out_b" cx="35" cy="72" r="3" fill="#b7e4e9" />
+  <circle id="port-air_in_a" data-port="air_in_a" cx="115" cy="33" r="3" fill="#b7e4e9" />
+  <circle id="port-air_out_a" data-port="air_out_a" cx="115" cy="46" r="3" fill="#b7e4e9" />
+  <circle id="port-air_in_b" data-port="air_in_b" cx="115" cy="59" r="3" fill="#b7e4e9" />
+  <circle id="port-air_out_b" data-port="air_out_b" cx="115" cy="72" r="3" fill="#b7e4e9" />
+</svg>

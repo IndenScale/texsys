@@ -1,0 +1,73 @@
+#usda 1.0
+(
+    defaultPrim = "Module"
+    metersPerUnit = 1
+    upAxis = "Z"
+)
+
+def Xform "Module"
+{
+    def Scope "Geometry"
+    {
+        def Cube "Body"
+        {
+            color3f[] primvars:displayColor = [(0.11, 0.15, 0.19)]
+            double size = 1
+            float3 xformOp:scale = (0.4386, 0.708, 0.0849)
+            double3 xformOp:translate = (0.2413, 0.366, 0.04445)
+            uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
+        }
+
+        def Cube "Face"
+        {
+            color3f[] primvars:displayColor = [(0.3, 0.39, 0.48)]
+            double size = 1
+            float3 xformOp:scale = (0.4826, 0.012, 0.0889)
+            double3 xformOp:translate = (0.2413, 0.006, 0.04445)
+            uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
+        }
+
+        def Cube "FacePort_0"
+        {
+            color3f[] primvars:displayColor = [(0.26, 0.61, 0.71)]
+            double size = 1
+            float3 xformOp:scale = (0.016, 0.004, 0.012)
+            double3 xformOp:translate = (0.17, 0.002, 0.04445)
+            uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
+        }
+
+        def Cube "FacePort_1"
+        {
+            color3f[] primvars:displayColor = [(0.26, 0.61, 0.71)]
+            double size = 1
+            float3 xformOp:scale = (0.016, 0.004, 0.012)
+            double3 xformOp:translate = (0.2, 0.002, 0.04445)
+            uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
+        }
+    }
+
+    def Scope "Ports"
+    {
+        def Xform "mount"
+        {
+            custom double3 texsys:normal = (0, -1, 0)
+            double3 xformOp:translate = (0.2413, 0, 0)
+            uniform token[] xformOpOrder = ["xformOp:translate"]
+        }
+
+        def Xform "power"
+        {
+            custom double3 texsys:normal = (0, 1, 0)
+            double3 xformOp:translate = (0.43, 0.72, 0.04445)
+            uniform token[] xformOpOrder = ["xformOp:translate"]
+        }
+
+        def Xform "management"
+        {
+            custom double3 texsys:normal = (0, 1, 0)
+            double3 xformOp:translate = (0.15, 0.72, 0.04445)
+            uniform token[] xformOpOrder = ["xformOp:translate"]
+        }
+    }
+}
+

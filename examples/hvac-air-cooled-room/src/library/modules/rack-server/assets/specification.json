@@ -1,0 +1,22 @@
+{
+  "basis": "风冷机房参考库方案假设",
+  "envelope_m": [
+    0.4826,
+    0.72,
+    0.0889
+  ],
+  "frame": {
+    "front": "-Y",
+    "origin": "包络最小角",
+    "units": "m",
+    "up_axis": "Z"
+  },
+  "limitations": "用于机架占位与端口定位，负荷计入机柜总预算，计算性能和实际功耗待选型。",
+  "properties": {
+    "management_connector": "RJ45",
+    "rack_units": 2,
+    "representative_depth_m": 0.72
+  },
+  "schema_version": 1,
+  "state": "assumed"
+}

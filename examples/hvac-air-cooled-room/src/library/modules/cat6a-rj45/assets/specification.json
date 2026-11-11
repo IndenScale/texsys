@@ -1,0 +1,29 @@
+{
+  "basis": "风冷机房参考库方案假设",
+  "envelope_m": [
+    0.02,
+    1,
+    0.016
+  ],
+  "frame": {
+    "front": "-Y",
+    "origin": "包络最小角",
+    "units": "m",
+    "up_axis": "Z"
+  },
+  "limitations": "几何展示直线样件，项目长度由实际路由确定。弯曲半径为方案占位假设，施工值取自选定线缆。",
+  "properties": {
+    "connector": "RJ45",
+    "jacket_diameter_m": 0.007,
+    "medium": "Cat 6A 铜缆",
+    "planning_min_bend_radius_m": 0.035,
+    "reference_length_m": 1.0,
+    "route_color": [
+      0.1,
+      0.4,
+      0.68
+    ]
+  },
+  "schema_version": 1,
+  "state": "assumed"
+}

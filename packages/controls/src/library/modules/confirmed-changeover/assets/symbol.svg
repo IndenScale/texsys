@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 166 100">
+  <rect x="28" y="14" width="110" height="72" rx="5" fill="#233746" stroke="#90b6c7" />
+  <text x="83" y="53" text-anchor="middle" font-size="11" fill="#e4f4f7">CONFIRMED-CHANGEOVER</text>
+  <circle id="port-fault" data-port="fault" cx="28" cy="24" r="3" fill="#b9e8eb" />
+  <circle id="port-supply_closed" data-port="supply_closed" cx="28" cy="41" r="3" fill="#b9e8eb" />
+  <circle id="port-return_closed" data-port="return_closed" cx="28" cy="58" r="3" fill="#b9e8eb" />
+  <circle id="port-backup_proof" data-port="backup_proof" cx="28" cy="75" r="3" fill="#b9e8eb" />
+  <circle id="port-close_supply" data-port="close_supply" cx="138" cy="24" r="3" fill="#b9e8eb" />
+  <circle id="port-close_return" data-port="close_return" cx="138" cy="41" r="3" fill="#b9e8eb" />
+  <circle id="port-enable_backup" data-port="enable_backup" cx="138" cy="58" r="3" fill="#b9e8eb" />
+</svg>

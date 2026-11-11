@@ -1,0 +1,36 @@
+{
+  "components": {
+    "ServiceHanger": {
+      "instances": {
+        "RodA": {
+          "component": "Rod"
+        },
+        "RodB": {
+          "component": "Rod"
+        }
+      },
+      "ports": {
+        "anchor_a": {
+          "direction": "inout",
+          "kind": "hanger-anchor",
+          "max_connections": 1
+        },
+        "anchor_b": {
+          "direction": "inout",
+          "kind": "hanger-anchor",
+          "max_connections": 1
+        },
+        "tray_bearing": {
+          "direction": "inout",
+          "kind": "tray-support",
+          "max_connections": 1
+        }
+      }
+    }
+  },
+  "imports": {
+    "Rod": "library/modules/threaded-rod/threaded-rod.sdl.json"
+  },
+  "root": "ServiceHanger",
+  "schema_version": 1
+}

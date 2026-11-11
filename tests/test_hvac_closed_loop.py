@@ -44,11 +44,12 @@ def update_domain(root: Path, update) -> None:
   path.write_text(json.dumps(document, indent=2, sort_keys=True) + "\n", encoding="utf-8")
 
 
-def test_all_hvac_packages_are_discoverable() -> None:
+def test_builtin_design_packages_are_discoverable() -> None:
   packages = {package.name: package.version for package in installed_packages()}
 
   assert packages == {
     "bom": "0.1.0",
+    "datacenter": "0.1.0",
     "hvac-bom": "0.1.0",
     "hvac-diagram": "0.1.0",
     "hvac-dynamics": "0.1.0",

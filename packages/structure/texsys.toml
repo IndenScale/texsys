@@ -1,0 +1,13 @@
+schema_version = 1
+
+[project]
+name = "structure"
+version = "0.1.0"
+
+[layout]
+source = "src"
+assets = "assets"
+build = "build"
+
+[dependencies]
+spatial = { path = "../spatial", version = "0.1.0" }

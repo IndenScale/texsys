@@ -43,6 +43,7 @@ import {
   type DocumentHistory,
 } from "../../../../../src/texsys/assets/studio/navigation";
 import { FileDocument } from "../../../../../src/texsys/assets/studio/FileDocument";
+import { ScenePreview } from "../../../../../src/texsys/assets/studio/ScenePreview";
 import { WorkbenchBottomPanel } from "../../../../../src/texsys/assets/studio/BottomPanel";
 import { useDrawingViewport } from "./drawingViewport";
 import "./workbench.css";
@@ -51,6 +52,7 @@ type View =
   | "file"
   | "overview"
   | "design"
+  | "scene"
   | "equipment"
   | "components"
   | "simulation"
@@ -86,6 +88,13 @@ const views: { id: View; label: string; icon: string; group: string; description
     icon: "table",
     group: "设计",
     description: "同一系统的设备表，与图面和实例属性关联。",
+  },
+  {
+    id: "scene",
+    label: "场景预览",
+    icon: "cube",
+    group: "设计",
+    description: "自动跟踪最新 USD 场景",
   },
   {
     id: "components",
@@ -663,7 +672,7 @@ function Workspace({
       <select
         className="editor-view-select"
         aria-label={t("当前编辑视图")}
-        value={["design", "equipment", "source"].includes(view) ? view : "other"}
+        value={["design", "equipment", "source", "scene"].includes(view) ? view : "other"}
         onChange={(event) => openView(event.target.value as View)}
       >
         <option value="design">
@@ -675,7 +684,8 @@ function Workspace({
         <option value="source">
           {source.root} {t("· 源数据")}
         </option>
-        {!["design", "equipment", "source"].includes(view) && (
+        <option value="scene">{t("场景预览")}</option>
+        {!["design", "equipment", "source", "scene"].includes(view) && (
           <option value="other">{t(info(view).label)}</option>
         )}
       </select>
@@ -861,6 +871,7 @@ function Workspace({
             }}
           >
             {view === "file" && <FileDocument path={filePath} api={api} />}
+            {view === "scene" && <ScenePreview api={api} active={!core?.documentActive} />}
             {view === "overview" && (
               <div className="data-view project-overview">
                 <div className="overview-heading">
@@ -896,6 +907,7 @@ function Workspace({
                 <div className="project-work-list">
                   {[
                     ["equipment", t("核对设备与参数"), t("查看实例覆盖、继承与参数依据")],
+                    ["scene", t(info("scene").label), t(info("scene").description)],
                     ["components", t(info("components").label), t(info("components").description)],
                     [
                       "simulation",
@@ -1707,6 +1719,7 @@ const plugin: WorkbenchPlugin = {
     api_version: 1,
     capabilities: [
       "system-view",
+      "scene-preview",
       "equipment-table",
       "parameter-edit",
       "symbols",

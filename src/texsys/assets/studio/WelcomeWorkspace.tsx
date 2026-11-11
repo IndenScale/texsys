@@ -328,7 +328,7 @@ export function WelcomeWorkspace({
     <details className="welcome-guide">
       <summary>
         <Icon name={icon} size={18} />
-        <strong>{t(title)}</strong>
+        <span>{t(title)}</span>
         <Icon name="chevron" size={14} />
       </summary>
       <div>

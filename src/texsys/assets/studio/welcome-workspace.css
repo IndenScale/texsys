@@ -52,20 +52,9 @@
 }
 
 .welcome-page {
-  width: min(100%, 940px);
+  width: min(100%, 1120px);
   margin: 0 auto;
-  padding: clamp(30px, 8cqi, 100px) clamp(22px, 8cqi, 80px) 36px;
-}
-
-.welcome-page header {
-  margin-bottom: 32px;
-}
-
-.welcome-page h1 {
-  margin: 0 0 6px;
-  font-size: clamp(28px, 5cqi, 42px);
-  font-weight: 550;
-  letter-spacing: -0.035em;
+  padding: clamp(36px, 8cqi, 96px) clamp(22px, 8cqi, 96px) 36px;
 }
 
 .welcome-page p {
@@ -74,16 +63,33 @@
   line-height: 1.55;
 }
 
+.welcome-page > header {
+  margin-bottom: 24px;
+}
+
+.welcome-page h1 {
+  margin: 0 0 4px;
+  font-size: 26px;
+  font-weight: 500;
+  line-height: 1.2;
+}
+
+.welcome-page > header p {
+  font-size: 18px;
+  font-weight: 400;
+  line-height: 1.4;
+}
+
 .welcome-columns {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr);
-  gap: clamp(24px, 6cqi, 76px);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: clamp(24px, 8cqi, 92px);
 }
 
 .welcome-page h2 {
   margin: 0 0 10px;
-  font-size: 16px;
-  font-weight: 600;
+  font-size: 18px;
+  font-weight: 400;
 }
 
 .welcome-link {
@@ -122,7 +128,7 @@
 
 .welcome-guide {
   border: 1px solid var(--ui-chrome-border-subtle);
-  border-radius: 7px;
+  border-radius: 6px;
   margin-bottom: 8px;
   background: var(--ui-workbench-backdrop);
 }
@@ -131,7 +137,7 @@
   display: flex;
   align-items: center;
   gap: 9px;
-  padding: 11px;
+  padding: 8px 10px;
   cursor: pointer;
   list-style: none;
 }
@@ -174,6 +180,10 @@
 }
 
 @container (max-width: 550px) {
+  .welcome-page {
+    padding: 36px 22px;
+  }
+
   .welcome-columns {
     grid-template-columns: minmax(0, 1fr);
   }

@@ -1,0 +1,57 @@
+#usda 1.0
+(
+    defaultPrim = "Module"
+    metersPerUnit = 1
+    upAxis = "Z"
+)
+
+def Xform "Module"
+{
+    def Scope "Geometry"
+    {
+        def Cube "Cabinet"
+        {
+            color3f[] primvars:displayColor = [(0.78, 0.81, 0.82)]
+            double size = 1
+            float3 xformOp:scale = (1.2, 1.2, 2)
+            double3 xformOp:translate = (0.6, 0.6, 1)
+            uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
+        }
+
+        def Cube "Return"
+        {
+            color3f[] primvars:displayColor = [(0.26, 0.61, 0.71)]
+            double size = 1
+            float3 xformOp:scale = (0.96, 0.96, 0.014)
+            double3 xformOp:translate = (0.6, 0.6, 2.007)
+            uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
+        }
+
+        def Cube "Outlet"
+        {
+            color3f[] primvars:displayColor = [(0.3, 0.39, 0.48)]
+            double size = 1
+            float3 xformOp:scale = (1.04, 1.04, 0.12)
+            double3 xformOp:translate = (0.6, 0.6, -0.06)
+            uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
+        }
+    }
+
+    def Scope "Ports"
+    {
+        def Xform "return"
+        {
+            custom double3 texsys:normal = (0, 0, 1)
+            double3 xformOp:translate = (0.6, 0.6, 2.014)
+            uniform token[] xformOpOrder = ["xformOp:translate"]
+        }
+
+        def Xform "downflow"
+        {
+            custom double3 texsys:normal = (0, 0, -1)
+            double3 xformOp:translate = (0.6, 0.6, -0.12)
+            uniform token[] xformOpOrder = ["xformOp:translate"]
+        }
+    }
+}
+

@@ -1,0 +1,92 @@
+schema_version = 1
+manifest_digest = "sha256:a03436270204640bccdd037b190f71dbca1feb53ca70f12fd9e918e794c77c52"
+
+[[packages]]
+name = "architecture"
+version = "0.1.0"
+source = "path"
+path = "../../packages/architecture"
+digest = "sha256:92fe47c24f9947bfee9fe5e098f85f44914961815681a8000601711ceb44887d"
+direct = false
+dependencies = []
+
+[[packages]]
+name = "controls"
+version = "0.1.0"
+source = "path"
+path = "../../packages/controls"
+digest = "sha256:40a5048a6e2490c6d3bf1a4383dcf7b3b68d8229953d1f6efcef0853f0ecf112"
+direct = false
+dependencies = []
+
+[[packages]]
+name = "datacenter"
+version = "0.1.0"
+source = "path"
+path = "../../packages/datacenter"
+digest = "sha256:d81e47770ad974b42610394835c951bc6f548f5faed893eb52ec41dbd3278363"
+direct = true
+dependencies = ["architecture", "controls", "electrical", "fire-protection", "hvac-dynamics", "hvac-equipment", "plumbing", "spatial", "structure"]
+
+[[packages]]
+name = "electrical"
+version = "0.1.0"
+source = "path"
+path = "../../packages/electrical"
+digest = "sha256:fc13a8626185fcdecf6f0b158a99989ab9a1adcf2140ed0c33960c35a91bc363"
+direct = false
+dependencies = []
+
+[[packages]]
+name = "fire-protection"
+version = "0.1.0"
+source = "path"
+path = "../../packages/fire-protection"
+digest = "sha256:1c2b6f150f2c75f03f7f0c01a885f964a4615239f7d9c4d859afe9051313c5a7"
+direct = false
+dependencies = []
+
+[[packages]]
+name = "hvac-dynamics"
+version = "0.1.0"
+source = "path"
+path = "../../packages/hvac-dynamics"
+digest = "sha256:d95e6cd79b1d790c180133f4620b4b90bcafb4cc1157810d07116372c5be4bf4"
+direct = false
+dependencies = []
+
+[[packages]]
+name = "hvac-equipment"
+version = "0.1.0"
+source = "path"
+path = "../../packages/hvac-equipment"
+digest = "sha256:3320fc4dd604a9f389fc116fdb3ad40f411bb0c86ee9ac1ac3af989fcec2c150"
+direct = false
+dependencies = []
+
+[[packages]]
+name = "plumbing"
+version = "0.1.0"
+source = "path"
+path = "../../packages/plumbing"
+digest = "sha256:fd41c48a46a62026a77d7f7038ebe77b7871955cd154a32956a80c1cd7ac83c7"
+direct = false
+dependencies = []
+
+[[packages]]
+name = "spatial"
+version = "0.1.0"
+source = "path"
+path = "../../packages/spatial"
+digest = "sha256:c6468793e45cee7eebbf206a4fe99a62983f13efe16526ac3eb855558c8b1332"
+direct = false
+dependencies = []
+
+[[packages]]
+name = "structure"
+version = "0.1.0"
+source = "path"
+path = "../../packages/structure"
+digest = "sha256:3164797c3151bfc8cb5d150339b4de0fd56fe574cf6e41d83622b7d403c7a15d"
+direct = false
+dependencies = ["spatial"]

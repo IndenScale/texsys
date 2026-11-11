@@ -457,12 +457,12 @@ export function SourceControl({
                               busy || !!status.truncated,
                             )}
                           </div>
-                          <b
+                          <span
                             title={staged ? t("暂存区状态") : t("工作区状态")}
                             className={`core-git-code code-${(staged ? entry.index : entry.worktree).trim()}`}
                           >
                             {staged ? entry.index : entry.worktree === "?" ? "U" : entry.worktree}
-                          </b>
+                          </span>
                         </div>
                       );
                     })}

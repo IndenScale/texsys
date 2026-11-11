@@ -9,9 +9,14 @@ resolution-markers = [
 [manifest]
 members = [
     "texsys",
+    "texsys-architecture",
     "texsys-bom",
+    "texsys-controls",
+    "texsys-datacenter",
     "texsys-diagram",
     "texsys-diagram-elk",
+    "texsys-electrical",
+    "texsys-fire-protection",
     "texsys-hvac-bom",
     "texsys-hvac-checks",
     "texsys-hvac-diagram",
@@ -20,6 +25,9 @@ members = [
     "texsys-hvac-formatter",
     "texsys-hvac-graphics",
     "texsys-hvac-linter",
+    "texsys-plumbing",
+    "texsys-spatial",
+    "texsys-structure",
     "texsys-studio-hvac",
 ]
 
@@ -701,6 +709,7 @@ dev = [
     { name = "pytest" },
     { name = "ruff" },
     { name = "texsys-bom" },
+    { name = "texsys-datacenter" },
     { name = "texsys-diagram" },
     { name = "texsys-diagram-elk" },
     { name = "texsys-hvac-bom" },
@@ -733,6 +742,7 @@ dev = [
     { name = "pytest", specifier = ">=8" },
     { name = "ruff", specifier = ">=0.8" },
     { name = "texsys-bom", editable = "packages/bom" },
+    { name = "texsys-datacenter", editable = "packages/datacenter" },
     { name = "texsys-diagram", editable = "packages/diagram" },
     { name = "texsys-diagram-elk", editable = "packages/diagram-elk" },
     { name = "texsys-hvac-bom", editable = "packages/hvac-bom" },
@@ -751,6 +761,11 @@ docs-lint = [
 ]
 
 [[package]]
+name = "texsys-architecture"
+version = "0.1.0"
+source = { editable = "packages/architecture" }
+
+[[package]]
 name = "texsys-bom"
 version = "0.1.0"
 source = { editable = "packages/bom" }
@@ -760,6 +775,45 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [{ name = "texsys", editable = "." }]
+
+[[package]]
+name = "texsys-controls"
+version = "0.1.0"
+source = { editable = "packages/controls" }
+
+[[package]]
+name = "texsys-datacenter"
+version = "0.1.0"
+source = { editable = "packages/datacenter" }
+dependencies = [
+    { name = "numpy", version = "2.4.6", source = { registry = "https://pypi.tuna.tsinghua.edu.cn/simple" }, marker = "python_full_version < '3.12'" },
+    { name = "numpy", version = "2.5.4", source = { registry = "https://pypi.tuna.tsinghua.edu.cn/simple" }, marker = "python_full_version >= '3.12'" },
+    { name = "texsys" },
+    { name = "texsys-architecture" },
+    { name = "texsys-controls" },
+    { name = "texsys-electrical" },
+    { name = "texsys-fire-protection" },
+    { name = "texsys-hvac-dynamics" },
+    { name = "texsys-hvac-equipment" },
+    { name = "texsys-plumbing" },
+    { name = "texsys-spatial" },
+    { name = "texsys-structure" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "numpy", specifier = ">=1.26,<3" },
+    { name = "texsys", editable = "." },
+    { name = "texsys-architecture", editable = "packages/architecture" },
+    { name = "texsys-controls", editable = "packages/controls" },
+    { name = "texsys-electrical", editable = "packages/electrical" },
+    { name = "texsys-fire-protection", editable = "packages/fire-protection" },
+    { name = "texsys-hvac-dynamics", editable = "packages/hvac-dynamics" },
+    { name = "texsys-hvac-equipment", editable = "packages/hvac-equipment" },
+    { name = "texsys-plumbing", editable = "packages/plumbing" },
+    { name = "texsys-spatial", editable = "packages/spatial" },
+    { name = "texsys-structure", editable = "packages/structure" },
+]
 
 [[package]]
 name = "texsys-diagram"
@@ -786,6 +840,23 @@ requires-dist = [
     { name = "texsys", editable = "." },
     { name = "texsys-diagram", editable = "packages/diagram" },
 ]
+
+[[package]]
+name = "texsys-electrical"
+version = "0.1.0"
+source = { editable = "packages/electrical" }
+
+[[package]]
+name = "texsys-fire-protection"
+version = "0.1.0"
+source = { editable = "packages/fire-protection" }
+dependencies = [
+    { name = "scipy", version = "1.17.1", source = { registry = "https://pypi.tuna.tsinghua.edu.cn/simple" }, marker = "python_full_version < '3.12'" },
+    { name = "scipy", version = "1.18.1", source = { registry = "https://pypi.tuna.tsinghua.edu.cn/simple" }, marker = "python_full_version >= '3.12'" },
+]
+
+[package.metadata]
+requires-dist = [{ name = "scipy", specifier = ">=1.15,<2" }]
 
 [[package]]
 name = "texsys-hvac-bom"
@@ -864,10 +935,16 @@ version = "0.1.0"
 source = { editable = "packages/hvac-equipment" }
 dependencies = [
     { name = "texsys" },
+    { name = "texsys-spatial" },
+    { name = "texsys-structure" },
 ]
 
 [package.metadata]
-requires-dist = [{ name = "texsys", editable = "." }]
+requires-dist = [
+    { name = "texsys", editable = "." },
+    { name = "texsys-spatial", editable = "packages/spatial" },
+    { name = "texsys-structure", editable = "packages/structure" },
+]
 
 [[package]]
 name = "texsys-hvac-formatter"
@@ -914,6 +991,41 @@ dependencies = [
 requires-dist = [
     { name = "texsys", editable = "." },
     { name = "texsys-hvac-equipment", editable = "packages/hvac-equipment" },
+]
+
+[[package]]
+name = "texsys-plumbing"
+version = "0.1.0"
+source = { editable = "packages/plumbing" }
+dependencies = [
+    { name = "scipy", version = "1.17.1", source = { registry = "https://pypi.tuna.tsinghua.edu.cn/simple" }, marker = "python_full_version < '3.12'" },
+    { name = "scipy", version = "1.18.1", source = { registry = "https://pypi.tuna.tsinghua.edu.cn/simple" }, marker = "python_full_version >= '3.12'" },
+]
+
+[package.metadata]
+requires-dist = [{ name = "scipy", specifier = ">=1.15,<2" }]
+
+[[package]]
+name = "texsys-spatial"
+version = "0.1.0"
+source = { editable = "packages/spatial" }
+
+[[package]]
+name = "texsys-structure"
+version = "0.1.0"
+source = { editable = "packages/structure" }
+dependencies = [
+    { name = "numpy", version = "2.4.6", source = { registry = "https://pypi.tuna.tsinghua.edu.cn/simple" }, marker = "python_full_version < '3.12'" },
+    { name = "numpy", version = "2.5.4", source = { registry = "https://pypi.tuna.tsinghua.edu.cn/simple" }, marker = "python_full_version >= '3.12'" },
+    { name = "texsys" },
+    { name = "texsys-spatial" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "numpy", specifier = ">=1.26,<3" },
+    { name = "texsys", editable = "." },
+    { name = "texsys-spatial", editable = "packages/spatial" },
 ]
 
 [[package]]

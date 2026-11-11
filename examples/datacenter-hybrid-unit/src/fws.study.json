@@ -1,0 +1,573 @@
+{
+  "schema_version": 1,
+  "state": "assumed",
+  "basis": "方案算例。A/B 采用独立竖井、供回水支路及分层总管，流量上限采用假设值。",
+  "trains": {
+    "HeatRejection-A": {
+      "plant_node": "Plant-A",
+      "terminals": {
+        "L01": "Header-1",
+        "L02": "Header-2",
+        "L03": "Header-3",
+        "L04": "Header-4"
+      },
+      "segments": [
+        {
+          "id": "A-riser-1-supply",
+          "start": "Plant-A",
+          "end": "Riser-1",
+          "leg": "supply",
+          "capacity_kg_s": 750,
+          "riser": "FWS-Riser-A"
+        },
+        {
+          "id": "A-riser-1-return",
+          "start": "Riser-1",
+          "end": "Plant-A",
+          "leg": "return",
+          "capacity_kg_s": 750,
+          "riser": "FWS-Riser-A"
+        },
+        {
+          "id": "A-L01-supply",
+          "start": "Riser-1",
+          "end": "Header-1",
+          "leg": "supply",
+          "capacity_kg_s": 190
+        },
+        {
+          "id": "A-L01-return",
+          "start": "Header-1",
+          "end": "Riser-1",
+          "leg": "return",
+          "capacity_kg_s": 190
+        },
+        {
+          "id": "A-riser-2-supply",
+          "start": "Riser-1",
+          "end": "Riser-2",
+          "leg": "supply",
+          "capacity_kg_s": 570,
+          "riser": "FWS-Riser-A"
+        },
+        {
+          "id": "A-riser-2-return",
+          "start": "Riser-2",
+          "end": "Riser-1",
+          "leg": "return",
+          "capacity_kg_s": 570,
+          "riser": "FWS-Riser-A"
+        },
+        {
+          "id": "A-L02-supply",
+          "start": "Riser-2",
+          "end": "Header-2",
+          "leg": "supply",
+          "capacity_kg_s": 190
+        },
+        {
+          "id": "A-L02-return",
+          "start": "Header-2",
+          "end": "Riser-2",
+          "leg": "return",
+          "capacity_kg_s": 190
+        },
+        {
+          "id": "A-riser-3-supply",
+          "start": "Riser-2",
+          "end": "Riser-3",
+          "leg": "supply",
+          "capacity_kg_s": 390,
+          "riser": "FWS-Riser-A"
+        },
+        {
+          "id": "A-riser-3-return",
+          "start": "Riser-3",
+          "end": "Riser-2",
+          "leg": "return",
+          "capacity_kg_s": 390,
+          "riser": "FWS-Riser-A"
+        },
+        {
+          "id": "A-L03-supply",
+          "start": "Riser-3",
+          "end": "Header-3",
+          "leg": "supply",
+          "capacity_kg_s": 190
+        },
+        {
+          "id": "A-L03-return",
+          "start": "Header-3",
+          "end": "Riser-3",
+          "leg": "return",
+          "capacity_kg_s": 190
+        },
+        {
+          "id": "A-riser-4-supply",
+          "start": "Riser-3",
+          "end": "Riser-4",
+          "leg": "supply",
+          "capacity_kg_s": 195,
+          "riser": "FWS-Riser-A"
+        },
+        {
+          "id": "A-riser-4-return",
+          "start": "Riser-4",
+          "end": "Riser-3",
+          "leg": "return",
+          "capacity_kg_s": 195,
+          "riser": "FWS-Riser-A"
+        },
+        {
+          "id": "A-L04-supply",
+          "start": "Riser-4",
+          "end": "Header-4",
+          "leg": "supply",
+          "capacity_kg_s": 190
+        },
+        {
+          "id": "A-L04-return",
+          "start": "Header-4",
+          "end": "Riser-4",
+          "leg": "return",
+          "capacity_kg_s": 190
+        }
+      ]
+    },
+    "HeatRejection-B": {
+      "plant_node": "Plant-B",
+      "terminals": {
+        "L01": "Header-1",
+        "L02": "Header-2",
+        "L03": "Header-3",
+        "L04": "Header-4"
+      },
+      "segments": [
+        {
+          "id": "B-riser-1-supply",
+          "start": "Plant-B",
+          "end": "Riser-1",
+          "leg": "supply",
+          "capacity_kg_s": 750,
+          "riser": "FWS-Riser-B"
+        },
+        {
+          "id": "B-riser-1-return",
+          "start": "Riser-1",
+          "end": "Plant-B",
+          "leg": "return",
+          "capacity_kg_s": 750,
+          "riser": "FWS-Riser-B"
+        },
+        {
+          "id": "B-L01-supply",
+          "start": "Riser-1",
+          "end": "Header-1",
+          "leg": "supply",
+          "capacity_kg_s": 190
+        },
+        {
+          "id": "B-L01-return",
+          "start": "Header-1",
+          "end": "Riser-1",
+          "leg": "return",
+          "capacity_kg_s": 190
+        },
+        {
+          "id": "B-riser-2-supply",
+          "start": "Riser-1",
+          "end": "Riser-2",
+          "leg": "supply",
+          "capacity_kg_s": 570,
+          "riser": "FWS-Riser-B"
+        },
+        {
+          "id": "B-riser-2-return",
+          "start": "Riser-2",
+          "end": "Riser-1",
+          "leg": "return",
+          "capacity_kg_s": 570,
+          "riser": "FWS-Riser-B"
+        },
+        {
+          "id": "B-L02-supply",
+          "start": "Riser-2",
+          "end": "Header-2",
+          "leg": "supply",
+          "capacity_kg_s": 190
+        },
+        {
+          "id": "B-L02-return",
+          "start": "Header-2",
+          "end": "Riser-2",
+          "leg": "return",
+          "capacity_kg_s": 190
+        },
+        {
+          "id": "B-riser-3-supply",
+          "start": "Riser-2",
+          "end": "Riser-3",
+          "leg": "supply",
+          "capacity_kg_s": 390,
+          "riser": "FWS-Riser-B"
+        },
+        {
+          "id": "B-riser-3-return",
+          "start": "Riser-3",
+          "end": "Riser-2",
+          "leg": "return",
+          "capacity_kg_s": 390,
+          "riser": "FWS-Riser-B"
+        },
+        {
+          "id": "B-L03-supply",
+          "start": "Riser-3",
+          "end": "Header-3",
+          "leg": "supply",
+          "capacity_kg_s": 190
+        },
+        {
+          "id": "B-L03-return",
+          "start": "Header-3",
+          "end": "Riser-3",
+          "leg": "return",
+          "capacity_kg_s": 190
+        },
+        {
+          "id": "B-riser-4-supply",
+          "start": "Riser-3",
+          "end": "Riser-4",
+          "leg": "supply",
+          "capacity_kg_s": 195,
+          "riser": "FWS-Riser-B"
+        },
+        {
+          "id": "B-riser-4-return",
+          "start": "Riser-4",
+          "end": "Riser-3",
+          "leg": "return",
+          "capacity_kg_s": 195,
+          "riser": "FWS-Riser-B"
+        },
+        {
+          "id": "B-L04-supply",
+          "start": "Riser-4",
+          "end": "Header-4",
+          "leg": "supply",
+          "capacity_kg_s": 190
+        },
+        {
+          "id": "B-L04-return",
+          "start": "Header-4",
+          "end": "Riser-4",
+          "leg": "return",
+          "capacity_kg_s": 190
+        }
+      ]
+    }
+  },
+  "leak_zones": {
+    "Leak-L03-A": {
+      "detector": "LD-L03-A",
+      "faulted_segments": ["A-L03-supply"],
+      "isolation": {
+        "IV-L03-A-S": "A-L03-supply",
+        "IV-L03-A-R": "A-L03-return"
+      }
+    }
+  },
+  "hydraulics": {
+    "density_kg_m3": 997,
+    "viscosity_pa_s": 0.00089,
+    "pipes": {
+      "A-riser-1-supply": {
+        "length_m": 58,
+        "diameter_m": 0.66,
+        "roughness_m": 0.00015,
+        "minor_loss_coefficient": 4,
+        "max_velocity_m_s": 2.5
+      },
+      "A-riser-1-return": {
+        "length_m": 58,
+        "diameter_m": 0.66,
+        "roughness_m": 0.00015,
+        "minor_loss_coefficient": 4,
+        "max_velocity_m_s": 2.5
+      },
+      "A-L01-supply": {
+        "length_m": 36,
+        "diameter_m": 0.34,
+        "roughness_m": 0.00015,
+        "minor_loss_coefficient": 3,
+        "max_velocity_m_s": 2.5
+      },
+      "A-L01-return": {
+        "length_m": 36,
+        "diameter_m": 0.34,
+        "roughness_m": 0.00015,
+        "minor_loss_coefficient": 3,
+        "max_velocity_m_s": 2.5
+      },
+      "A-riser-2-supply": {
+        "length_m": 9,
+        "diameter_m": 0.66,
+        "roughness_m": 0.00015,
+        "minor_loss_coefficient": 1.5,
+        "max_velocity_m_s": 2.5
+      },
+      "A-riser-2-return": {
+        "length_m": 9,
+        "diameter_m": 0.66,
+        "roughness_m": 0.00015,
+        "minor_loss_coefficient": 1.5,
+        "max_velocity_m_s": 2.5
+      },
+      "A-L02-supply": {
+        "length_m": 36,
+        "diameter_m": 0.34,
+        "roughness_m": 0.00015,
+        "minor_loss_coefficient": 3,
+        "max_velocity_m_s": 2.5
+      },
+      "A-L02-return": {
+        "length_m": 36,
+        "diameter_m": 0.34,
+        "roughness_m": 0.00015,
+        "minor_loss_coefficient": 3,
+        "max_velocity_m_s": 2.5
+      },
+      "A-riser-3-supply": {
+        "length_m": 9,
+        "diameter_m": 0.66,
+        "roughness_m": 0.00015,
+        "minor_loss_coefficient": 1.5,
+        "max_velocity_m_s": 2.5
+      },
+      "A-riser-3-return": {
+        "length_m": 9,
+        "diameter_m": 0.66,
+        "roughness_m": 0.00015,
+        "minor_loss_coefficient": 1.5,
+        "max_velocity_m_s": 2.5
+      },
+      "A-L03-supply": {
+        "length_m": 36,
+        "diameter_m": 0.34,
+        "roughness_m": 0.00015,
+        "minor_loss_coefficient": 3,
+        "max_velocity_m_s": 2.5
+      },
+      "A-L03-return": {
+        "length_m": 36,
+        "diameter_m": 0.34,
+        "roughness_m": 0.00015,
+        "minor_loss_coefficient": 3,
+        "max_velocity_m_s": 2.5
+      },
+      "A-riser-4-supply": {
+        "length_m": 9,
+        "diameter_m": 0.66,
+        "roughness_m": 0.00015,
+        "minor_loss_coefficient": 1.5,
+        "max_velocity_m_s": 2.5
+      },
+      "A-riser-4-return": {
+        "length_m": 9,
+        "diameter_m": 0.66,
+        "roughness_m": 0.00015,
+        "minor_loss_coefficient": 1.5,
+        "max_velocity_m_s": 2.5
+      },
+      "A-L04-supply": {
+        "length_m": 45,
+        "diameter_m": 0.34,
+        "roughness_m": 0.00015,
+        "minor_loss_coefficient": 3,
+        "max_velocity_m_s": 2.5
+      },
+      "A-L04-return": {
+        "length_m": 45,
+        "diameter_m": 0.34,
+        "roughness_m": 0.00015,
+        "minor_loss_coefficient": 3,
+        "max_velocity_m_s": 2.5
+      },
+      "B-riser-1-supply": {
+        "length_m": 58,
+        "diameter_m": 0.66,
+        "roughness_m": 0.00015,
+        "minor_loss_coefficient": 4,
+        "max_velocity_m_s": 2.5
+      },
+      "B-riser-1-return": {
+        "length_m": 58,
+        "diameter_m": 0.66,
+        "roughness_m": 0.00015,
+        "minor_loss_coefficient": 4,
+        "max_velocity_m_s": 2.5
+      },
+      "B-L01-supply": {
+        "length_m": 36,
+        "diameter_m": 0.34,
+        "roughness_m": 0.00015,
+        "minor_loss_coefficient": 3,
+        "max_velocity_m_s": 2.5
+      },
+      "B-L01-return": {
+        "length_m": 36,
+        "diameter_m": 0.34,
+        "roughness_m": 0.00015,
+        "minor_loss_coefficient": 3,
+        "max_velocity_m_s": 2.5
+      },
+      "B-riser-2-supply": {
+        "length_m": 9,
+        "diameter_m": 0.66,
+        "roughness_m": 0.00015,
+        "minor_loss_coefficient": 1.5,
+        "max_velocity_m_s": 2.5
+      },
+      "B-riser-2-return": {
+        "length_m": 9,
+        "diameter_m": 0.66,
+        "roughness_m": 0.00015,
+        "minor_loss_coefficient": 1.5,
+        "max_velocity_m_s": 2.5
+      },
+      "B-L02-supply": {
+        "length_m": 36,
+        "diameter_m": 0.34,
+        "roughness_m": 0.00015,
+        "minor_loss_coefficient": 3,
+        "max_velocity_m_s": 2.5
+      },
+      "B-L02-return": {
+        "length_m": 36,
+        "diameter_m": 0.34,
+        "roughness_m": 0.00015,
+        "minor_loss_coefficient": 3,
+        "max_velocity_m_s": 2.5
+      },
+      "B-riser-3-supply": {
+        "length_m": 9,
+        "diameter_m": 0.66,
+        "roughness_m": 0.00015,
+        "minor_loss_coefficient": 1.5,
+        "max_velocity_m_s": 2.5
+      },
+      "B-riser-3-return": {
+        "length_m": 9,
+        "diameter_m": 0.66,
+        "roughness_m": 0.00015,
+        "minor_loss_coefficient": 1.5,
+        "max_velocity_m_s": 2.5
+      },
+      "B-L03-supply": {
+        "length_m": 36,
+        "diameter_m": 0.34,
+        "roughness_m": 0.00015,
+        "minor_loss_coefficient": 3,
+        "max_velocity_m_s": 2.5
+      },
+      "B-L03-return": {
+        "length_m": 36,
+        "diameter_m": 0.34,
+        "roughness_m": 0.00015,
+        "minor_loss_coefficient": 3,
+        "max_velocity_m_s": 2.5
+      },
+      "B-riser-4-supply": {
+        "length_m": 9,
+        "diameter_m": 0.66,
+        "roughness_m": 0.00015,
+        "minor_loss_coefficient": 1.5,
+        "max_velocity_m_s": 2.5
+      },
+      "B-riser-4-return": {
+        "length_m": 9,
+        "diameter_m": 0.66,
+        "roughness_m": 0.00015,
+        "minor_loss_coefficient": 1.5,
+        "max_velocity_m_s": 2.5
+      },
+      "B-L04-supply": {
+        "length_m": 45,
+        "diameter_m": 0.34,
+        "roughness_m": 0.00015,
+        "minor_loss_coefficient": 3,
+        "max_velocity_m_s": 2.5
+      },
+      "B-L04-return": {
+        "length_m": 45,
+        "diameter_m": 0.34,
+        "roughness_m": 0.00015,
+        "minor_loss_coefficient": 3,
+        "max_velocity_m_s": 2.5
+      }
+    },
+    "banks": {
+      "HeatRejection-A": {
+        "pumps": ["FWS-P-A1", "FWS-P-A2", "FWS-P-A3"],
+        "max_running": 2,
+        "shutoff_head_m": 50,
+        "curve_m_per_m6_s2": 115,
+        "max_flow_m3_s_each": 0.54,
+        "efficiency": 0.8,
+        "reserve_kpa": 15,
+        "common_loss": {
+          "rated_flow_m3_s": 0.72,
+          "rated_drop_kpa": 65
+        },
+        "terminal_losses": {
+          "L01": {
+            "rated_flow_m3_s": 0.18,
+            "rated_drop_kpa": 55
+          },
+          "L02": {
+            "rated_flow_m3_s": 0.18,
+            "rated_drop_kpa": 55
+          },
+          "L03": {
+            "rated_flow_m3_s": 0.18,
+            "rated_drop_kpa": 55
+          },
+          "L04": {
+            "rated_flow_m3_s": 0.18,
+            "rated_drop_kpa": 55
+          }
+        }
+      },
+      "HeatRejection-B": {
+        "pumps": ["FWS-P-B1", "FWS-P-B2", "FWS-P-B3"],
+        "max_running": 2,
+        "shutoff_head_m": 50,
+        "curve_m_per_m6_s2": 115,
+        "max_flow_m3_s_each": 0.54,
+        "efficiency": 0.8,
+        "reserve_kpa": 15,
+        "common_loss": {
+          "rated_flow_m3_s": 0.72,
+          "rated_drop_kpa": 65
+        },
+        "terminal_losses": {
+          "L01": {
+            "rated_flow_m3_s": 0.18,
+            "rated_drop_kpa": 55
+          },
+          "L02": {
+            "rated_flow_m3_s": 0.18,
+            "rated_drop_kpa": 55
+          },
+          "L03": {
+            "rated_flow_m3_s": 0.18,
+            "rated_drop_kpa": 55
+          },
+          "L04": {
+            "rated_flow_m3_s": 0.18,
+            "rated_drop_kpa": 55
+          }
+        }
+      }
+    }
+  }
+}

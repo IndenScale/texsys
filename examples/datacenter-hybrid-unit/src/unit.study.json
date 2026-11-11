@@ -1,0 +1,123 @@
+{
+  "basis": "40 MW 数据中心方案工具验证。四机柜 400 kW IT 概念单元，所有设备及工况参数为算例假设。",
+  "cooling": {
+    "air_units": {
+      "PrecisionAir-A": {
+        "net": "Air-A"
+      },
+      "PrecisionAir-B": {
+        "net": "Air-B"
+      }
+    },
+    "cdus": {
+      "CDU-A": {
+        "facility": {
+          "mass_flow_kg_s": 9,
+          "return_c": 35,
+          "specific_heat_kj_kgk": 4.18,
+          "supply_c": 25
+        },
+        "fws_net": "FWS-A",
+        "plant": "FacilityPlant-A",
+        "tcs_net": "TCS-A",
+        "technology": {
+          "mass_flow_kg_s": 9,
+          "return_c": 40,
+          "specific_heat_kj_kgk": 4.0,
+          "supply_c": 30
+        }
+      },
+      "CDU-B": {
+        "facility": {
+          "mass_flow_kg_s": 9,
+          "return_c": 35,
+          "specific_heat_kj_kgk": 4.18,
+          "supply_c": 25
+        },
+        "fws_net": "FWS-B",
+        "plant": "FacilityPlant-B",
+        "tcs_net": "TCS-B",
+        "technology": {
+          "mass_flow_kg_s": 9,
+          "return_c": 40,
+          "specific_heat_kj_kgk": 4.0,
+          "supply_c": 30
+        }
+      }
+    },
+    "other_room_heat_kw": 10,
+    "plants": {
+      "FacilityPlant-A": 330,
+      "FacilityPlant-B": 330
+    },
+    "room_air": {
+      "density_kg_m3": 1.2,
+      "dew_point_c": 14,
+      "max_return_c": 35,
+      "min_surface_c": 20,
+      "specific_heat_kj_kgk": 1.005,
+      "supply_c": 24
+    }
+  },
+  "power": {
+    "capacities_kw": {
+      "Busway-A": 500,
+      "Busway-B": 500,
+      "Switchboard-A": 750,
+      "Switchboard-B": 750,
+      "Transformer-A": 800,
+      "Transformer-B": 800,
+      "UPS-A": 520,
+      "UPS-B": 520,
+      "Utility-A": 850,
+      "Utility-B": 850
+    },
+    "equipment_kw": {
+      "FacilityPlant-A": 120,
+      "FacilityPlant-B": 120
+    },
+    "sources": ["Utility-A", "Utility-B"]
+  },
+  "racks": {
+    "Rack-01": {
+      "it_kw": 100,
+      "liquid_fraction": 0.75,
+      "mass_kg": 1800
+    },
+    "Rack-02": {
+      "it_kw": 100,
+      "liquid_fraction": 0.75,
+      "mass_kg": 1800
+    },
+    "Rack-03": {
+      "it_kw": 100,
+      "liquid_fraction": 0.75,
+      "mass_kg": 1800
+    },
+    "Rack-04": {
+      "it_kw": 100,
+      "liquid_fraction": 0.75,
+      "mass_kg": 1800
+    }
+  },
+  "scenarios": {
+    "both-cdus-out": {
+      "expected": "fail",
+      "unavailable": ["CDU-A", "CDU-B"]
+    },
+    "cdu-a-out": {
+      "expected": "pass",
+      "unavailable": ["CDU-A"]
+    },
+    "normal": {
+      "expected": "pass",
+      "unavailable": []
+    },
+    "supply-a-out": {
+      "expected": "pass",
+      "unavailable": ["Utility-A"]
+    }
+  },
+  "schema_version": 1,
+  "state": "assumed"
+}

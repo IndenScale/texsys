@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "root": "FlatStripRebarCompression",
+  "components": {
+    "FlatStripRebarCompression": {
+      "ports": {
+        "tape": {
+          "kind": "protective-bonding",
+          "direction": "inout",
+          "max_connections": 1
+        },
+        "rebar": {
+          "kind": "protective-bonding",
+          "direction": "inout",
+          "max_connections": 1
+        }
+      }
+    }
+  }
+}

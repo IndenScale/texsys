@@ -1,0 +1,26 @@
+{
+  "schema_version": 1,
+  "root": "BinaryActuator",
+  "components": {
+    "BinaryActuator": {
+      "ports": {
+        "command": {
+          "kind": "binary-command",
+          "direction": "in",
+          "max_connections": 1
+        },
+        "feedback": {
+          "kind": "binary-state",
+          "direction": "out",
+          "max_connections": 1
+        }
+      },
+      "behavior": {
+        "reference": "assets/behavior.json",
+        "state": "assumed",
+        "source": "Texsys 控制与监测库方案定义",
+        "parameters": {}
+      }
+    }
+  }
+}

@@ -1,0 +1,15 @@
+schema_version = 1
+
+[project]
+name = "datacenter-hybrid-unit"
+
+[layout]
+source = "src"
+assets = "assets"
+build = "build"
+
+[build]
+default_targets = ["datacenter:drainage-study", "datacenter:seismic-envelope", "datacenter:protection-study", "datacenter:grounding-study", "datacenter:ride-through-study", "datacenter:water-study", "datacenter:air-environment", "datacenter:controls-study", "datacenter:architecture-study"]
+
+[dependencies]
+datacenter = { path = "../../packages/datacenter", version = "0.1.0" }

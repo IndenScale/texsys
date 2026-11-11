@@ -1,0 +1,46 @@
+{
+  "schema_version": 1,
+  "state": "assumed",
+  "basis": "方案阶段采用混凝土楼盖面内弹性模型，W 型钢模板作为永久模板。主梁和系梁按连续轴向传力假设，楼盖与钢梁通过轴网节点上的等效连接组传力。模型按上、下层斜杆各自的受拉端施加反力。各限值为独立的筛查输入。",
+  "concrete_modulus_gpa": 21,
+  "concrete_poisson": 0.2,
+  "connection_stiffness_kn_m": 300000,
+  "limits": {
+    "panel_shear_kn_m": 120,
+    "panel_normal_kn_m": 250,
+    "girder_axial_kn": 800,
+    "tie_axial_kn": 650,
+    "connection_kn": 160,
+    "connection_slip_m": 0.001,
+    "brace_joint_kn": 500
+  },
+  "cases": {
+    "full-wind-x": {
+      "lateral_case": "full-wind-x",
+      "expected": "pass"
+    },
+    "initial-wind-y": {
+      "lateral_case": "initial-wind-y",
+      "expected": "pass"
+    },
+    "full-wind-one-bay-out": {
+      "lateral_case": "full-wind-one-bay-out",
+      "expected": "pass"
+    },
+    "full-wind-x-restraint-lost": {
+      "lateral_case": "full-wind-x-restraint-lost",
+      "expected": "fail"
+    },
+    "initial-wind-overturning": {
+      "lateral_case": "initial-wind-overturning",
+      "expected": "fail"
+    },
+    "full-wind-weak-connection": {
+      "lateral_case": "full-wind-x",
+      "limits": {
+        "connection_kn": 10
+      },
+      "expected": "fail"
+    }
+  }
+}

@@ -3,6 +3,7 @@
 from collections import Counter
 from dataclasses import dataclass
 import difflib
+from graphlib import CycleError, TopologicalSorter
 import json
 import math
 import os
@@ -11,6 +12,7 @@ import re
 import tempfile
 from typing import Any, NoReturn
 
+from texsys.library import LibraryEntry, can_import, import_path, library_entries
 from texsys.project import ProjectError, inspect_project
 
 _IDENTIFIER = re.compile(r"[A-Za-z][A-Za-z0-9_-]*")
@@ -97,7 +99,8 @@ def _load_json(text: str) -> Any:
 
 
 def _source_files(root: Path, source: str) -> tuple[Path, ...]:
-  return tuple(sorted((root / source).rglob("*.sdl.json")))
+  return tuple(sorted(path for path in (root / source).rglob("*.sdl.json")
+                      if path.is_file() and path == path.resolve()))
 
 
 def _relative(root: Path, path: Path) -> str:
@@ -117,7 +120,7 @@ def _check_schema(data: Any, file: str) -> tuple[Diagnostic, ...]:
   if not isinstance(data, dict):
     fail("SDL document must be a JSON object.")
     return tuple(diagnostics)
-  unknown = set(data) - {"schema_version", "root", "components"}
+  unknown = set(data) - {"schema_version", "root", "components", "imports"}
   if unknown:
     fail(f"Unknown document fields: {', '.join(sorted(unknown))}.")
   version = data.get("schema_version")
@@ -129,6 +132,19 @@ def _check_schema(data: Any, file: str) -> tuple[Diagnostic, ...]:
   if not isinstance(components, dict):
     fail("components must be an object.", "components")
     return tuple(diagnostics)
+
+  imports = data.get("imports", {})
+  if not isinstance(imports, dict):
+    fail("imports must map aliases to source-relative SDL paths.", "imports")
+  else:
+    for alias, target in imports.items():
+      if not _valid_identifier(alias) or alias in components:
+        fail("Import alias must be a valid identifier distinct from local Components.", f"imports.{alias}")
+      if (not isinstance(target, str) or not target.endswith(".sdl.json") or "\\" in target
+          or "\0" in target or any(part in {"", ".", ".."} for part in target.split("/"))):
+        fail("Import must be a canonical, source-relative .sdl.json path.", f"imports.{alias}")
+      elif target.startswith("@") and not re.fullmatch(r"@[A-Za-z0-9][A-Za-z0-9._-]*/library/.+", target):
+        fail("Locked import must have the form @package/library/… .sdl.json.", f"imports.{alias}")
 
   for component_name, component in components.items():
     component_path = f"components.{component_name}"
@@ -262,18 +278,19 @@ def _check_parameters(parameters: Any, path: str, fail) -> None:
       fail("Unresolved/not-applicable parameter must omit value.", parameter_path)
 
 
-def _check_semantics(data: Any, file: str) -> tuple[Diagnostic, ...]:
+def _check_semantics(data: Any, file: str, imported: dict | None = None) -> tuple[Diagnostic, ...]:
   if not isinstance(data, dict) or not isinstance(data.get("components"), dict):
     return ()
   diagnostics: list[Diagnostic] = []
-  components: dict[str, Any] = data["components"]
+  local = data["components"]
+  components = {**local, **(imported or {})}
   root = data.get("root")
-  if isinstance(root, str) and root not in components:
+  if isinstance(root, str) and root not in local:
     diagnostics.append(
       Diagnostic("L001", "fail", file, f"Root component does not exist: {root}", root)
     )
 
-  for component_name, component in components.items():
+  for component_name, component in local.items():
     if not isinstance(component, dict):
       continue
     ports = component.get("ports", {})
@@ -422,6 +439,72 @@ def _check_semantics(data: Any, file: str) -> tuple[Diagnostic, ...]:
   return tuple(diagnostics)
 
 
+def read_sdl_sources(source_root: Path, project_root: Path) -> tuple[dict[str, dict], list[Diagnostic], int]:
+  """Return schema-valid documents keyed by source-relative path, plus diagnostics."""
+  documents: dict[str, dict] = {}
+  diagnostics: list[Diagnostic] = []
+  files = _source_files(project_root, source_root.relative_to(project_root).as_posix())
+  for source in files:
+    relative = _relative(project_root, source)
+    try:
+      data = _load_json(source.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as error:
+      diagnostics.append(Diagnostic("S001", "fail", relative, error.msg, line=error.lineno, column=error.colno))
+    except ValueError as error:
+      diagnostics.append(Diagnostic("S001", "fail", relative, str(error)))
+    except OSError as error:
+      diagnostics.append(Diagnostic("E001", "error", relative, str(error)))
+    else:
+      schema = _check_schema(data, relative)
+      diagnostics.extend(schema)
+      if not schema:
+        documents[_relative(source_root, source)] = data
+  return documents, diagnostics, len(files)
+
+
+def resolve_sdl_imports(
+  documents: dict[str, dict], entries: dict[str, LibraryEntry], source: str,
+) -> tuple[dict[str, tuple[str, str]], dict[str, str]]:
+  """Resolve explicit import aliases to library document roots in the caller's scope."""
+  resolved: dict[str, tuple[str, str]] = {}
+  errors: dict[str, str] = {}
+  for alias, target in documents[source].get("imports", {}).items():
+    target = import_path(source, target)
+    entry = entries.get(target)
+    root = documents.get(target, {}).get("root")
+    if entry is None or root not in documents[target]["components"]:
+      errors[alias] = f"Import does not identify a library definition: {target}"
+    elif not can_import(source, entry, entries):
+      errors[alias] = f"Import is private to another module: {target}"
+    else:
+      resolved[alias] = (target, root)
+  return resolved, errors
+
+
+def check_sdl_sources(documents: dict[str, dict], source_prefix: str) -> list[Diagnostic]:
+  entries = library_entries(set(documents))
+  graph: TopologicalSorter[tuple[str, str]] = TopologicalSorter()
+  diagnostics: list[Diagnostic] = []
+  for path, data in documents.items():
+    file = path if path.startswith("@") else (Path(source_prefix) / path).as_posix()
+    imports, errors = resolve_sdl_imports(documents, entries, path)
+    diagnostics.extend(Diagnostic("L014", "fail", file, message, f"imports.{alias}")
+                       for alias, message in errors.items())
+    imported = {alias: documents[target]["components"][name] for alias, (target, name) in imports.items()}
+    diagnostics.extend(_check_semantics(data, file, imported))
+    for name, definition in data["components"].items():
+      graph.add((path, name), *(imports.get(item["component"], (path, item["component"]))
+                                for item in definition.get("instances", {}).values()))
+  try:
+    graph.prepare()
+  except CycleError as error:
+    cycle = error.args[1]
+    file = (Path(source_prefix) / cycle[0][0]).as_posix()
+    route = " → ".join(f"{path}#{name}" for path, name in cycle)
+    diagnostics.append(Diagnostic("L015", "fail", file, f"Recursive instance composition: {route}"))
+  return diagnostics
+
+
 def check_project(path: Path) -> CheckResult:
   root = path.expanduser().resolve()
   diagnostics: list[Diagnostic] = []
@@ -444,27 +527,11 @@ def check_project(path: Path) -> CheckResult:
         Diagnostic("P002", "fail", relative, f"Project layout directory is missing: {relative}")
       )
 
-  files = _source_files(root, project.source) if (root / project.source).is_dir() else ()
-  for source in files:
-    relative = _relative(root, source)
-    try:
-      text = source.read_text(encoding="utf-8")
-      data = _load_json(text)
-    except json.JSONDecodeError as error:
-      diagnostics.append(
-        Diagnostic("S001", "fail", relative, error.msg, line=error.lineno, column=error.colno)
-      )
-      continue
-    except (UnicodeError, DuplicateKeyError, ValueError) as error:
-      diagnostics.append(Diagnostic("S001", "fail", relative, str(error)))
-      continue
-    except OSError as error:
-      diagnostics.append(Diagnostic("E001", "error", relative, str(error)))
-      continue
-    schema_diagnostics = _check_schema(data, relative)
-    diagnostics.extend(schema_diagnostics)
-    if not schema_diagnostics:
-      diagnostics.extend(_check_semantics(data, relative))
+  from texsys.sdl_catalog import read_sdl_catalog
+
+  catalog = read_sdl_catalog(root / project.source, root)
+  diagnostics.extend(catalog.diagnostics)
+  diagnostics.extend(check_sdl_sources(catalog.documents, project.source))
 
   from texsys.packages import installed_packages
 
@@ -474,7 +541,7 @@ def check_project(path: Path) -> CheckResult:
   except (ImportError, OSError, TypeError, ValueError) as error:
     diagnostics.append(Diagnostic("P003", "error", "texsys.toml", str(error)))
 
-  return CheckResult(_diagnostic_status(diagnostics), len(files), tuple(diagnostics))
+  return CheckResult(_diagnostic_status(diagnostics), catalog.local_count, tuple(diagnostics))
 
 
 def _diagnostic_status(diagnostics: list[Diagnostic]) -> str:

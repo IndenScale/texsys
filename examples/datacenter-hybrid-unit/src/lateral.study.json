@@ -1,0 +1,140 @@
+{
+  "schema_version": 1,
+  "state": "assumed",
+  "basis": "楼盖面内刚性且各层支撑上下连续。X 支撑每对斜杆仅一根受拉。风压、等效地震系数、偏心和限值均为算例输入。基础反力以所选重力使用工况为起点。",
+  "drift_limit_ratio": 0.0025,
+  "footing_net_uplift_limit_kn": 0,
+  "brace": {
+    "modulus_gpa": 200,
+    "area_m2": 0.01,
+    "unit_weight_kn_m3": 77,
+    "tension_limit_kn": 1600,
+    "bays": {
+      "X-South-1": {
+        "axis": "x",
+        "line": "Y0",
+        "between": ["X1B", "X2A"]
+      },
+      "X-South-2": {
+        "axis": "x",
+        "line": "Y0",
+        "between": ["X3B", "X4A"]
+      },
+      "X-South-3": {
+        "axis": "x",
+        "line": "Y0",
+        "between": ["X5B", "XS"]
+      },
+      "X-North-1": {
+        "axis": "x",
+        "line": "Y6",
+        "between": ["X1B", "X2A"]
+      },
+      "X-North-2": {
+        "axis": "x",
+        "line": "Y6",
+        "between": ["X3B", "X4A"]
+      },
+      "X-North-3": {
+        "axis": "x",
+        "line": "Y6",
+        "between": ["X5B", "XS"]
+      },
+      "Y-West-1": {
+        "axis": "y",
+        "line": "X0",
+        "between": ["Y2", "Y3"]
+      },
+      "Y-West-2": {
+        "axis": "y",
+        "line": "X0",
+        "between": ["Y4", "Y5"]
+      },
+      "Y-East-1": {
+        "axis": "y",
+        "line": "XE",
+        "between": ["Y1", "Y2"]
+      },
+      "Y-East-2": {
+        "axis": "y",
+        "line": "XE",
+        "between": ["Y3", "Y4"]
+      }
+    }
+  },
+  "cases": {
+    "full-wind-x": {
+      "gravity_case": "full",
+      "method": "uniform-wind",
+      "axis": "x",
+      "sign": 1,
+      "pressure_kpa": 0.4,
+      "eccentricity_m": 2.7,
+      "unavailable_bays": [],
+      "expected": "pass"
+    },
+    "initial-wind-y": {
+      "gravity_case": "initial",
+      "method": "uniform-wind",
+      "axis": "y",
+      "sign": -1,
+      "pressure_kpa": 0.4,
+      "eccentricity_m": -3,
+      "unavailable_bays": [],
+      "expected": "pass"
+    },
+    "full-wind-one-bay-out": {
+      "gravity_case": "full",
+      "method": "uniform-wind",
+      "axis": "x",
+      "sign": 1,
+      "pressure_kpa": 0.4,
+      "eccentricity_m": 2.7,
+      "unavailable_bays": ["X-South-1"],
+      "expected": "pass"
+    },
+    "full-wind-x-restraint-lost": {
+      "gravity_case": "full",
+      "method": "uniform-wind",
+      "axis": "x",
+      "sign": 1,
+      "pressure_kpa": 0.4,
+      "eccentricity_m": 2.7,
+      "unavailable_bays": [
+        "X-South-1",
+        "X-South-2",
+        "X-South-3",
+        "X-North-1",
+        "X-North-2",
+        "X-North-3"
+      ],
+      "expected": "fail"
+    },
+    "initial-wind-overturning": {
+      "gravity_case": "initial",
+      "method": "uniform-wind",
+      "axis": "y",
+      "sign": -1,
+      "pressure_kpa": 2.1,
+      "eccentricity_m": -3,
+      "unavailable_bays": [],
+      "expected": "fail"
+    }
+  },
+  "seismic_matrix": {
+    "gravity_case": "full",
+    "base_shear_coefficient": 0.01,
+    "height_exponent": 1,
+    "eccentricity_ratio": 0.05,
+    "orthogonal_ratio": 0.3,
+    "aliases": {
+      "full-seismic-x-neg-epos": "full-equivalent-seismic-x"
+    },
+    "expected_failures": {
+      "lateral": [],
+      "diaphragm": [],
+      "foundation": "all",
+      "foundation-ties": []
+    }
+  }
+}

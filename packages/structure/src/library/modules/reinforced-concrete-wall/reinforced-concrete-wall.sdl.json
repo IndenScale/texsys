@@ -1,0 +1,15 @@
+{
+  "components": {
+    "ReinforcedConcreteWall": {
+      "ports": {
+        "base": {
+          "direction": "inout",
+          "kind": "structural-bearing",
+          "max_connections": 1
+        }
+      }
+    }
+  },
+  "root": "ReinforcedConcreteWall",
+  "schema_version": 1
+}

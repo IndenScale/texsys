@@ -1,0 +1,500 @@
+{
+  "components": {
+    "AirCooledRoom": {
+      "connections": [
+        {
+          "from": "RoomReturn.outlet",
+          "id": "return-AC-01",
+          "to": "AC-01.return"
+        },
+        {
+          "from": "AC-01.downflow",
+          "id": "supply-AC-01",
+          "to": "SupplyPlenum.inlet"
+        },
+        {
+          "from": "RoomReturn.outlet",
+          "id": "return-AC-02",
+          "to": "AC-02.return"
+        },
+        {
+          "from": "AC-02.downflow",
+          "id": "supply-AC-02",
+          "to": "SupplyPlenum.inlet"
+        },
+        {
+          "from": "SupplyPlenum.outlet",
+          "id": "grille-bank",
+          "to": "ColdAisle.inlet"
+        },
+        {
+          "from": "ColdAisle.outlet",
+          "id": "intake-RA-01",
+          "to": "RA-01.front"
+        },
+        {
+          "from": "RA-01.rear",
+          "id": "exhaust-RA-01",
+          "to": "RoomReturn.inlet"
+        },
+        {
+          "from": "ColdAisle.outlet",
+          "id": "intake-RA-02",
+          "to": "RA-02.front"
+        },
+        {
+          "from": "RA-02.rear",
+          "id": "exhaust-RA-02",
+          "to": "RoomReturn.inlet"
+        },
+        {
+          "from": "ColdAisle.outlet",
+          "id": "intake-RA-03",
+          "to": "RA-03.front"
+        },
+        {
+          "from": "RA-03.rear",
+          "id": "exhaust-RA-03",
+          "to": "RoomReturn.inlet"
+        },
+        {
+          "from": "ColdAisle.outlet",
+          "id": "intake-RA-04",
+          "to": "RA-04.front"
+        },
+        {
+          "from": "RA-04.rear",
+          "id": "exhaust-RA-04",
+          "to": "RoomReturn.inlet"
+        },
+        {
+          "from": "ColdAisle.outlet",
+          "id": "intake-RA-05",
+          "to": "RA-05.front"
+        },
+        {
+          "from": "RA-05.rear",
+          "id": "exhaust-RA-05",
+          "to": "RoomReturn.inlet"
+        },
+        {
+          "from": "ColdAisle.outlet",
+          "id": "intake-RA-06",
+          "to": "RA-06.front"
+        },
+        {
+          "from": "RA-06.rear",
+          "id": "exhaust-RA-06",
+          "to": "RoomReturn.inlet"
+        },
+        {
+          "from": "ColdAisle.outlet",
+          "id": "intake-RA-07",
+          "to": "RA-07.front"
+        },
+        {
+          "from": "RA-07.rear",
+          "id": "exhaust-RA-07",
+          "to": "RoomReturn.inlet"
+        },
+        {
+          "from": "ColdAisle.outlet",
+          "id": "intake-RA-08",
+          "to": "RA-08.front"
+        },
+        {
+          "from": "RA-08.rear",
+          "id": "exhaust-RA-08",
+          "to": "RoomReturn.inlet"
+        },
+        {
+          "from": "ColdAisle.outlet",
+          "id": "intake-RB-01",
+          "to": "RB-01.front"
+        },
+        {
+          "from": "RB-01.rear",
+          "id": "exhaust-RB-01",
+          "to": "RoomReturn.inlet"
+        },
+        {
+          "from": "ColdAisle.outlet",
+          "id": "intake-RB-02",
+          "to": "RB-02.front"
+        },
+        {
+          "from": "RB-02.rear",
+          "id": "exhaust-RB-02",
+          "to": "RoomReturn.inlet"
+        },
+        {
+          "from": "ColdAisle.outlet",
+          "id": "intake-RB-03",
+          "to": "RB-03.front"
+        },
+        {
+          "from": "RB-03.rear",
+          "id": "exhaust-RB-03",
+          "to": "RoomReturn.inlet"
+        },
+        {
+          "from": "ColdAisle.outlet",
+          "id": "intake-RB-04",
+          "to": "RB-04.front"
+        },
+        {
+          "from": "RB-04.rear",
+          "id": "exhaust-RB-04",
+          "to": "RoomReturn.inlet"
+        },
+        {
+          "from": "ColdAisle.outlet",
+          "id": "intake-RB-05",
+          "to": "RB-05.front"
+        },
+        {
+          "from": "RB-05.rear",
+          "id": "exhaust-RB-05",
+          "to": "RoomReturn.inlet"
+        },
+        {
+          "from": "ColdAisle.outlet",
+          "id": "intake-RB-06",
+          "to": "RB-06.front"
+        },
+        {
+          "from": "RB-06.rear",
+          "id": "exhaust-RB-06",
+          "to": "RoomReturn.inlet"
+        },
+        {
+          "from": "ColdAisle.outlet",
+          "id": "intake-RB-07",
+          "to": "RB-07.front"
+        },
+        {
+          "from": "RB-07.rear",
+          "id": "exhaust-RB-07",
+          "to": "RoomReturn.inlet"
+        },
+        {
+          "from": "ColdAisle.outlet",
+          "id": "intake-RB-08",
+          "to": "RB-08.front"
+        },
+        {
+          "from": "RB-08.rear",
+          "id": "exhaust-RB-08",
+          "to": "RoomReturn.inlet"
+        },
+        {
+          "from": "PDU-A.mount",
+          "id": "mount-pdu-a",
+          "to": "RA-01.rails"
+        },
+        {
+          "from": "PDU-B.mount",
+          "id": "mount-pdu-b",
+          "to": "RB-01.rails"
+        },
+        {
+          "from": "SW-A.mount",
+          "id": "mount-sw-a",
+          "to": "RA-01.rails"
+        },
+        {
+          "from": "SW-B.mount",
+          "id": "mount-sw-b",
+          "to": "RB-01.rails"
+        },
+        {
+          "from": "SRV-A.mount",
+          "id": "mount-srv-a",
+          "to": "RA-01.rails"
+        },
+        {
+          "from": "PDU-A.out_a",
+          "id": "power-sw-a",
+          "to": "SW-A.power"
+        },
+        {
+          "from": "PDU-A.out_b",
+          "id": "power-srv-a",
+          "to": "SRV-A.power"
+        },
+        {
+          "from": "PDU-B.out_a",
+          "id": "power-sw-b",
+          "to": "SW-B.power"
+        },
+        {
+          "from": "SW-A.fiber",
+          "id": "fiber-a",
+          "to": "SM-01.end_a"
+        },
+        {
+          "from": "SM-01.end_b",
+          "id": "fiber-b",
+          "to": "SW-B.fiber"
+        },
+        {
+          "from": "SW-A.copper",
+          "id": "management-a",
+          "to": "CAT6A-01.end_a"
+        },
+        {
+          "from": "CAT6A-01.end_b",
+          "id": "management-b",
+          "to": "SRV-A.management"
+        }
+      ],
+      "instances": {
+        "AC-01": {
+          "component": "DownflowCRAC"
+        },
+        "AC-02": {
+          "component": "DownflowCRAC"
+        },
+        "CAT6A-01": {
+          "component": "Cat6ARJ45"
+        },
+        "ColdAisle": {
+          "component": "ColdAisle"
+        },
+        "PDU-A": {
+          "component": "RackPDU"
+        },
+        "PDU-B": {
+          "component": "RackPDU"
+        },
+        "RA-01": {
+          "component": "Rack42U"
+        },
+        "RA-02": {
+          "component": "Rack42U"
+        },
+        "RA-03": {
+          "component": "Rack42U"
+        },
+        "RA-04": {
+          "component": "Rack42U"
+        },
+        "RA-05": {
+          "component": "Rack42U"
+        },
+        "RA-06": {
+          "component": "Rack42U"
+        },
+        "RA-07": {
+          "component": "Rack42U"
+        },
+        "RA-08": {
+          "component": "Rack42U"
+        },
+        "RB-01": {
+          "component": "Rack42U"
+        },
+        "RB-02": {
+          "component": "Rack42U"
+        },
+        "RB-03": {
+          "component": "Rack42U"
+        },
+        "RB-04": {
+          "component": "Rack42U"
+        },
+        "RB-05": {
+          "component": "Rack42U"
+        },
+        "RB-06": {
+          "component": "Rack42U"
+        },
+        "RB-07": {
+          "component": "Rack42U"
+        },
+        "RB-08": {
+          "component": "Rack42U"
+        },
+        "RoomReturn": {
+          "component": "RoomReturn"
+        },
+        "SM-01": {
+          "component": "SingleModeFiber"
+        },
+        "SRV-A": {
+          "component": "RackServer"
+        },
+        "SW-A": {
+          "component": "EthernetSwitch"
+        },
+        "SW-B": {
+          "component": "EthernetSwitch"
+        },
+        "SupplyPlenum": {
+          "component": "SupplyPlenum"
+        }
+      },
+      "nets": {
+        "CopperManagement": {
+          "connections": [
+            "management-a",
+            "management-b"
+          ],
+          "kind": "ethernet-rj45"
+        },
+        "FiberUplink": {
+          "connections": [
+            "fiber-a",
+            "fiber-b"
+          ],
+          "kind": "fiber-lc-duplex-sm"
+        },
+        "PowerA": {
+          "connections": [
+            "power-sw-a",
+            "power-srv-a"
+          ],
+          "kind": "ac-equipment"
+        },
+        "PowerB": {
+          "connections": [
+            "power-sw-b"
+          ],
+          "kind": "ac-equipment"
+        },
+        "return-air": {
+          "connections": [
+            "return-AC-01",
+            "return-AC-02",
+            "exhaust-RA-01",
+            "exhaust-RA-02",
+            "exhaust-RA-03",
+            "exhaust-RA-04",
+            "exhaust-RA-05",
+            "exhaust-RA-06",
+            "exhaust-RA-07",
+            "exhaust-RA-08",
+            "exhaust-RB-01",
+            "exhaust-RB-02",
+            "exhaust-RB-03",
+            "exhaust-RB-04",
+            "exhaust-RB-05",
+            "exhaust-RB-06",
+            "exhaust-RB-07",
+            "exhaust-RB-08"
+          ],
+          "kind": "room-air"
+        },
+        "supply-air": {
+          "connections": [
+            "supply-AC-01",
+            "supply-AC-02",
+            "grille-bank",
+            "intake-RA-01",
+            "intake-RA-02",
+            "intake-RA-03",
+            "intake-RA-04",
+            "intake-RA-05",
+            "intake-RA-06",
+            "intake-RA-07",
+            "intake-RA-08",
+            "intake-RB-01",
+            "intake-RB-02",
+            "intake-RB-03",
+            "intake-RB-04",
+            "intake-RB-05",
+            "intake-RB-06",
+            "intake-RB-07",
+            "intake-RB-08"
+          ],
+          "kind": "room-air"
+        }
+      }
+    },
+    "ColdAisle": {
+      "ports": {
+        "inlet": {
+          "direction": "in",
+          "kind": "room-air",
+          "max_connections": 1
+        },
+        "outlet": {
+          "direction": "out",
+          "kind": "room-air",
+          "max_connections": 16
+        }
+      }
+    },
+    "DownflowCRAC": {
+      "behavior": {
+        "parameters": {
+          "sensible_capacity_kw": {
+            "source": "风冷机房示例设计假设，待设备选型及实际负荷确认",
+            "state": "assumed",
+            "unit": "kW",
+            "value": 60.0
+          },
+          "supply_airflow_m3_s": {
+            "source": "风冷机房示例设计假设，待设备选型及实际负荷确认",
+            "state": "assumed",
+            "unit": "m3/s",
+            "value": 4.5
+          }
+        },
+        "reference": "assets/air-design-basis.json",
+        "source": "风冷机房示例设计假设，待设备选型及实际负荷确认",
+        "state": "assumed"
+      },
+      "ports": {
+        "downflow": {
+          "direction": "out",
+          "kind": "room-air",
+          "max_connections": 1
+        },
+        "return": {
+          "direction": "in",
+          "kind": "room-air",
+          "max_connections": 1
+        }
+      }
+    },
+    "RoomReturn": {
+      "ports": {
+        "inlet": {
+          "direction": "in",
+          "kind": "room-air",
+          "max_connections": 16
+        },
+        "outlet": {
+          "direction": "out",
+          "kind": "room-air",
+          "max_connections": 2
+        }
+      }
+    },
+    "SupplyPlenum": {
+      "ports": {
+        "inlet": {
+          "direction": "in",
+          "kind": "room-air",
+          "max_connections": 2
+        },
+        "outlet": {
+          "direction": "out",
+          "kind": "room-air",
+          "max_connections": 1
+        }
+      }
+    }
+  },
+  "imports": {
+    "Cat6ARJ45": "library/modules/cat6a-rj45/cat6a-rj45.sdl.json",
+    "EthernetSwitch": "library/modules/ethernet-switch/ethernet-switch.sdl.json",
+    "Rack42U": "library/modules/rack-42u/rack-42u.sdl.json",
+    "RackPDU": "library/modules/rack-pdu/rack-pdu.sdl.json",
+    "RackServer": "library/modules/rack-server/rack-server.sdl.json",
+    "SingleModeFiber": "library/modules/single-mode-fiber/single-mode-fiber.sdl.json"
+  },
+  "root": "AirCooledRoom",
+  "schema_version": 2
+}

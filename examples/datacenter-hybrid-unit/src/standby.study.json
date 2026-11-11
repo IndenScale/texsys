@@ -1,0 +1,269 @@
+{
+  "schema_version": 1,
+  "state": "assumed",
+  "basis": "概念级配电切换算例。发电机按 A/B 机群等效，切换时刻、可用能量和允许中断时间均为算例输入。",
+  "max_interruption_s": {
+    "it": 0,
+    "air": 20,
+    "liquid": 20
+  },
+  "external_sources": {
+    "Grid-A": {
+      "kw": 65000,
+      "kva": 70000
+    },
+    "Grid-B": {
+      "kw": 65000,
+      "kva": 70000
+    },
+    "Generator-A": {
+      "kw": 62000,
+      "kva": 70000,
+      "usable_kwh": 1000
+    },
+    "Generator-B": {
+      "kw": 62000,
+      "kva": 70000,
+      "usable_kwh": 1000
+    }
+  },
+  "upstream_links": [
+    ["Grid-A", "Incoming-A"],
+    ["Generator-A", "Incoming-A"],
+    ["Grid-B", "Incoming-B"],
+    ["Generator-B", "Incoming-B"]
+  ],
+  "feed_ratings_kva": {
+    "Incoming-A": 70000,
+    "Incoming-B": 70000
+  },
+  "unit_ratings_kva": {
+    "Busway-A": 550,
+    "Busway-B": 550,
+    "Switchboard-A": 850,
+    "Switchboard-B": 850,
+    "Transformer-A": 900,
+    "Transformer-B": 900,
+    "UPS-A": 550,
+    "UPS-B": 550,
+    "Utility-A": 950,
+    "Utility-B": 950
+  },
+  "unit_load_power_factor": {
+    "CDU-A": 0.9,
+    "CDU-B": 0.9,
+    "FacilityPlant-A": 0.9,
+    "FacilityPlant-B": 0.9,
+    "PrecisionAir-A": 0.9,
+    "PrecisionAir-B": 0.9,
+    "Rack-01": 0.98,
+    "Rack-02": 0.98,
+    "Rack-03": 0.98,
+    "Rack-04": 0.98
+  },
+  "unit_batteries": {
+    "Battery-A": {
+      "connect_to": "UPS-A",
+      "kw": 520,
+      "kva": 550,
+      "usable_kwh": 2
+    },
+    "Battery-B": {
+      "connect_to": "UPS-B",
+      "kw": 520,
+      "kva": 550,
+      "usable_kwh": 2
+    }
+  },
+  "scenarios": {
+    "initial-transfer": {
+      "phase": "initial",
+      "duration_s": 60,
+      "expected": "pass",
+      "states": [
+        {
+          "at_s": 0,
+          "unavailable": ["Grid-A", "Grid-B", "Generator-A", "Generator-B"]
+        },
+        {
+          "at_s": 12,
+          "unavailable": ["Grid-A", "Grid-B"]
+        }
+      ]
+    },
+    "full-grid-normal": {
+      "phase": "full",
+      "duration_s": 60,
+      "expected": "pass",
+      "states": [
+        {
+          "at_s": 0,
+          "unavailable": ["Generator-A", "Generator-B"]
+        }
+      ]
+    },
+    "full-transfer": {
+      "phase": "full",
+      "duration_s": 60,
+      "expected": "pass",
+      "states": [
+        {
+          "at_s": 0,
+          "unavailable": ["Grid-A", "Grid-B", "Generator-A", "Generator-B"]
+        },
+        {
+          "at_s": 12,
+          "unavailable": ["Grid-A", "Grid-B"]
+        }
+      ]
+    },
+    "full-generator-a-unavailable": {
+      "phase": "full",
+      "duration_s": 60,
+      "expected": "pass",
+      "states": [
+        {
+          "at_s": 0,
+          "unavailable": ["Grid-A", "Grid-B", "Generator-A", "Generator-B"]
+        },
+        {
+          "at_s": 12,
+          "unavailable": ["Grid-A", "Grid-B", "Generator-A"]
+        }
+      ]
+    },
+    "full-delayed-start": {
+      "phase": "full",
+      "duration_s": 60,
+      "expected": "fail",
+      "states": [
+        {
+          "at_s": 0,
+          "unavailable": ["Grid-A", "Grid-B", "Generator-A", "Generator-B"]
+        },
+        {
+          "at_s": 45,
+          "unavailable": ["Grid-A", "Grid-B"]
+        }
+      ]
+    },
+    "full-energy-exhaustion": {
+      "phase": "full",
+      "duration_s": 180,
+      "expected": "fail",
+      "states": [
+        {
+          "at_s": 0,
+          "unavailable": ["Grid-A", "Grid-B", "Generator-A", "Generator-B"]
+        },
+        {
+          "at_s": 12,
+          "unavailable": ["Grid-A", "Grid-B"]
+        }
+      ]
+    },
+    "full-l03-transformers-out": {
+      "phase": "full",
+      "duration_s": 60,
+      "expected": "fail",
+      "states": [
+        {
+          "at_s": 0,
+          "unavailable": ["Generator-A", "Generator-B", "L03/Transformer-A", "L03/Transformer-B"]
+        },
+        {
+          "at_s": 45,
+          "unavailable": ["Generator-A", "Generator-B"]
+        }
+      ]
+    },
+    "full-generator-and-riser-out": {
+      "phase": "full",
+      "duration_s": 60,
+      "expected": "fail",
+      "states": [
+        {
+          "at_s": 0,
+          "unavailable": ["Grid-A", "Grid-B", "Generator-A", "Generator-B"]
+        },
+        {
+          "at_s": 12,
+          "unavailable": ["Grid-A", "Grid-B", "Generator-A"]
+        }
+      ],
+      "water": {
+        "unavailable_risers": ["FWS-Riser-B"]
+      }
+    },
+    "full-generator-and-b-pumps-out": {
+      "phase": "full",
+      "duration_s": 60,
+      "expected": "fail",
+      "states": [
+        {
+          "at_s": 0,
+          "unavailable": ["Grid-A", "Grid-B", "Generator-A", "Generator-B"]
+        },
+        {
+          "at_s": 12,
+          "unavailable": ["Grid-A", "Grid-B", "Generator-A"]
+        }
+      ],
+      "water": {
+        "unavailable_fws_pumps": ["FWS-P-B1", "FWS-P-B2"]
+      }
+    },
+    "full-delayed-start-recovery": {
+      "phase": "full",
+      "duration_s": 180,
+      "expected": "fail",
+      "states": [
+        {
+          "at_s": 0,
+          "unavailable": ["Grid-A", "Grid-B", "Generator-A", "Generator-B"]
+        },
+        {
+          "at_s": 45,
+          "unavailable": ["Grid-A", "Grid-B"]
+        },
+        {
+          "at_s": 80,
+          "unavailable": ["Generator-A", "Generator-B"]
+        }
+      ]
+    },
+    "full-l03-one-a-drop-out": {
+      "phase": "full",
+      "duration_s": 60,
+      "expected": "pass",
+      "states": [
+        {
+          "at_s": 0,
+          "unavailable": ["Generator-A", "Generator-B"]
+        }
+      ],
+      "water": {
+        "unavailable_fws_branch_segments": [
+          "L03/HeatRejection-A/supply/drop/Tap-Unit-01-01--Unit-01-01"
+        ]
+      }
+    },
+    "full-l03-one-ab-drop-out": {
+      "phase": "full",
+      "duration_s": 60,
+      "expected": "fail",
+      "states": [
+        {
+          "at_s": 0,
+          "unavailable": ["Generator-A", "Generator-B"]
+        }
+      ],
+      "water": {
+        "unavailable_fws_branch_segments": [
+          "L03/HeatRejection-A/supply/drop/Tap-Unit-01-01--Unit-01-01",
+          "L03/HeatRejection-B/return/drop/Unit-01-01--Tap-Unit-01-01"
+        ]
+      }
+    }
+  }
+}

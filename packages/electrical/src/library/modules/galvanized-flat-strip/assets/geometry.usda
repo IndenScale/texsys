@@ -1,0 +1,36 @@
+#usda 1.0
+(
+    defaultPrim = "Module"
+    metersPerUnit = 1
+    upAxis = "Z"
+)
+
+def Xform "Module"
+{
+    def Scope "Geometry"
+    {
+        def Cube "Tape"
+        {
+            double size = 1
+            double3 xformOp:translate = (0.5, 0, 0)
+            double3 xformOp:scale = (1, 0.04, 0.004)
+            uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
+            color3f[] primvars:displayColor = [(0.51, 0.62, 0.66)]
+        }
+    }
+    def Scope "Ports"
+    {
+        def Xform "end_a"
+        {
+            double3 xformOp:translate = (0, 0, 0)
+            uniform token[] xformOpOrder = ["xformOp:translate"]
+            custom double3 texsys:normal = (-1, 0, 0)
+        }
+        def Xform "end_b"
+        {
+            double3 xformOp:translate = (1, 0, 0)
+            uniform token[] xformOpOrder = ["xformOp:translate"]
+            custom double3 texsys:normal = (1, 0, 0)
+        }
+    }
+}

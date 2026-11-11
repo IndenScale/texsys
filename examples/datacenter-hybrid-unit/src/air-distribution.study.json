@@ -1,0 +1,72 @@
+{
+  "schema_version": 1,
+  "state": "assumed",
+  "basis": "精密空调顶送风，A/B 各用两只双向送风箱，服务两对相向机柜。机组回风为热区回风。管件系数、截面、风机外静压及检修包络为方案假设。",
+  "minimum_clearance_m": 0.025,
+  "minimum_overhead_m": 2.28,
+  "front_service_m": 1.2,
+  "front_service_height_m": 2,
+  "grille_loss_coefficient": 0.25,
+  "terminal_opening_m2": 0.115,
+  "sections": {
+    "throat": {
+      "width_m": 0.68,
+      "height_m": 0.72,
+      "friction_factor": 0.02
+    },
+    "north-high": {
+      "width_m": 0.72,
+      "height_m": 0.48,
+      "friction_factor": 0.02
+    },
+    "north-low": {
+      "width_m": 0.72,
+      "height_m": 0.49,
+      "friction_factor": 0.02
+    },
+    "riser": {
+      "width_m": 0.84,
+      "height_m": 0.72,
+      "friction_factor": 0.02
+    },
+    "spine": {
+      "width_m": 0.96,
+      "height_m": 0.53,
+      "friction_factor": 0.02
+    },
+    "header": {
+      "width_m": 0.92,
+      "height_m": 0.6,
+      "friction_factor": 0.02
+    },
+    "branch": {
+      "width_m": 0.64,
+      "height_m": 0.5,
+      "friction_factor": 0.02
+    }
+  },
+  "routes": {
+    "PrecisionAir-A": {
+      "segments": ["throat", "north-high", "riser", "spine", "riser", "spine", "header"],
+      "fitting_loss_coefficients": [0.13, 0.17, 0.15, 0.17, 0.18, 0.16, 0.16],
+      "terminal_y_m": 3.28,
+      "lead_z_m": 3.37,
+      "spine_x_m": 5.66,
+      "lower_z_m": 2.7,
+      "raise_y_m": 5.8,
+      "header_y_m": 4.25,
+      "tier_z_m": 3.62
+    },
+    "PrecisionAir-B": {
+      "segments": ["throat", "north-low", "spine", "riser", "spine", "header"],
+      "fitting_loss_coefficients": [0.13, 0.18, 0.18, 0.2, 0.17, 0.15],
+      "terminal_y_m": 2.72,
+      "lead_z_m": 2.6,
+      "spine_x_m": 4.45,
+      "lower_z_m": 2.6,
+      "raise_y_m": 3.15,
+      "header_y_m": 1.1,
+      "tier_z_m": 3.62
+    }
+  }
+}

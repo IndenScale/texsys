@@ -1,0 +1,28 @@
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "texsys-datacenter"
+version = "0.1.0"
+description = "Data center multidisciplinary concept studies for texsys"
+requires-python = ">=3.11"
+dependencies = ["numpy>=1.26,<3", "texsys", "texsys-architecture", "texsys-controls", "texsys-electrical", "texsys-fire-protection", "texsys-hvac-dynamics", "texsys-hvac-equipment", "texsys-plumbing", "texsys-spatial", "texsys-structure"]
+
+[project.entry-points."texsys.packages"]
+datacenter = "texsys_datacenter:package"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.uv.sources]
+texsys = { workspace = true }
+texsys-architecture = { workspace = true }
+texsys-controls = { workspace = true }
+texsys-electrical = { workspace = true }
+texsys-fire-protection = { workspace = true }
+texsys-hvac-dynamics = { workspace = true }
+texsys-hvac-equipment = { workspace = true }
+texsys-plumbing = { workspace = true }
+texsys-spatial = { workspace = true }
+texsys-structure = { workspace = true }

@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "state": "assumed",
+  "model": "sensible-air-rated-point",
+  "parameters": {
+    "sensible_capacity": "kW",
+    "supply_airflow": "m3/s",
+    "electrical_input": "kW"
+  },
+  "site_inputs": [
+    "supply_air_temperature",
+    "return_temperature_limit",
+    "air_density",
+    "air_specific_heat"
+  ],
+  "method": "sensible-capacity-and-air-heat-transport",
+  "limitations": "用于方案额定点。参数示意，项目按实测或制造商资料选型。"
+}

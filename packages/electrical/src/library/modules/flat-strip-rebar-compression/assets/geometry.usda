@@ -1,0 +1,44 @@
+#usda 1.0
+(
+    defaultPrim = "Module"
+    metersPerUnit = 1
+    upAxis = "Z"
+)
+
+def Xform "Module"
+{
+    def Scope "Geometry"
+    {
+        def Cube "CompressionSleeve"
+        {
+            double size = 1
+            double3 xformOp:translate = (-0.006, 0, 0.006)
+            double3 xformOp:scale = (0.056, 0.054, 0.04)
+            uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
+            color3f[] primvars:displayColor = [(0.78, 0.46, 0.19)]
+        }
+        def Cube "TapeTerminal"
+        {
+            double size = 1
+            double3 xformOp:translate = (-0.049, 0, 0.016)
+            double3 xformOp:scale = (0.062, 0.04, 0.004)
+            uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
+            color3f[] primvars:displayColor = [(0.51, 0.62, 0.66)]
+        }
+    }
+    def Scope "Ports"
+    {
+        def Xform "tape"
+        {
+            double3 xformOp:translate = (-0.08, 0, 0.016)
+            uniform token[] xformOpOrder = ["xformOp:translate"]
+            custom double3 texsys:normal = (-1, 0, 0)
+        }
+        def Xform "rebar"
+        {
+            double3 xformOp:translate = (0, 0, 0)
+            uniform token[] xformOpOrder = ["xformOp:translate"]
+            custom double3 texsys:normal = (0, 1, 0)
+        }
+    }
+}

@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 180 100" role="img">
+  <title>扁钢与钢筋不可逆压接节点</title>
+  <path d="M24 50h91M115 15v70" stroke="#516a77" stroke-width="6"/>
+  <path d="M86 33h47v34H86z" fill="#f4d4ac" stroke="#ac591b" stroke-width="2"/>
+  <circle id="port-tape" data-port="tape" cx="24" cy="50" r="5" fill="#fff" stroke="#157381" stroke-width="2"/>
+  <circle id="port-rebar" data-port="rebar" cx="115" cy="50" r="5" fill="#fff" stroke="#157381" stroke-width="2"/>
+</svg>

@@ -1,0 +1,21 @@
+{
+  "basis": "风冷机房参考库方案假设",
+  "envelope_m": [
+    0.1,
+    0.1,
+    0.415
+  ],
+  "frame": {
+    "front": "-Y",
+    "origin": "包络最小角",
+    "units": "m",
+    "up_axis": "Z"
+  },
+  "limitations": "调节范围、连接与承载待选型。",
+  "properties": {
+    "height_m": 0.415,
+    "section": "可调支座方案包络"
+  },
+  "schema_version": 1,
+  "state": "assumed"
+}

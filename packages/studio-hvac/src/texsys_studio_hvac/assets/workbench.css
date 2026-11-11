@@ -199,7 +199,7 @@
 .section-heading {
   margin: 26px 0 12px;
   font-size: 14px;
-  font-weight: 600;
+  font-weight: 500;
 }
 .table-summary {
   display: flex;
@@ -251,7 +251,7 @@
   margin: 4px 0 0;
 }
 .equipment-table strong {
-  font-weight: 550;
+  font-weight: 500;
   font-variant-numeric: tabular-nums;
 }
 .object-link {
@@ -320,7 +320,7 @@
 .component-identity strong {
   display: block;
   font-size: 14px;
-  font-weight: 550;
+  font-weight: 500;
 }
 .component-identity small {
   display: block;
@@ -421,7 +421,7 @@
 }
 .run-heading strong {
   font-size: 14px;
-  font-weight: 600;
+  font-weight: 500;
   white-space: nowrap;
 }
 .run-state {
@@ -479,7 +479,7 @@
 }
 .run-checks summary {
   padding: 12px 16px;
-  font-weight: 550;
+  font-weight: 500;
   font-size: 12px;
   cursor: pointer;
 }
@@ -574,7 +574,7 @@
 }
 .issue-text strong {
   font-size: 13px;
-  font-weight: 550;
+  font-weight: 500;
 }
 .issue-text p {
   margin: 6px 0;
@@ -602,7 +602,7 @@
 }
 .check-clear strong {
   font-size: 14px;
-  font-weight: 550;
+  font-weight: 500;
 }
 .check-clear p {
   font-size: 12px;
@@ -623,7 +623,7 @@
 .report-list strong {
   display: block;
   font-size: 13px;
-  font-weight: 550;
+  font-weight: 500;
 }
 .report-list small {
   display: block;
@@ -695,7 +695,7 @@
 .output-section h2 {
   margin: 0 0 10px;
   font-size: 14px;
-  font-weight: 600;
+  font-weight: 500;
 }
 .output-row {
   display: flex;
@@ -715,7 +715,7 @@
 .output-row strong {
   display: block;
   font-size: 13px;
-  font-weight: 550;
+  font-weight: 500;
 }
 .output-row small {
   display: block;
@@ -742,7 +742,7 @@
 .overview-heading h2 {
   font-size: 22px;
   margin: 0;
-  font-weight: 600;
+  font-weight: 500;
   overflow-wrap: anywhere;
 }
 .overview-heading p {
@@ -772,7 +772,7 @@
 .continue-design h3 {
   margin: 0;
   font-size: 17px;
-  font-weight: 600;
+  font-weight: 500;
 }
 .continue-design p {
   font-size: 12px;
@@ -781,7 +781,7 @@
 }
 .project-overview > h3 {
   font-size: 14px;
-  font-weight: 600;
+  font-weight: 500;
   margin: 26px 0 12px;
 }
 .project-work-list {
@@ -807,7 +807,7 @@
 .project-work-list strong {
   display: block;
   font-size: 14px;
-  font-weight: 550;
+  font-weight: 500;
 }
 .project-work-list small {
   display: block;
@@ -843,7 +843,7 @@
 }
 .capability-list strong {
   font-size: 14px;
-  font-weight: 550;
+  font-weight: 500;
 }
 .capability-list p {
   font-size: 12px;
@@ -892,7 +892,7 @@
 .object-identity h2 {
   margin: 0;
   font-size: 17px;
-  font-weight: 650;
+  font-weight: 500;
   overflow-wrap: anywhere;
 }
 .object-identity p {
@@ -935,7 +935,7 @@
 .inspector-tabs button.active {
   color: #0a7567;
   border-bottom-color: #087f72;
-  font-weight: 550;
+  font-weight: 500;
 }
 .inspector-scroll {
   min-height: 0;
@@ -951,7 +951,7 @@
 }
 .inspector-section-heading h3 {
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 500;
   margin: 0;
 }
 .inspector-section-heading > span {
@@ -995,7 +995,7 @@
 }
 .parameter-value strong {
   font-size: 13px;
-  font-weight: 550;
+  font-weight: 500;
   font-variant-numeric: tabular-nums;
   line-height: 1.6;
   display: block;
@@ -1034,7 +1034,7 @@
 }
 .parameter-editor > h3 {
   font-size: 15px;
-  font-weight: 600;
+  font-weight: 500;
   margin: 17px 0 7px;
 }
 .field-help {
@@ -1095,7 +1095,7 @@
 .type-instances h3 {
   font-size: 12px;
   margin: 0 0 10px;
-  font-weight: 600;
+  font-weight: 500;
 }
 .type-instances button {
   display: flex;
@@ -1131,7 +1131,7 @@
 }
 .port-detail-list strong {
   flex: 1;
-  font-weight: 550;
+  font-weight: 500;
   overflow-wrap: anywhere;
 }
 .port-detail-list small {
@@ -1155,7 +1155,7 @@
 }
 .basis-details h3 {
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 500;
   margin: 0 0 9px;
 }
 .basis-details p {
@@ -1175,7 +1175,7 @@
 }
 .basis-details strong {
   font-size: 12px;
-  font-weight: 550;
+  font-weight: 500;
 }
 @media (max-width: 1200px) {
   .data-view {

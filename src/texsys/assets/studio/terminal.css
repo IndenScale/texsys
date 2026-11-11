@@ -219,7 +219,7 @@ button.navigator-button.panel-header-action:hover {
 }
 
 .terminal-hover-title {
-  font-weight: 600;
+  font-weight: 500;
   font-size: 12px;
   color: var(--ui-text, #263b46);
   font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;

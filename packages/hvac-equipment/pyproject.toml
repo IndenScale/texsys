@@ -7,7 +7,7 @@ name = "texsys-hvac-equipment"
 version = "0.1.0"
 description = "HVAC equipment families and geometric event adapter for texsys"
 requires-python = ">=3.11"
-dependencies = ["texsys"]
+dependencies = ["texsys", "texsys-spatial", "texsys-structure"]
 
 [project.entry-points."texsys.packages"]
 hvac-equipment = "texsys_hvac_equipment:package"
@@ -20,3 +20,5 @@ texsys_hvac_equipment = ["assets/*.json"]
 
 [tool.uv.sources]
 texsys = { workspace = true }
+texsys-spatial = { workspace = true }
+texsys-structure = { workspace = true }

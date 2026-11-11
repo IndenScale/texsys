@@ -1,0 +1,89 @@
+{
+  "schema_version": 1,
+  "state": "assumed",
+  "basis": "代表性基础钢筋笼及楼级等电位网络。导体、连接电阻、路由和预算均为概念算例。",
+  "modules": {
+    "beam": "reinforced-concrete-beam",
+    "joint": "flat-strip-rebar-compression",
+    "strip": "galvanized-flat-strip"
+  },
+  "electrical_reserve": "Electrical",
+  "floor_bus_offset_m": [4, 8, 0.35],
+  "riser_offsets_m": {
+    "A": [1, 1, 0.35],
+    "B": [7, 1, 0.35]
+  },
+  "unit_bus_m": [3.5, 6.5, 0.3],
+  "rack_bond_height_m": 0.2,
+  "equipment_points_m": {
+    "CDU-A": [0.5, 6.4, 0.25],
+    "CDU-B": [1.5, 6.4, 0.25],
+    "PrecisionAir-A": [0.7, 7.4, 0.25],
+    "PrecisionAir-B": [2, 7.4, 0.25]
+  },
+  "copper": {
+    "feeder_mm2": 50,
+    "spur_mm2": 16,
+    "resistivity_ohm_mm2_m": 0.0175
+  },
+  "foundations": {
+    "A": {
+      "origin_m": [52.5, 4, -0.8],
+      "environment": "concrete-embedded",
+      "state": "assumed",
+      "connector": "Demo-Compression-40x4-D20",
+      "tool": "Demo-Hydraulic-Tool",
+      "die": "Demo-40x4-D20-Die",
+      "basis": "演示连接件及配套工具标识，工程选型与实际记录待提供。",
+      "reference_distance_m": 0.65,
+      "contact_mohm": 1.5,
+      "cage_path_mohm": 0.4
+    },
+    "B": {
+      "origin_m": [58.5, 4, -0.8],
+      "environment": "concrete-embedded",
+      "state": "assumed",
+      "connector": "Demo-Compression-40x4-D20",
+      "tool": "Demo-Hydraulic-Tool",
+      "die": "Demo-40x4-D20-Die",
+      "basis": "演示连接件及配套工具标识，工程选型与实际记录待提供。",
+      "reference_distance_m": 0.65,
+      "contact_mohm": 1.5,
+      "cage_path_mohm": 0.4
+    }
+  },
+  "max_path_mohm": 75,
+  "cases": {
+    "normal": {
+      "unavailable_bonds": [],
+      "expected": "pass"
+    },
+    "joint-a-open": {
+      "unavailable_bonds": ["Foundation-A/Compression"],
+      "expected": "pass"
+    },
+    "joint-b-open": {
+      "unavailable_bonds": ["Foundation-B/Compression"],
+      "expected": "pass"
+    },
+    "both-joints-open": {
+      "unavailable_bonds": ["Foundation-A/Compression", "Foundation-B/Compression"],
+      "expected": "fail"
+    },
+    "cage-a-open": {
+      "unavailable_bonds": ["Foundation-A/CagePath"],
+      "expected": "pass"
+    },
+    "joint-b-degraded-with-a-open": {
+      "unavailable_bonds": ["Foundation-A/Compression"],
+      "resistance_overrides_mohm": {
+        "Foundation-B/Compression": 150
+      },
+      "expected": "fail"
+    },
+    "rack-spur-open": {
+      "unavailable_bonds": ["L03/Unit-01-01/Rack-01/PE"],
+      "expected": "fail"
+    }
+  }
+}

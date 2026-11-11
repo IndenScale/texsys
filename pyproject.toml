@@ -24,6 +24,7 @@ dev = [
   "pre-commit>=4",
   "pytest>=8",
   "ruff>=0.8",
+  "texsys-datacenter",
   "texsys-bom",
   "texsys-diagram",
   "texsys-diagram-elk",
@@ -51,6 +52,7 @@ texsys = ["assets/*.usda", "assets/studio/*", "assets/studio/atomstudio/*"]
 members = ["packages/*"]
 
 [tool.uv.sources]
+texsys-datacenter = { workspace = true }
 texsys-bom = { workspace = true }
 texsys-diagram = { workspace = true }
 texsys-diagram-elk = { workspace = true }

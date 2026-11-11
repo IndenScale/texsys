@@ -1,0 +1,20 @@
+{
+  "components": {
+    "SingleModeFiber": {
+      "ports": {
+        "end_a": {
+          "direction": "inout",
+          "kind": "fiber-lc-duplex-sm",
+          "max_connections": 1
+        },
+        "end_b": {
+          "direction": "inout",
+          "kind": "fiber-lc-duplex-sm",
+          "max_connections": 1
+        }
+      }
+    }
+  },
+  "root": "SingleModeFiber",
+  "schema_version": 1
+}

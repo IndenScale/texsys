@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 136" role="img" aria-label="精密空调机组">
+<rect x="75" y="28" width="150" height="88" rx="10" fill="#e1eff4" stroke="#245064" stroke-width="2"/>
+<text x="150" y="66" fill="#163949" font-family="sans-serif" font-size="14" font-weight="700" text-anchor="middle">PRECISION AIR</text>
+<text x="150" y="87" fill="#396476" font-family="sans-serif" font-size="12" text-anchor="middle">精密空调机组</text>
+<path d="M150 116L150 124" stroke="#9b6415" stroke-width="2"/>
+<circle id="port-power" data-port="power" cx="150" cy="124" r="4" fill="#9b6415"><title>power (in)</title></circle>
+<path d="M75 70L30 70" stroke="#296e88" stroke-width="2"/>
+<circle id="port-return" data-port="return" cx="30" cy="70" r="4" fill="#296e88"><title>return (in)</title></circle>
+<path d="M225 70L270 70" stroke="#296e88" stroke-width="2"/>
+<circle id="port-supply" data-port="supply" cx="270" cy="70" r="4" fill="#296e88"><title>supply (out)</title></circle>
+</svg>

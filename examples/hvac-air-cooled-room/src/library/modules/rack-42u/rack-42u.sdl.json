@@ -1,0 +1,38 @@
+{
+  "components": {
+    "Rack42U": {
+      "behavior": {
+        "parameters": {
+          "it_load_kw": {
+            "source": "风冷机房示例设计假设，待设备选型及实际负荷确认",
+            "state": "assumed",
+            "unit": "kW",
+            "value": 3.0
+          }
+        },
+        "reference": "src/library/modules/rack-42u/assets/heat-load.json",
+        "source": "风冷机房示例设计假设，待设备选型及实际负荷确认",
+        "state": "assumed"
+      },
+      "ports": {
+        "front": {
+          "direction": "in",
+          "kind": "room-air",
+          "max_connections": 1
+        },
+        "rails": {
+          "direction": "inout",
+          "kind": "rack-mount",
+          "max_connections": 42
+        },
+        "rear": {
+          "direction": "out",
+          "kind": "room-air",
+          "max_connections": 1
+        }
+      }
+    }
+  },
+  "root": "Rack42U",
+  "schema_version": 1
+}

@@ -1,0 +1,30 @@
+schema_version = 1
+name = "架空地板支座"
+version = "0.1.0"
+entry = "floor-pedestal.sdl.json"
+
+[assets.geometry]
+kind = "geometry"
+path = "assets/geometry.usda"
+source = "风冷机房参考库方案假设"
+fidelity = "方案级实体与接口定位"
+
+[assets.symbol]
+kind = "symbol"
+path = "assets/symbol.svg"
+source = "风冷机房参考库方案假设"
+fidelity = "带端口锚点的功能示意"
+
+[assets.specification]
+kind = "specification"
+path = "assets/specification.json"
+source = "风冷机房参考库方案假设"
+fidelity = "有单位的方案假设"
+
+[port_bindings.head]
+geometry = "/Module/Ports/head"
+symbol = "port-head"
+
+[port_bindings.base]
+geometry = "/Module/Ports/base"
+symbol = "port-base"

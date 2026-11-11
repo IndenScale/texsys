@@ -1,0 +1,109 @@
+{
+  "schema_version": 1,
+  "root": "LiquidCooledRack",
+  "components": {
+    "LiquidCooledRack": {
+      "ports": {
+        "air_in_a": {
+          "direction": "in",
+          "kind": "room-air",
+          "max_connections": 1
+        },
+        "air_in_b": {
+          "direction": "in",
+          "kind": "room-air",
+          "max_connections": 1
+        },
+        "air_out_a": {
+          "direction": "out",
+          "kind": "room-air",
+          "max_connections": 1
+        },
+        "air_out_b": {
+          "direction": "out",
+          "kind": "room-air",
+          "max_connections": 1
+        },
+        "power_a": {
+          "direction": "in",
+          "kind": "ac-power",
+          "max_connections": 1
+        },
+        "power_b": {
+          "direction": "in",
+          "kind": "ac-power",
+          "max_connections": 1
+        },
+        "tcs_in_a": {
+          "direction": "in",
+          "kind": "tcs",
+          "max_connections": 1
+        },
+        "tcs_in_b": {
+          "direction": "in",
+          "kind": "tcs",
+          "max_connections": 1
+        },
+        "tcs_out_a": {
+          "direction": "out",
+          "kind": "tcs",
+          "max_connections": 1
+        },
+        "tcs_out_b": {
+          "direction": "out",
+          "kind": "tcs",
+          "max_connections": 1
+        }
+      },
+      "behavior": {
+        "reference": "assets/behavior.json",
+        "state": "assumed",
+        "source": "Texsys 暖通专业库方案假设",
+        "parameters": {
+          "rated_circuit_flow": {
+            "value": 1.875,
+            "unit": "kg/s",
+            "state": "assumed",
+            "source": "Texsys 暖通专业库方案假设"
+          },
+          "maximum_circuit_flow": {
+            "value": 2.25,
+            "unit": "kg/s",
+            "state": "assumed",
+            "source": "Texsys 暖通专业库方案假设"
+          },
+          "manifold_pair_drop": {
+            "value": 6,
+            "unit": "kPa",
+            "state": "assumed",
+            "source": "Texsys 暖通专业库方案假设"
+          },
+          "quick_disconnect_pair_drop": {
+            "value": 12,
+            "unit": "kPa",
+            "state": "assumed",
+            "source": "Texsys 暖通专业库方案假设"
+          },
+          "cold_plate_circuit_drop": {
+            "value": 30,
+            "unit": "kPa",
+            "state": "assumed",
+            "source": "Texsys 暖通专业库方案假设"
+          },
+          "maximum_inlet_temperature": {
+            "value": 35,
+            "unit": "degC",
+            "state": "assumed",
+            "source": "Texsys 暖通专业库方案假设"
+          },
+          "maximum_return_temperature": {
+            "value": 40,
+            "unit": "degC",
+            "state": "assumed",
+            "source": "Texsys 暖通专业库方案假设"
+          }
+        }
+      }
+    }
+  }
+}

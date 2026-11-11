@@ -1,0 +1,67 @@
+{
+  "schema_version": 1,
+  "state": "assumed",
+  "basis": "从楼层既有水力边界起算。独立 A/B 同层上走管，按每个受控 CDU 平均分配流量，叠加新增的楼层配水管损失。既有末端设备压降保留为 CDU 侧的等效设备损失。",
+  "spine_x_m": 46.4,
+  "minimum_pipe_clearance_m": 0.04,
+  "minimum_overhead_m": 2.5,
+  "elbow_loss_coefficient": 0.65,
+  "pipe_types": {
+    "spine": {
+      "diameter_m": 0.34,
+      "outside_m": 0.38,
+      "roughness_m": 0.00015,
+      "max_velocity_m_s": 2.5,
+      "minor_loss_coefficient": 0.4,
+      "capacity_kg_s": 190
+    },
+    "row": {
+      "diameter_m": 0.16,
+      "outside_m": 0.18,
+      "roughness_m": 0.00015,
+      "max_velocity_m_s": 2.5,
+      "minor_loss_coefficient": 0.35,
+      "capacity_kg_s": 45
+    },
+    "drop": {
+      "diameter_m": 0.08,
+      "outside_m": 0.1,
+      "roughness_m": 0.00015,
+      "max_velocity_m_s": 2.5,
+      "minor_loss_coefficient": 2,
+      "capacity_kg_s": 9
+    }
+  },
+  "trains": {
+    "HeatRejection-A": {
+      "cdu": "CDU-A",
+      "legs": {
+        "supply": {
+          "overhead_m": 3.35,
+          "row_offset_m": 7,
+          "port": "facility_in"
+        },
+        "return": {
+          "overhead_m": 3.8,
+          "row_offset_m": 7.5,
+          "port": "facility_out"
+        }
+      }
+    },
+    "HeatRejection-B": {
+      "cdu": "CDU-B",
+      "legs": {
+        "supply": {
+          "overhead_m": 4.25,
+          "row_offset_m": 7,
+          "port": "facility_in"
+        },
+        "return": {
+          "overhead_m": 4.7,
+          "row_offset_m": 7.5,
+          "port": "facility_out"
+        }
+      }
+    }
+  }
+}

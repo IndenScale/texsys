@@ -203,9 +203,7 @@ export function AiConnectionSettings({ api }: { api: WorkbenchProps["api"] }) {
         ) : (
           saved.mode !== "disabled" && <p>{t("保存关闭后会清除已保存的连接和凭据。")}</p>
         )}
-        <p className="settings-card-note">
-          {t("生成提交说明时会把暂存差异发送给已配置的连接。测试连接只发送测试内容。")}
-        </p>
+        <p>{t("生成提交说明时会把暂存差异发送给已配置的连接。测试连接只发送测试内容。")}</p>
       </fieldset>
       <div className="settings-actions">
         <button type="submit" className="core-primary" disabled={Boolean(busy) || !dirty}>

@@ -1,0 +1,50 @@
+{
+  "schema_version": 1,
+  "root": "PrecisionAirUnit",
+  "components": {
+    "PrecisionAirUnit": {
+      "ports": {
+        "power": {
+          "kind": "ac-power",
+          "direction": "in",
+          "max_connections": 1
+        },
+        "return": {
+          "kind": "room-air",
+          "direction": "in",
+          "max_connections": 4
+        },
+        "supply": {
+          "kind": "room-air",
+          "direction": "out",
+          "max_connections": 4
+        }
+      },
+      "behavior": {
+        "reference": "assets/behavior.json",
+        "state": "assumed",
+        "source": "Texsys 暖通专业库方案假设",
+        "parameters": {
+          "sensible_capacity": {
+            "value": 140,
+            "unit": "kW",
+            "state": "assumed",
+            "source": "Texsys 暖通专业库方案假设"
+          },
+          "supply_airflow": {
+            "value": 12,
+            "unit": "m3/s",
+            "state": "assumed",
+            "source": "Texsys 暖通专业库方案假设"
+          },
+          "electrical_input": {
+            "value": 45,
+            "unit": "kW",
+            "state": "assumed",
+            "source": "Texsys 暖通专业库方案假设"
+          }
+        }
+      }
+    }
+  }
+}

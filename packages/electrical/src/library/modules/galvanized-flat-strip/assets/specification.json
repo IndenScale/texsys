@@ -1,0 +1,38 @@
+{
+  "schema_version": 1,
+  "state": "assumed",
+  "interfaces": {
+    "end_a": {
+      "position_m": [
+        0,
+        0,
+        0
+      ],
+      "normal": [
+        -1,
+        0,
+        0
+      ]
+    },
+    "end_b": {
+      "position_m": [
+        1,
+        0,
+        0
+      ],
+      "normal": [
+        1,
+        0,
+        0
+      ]
+    }
+  },
+  "properties": {
+    "material": "hot-dip-galvanized-steel",
+    "width_mm": 40,
+    "thickness_mm": 4,
+    "nominal_length_m": 1,
+    "resistivity_ohm_mm2_m": 0.15
+  },
+  "limitations": "名义方案样件。工程应用须提供适用产品、工法及验收证据。"
+}

@@ -1,0 +1,459 @@
+{
+  "schema_version": 1,
+  "state": "assumed",
+  "basis": "概念级分隔与圆形单服务贯穿算例。分区面积、耐火指标、基材和封堵参数均为可替换的演示输入。",
+  "plan": {
+    "area_limit_m2": {
+      "Hall": 2800,
+      "Services": 800
+    },
+    "wall": {
+      "substrate": "masonry-demo",
+      "required_min": {
+        "integrity": 120,
+        "insulation": 120
+      }
+    },
+    "slab": {
+      "substrate": "w-deck-concrete-demo",
+      "required_min": {
+        "integrity": 90,
+        "insulation": 90
+      }
+    },
+    "shaft_wall": {
+      "substrate": "masonry-demo",
+      "required_min": {
+        "integrity": 120,
+        "insulation": 120
+      }
+    }
+  },
+  "fws_routing": {
+    "HeatRejection-A": {
+      "shaft": "FWS-Riser-A",
+      "plant_reserve": "Cooling",
+      "plant_level": "L01",
+      "riser_nodes_by_level": {
+        "L01": "Riser-1",
+        "L02": "Riser-2",
+        "L03": "Riser-3",
+        "L04": "Riser-4"
+      },
+      "legs": {
+        "supply": {
+          "shaft_xy_m": [51, 45.7],
+          "plant_xy_m": [54, 40],
+          "above_floor_m": 2.7,
+          "riser_outside_mm": 700,
+          "branch_outside_mm": 380,
+          "insulation": "mineral-wool-demo",
+          "hall_xy_m": [47, 45.7],
+          "plant_via_xy_m": [[51, 40]]
+        },
+        "return": {
+          "shaft_xy_m": [52, 47],
+          "plant_xy_m": [54, 40],
+          "above_floor_m": 3.2,
+          "riser_outside_mm": 700,
+          "branch_outside_mm": 380,
+          "insulation": "mineral-wool-demo",
+          "hall_xy_m": [47, 47],
+          "plant_via_xy_m": [[52, 40]]
+        }
+      }
+    },
+    "HeatRejection-B": {
+      "shaft": "FWS-Riser-B",
+      "plant_reserve": "Cooling",
+      "plant_level": "L01",
+      "riser_nodes_by_level": {
+        "L01": "Riser-1",
+        "L02": "Riser-2",
+        "L03": "Riser-3",
+        "L04": "Riser-4"
+      },
+      "legs": {
+        "supply": {
+          "shaft_xy_m": [56, 46.5],
+          "plant_xy_m": [54, 40],
+          "above_floor_m": 2.7,
+          "riser_outside_mm": 700,
+          "branch_outside_mm": 380,
+          "insulation": "mineral-wool-demo",
+          "hall_xy_m": [47, 43.7],
+          "plant_via_xy_m": [[56, 40]],
+          "branch_via_xy_m": [
+            [54, 46.5],
+            [54, 43.7]
+          ]
+        },
+        "return": {
+          "shaft_xy_m": [57, 48],
+          "plant_xy_m": [54, 40],
+          "above_floor_m": 3.2,
+          "riser_outside_mm": 700,
+          "branch_outside_mm": 380,
+          "insulation": "mineral-wool-demo",
+          "hall_xy_m": [47, 44.2],
+          "plant_via_xy_m": [[57, 40]],
+          "branch_via_xy_m": [
+            [54, 48],
+            [54, 44.2]
+          ]
+        }
+      }
+    }
+  },
+  "drainage_routing": {
+    "nodes_m": {
+      "Inlet-L03-A": [47, 43, 16.7],
+      "Drain-Riser": [53, 43, 16.7],
+      "Collection-L01": [52, 2, 0.8]
+    },
+    "via_m": {
+      "Drain-Trunk": [[53, 43, 0.8]]
+    },
+    "insulation": "none",
+    "outside_mm": 110
+  },
+  "firestop_systems": {
+    "FWS-Wall-Demo": {
+      "host": "wall",
+      "substrate": "masonry-demo",
+      "min_thickness_mm": 180,
+      "service": "fws-metal-pipe",
+      "insulation": "mineral-wool-demo",
+      "max_outside_mm": 420,
+      "annular_range_mm": [15, 45],
+      "edge_spacing_mm": 150,
+      "rating_min": {
+        "integrity": 120,
+        "insulation": 120
+      },
+      "state": "assumed",
+      "evidence": "算例参数卡 FWS-Wall-Demo。项目选型须提供与实际贯穿构造一致的证据。"
+    },
+    "FWS-Slab-Demo": {
+      "host": "floor",
+      "substrate": "w-deck-concrete-demo",
+      "min_thickness_mm": 105,
+      "service": "fws-metal-pipe",
+      "insulation": "mineral-wool-demo",
+      "max_outside_mm": 720,
+      "annular_range_mm": [15, 45],
+      "edge_spacing_mm": 150,
+      "rating_min": {
+        "integrity": 90,
+        "insulation": 90
+      },
+      "state": "assumed",
+      "evidence": "算例参数卡 FWS-Slab-Demo。项目选型须提供与实际贯穿构造一致的证据。"
+    },
+    "Drain-Wall-Demo": {
+      "host": "wall",
+      "substrate": "masonry-demo",
+      "min_thickness_mm": 180,
+      "service": "drain-metal-pipe",
+      "insulation": "none",
+      "max_outside_mm": 150,
+      "annular_range_mm": [15, 45],
+      "edge_spacing_mm": 150,
+      "rating_min": {
+        "integrity": 120,
+        "insulation": 120
+      },
+      "state": "assumed",
+      "evidence": "算例参数卡 Drain-Wall-Demo。项目选型须提供与实际贯穿构造一致的证据。"
+    },
+    "Drain-Slab-Demo": {
+      "host": "floor",
+      "substrate": "w-deck-concrete-demo",
+      "min_thickness_mm": 105,
+      "service": "drain-metal-pipe",
+      "insulation": "none",
+      "max_outside_mm": 150,
+      "annular_range_mm": [15, 45],
+      "edge_spacing_mm": 150,
+      "rating_min": {
+        "integrity": 90,
+        "insulation": 90
+      },
+      "state": "assumed",
+      "evidence": "算例参数卡 Drain-Slab-Demo。项目选型须提供与实际贯穿构造一致的证据。"
+    },
+    "FWS-Shaft-Demo": {
+      "host": "wall",
+      "substrate": "masonry-demo",
+      "min_thickness_mm": 180,
+      "service": "fws-metal-pipe",
+      "insulation": "mineral-wool-demo",
+      "max_outside_mm": 720,
+      "annular_range_mm": [15, 45],
+      "edge_spacing_mm": 150,
+      "rating_min": {
+        "integrity": 120,
+        "insulation": 120
+      },
+      "state": "assumed",
+      "evidence": "算例参数卡 FWS-Shaft-Demo。项目选型须提供与实际竖井墙贯穿构造一致的证据。"
+    }
+  },
+  "selections": {
+    "A-L01-return@L01/FWS-Riser-A/West#1": {
+      "system": "FWS-Shaft-Demo",
+      "center_m": [50, 47, 3.2],
+      "diameter_mm": 440
+    },
+    "A-L01-return@L01/Hall-Services#1": {
+      "system": "FWS-Wall-Demo",
+      "center_m": [49, 47, 3.2],
+      "diameter_mm": 440
+    },
+    "A-L01-supply@L01/FWS-Riser-A/West#1": {
+      "system": "FWS-Shaft-Demo",
+      "center_m": [50, 45.7, 2.7],
+      "diameter_mm": 440
+    },
+    "A-L01-supply@L01/Hall-Services#1": {
+      "system": "FWS-Wall-Demo",
+      "center_m": [49, 45.7, 2.7],
+      "diameter_mm": 440
+    },
+    "A-L02-return@L02/FWS-Riser-A/West#1": {
+      "system": "FWS-Shaft-Demo",
+      "center_m": [50, 47, 10.2],
+      "diameter_mm": 440
+    },
+    "A-L02-return@L02/Hall-Services#1": {
+      "system": "FWS-Wall-Demo",
+      "center_m": [49, 47, 10.2],
+      "diameter_mm": 440
+    },
+    "A-L02-supply@L02/FWS-Riser-A/West#1": {
+      "system": "FWS-Shaft-Demo",
+      "center_m": [50, 45.7, 9.7],
+      "diameter_mm": 440
+    },
+    "A-L02-supply@L02/Hall-Services#1": {
+      "system": "FWS-Wall-Demo",
+      "center_m": [49, 45.7, 9.7],
+      "diameter_mm": 440
+    },
+    "A-L03-return@L03/FWS-Riser-A/West#1": {
+      "system": "FWS-Shaft-Demo",
+      "center_m": [50, 47, 17.2],
+      "diameter_mm": 440
+    },
+    "A-L03-return@L03/Hall-Services#1": {
+      "system": "FWS-Wall-Demo",
+      "center_m": [49, 47, 17.2],
+      "diameter_mm": 440
+    },
+    "A-L03-supply@L03/FWS-Riser-A/West#1": {
+      "system": "FWS-Shaft-Demo",
+      "center_m": [50, 45.7, 16.7],
+      "diameter_mm": 440
+    },
+    "A-L03-supply@L03/Hall-Services#1": {
+      "system": "FWS-Wall-Demo",
+      "center_m": [49, 45.7, 16.7],
+      "diameter_mm": 440
+    },
+    "A-L04-return@L04/FWS-Riser-A/West#1": {
+      "system": "FWS-Shaft-Demo",
+      "center_m": [50, 47, 24.2],
+      "diameter_mm": 440
+    },
+    "A-L04-return@L04/Hall-Services#1": {
+      "system": "FWS-Wall-Demo",
+      "center_m": [49, 47, 24.2],
+      "diameter_mm": 440
+    },
+    "A-L04-supply@L04/FWS-Riser-A/West#1": {
+      "system": "FWS-Shaft-Demo",
+      "center_m": [50, 45.7, 23.7],
+      "diameter_mm": 440
+    },
+    "A-L04-supply@L04/Hall-Services#1": {
+      "system": "FWS-Wall-Demo",
+      "center_m": [49, 45.7, 23.7],
+      "diameter_mm": 440
+    },
+    "A-riser-1-return@L01/FWS-Riser-A/South#1": {
+      "system": "FWS-Shaft-Demo",
+      "center_m": [52, 45, 3.2],
+      "diameter_mm": 760
+    },
+    "A-riser-1-supply@L01/FWS-Riser-A/South#1": {
+      "system": "FWS-Shaft-Demo",
+      "center_m": [51, 45, 2.7],
+      "diameter_mm": 760
+    },
+    "A-riser-2-return@L02/Slab#1": {
+      "system": "FWS-Slab-Demo",
+      "center_m": [52, 47, 7],
+      "diameter_mm": 760
+    },
+    "A-riser-2-supply@L02/Slab#1": {
+      "system": "FWS-Slab-Demo",
+      "center_m": [51, 45.7, 7],
+      "diameter_mm": 760
+    },
+    "A-riser-3-return@L03/Slab#1": {
+      "system": "FWS-Slab-Demo",
+      "center_m": [52, 47, 14],
+      "diameter_mm": 760
+    },
+    "A-riser-3-supply@L03/Slab#1": {
+      "system": "FWS-Slab-Demo",
+      "center_m": [51, 45.7, 14],
+      "diameter_mm": 760
+    },
+    "A-riser-4-return@L04/Slab#1": {
+      "system": "FWS-Slab-Demo",
+      "center_m": [52, 47, 21],
+      "diameter_mm": 760
+    },
+    "A-riser-4-supply@L04/Slab#1": {
+      "system": "FWS-Slab-Demo",
+      "center_m": [51, 45.7, 21],
+      "diameter_mm": 760
+    },
+    "B-L01-return@L01/FWS-Riser-B/West#1": {
+      "system": "FWS-Shaft-Demo",
+      "center_m": [55, 48, 3.2],
+      "diameter_mm": 440
+    },
+    "B-L01-return@L01/Hall-Services#1": {
+      "system": "FWS-Wall-Demo",
+      "center_m": [49, 44.2, 3.2],
+      "diameter_mm": 440
+    },
+    "B-L01-supply@L01/FWS-Riser-B/West#1": {
+      "system": "FWS-Shaft-Demo",
+      "center_m": [55, 46.5, 2.7],
+      "diameter_mm": 440
+    },
+    "B-L01-supply@L01/Hall-Services#1": {
+      "system": "FWS-Wall-Demo",
+      "center_m": [49, 43.7, 2.7],
+      "diameter_mm": 440
+    },
+    "B-L02-return@L02/FWS-Riser-B/West#1": {
+      "system": "FWS-Shaft-Demo",
+      "center_m": [55, 48, 10.2],
+      "diameter_mm": 440
+    },
+    "B-L02-return@L02/Hall-Services#1": {
+      "system": "FWS-Wall-Demo",
+      "center_m": [49, 44.2, 10.2],
+      "diameter_mm": 440
+    },
+    "B-L02-supply@L02/FWS-Riser-B/West#1": {
+      "system": "FWS-Shaft-Demo",
+      "center_m": [55, 46.5, 9.7],
+      "diameter_mm": 440
+    },
+    "B-L02-supply@L02/Hall-Services#1": {
+      "system": "FWS-Wall-Demo",
+      "center_m": [49, 43.7, 9.7],
+      "diameter_mm": 440
+    },
+    "B-L03-return@L03/FWS-Riser-B/West#1": {
+      "system": "FWS-Shaft-Demo",
+      "center_m": [55, 48, 17.2],
+      "diameter_mm": 440
+    },
+    "B-L03-return@L03/Hall-Services#1": {
+      "system": "FWS-Wall-Demo",
+      "center_m": [49, 44.2, 17.2],
+      "diameter_mm": 440
+    },
+    "B-L03-supply@L03/FWS-Riser-B/West#1": {
+      "system": "FWS-Shaft-Demo",
+      "center_m": [55, 46.5, 16.7],
+      "diameter_mm": 440
+    },
+    "B-L03-supply@L03/Hall-Services#1": {
+      "system": "FWS-Wall-Demo",
+      "center_m": [49, 43.7, 16.7],
+      "diameter_mm": 440
+    },
+    "B-L04-return@L04/FWS-Riser-B/West#1": {
+      "system": "FWS-Shaft-Demo",
+      "center_m": [55, 48, 24.2],
+      "diameter_mm": 440
+    },
+    "B-L04-return@L04/Hall-Services#1": {
+      "system": "FWS-Wall-Demo",
+      "center_m": [49, 44.2, 24.2],
+      "diameter_mm": 440
+    },
+    "B-L04-supply@L04/FWS-Riser-B/West#1": {
+      "system": "FWS-Shaft-Demo",
+      "center_m": [55, 46.5, 23.7],
+      "diameter_mm": 440
+    },
+    "B-L04-supply@L04/Hall-Services#1": {
+      "system": "FWS-Wall-Demo",
+      "center_m": [49, 43.7, 23.7],
+      "diameter_mm": 440
+    },
+    "B-riser-1-return@L01/FWS-Riser-B/South#1": {
+      "system": "FWS-Shaft-Demo",
+      "center_m": [57, 45, 3.2],
+      "diameter_mm": 760
+    },
+    "B-riser-1-supply@L01/FWS-Riser-B/South#1": {
+      "system": "FWS-Shaft-Demo",
+      "center_m": [56, 45, 2.7],
+      "diameter_mm": 760
+    },
+    "B-riser-2-return@L02/Slab#1": {
+      "system": "FWS-Slab-Demo",
+      "center_m": [57, 48, 7],
+      "diameter_mm": 760
+    },
+    "B-riser-2-supply@L02/Slab#1": {
+      "system": "FWS-Slab-Demo",
+      "center_m": [56, 46.5, 7],
+      "diameter_mm": 760
+    },
+    "B-riser-3-return@L03/Slab#1": {
+      "system": "FWS-Slab-Demo",
+      "center_m": [57, 48, 14],
+      "diameter_mm": 760
+    },
+    "B-riser-3-supply@L03/Slab#1": {
+      "system": "FWS-Slab-Demo",
+      "center_m": [56, 46.5, 14],
+      "diameter_mm": 760
+    },
+    "B-riser-4-return@L04/Slab#1": {
+      "system": "FWS-Slab-Demo",
+      "center_m": [57, 48, 21],
+      "diameter_mm": 760
+    },
+    "B-riser-4-supply@L04/Slab#1": {
+      "system": "FWS-Slab-Demo",
+      "center_m": [56, 46.5, 21],
+      "diameter_mm": 760
+    },
+    "Drain-L03-A@L03/Hall-Services#1": {
+      "system": "Drain-Wall-Demo",
+      "center_m": [49, 43, 16.7],
+      "diameter_mm": 160
+    },
+    "Drain-Trunk@L02/Slab#1": {
+      "system": "Drain-Slab-Demo",
+      "center_m": [53, 43, 7],
+      "diameter_mm": 160
+    },
+    "Drain-Trunk@L03/Slab#1": {
+      "system": "Drain-Slab-Demo",
+      "center_m": [53, 43, 14],
+      "diameter_mm": 160
+    }
+  }
+}

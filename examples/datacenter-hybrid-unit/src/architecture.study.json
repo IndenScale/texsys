@@ -1,0 +1,25 @@
+{
+  "schema_version": 1,
+  "state": "assumed",
+  "basis": "方案建筑构造。墙厚、洞口、机房空间和楼梯几何按算例协调，耐火要求和疏散判据由对应专业单独给出。",
+  "top_m": 28,
+  "partition_x_m": 49,
+  "wall_thickness_m": { "partition": 0.2, "shaft": 0.2, "stair": 0.2 },
+  "compartment_door_y_m": { "South": 3.5, "North": 50.5 },
+  "door_sizes_m": { "compartment": [1, 2.2], "stair": [1.8, 2.2], "discharge": [1.8, 2.2] },
+  "stairs": {
+    "West": { "entry_y_m": 12.5, "projection_m": 6.5, "half_depth_m": 3, "clear_width_m": 1.8 },
+    "East": {
+      "entry_at_compartment_door": "North",
+      "projection_m": 6.5,
+      "half_depth_m": 3,
+      "clear_width_m": 1.8
+    }
+  },
+  "flight": {
+    "treads_per_flight": 9,
+    "tread_m": 0.28,
+    "landing_m": 1.8,
+    "stair_thickness_m": 0.18
+  }
+}

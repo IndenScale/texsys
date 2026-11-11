@@ -1,5 +1,5 @@
 :root {
-  font-family: "Inter", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+  font-family: system-ui, "PingFang SC", "Microsoft YaHei", sans-serif;
   color: #263b46;
   background: #f4f6f8;
   font-synthesis: none;
@@ -15,6 +15,13 @@
 }
 body {
   margin: 0;
+}
+/* Reset browser defaults for workbench labels and semantic headings. */
+:where(.studio-app) :where(strong):not(:where(.monaco-editor *, .xterm *)) {
+  font-weight: 500;
+}
+:where(.studio-app) :where(h1, h2, h3, h4, h5, h6, th):not(:where(.monaco-editor *, .xterm *)) {
+  font-weight: 400;
 }
 button,
 input,
@@ -881,7 +888,7 @@ button svg {
 }
 .studio-empty h2 {
   font-size: 17px;
-  font-weight: 550;
+  font-weight: 500;
   margin: 0 0 10px;
 }
 .studio-empty p {
