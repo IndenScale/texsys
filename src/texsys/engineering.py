@@ -27,7 +27,7 @@ import uuid
 from texsys.dependencies import lock_project
 from texsys.evidence import canonical_digest, file_digest
 from texsys.execution import _input_digests
-from texsys.formal import _atomic_write, _load_json
+from texsys.formal import VALUE_STATES, _atomic_write, _load_json
 from texsys.packages import installed_packages
 from texsys.project import ProjectError, inspect_project, project_write_lock
 
@@ -79,9 +79,14 @@ def _discover(root):
         raise ProjectError("Engineering adapter identity must be namespaced.")
       if adapter.id in found:
         raise ProjectError(f"Duplicate engineering adapter: {adapter.id}")
+      adapter_metadata = {"id": adapter.id, "name": adapter.name,
+                          "version": adapter.version, "package": package.name}
+      if hasattr(adapter, "description"):
+        if not isinstance(adapter.description, str):
+          raise ProjectError("Engineering adapter description must be a string when provided.")
+        adapter_metadata["description"] = adapter.description
       if adapter.supports(root):
-        found[adapter.id] = (adapter, {"id": adapter.id, "name": adapter.name,
-                                     "version": adapter.version, "package": package.name})
+        found[adapter.id] = (adapter, adapter_metadata)
   return packages, found
 
 
@@ -148,6 +153,24 @@ def _number(value):
     return False
 
 
+def _validate_design(design):
+  """Validate an explicit selection's shape without inferring model identity.
+
+  The consumer must resolve the selection against its current design index;
+  passing this check does not establish that an object exists in the model.
+  """
+  if isinstance(design, dict):
+    if set(design) == {"definition"}:
+      if isinstance(design["definition"], str) and design["definition"].strip():
+        return
+    elif set(design) == {"occurrence"}:
+      path = design["occurrence"]
+      if (isinstance(path, list) and path
+          and all(isinstance(part, str) and part.strip() for part in path)):
+        return
+  raise ProjectError("Engineering design selection must contain exactly one non-empty definition string or non-empty occurrence string array.")
+
+
 def _source_path(context, file):
   if not isinstance(file, str) or not file or "\\" in file or "\0" in file:
     raise ProjectError("Adapter input must identify a regular JSON source file.")
@@ -190,6 +213,14 @@ def _inputs(context):
     if not isinstance(item, dict) or not all(isinstance(item.get(key), str) and item[key]
                                            for key in ("id", "label", "file", "pointer", "unit", "object_ref")):
       raise ProjectError("Engineering input requires identity, label, source, pointer, unit and object reference.")
+    if "design" in item:
+      _validate_design(item["design"])
+    if "state" in item:
+      state = item["state"]
+      if not isinstance(state, str) or state not in VALUE_STATES:
+        raise ProjectError(f"Invalid engineering input value state: {item['id']}")
+      if state not in {"known", "assumed"}:
+        raise ProjectError(f"Engineering input state {state} forbids a numeric value; this transaction requires an existing known or assumed value: {item['id']}")
     location = (item["file"], item["pointer"])
     if item["id"] in seen or location in locations:
       raise ProjectError("Engineering input identities and source locations must be unique.")
@@ -361,8 +392,11 @@ def _prepare(path, request):
     item, value = inputs[requested["input_id"]], requested["value"]
     if not _number(value) or ("min" in item and value < item["min"]) or ("max" in item and value > item["max"]):
       raise ProjectError(f"Engineering input must be finite and inside its declared bounds: {item['id']}")
+    if item.get("state") == "known" and value != item["value"]:
+      raise ProjectError(f"Cannot change known engineering input {item['id']} while retaining its source endorsement. First revise its source and state to an assumption, or use a workflow that updates the source together with the value.")
     changes.append({"input_id": item["id"], "before": item["value"], "after": value,
-                    **{key: item[key] for key in ("file", "pointer", "label", "unit", "object_ref")}})
+                    **{key: item[key] for key in ("file", "pointer", "label", "unit", "object_ref")},
+                    **{key: item[key] for key in ("design", "state") if key in item}})
   files = {item["file"] for item in changes}
   if len(files) != 1:
     raise ProjectError("This engineering transaction supports one source file; split unrelated file changes explicitly.")
@@ -425,6 +459,8 @@ def _validate_result(result):
         or check.get("status") not in ASSESSMENTS | {"not-applicable"} or check["id"] in seen):
       raise ProjectError("Engineering checks require unique identity, object reference, label and assessment status.")
     seen.add(check["id"])
+    if "design" in check:
+      _validate_design(check["design"])
   statuses = {item["status"] for item in checks}
   if result["assessment"] == "pass" and (statuses & {"fail", "indeterminate"} or "pass" not in statuses):
     raise ProjectError("An engineering pass cannot hide failed, missing or unassessed checks.")
@@ -433,6 +469,9 @@ def _validate_result(result):
       result[key] = []
     if not isinstance(result[key], list):
       raise ProjectError(f"Engineering result {key} must be an array.")
+  for extraction in result["extraction"]:
+    if isinstance(extraction, dict) and "design" in extraction:
+      _validate_design(extraction["design"])
   canonical_digest(result)  # Reject non-JSON and non-finite evidence.
   return result
 

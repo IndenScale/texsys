@@ -34,6 +34,10 @@ class HvacDynamicsPackage(TexsysPackage):
   name = "hvac-dynamics"
   version = "0.1.0"
 
+  def engineering_adapters(self):
+    from .engineering import HvacCapacityChangeAdapter
+    return (HvacCapacityChangeAdapter(),)
+
   def check(self, root):
     if not has_physics(root):
       return ()
