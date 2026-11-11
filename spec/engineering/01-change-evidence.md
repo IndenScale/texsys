@@ -6,34 +6,38 @@
 
 同一工程操作贯通读取输入、预览影响、应用修改、重新计算、比较结果和记录接受。领域适配器解释专业输入、影响与判据；核心负责修订、事务、运行记录、内容完整性和适用性。
 
-首个适配器是 `datacenter:fws-change`，复用现有设施水几何、水力和泵组配流。界面和 CLI 不实现第二套物理算法。整体目标及验收证据另见 [工程 POC 台账](../../docs/engineering-poc.md)。
+首个适配器是 `datacenter:fws-change`，复用现有设施水几何、水力和泵组配流；第二个 `hvac:capacity-change` 复用冷站集总动态求解链。界面和 CLI 不实现第二套物理算法。整体目标及验收证据另见 [工程 POC 台账](../../docs/engineering-poc.md)。
 
 ## 适配器与输入
 
-已安装的 `TexsysPackage` 通过 `engineering_adapters()` 返回适配器。适配器必须有带命名空间的 `id`、`name`、`version`，并实现以下方法：
+已安装的 `TexsysPackage` 通过 `engineering_adapters()` 返回适配器。适配器必须有带命名空间的 `id`、`name`、`version`，可用字符串 `description` 解释适用范围，并实现以下方法：
 
-| 方法 | 职责 |
-| --- | --- |
-| `supports(root)` | 判断当前项目是否具有受支持输入 |
-| `inputs(root)` | 声明可以编辑的数值字段及来源、单位、边界和对象引用 |
-| `impact(root, changes)` | 返回已登记的影响路径、计算目标和覆盖限制 |
-| `evaluate(root)` | 返回独立工程判定、逐项检查、提取量、限制和实际计算目标 |
+| 方法                    | 职责                                                   |
+| ----------------------- | ------------------------------------------------------ |
+| `supports(root)`        | 判断当前项目是否具有受支持输入                         |
+| `inputs(root)`          | 声明可以编辑的数值字段及来源、单位、边界和对象引用     |
+| `impact(root, changes)` | 返回已登记的影响路径、计算目标和覆盖限制               |
+| `evaluate(root)`        | 返回独立工程判定、逐项检查、提取量、限制和实际计算目标 |
 
 输入描述至少包含 `id`、`label`、`file`、`pointer`、`unit`、`object_ref`。`file` 是项目 source 目录内的普通 JSON 文件，`pointer` 是定位已有值的 JSON Pointer。核心重新读取真实值，不信任适配器提供的缓存数值。可选 `min`、`max` 表达数值边界；值和边界必须有限，布尔值不能冒充数值。
 
 输入 ID 和文件内定位不得重复。路径不得越界或经过符号链接，不能写入新字段或任意文件。`object_ref` 提供定位关系，首个适配器中的参数位置引用尚不等于任意 SDL 实例与几何对象的完整映射。
 
+可选 `state` 沿用 SDL 值状态。`assumed` 可通过本次数值事务修改；`known` 可读取、求解或提交同值请求，但禁止只换数值而保留原来源背书，须先修正来源和状态或使用同时更新来源的工作流。省略 `state` 保持旧适配器兼容，不推定为已知值。`unknown`、`missing`、`not-applicable`、`failed` 不得携带数值；适配器应省略不可编辑输入，并在求值时给出无法判定的原因。
+
+输入、检查和提取量均可携带 `design`：精确的 `{ "definition": "src/system.sdl.json#Chiller" }` 或 `{ "occurrence": ["CH-01"] }`。定义键和实例路径成员必须是非空字符串，两种形状不能混合或带其他键。核心只验证形状；Studio 使用设计索引解析身份，不从 `object_ref` 的自然语言或分隔符猜测对象。定义级参数可能影响多个继承实例，不能显示成仅修改一个实例。
+
 ## 共享 API 与命令
 
 以下函数通过 `texsys.api` 导出，也可从 `texsys.engineering` 调用。返回值都是可序列化的字典。
 
-| Python 函数 | CLI | 返回内容 |
-| --- | --- | --- |
-| `inspect_engineering(path, adapter_id=None)` | `texsys engineering inspect --adapter ID -p PROJECT` | 可用适配器、当前修订、输入、运行历史、接受记录、最近两次比较和诊断 |
-| `plan_engineering_change(path, request)` | `texsys engineering plan REQUEST -p PROJECT` | 修改前后值、来源、影响、文本差异及 `plan` 摘要；不写设计 |
-| `apply_engineering_change(path, request, plan)` | `texsys engineering apply REQUEST --plan DIGEST -p PROJECT` | 应用结果及新修订 |
-| `run_engineering(path, adapter_id)` | `texsys engineering run ID -p PROJECT` | 带输入与工具标识的完整运行记录 |
-| `accept_engineering(path, adapter_id, run_id, actor, rationale)` | `texsys engineering accept ID RUN_ID --actor NAME --rationale TEXT -p PROJECT` | 关联准确证据的具名接受记录 |
+| Python 函数                                                      | CLI                                                                            | 返回内容                                                           |
+| ---------------------------------------------------------------- | ------------------------------------------------------------------------------ | ------------------------------------------------------------------ |
+| `inspect_engineering(path, adapter_id=None)`                     | `texsys engineering inspect --adapter ID -p PROJECT`                           | 可用适配器、当前修订、输入、运行历史、接受记录、最近两次比较和诊断 |
+| `plan_engineering_change(path, request)`                         | `texsys engineering plan REQUEST -p PROJECT`                                   | 修改前后值、来源、影响、文本差异及 `plan` 摘要；不写设计           |
+| `apply_engineering_change(path, request, plan)`                  | `texsys engineering apply REQUEST --plan DIGEST -p PROJECT`                    | 应用结果及新修订                                                   |
+| `run_engineering(path, adapter_id)`                              | `texsys engineering run ID -p PROJECT`                                         | 带输入与工具标识的完整运行记录                                     |
+| `accept_engineering(path, adapter_id, run_id, actor, rationale)` | `texsys engineering accept ID RUN_ID --actor NAME --rationale TEXT -p PROJECT` | 关联准确证据的具名接受记录                                         |
 
 CLI 示例统一通过 `uv run --locked texsys` 调用。`REQUEST` 是 JSON 文件路径，使用 `-` 时从标准输入读取。所有命令输出 JSON；`-p` 与 `--path` 同义。无受支持适配器时，未指定适配器的 inspect 返回 `available:false`；显式指定不可用适配器则报告错误。
 
@@ -47,9 +51,7 @@ CLI 退出码为：0 表示操作完成或工程判定通过，1 表示工程不
 {
   "adapter": "datacenter:fws-change",
   "revision": "sha256:替换为本次inspect返回的revision",
-  "changes": [
-    { "input_id": "fws.row-diameter", "value": 0.05 }
-  ]
+  "changes": [{ "input_id": "fws.row-diameter", "value": 0.05 }]
 }
 ```
 
@@ -65,16 +67,17 @@ CLI 退出码为：0 表示操作完成或工程判定通过，1 表示工程不
 
 五个公共操作都通过新的 Python 工作进程执行，长驻 Studio 只传递请求。工作进程使用白名单 JSON 协议，直接编译并记录实际加载的 Python 源内容，避免内存旧实现或旧字节码被绑定到磁盘新源码摘要。专业包的普通输出进入日志流，不参与 JSON 返回。run 超时为 600 秒，其他操作为 120 秒；超时或进程异常报告错误，重试前需检查项目状态。该进程边界不是不可信插件的安全沙箱，也尚未提供用户取消或任务恢复。
 
-| 字段 | 含义及当前值 |
-| --- | --- |
-| `execution` | 核心执行状态：`completed` 或 `error` |
-| `result.verification` | 适配器可提供的算例回归符合性；与工程判定独立 |
-| `result.assessment` | 工程判定：`pass`、`fail`、`indeterminate` |
-| `result.checks[]` | 具有唯一 ID、标签、对象引用和状态的检查项；可附工况、实际值、限值、单位、裕量和依据 |
-| `result.extraction[]` | 适配器输出的几何或其他提取量及来源条件 |
-| `inputs_consistent` | 运行前后输入、依赖和工具是否保持一致 |
-| `freshness`／`current` | 记录对当前项目及工具是否仍适用 |
-| `acceptance` | 单次运行的 `unreviewed`、`accepted` 或 `needs-review` |
+| 字段                      | 含义及当前值                                                                        |
+| ------------------------- | ----------------------------------------------------------------------------------- |
+| `execution`               | 核心执行状态：`completed` 或 `error`                                                |
+| `result.verification`     | 适配器可提供的算例回归符合性；与工程判定独立                                        |
+| `result.solver_execution` | 适配器可选的求解状态，如 `completed`、`not-run`；核心执行完成不代表物理求解已经运行 |
+| `result.assessment`       | 工程判定：`pass`、`fail`、`indeterminate`                                           |
+| `result.checks[]`         | 具有唯一 ID、标签、对象引用和状态的检查项；可附工况、实际值、限值、单位、裕量和依据 |
+| `result.extraction[]`     | 适配器输出的几何或其他提取量及来源条件                                              |
+| `inputs_consistent`       | 运行前后输入、依赖和工具是否保持一致                                                |
+| `freshness`／`current`    | 记录对当前项目及工具是否仍适用                                                      |
+| `acceptance`              | 单次运行的 `unreviewed`、`accepted` 或 `needs-review`                               |
 
 核心不允许 `assessment:pass` 隐藏失败或无法判定的检查，也不接受没有通过项的空判定。适配器执行异常会保存 `execution:error`、`assessment:indeterminate` 及诊断；错误记录不能接受。
 
@@ -86,13 +89,13 @@ inspect 的 `comparison` 比较当前适配器最近两次有效读取的运行�
 
 当前 `coverage` 为 `declared-adapter-with-project-wide-invalidation`。影响列表用于解释登记的因果路径，不用于证明未列出的结论不受影响，也不支持按对象精确复用缓存。项目输入、工具或锁定依赖发生变化时，历史记录保守失效。
 
-| `freshness` | 判断依据 |
-| --- | --- |
-| `dependency-invalid` | 设计依赖锁检查失败 |
-| `inputs-changed` | 输入修订不同，或原运行未保持输入一致 |
-| `tools-changed` | 当前工具摘要不同 |
-| `adapter-changed` | 适配器身份、版本或所属包信息不同 |
-| `current` | 上述检查均一致 |
+| `freshness`          | 判断依据                             |
+| -------------------- | ------------------------------------ |
+| `dependency-invalid` | 设计依赖锁检查失败                   |
+| `inputs-changed`     | 输入修订不同，或原运行未保持输入一致 |
+| `tools-changed`      | 当前工具摘要不同                     |
+| `adapter-changed`    | 适配器身份、版本或所属包信息不同     |
+| `current`            | 上述检查均一致                       |
 
 适用性按当前内容重新计算，不是永久撤销记录。输入及工具恢复为原内容后，旧记录可能再次适用；新的重跑拥有新的运行 ID，仍需单独接受。源摘要与发行包版本不等于完整运行环境封装；原生库、外部求解器及跨机器复现仍有未完成边界。
 
@@ -118,16 +121,26 @@ inspect 的 `comparison` 比较当前适配器最近两次有效读取的运行�
 
 提取量保留管段身份、中心线长度、内径、弯头与局部损失，以及最不利配水路径压损。当前几何和设备数据仍属概念假设。TCS、热瞬态、控制、电气、结构承载、消防与施工审查在此接受范围之外；上游相关计算可供复核，不能被设施水通过掩盖。
 
+## 冷站容量适配器的当前范围
+
+`hvac:capacity-change` 支持 `examples/hvac-dynamic-station` 的 `load-step` 概念工况，暴露 `Chiller` 定义的 `capacity_kw`。实际链为现有 `evaluate_project`、`compile_model`、`load_scenario` 和 `ThermalNetwork`，不新增求解器。影响预览列出继承该定义参数且无容量覆盖的实例。
+
+范围检查核对实际 40→80 kW 负荷、300 s 阶跃、900 s 时段、正常控制、7°C 设定、25°C 环境、温度约束和数值精度。结果承接所有断言、模型范围及质量／压力／瞬时能量／积分能量检查；偏离声明工况不能被同名场景或预期值背书。采样极值和首次超限均保留实际采样时刻，不声称连续轨迹的精确越限时间。
+
+120→60→120 kW 是可重跑的通过、温度越限、修复案例。未知容量不补默认值：适配器完成诊断后返回 `assessment:indeterminate`、`solver_execution:not-run`。无法初始化的方案保存执行错误。两者都不能接受。模型仍为集总概念模型，参数为假设；微信图纸中的 18/24°C 设计工况与此例不同，真实资料审查见 [冷站资料核读](../../docs/cold-station-reference-review.md)，不能直接迁入此例并宣称现场校准。
+
+公开重跑入口为 `uv run --locked tools/verify_hvac_engineering_poc.py`。脚本使用独立副本，记录数字事务及另一个副本中的未知状态源编辑，两类操作不混同。
+
 ## Studio 交换接口
 
 接口沿用本地会话授权与同源校验。详见 [工作台契约](../studio/01-workbench.md#工程变更与证据文档)。
 
-| 接口 | 请求 |
-| --- | --- |
-| `GET /api/engineering?adapter=ID` | 适配器可省略，返回 inspect 结果 |
-| `POST /api/engineering/plan` | 直接提交变更 request |
-| `POST /api/engineering/apply` | `{ "request": REQUEST, "plan": DIGEST }` |
-| `POST /api/engineering/run` | `{ "adapter": ID }` |
-| `POST /api/engineering/accept` | `{ "adapter": ID, "run_id": RUN_ID, "actor": NAME, "rationale": TEXT }` |
+| 接口                              | 请求                                                                    |
+| --------------------------------- | ----------------------------------------------------------------------- |
+| `GET /api/engineering?adapter=ID` | 适配器可省略，返回 inspect 结果                                         |
+| `POST /api/engineering/plan`      | 直接提交变更 request                                                    |
+| `POST /api/engineering/apply`     | `{ "request": REQUEST, "plan": DIGEST }`                                |
+| `POST /api/engineering/run`       | `{ "adapter": ID }`                                                     |
+| `POST /api/engineering/accept`    | `{ "adapter": ID, "run_id": RUN_ID, "actor": NAME, "rationale": TEXT }` |
 
 当前 plan／apply 的修订冲突通过 HTTP 200 响应中的 `status:conflict` 表达，客户端必须读取该状态；非法输入等异常返回 HTTP 400。run 在请求内同步等待新的工作进程，尚未接入 `/api/jobs` 的任务进度、取消与恢复契约。

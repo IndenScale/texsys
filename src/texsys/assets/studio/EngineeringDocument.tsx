@@ -1,4 +1,5 @@
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { resolveDesign, type DesignIndex, type DesignSelection } from "./DesignNavigation";
 import type { WorkbenchProps } from "./sdk";
 import { t } from "./i18n";
 import "./engineering.css";
@@ -11,6 +12,9 @@ type Input = {
   unit: string;
   object_ref: string;
   value: number;
+  state?: string;
+  source?: unknown;
+  design?: DesignSelection;
   min?: number;
   max?: number;
 };
@@ -25,6 +29,7 @@ type Check = {
   unit?: string;
   scenario?: string;
   message?: string;
+  design?: DesignSelection;
 };
 type Extraction = {
   id: string;
@@ -36,6 +41,7 @@ type Extraction = {
   state?: string;
   scenario?: string;
   details?: unknown;
+  design?: DesignSelection;
 };
 type Run = {
   run_id: string;
@@ -56,10 +62,12 @@ type Run = {
     [key: string]: unknown;
   };
 };
+type Adapter = { id: string; name: string; version: string; description?: string };
 type EngineeringState = {
   available: boolean;
   revision: string;
-  selected: { id: string; name: string; version: string } | null;
+  selected: Adapter | null;
+  adapters: Adapter[];
   inputs: Input[];
   runs: Run[];
   latest: Run | null;
@@ -87,7 +95,8 @@ const statuses: Record<string, string> = {
   fail: "不满足",
   indeterminate: "无法判定",
   error: "执行错误",
-  completed: "计算完成",
+  completed: "执行完成",
+  "not-run": "未运行",
   current: "适用于当前输入",
   stale: "输入已变化，待重算",
   accepted: "已记录接受",
@@ -124,12 +133,16 @@ export function EngineeringDocument({
   revision,
   openFile,
   hasUnsaved,
+  designIndex,
+  openDesign,
 }: {
   api: WorkbenchProps["api"];
   refresh: WorkbenchProps["refresh"];
   revision: string;
   openFile: (file: string) => void;
   hasUnsaved: boolean;
+  designIndex?: DesignIndex;
+  openDesign: (selection: DesignSelection) => void;
 }) {
   const [data, setData] = useState<EngineeringState>();
   const [values, setValues] = useState<Record<string, string>>({});
@@ -145,18 +158,33 @@ export function EngineeringDocument({
   const [visibleChecks, setVisibleChecks] = useState(10);
   const [visibleExtraction, setVisibleExtraction] = useState(10);
   const [query, setQuery] = useState("");
+  const [adapterId, setAdapterId] = useState("");
+  const [loadedRevision, setLoadedRevision] = useState<string>();
+  const loadGeneration = useRef(0);
   const load = useCallback(async () => {
-    const next = await api<EngineeringState>("/api/engineering");
+    const generation = ++loadGeneration.current;
+    setLoadedRevision(undefined);
+    const suffix = adapterId ? `?adapter=${encodeURIComponent(adapterId)}` : "";
+    const next = await api<EngineeringState>(`/api/engineering${suffix}`);
+    if (generation !== loadGeneration.current) return;
     setData(next);
+    setLoadedRevision(revision);
     setValues(
       Object.fromEntries((next.inputs ?? []).map((input) => [input.id, String(input.value)])),
     );
     return next;
-  }, [api]);
+  }, [api, adapterId, revision]);
   useEffect(() => {
+    let active = true;
     setPlan(undefined);
     setRequest(undefined);
-    void load().catch((failure) => setError(String(failure)));
+    void load().catch((failure) => {
+      if (active) setError(String(failure));
+    });
+    return () => {
+      active = false;
+      loadGeneration.current++;
+    };
   }, [load, revision]);
 
   async function perform(name: string, action: () => Promise<void>) {
@@ -220,7 +248,9 @@ export function EngineeringDocument({
     previous?.result.extraction?.map((item) => [item.id, item]) ?? [],
   );
   const changed = data?.inputs.some((input) => values[input.id] !== String(input.value));
+  const currentData = loadedRevision === revision;
   const canAccept =
+    currentData &&
     selected?.current &&
     selected.execution === "completed" &&
     selected.result.assessment === "pass";
@@ -254,6 +284,7 @@ export function EngineeringDocument({
         <div>
           <h1>{t("工程变更")}</h1>
           <p>{data?.selected?.name ?? t("从设计修改到可审查的工程证据")}</p>
+          {data?.selected?.description && <p>{data.selected.description}</p>}
         </div>
         <div className="engineering-actions">
           <button
@@ -270,7 +301,7 @@ export function EngineeringDocument({
           {data?.available && (
             <button
               className="engineering-primary"
-              disabled={!!busy || hasUnsaved || !!changed}
+              disabled={!!busy || hasUnsaved || !!changed || !currentData}
               title={hasUnsaved || changed ? t("请先保存或应用待修改内容。") : undefined}
               onClick={() => void perform("run", run)}
             >
@@ -283,6 +314,40 @@ export function EngineeringDocument({
           )}
         </div>
       </header>
+      {data && data.adapters.length > 1 && (
+        <label className="engineering-adapter">
+          {t("工程验证范围")}
+          <select
+            value={data.selected?.id ?? ""}
+            disabled={!!busy || hasUnsaved || !!changed}
+            title={
+              hasUnsaved || changed ? t("请先保存或撤回待修改内容，再切换验证范围。") : undefined
+            }
+            onChange={(event) => {
+              loadGeneration.current++;
+              setAdapterId(event.target.value);
+              setData(undefined);
+              setValues({});
+              setPlan(undefined);
+              setRequest(undefined);
+              setSelectedRun(undefined);
+              setRationale("");
+              setQuery("");
+              setCheckMode("all");
+              setVisibleChecks(10);
+              setVisibleExtraction(10);
+              setError("");
+              setMessage("");
+            }}
+          >
+            {data.adapters.map((adapter) => (
+              <option key={adapter.id} value={adapter.id}>
+                {adapter.name}
+              </option>
+            ))}
+          </select>
+        </label>
+      )}
       {error && (
         <p className="engineering-error" role="alert">
           {error}
@@ -313,7 +378,7 @@ export function EngineeringDocument({
       ) : !data.available ? (
         <p className="engineering-empty">
           {t(
-            "当前项目尚未提供工程变更适配器。数据中心混合冷却示例提供管路变更、影响分析、重算与证据审查。",
+            "当前项目尚未提供工程变更适配器。领域包可声明设计输入、影响、计算与判据，以贯通变更和证据审查。",
           )}
         </p>
       ) : (
@@ -322,18 +387,19 @@ export function EngineeringDocument({
             <h2>{t("设计输入")}</h2>
             <p className="engineering-muted">{t("预览影响后应用修改；计算使用已保存的设计。")}</p>
             {data.inputs.map((input) => (
-              <label className="engineering-field" key={input.id}>
-                <span>
+              <div className="engineering-field" key={input.id}>
+                <label htmlFor={`engineering-input-${input.id}`}>
                   {input.label} <small>{input.unit}</small>
-                </span>
+                </label>
                 <input
+                  id={`engineering-input-${input.id}`}
                   type="number"
                   step="any"
                   aria-label={input.label}
                   value={values[input.id] ?? ""}
                   min={input.min}
                   max={input.max}
-                  disabled={!!busy}
+                  disabled={!!busy || !currentData || input.state === "known"}
                   onChange={(event) => {
                     setValues({ ...values, [input.id]: event.target.value });
                     setPlan(undefined);
@@ -342,7 +408,19 @@ export function EngineeringDocument({
                 />
                 <small>
                   {t("已保存")}: {number(input.value)} {input.unit}
+                  {input.state && <> · {label(input.state)}</>}
                 </small>
+                {input.state === "known" && (
+                  <small>{t("已知值关联既有来源。更改数值前须同时修正来源与状态。")}</small>
+                )}
+                {input.design && (
+                  <DesignLink
+                    design={input.design}
+                    index={currentData ? designIndex : undefined}
+                    current
+                    open={openDesign}
+                  />
+                )}
                 <button
                   type="button"
                   className="engineering-source"
@@ -351,12 +429,12 @@ export function EngineeringDocument({
                 >
                   {input.file}
                 </button>
-              </label>
+              </div>
             ))}
             <div className="engineering-actions">
               <button
                 className="engineering-primary"
-                disabled={!!busy || hasUnsaved || !changed}
+                disabled={!!busy || hasUnsaved || !changed || !currentData}
                 onClick={() => void perform("plan", preview)}
               >
                 {t("预览变更影响")}
@@ -371,6 +449,7 @@ export function EngineeringDocument({
                       ),
                     );
                     setPlan(undefined);
+                    setRequest(undefined);
                   }}
                 >
                   {t("撤回未应用修改")}
@@ -430,7 +509,7 @@ export function EngineeringDocument({
                 </details>
                 <button
                   className="engineering-primary"
-                  disabled={!!busy || hasUnsaved}
+                  disabled={!!busy || hasUnsaved || !currentData}
                   onClick={() => void perform("apply", apply)}
                 >
                   {t("应用已预览的变更")}
@@ -443,6 +522,11 @@ export function EngineeringDocument({
                   <div>
                     <small>{t("运行")}</small>
                     <span>{label(selected.execution)}</span>
+                    {typeof selected.result.solver_execution === "string" && (
+                      <small>
+                        {t("求解器")}: {label(selected.result.solver_execution)}
+                      </small>
+                    )}
                   </div>
                   <div data-status={selected.result.assessment}>
                     <small>{t("工程判定")}</small>
@@ -450,7 +534,7 @@ export function EngineeringDocument({
                   </div>
                   <div data-status={selected.current ? "current" : "stale"}>
                     <small>{t("适用性")}</small>
-                    <span>{label(selected.freshness)}</span>
+                    <span>{currentData ? label(selected.freshness) : t("正在核对适用性…")}</span>
                   </div>
                   <div>
                     <small>{t("人工审查")}</small>
@@ -535,6 +619,14 @@ export function EngineeringDocument({
                                 {check.scenario} · {check.object_ref}
                               </small>
                               {check.message && <small>{check.message}</small>}
+                              {check.design && (
+                                <DesignLink
+                                  design={check.design}
+                                  index={currentData ? designIndex : undefined}
+                                  current={selected.current}
+                                  open={openDesign}
+                                />
+                              )}
                             </td>
                             <td>{label(check.status)}</td>
                             <td>
@@ -559,7 +651,7 @@ export function EngineeringDocument({
                 )}
                 <details className="engineering-extraction" key={selected.run_id}>
                   <summary>
-                    {t("几何提取与物理反馈")} · {extraction.length} {t("项")}
+                    {t("提取值与分析派生量")} · {extraction.length} {t("项")}
                   </summary>
                   <p className="engineering-muted">
                     {t("显示")} {Math.min(visibleExtraction, extraction.length)} /{" "}
@@ -592,6 +684,14 @@ export function EngineeringDocument({
                                 <small>
                                   {[item.scenario, item.object_ref].filter(Boolean).join(" · ")}
                                 </small>
+                                {item.design && (
+                                  <DesignLink
+                                    design={item.design}
+                                    index={currentData ? designIndex : undefined}
+                                    current={selected.current}
+                                    open={openDesign}
+                                  />
+                                )}
                               </td>
                               <td>
                                 {number(item.value)} {item.unit}
@@ -602,7 +702,11 @@ export function EngineeringDocument({
                                 {delta == null ? "" : item.unit}
                               </td>
                               <td>
-                                <ExtractionSource item={item} openFile={openFile} />
+                                <ExtractionSource
+                                  item={item}
+                                  openFile={openFile}
+                                  current={selected.current}
+                                />
                               </td>
                             </tr>
                           );
@@ -674,7 +778,7 @@ export function EngineeringDocument({
                   <h2>{t("建立可比较的起点")}</h2>
                   <p>
                     {t(
-                      "计算当前基线，保存供冷要求、几何提取和泵组配流结果。随后修改管路，在同一处查看影响、重算、修正与接受。",
+                      "计算当前基线，保存设计输入、适用工况、判据与计算结果。随后修改设计，在同一处查看影响、重算、修正与接受。",
                     )}
                   </p>
                 </div>
@@ -690,9 +794,11 @@ export function EngineeringDocument({
 function ExtractionSource({
   item,
   openFile,
+  current,
 }: {
   item: Extraction;
   openFile: (file: string) => void;
+  current: boolean;
 }) {
   const source = item.source;
   const path =
@@ -710,6 +816,7 @@ function ExtractionSource({
       ) : (
         <span>{t("未提供源文件位置")}</span>
       )}
+      {!current && path && <small>{t("打开当前源文件；历史来源版本见下方摘要。")}</small>}
       {source != null && (
         <details>
           <summary>{t("来源摘要与提取依据")}</summary>
@@ -720,12 +827,55 @@ function ExtractionSource({
   );
 }
 
+function DesignLink({
+  design,
+  index,
+  current,
+  open,
+}: {
+  design: DesignSelection;
+  index?: DesignIndex;
+  current: boolean;
+  open: (selection: DesignSelection) => void;
+}) {
+  const found = index && resolveDesign(index, design)?.definition;
+  if (!current) return <small>{t("历史证据不定位到当前对象；请按源修订复核。")}</small>;
+  if (!found) return <small>{t("当前设计索引无法定位此对象。")}</small>;
+  return (
+    <button type="button" className="engineering-source" onClick={() => open(design)}>
+      {"definition" in design ? t("定位定义（可能被多个实例复用）") : t("定位设计对象")}
+    </button>
+  );
+}
+
 function EvidenceDetails({ title, value }: { title: string; value: unknown }) {
   const [open, setOpen] = useState(false);
+  const text = useMemo(() => (open ? JSON.stringify(value, null, 2) : ""), [open, value]);
+  const [download, setDownload] = useState("");
+  useEffect(() => {
+    if (!open) return;
+    const url = URL.createObjectURL(new Blob([text], { type: "application/json" }));
+    setDownload(url);
+    return () => URL.revokeObjectURL(url);
+  }, [open, text]);
   return (
     <details onToggle={(event) => setOpen(event.currentTarget.open)}>
       <summary>{title}</summary>
-      {open && <pre>{JSON.stringify(value, null, 2)}</pre>}
+      {open && (
+        <>
+          {download && (
+            <a href={download} download={`${title}.json`}>
+              {t("下载完整 JSON")}
+            </a>
+          )}
+          {text.length > 12000 && (
+            <p className="engineering-muted">
+              {t("以下仅预览前 12,000 个字符；完整证据请下载查看。")}
+            </p>
+          )}
+          <pre>{text.slice(0, 12000)}</pre>
+        </>
+      )}
     </details>
   );
 }

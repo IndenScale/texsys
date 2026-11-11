@@ -228,9 +228,11 @@ class HvacCapacityChangeAdapter:
                      "evidence": {"source": result_source, "numerical_tolerance": True},
                      "message": "当前概念模型的数值一致性检查；不代表厂家或现场验证。"})
     initialization = report["initialization"]
+    initial_residual = initialization.get("maximum_residual_w")
     checks.append({"id": "hvac:initialization", "label": "稳态初始化残差", "object_ref": model.root,
-                   "design": designs[model.root], "scenario": SCENARIO, "status": initialization["status"],
-                   "actual": initialization["maximum_residual_w"], "limit": scenario.solver["initial_residual_tolerance_w"],
+                   "design": designs[model.root], "scenario": SCENARIO,
+                   "status": initialization["status"] if initial_residual is not None else "indeterminate",
+                   "actual": initial_residual, "limit": scenario.solver["initial_residual_tolerance_w"],
                    "unit": "W", "operator": "<=", "evidence": initialization})
     verdicts = {item["status"] for item in checks} | {report["status"]}
     assessment = "fail" if "fail" in verdicts else "indeterminate" if "indeterminate" in verdicts else "pass"

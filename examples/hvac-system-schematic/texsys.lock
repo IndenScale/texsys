@@ -33,7 +33,7 @@ name = "hvac-dynamics"
 version = "0.1.0"
 source = "path"
 path = "../../packages/hvac-dynamics"
-digest = "sha256:d95e6cd79b1d790c180133f4620b4b90bcafb4cc1157810d07116372c5be4bf4"
+digest = "sha256:1a515c376c8dbde5cecc40938a6e6ef75e4cb47a1ad87bad00d4458963fa39bf"
 direct = false
 dependencies = []
 

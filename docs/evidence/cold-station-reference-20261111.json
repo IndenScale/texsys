@@ -1,0 +1,218 @@
+{
+  "schema_version": 1,
+  "id": "cold-station-reference-20261111",
+  "kind": "reference_review",
+  "reviewed_on": "2026-11-11",
+  "scope": "冷站参考资料的脱敏源事实与诊断；不含原文、实测样本或可直接运行的设备模型。",
+  "status": {
+    "source_inspection": "completed_for_listed_locations",
+    "professional_confirmation": "pending",
+    "actual_acquisition_verified": false,
+    "manufacturer_performance_verified": false,
+    "engineering_acceptance": "not_accepted",
+    "g11_complete": false
+  },
+  "sources": [
+    {
+      "id": "design-notes",
+      "filename": "设计施工说明.pdf",
+      "sha256": "d319b9310071c06f1fa845ffae683f78498e8320dd1e900a6aec87a7ffc01de9",
+      "evidence_kind": "drawing_design",
+      "inspection": "页 1 视觉核对，标题为设计施工说明，图号暖施 01；数值仍待专业确认。"
+    },
+    {
+      "id": "water-schematic",
+      "filename": "水系统流程图.pdf",
+      "sha256": "5dd1a3587d60721b1d3fcf8488eefdf14cddccc484538084383ca5df0113ae8d",
+      "evidence_kind": "drawing_symbols",
+      "inspection": "页 1 视觉核对，图号 06；图形数量不等于已确认设备数量。"
+    },
+    {
+      "id": "misnamed-equipment-table",
+      "filename": "主要设备材料表.pdf",
+      "sha256": "c2aac3e46159e408a04ff6719c298f4ffb7c11bb11504988e81b8f88ff2e05fe",
+      "evidence_kind": "misnamed_source",
+      "inspection": "页 1 实际标题为设计施工说明，图号 01，不能作为设备材料表使用。"
+    },
+    {
+      "id": "lab-inventory",
+      "archive_member": "实验室资料清单/实验室资料.docx",
+      "sha256": "549ffaaececf449868bcb894a6184c72b4df98127e4d66579c3633d6b83f02ae",
+      "evidence_kind": "document_inventory",
+      "inspection": "仅保留与图纸和验收报告存在性有关的清单项。"
+    },
+    {
+      "id": "chilled-io",
+      "archive_member": "当前成果文件/输入输出表-冷冻侧.xlsx",
+      "sha256": "8b7df4047588b8f8a6f16ae7c52cdd96217668fb513fd5bf7a6c5b11165b314b",
+      "evidence_kind": "interface_dictionary",
+      "inspection": "训练数据、优化输入、优化输出三个工作表；均为变量定义，无实际观测样本。"
+    },
+    {
+      "id": "cooling-io",
+      "archive_member": "当前成果文件/输入输出表-冷却侧.xlsx",
+      "sha256": "074421086982193af66d1ca640cc283797a1265c37ef8c62e51637ab4d8f08e6",
+      "evidence_kind": "interface_dictionary",
+      "inspection": "训练数据、优化输入、优化输出三个工作表；均为变量定义，无实际观测样本。"
+    },
+    {
+      "id": "technical-specification",
+      "archive_member": "数据中心冷站AI节能模块-技术规范书.docx",
+      "sha256": "a740dad3bb45cb958cda6803ad1651ece27bfc4a8dcabb975b36957898e4571c",
+      "evidence_kind": "procurement_requirement",
+      "inspection": "word/document.xml 正文第 18 段明确文件用于技术建议书及报价；要求不代表已实现能力。"
+    }
+  ],
+  "facts": [
+    {
+      "id": "rack-design-load",
+      "source_id": "design-notes",
+      "location": "页 1，暖施 01，第五节",
+      "input_state": "assumed",
+      "values": { "rack_count": 9, "per_rack_kw": 15, "total_kw": 135 },
+      "meaning": "图纸列出的机柜数量和设计负荷；待专业确认。"
+    },
+    {
+      "id": "liquid-cooling-reservation",
+      "source_id": "design-notes",
+      "location": "页 1，暖施 01，第五节",
+      "input_state": "assumed",
+      "values": { "reserved_rack_count": 2, "per_rack_reserved_kw": 45 },
+      "meaning": "两个机柜各预留液冷假负载；与 135 kW 总负荷的包含关系未明，不作加和或替换。"
+    },
+    {
+      "id": "equipment-design-values",
+      "source_id": "design-notes",
+      "location": "页 1，暖施 01，第五节",
+      "input_state": "assumed",
+      "values": {
+        "water_cooled_chiller": { "count": 2, "per_unit_capacity_kw": 75 },
+        "closed_cooling_tower": { "count": 2, "per_unit_capacity_kw": 80 },
+        "water_pump": { "count": 4, "per_unit_flow_m3_h": 16 },
+        "air_conditioner": { "count": 4, "per_unit_capacity_kw": 30 }
+      },
+      "meaning": "图纸设计值；不证明设备型号、额定条件、同时运行台数、实测性能或厂家承诺。"
+    },
+    {
+      "id": "chilled-water-design-temperatures",
+      "source_id": "design-notes",
+      "location": "页 1，暖施 01，第五节",
+      "input_state": "assumed",
+      "values": { "supply_degC": 18, "return_degC": 24 },
+      "meaning": "图纸冷冻水供回水设计温度；不能替换现有概念工况中的 7°C 设定值。"
+    },
+    {
+      "id": "schematic-symbols",
+      "source_id": "water-schematic",
+      "location": "页 1，图号 06",
+      "input_state": "assumed",
+      "values": { "tower_symbols": 4, "chiller_symbols": 2, "heat_exchanger_symbols": 2 },
+      "meaning": "视觉可见上述符号以及膨胀箱、终端；拓扑连接、设备实例和运行组合仍待逐项映射。"
+    },
+    {
+      "id": "inventory-mentions",
+      "source_id": "lab-inventory",
+      "location": "word/document.xml，表 1，第 2–3 行，第 2–4 列",
+      "meaning": "清单列有设计图纸和验收报告各一份；没有材料表或厂家曲线具体路径，未提供验收报告内容。"
+    },
+    {
+      "id": "chilled-input-contract",
+      "source_id": "chilled-io",
+      "location": "训练数据!B3:D12；优化输入!B8:E15；优化输入!A19:E20",
+      "meaning": "字典定义负荷率、供水温度、四个末端开度、目标压差；q_est_sum 为开度派生流量，温度反馈标为模拟/实时。",
+      "configuration_defaults": {
+        "feedforward_interval_min": 5,
+        "feedback_interval_min": 1,
+        "kp": 0.8,
+        "ki": 0.1,
+        "dp_min_kpa": 15,
+        "dp_max_kpa": 55,
+        "supply_air_target_degC": 12,
+        "return_water_target_degC": 7
+      },
+      "limitation": "算法默认值和变量槽位不能当作现场测量、装机证明或设备安全界限。"
+    },
+    {
+      "id": "cooling-input-contract",
+      "source_id": "cooling-io",
+      "location": "训练数据!B3:D32；优化输入!B19:E30；优化输出!C9:F61",
+      "meaning": "字典定义气象、负荷、供回水温度、能耗、自然/混合/机械模式；主机槽位 1–3、冷却泵槽位 1–6，输出含功率、流量、频率和散热能力。",
+      "limitation": "只支持接口设计和单位审查；没有实际样本、厂家曲线或已运行结果。"
+    },
+    {
+      "id": "acquisition-and-control-requirement",
+      "source_id": "technical-specification",
+      "location": "word/document.xml，正文第 36、46–50、64–65 段",
+      "meaning": "要求采集设备工况与能耗，并经 Modbus TCP/IP 对接 PLC/DDC，调优冷却塔流量与频率、冷冻末端压差及冷却水温差。",
+      "limitation": "采购要求不证明实际采集链路、协议映射和控制能力已经交付。"
+    },
+    {
+      "id": "acceptance-requirements",
+      "source_id": "technical-specification",
+      "location": "word/document.xml，正文第 38–41、54–59、72、74–77 段",
+      "values": {
+        "saving_rate_min_pct": 5,
+        "installed_design_load_ratio_greater_than_pct": 10,
+        "before_after_load_change_max_pct": 20,
+        "adaptation_time_max_min": 30
+      },
+      "meaning": "节能对比需声明计量范围、气象条件与时段，满足安全、告警、回退和旁路要求。",
+      "limitation": "均为待验证要求；没有对应运行样本、故障验证或已接受的节能结论。"
+    }
+  ],
+  "diagnostics": [
+    {
+      "id": "reference.filename-content-mismatch",
+      "source_ids": ["design-notes", "misnamed-equipment-table"],
+      "location": "两份 PDF 页 1，标题及图号",
+      "message": "主要设备材料表.pdf 实为设计施工说明/01，不能用作材料表或独立交叉证据。",
+      "render_check": {
+        "command": "pdftoppm -f 1 -singlefile -scale-to 3000 -png <input.pdf> <output-prefix>",
+        "both_png_sha256": "8f2dd646620b71e97c09aace81653d593d0a6dbf610787fdcd0167fb8eb7e00a",
+        "scope": "在所用渲染设置下页 1 PNG 字节一致；两个 PDF 文件本身的 SHA-256 不同。"
+      }
+    },
+    {
+      "id": "reference.tower-count-conflict",
+      "source_ids": ["design-notes", "water-schematic", "cooling-io"],
+      "location": "施工说明页 1 第五节；流程图页 1；训练数据!C26:C29；优化输入!C28:C30",
+      "message": "说明为 2 台塔，流程图有 4 个塔符号，训练字典索引为 1–4，优化输入索引为 1–5。设备数量、图元和算法槽位关系未明，不自动择一。"
+    },
+    {
+      "id": "reference.power-energy-boundary-missing",
+      "source_ids": ["cooling-io"],
+      "location": "训练数据!B13:D13；优化输入!B9:E15；优化输出!C9:E9",
+      "message": "优化前能耗采用 kWh，优化后功率采用 kW，未给出统一计量边界和积分时段，禁止直接比较节能率。"
+    },
+    {
+      "id": "reference.observation-origin-unknown",
+      "source_ids": ["chilled-io", "cooling-io"],
+      "location": "冷冻侧训练数据!B12:D12、优化输入!A19:E20；两份工作簿全部工作表",
+      "message": "估算量、模拟/实时量与真实传感器数据缺少来源映射；变量字典不构成实测数据集。"
+    }
+  ],
+  "unknowns": [
+    "真实设备型号、铭牌和额定工况，以及泵 Q–H/效率曲线、冷机和冷却塔性能曲线。",
+    "实际装机身份、运行台数、备用关系、自然/混合/机械模式和切换条件。",
+    "两处各 45 kW 液冷预留与 135 kW 总设计负荷的包含关系。",
+    "带时间戳的真实样本、采样周期、质量位，以及设备到传感器/协议点位的映射。",
+    "仪器量程、精度、校准依据和能耗统计边界。",
+    "独立参考校核、现场安全回退验证和责任人的工程审查记录。"
+  ],
+  "migration_boundary": {
+    "source_fact_layer_allowed": true,
+    "allowed_uses": [
+      "保留来源哈希、位置、证据类型、设计假设、冲突和缺失项。",
+      "准备独立真实资料案例的输入契约、适用性诊断与待确认清单。"
+    ],
+    "direct_concept_model_migration_allowed": false,
+    "existing_concept_scenario": "examples/hvac-dynamic-station/assets/scenarios/load-step.json",
+    "reason": "现有场景为 7°C 冷机设定值与 40→80 kW 负荷阶跃的概念验证。图纸为 18/24°C 设计温度和 135 kW 设计负荷，设备身份、工况、控制边界尚未对齐。",
+    "required_before_model_use": [
+      "由专业人员确认源值、冲突和设备映射，并保留尚未确认的假设。",
+      "明确运行模式、性能曲线和适用工况，建立独立案例或有明确版本的变更集。",
+      "更新模型、工况、检查条件和依赖，执行独立参考校核及变更后的重算。",
+      "绑定设计版本、证据适用范围和责任人的审查记录，再判断是否满足 G11。"
+    ]
+  }
+}

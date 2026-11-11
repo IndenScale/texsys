@@ -109,7 +109,7 @@ def test_second_adapter_capacity_change_preserves_sources_and_closes_review_loop
   assert (station / final_review["path"]).is_file()
 
 
-@pytest.mark.parametrize("change", ["smaller-load", "weaker-limit", "different-control"])
+@pytest.mark.parametrize("change", ["smaller-load", "weaker-limit", "different-control", "specified-initial"])
 def test_actual_scenario_cannot_silently_change_declared_review_scope(station, change):
   path = station / "assets/scenarios/load-step.json"
   scenario = json.loads(path.read_text())
@@ -117,8 +117,17 @@ def test_actual_scenario_cannot_silently_change_declared_review_scope(station, c
     scenario["signals"]["ColdStation.LOAD-01.load_w"]["points"][1][1] = 60000
   elif change == "weaker-limit":
     scenario["assertions"][0]["value"] = 20
-  else:
+  elif change == "different-control":
     scenario["signals"]["ColdStation.CH-01.setpoint_c"]["points"][0][1] = 6
+  else:
+    from texsys_hvac_dynamics.domain import compile_model
+    from texsys_hvac_dynamics.scenario import load_scenario
+    from texsys_hvac_dynamics.thermal import ThermalNetwork
+    model = compile_model(station)
+    network = ThermalNetwork(model, load_scenario(path, model))
+    initial, _ = network.initialize()
+    scenario["initial"] = {"mode": "specified", "states": {state.identity: float(initial[i])
+                                                         for i, state in enumerate(network.states)}}
   path.write_text(json.dumps(scenario))
   result = HvacCapacityChangeAdapter().evaluate(station)
   assert result["assessment"] == "indeterminate" and not result["scope_verified"]

@@ -297,6 +297,7 @@ export function CoreWorkspaceProvider({
     [listingError, setListingError] = useState("");
   const [loadingFiles, setLoadingFiles] = useState(false);
   const [designIndex, setDesignIndex] = useState<DesignIndex>();
+  const [designIndexRevision, setDesignIndexRevision] = useState<string>();
   const [designError, setDesignError] = useState("");
   const [libraryFolders, setLibraryFolders] = useState(readLibraryFolders);
   const [libraryDialog, setLibraryDialog] = useState(false);
@@ -341,6 +342,7 @@ export function CoreWorkspaceProvider({
             source_errors: index.source_errors ?? [],
             references: index.references ?? [],
           });
+          setDesignIndexRevision(state.project.revision);
           setDesignError("");
         }
       },
@@ -2120,15 +2122,7 @@ export function CoreWorkspaceProvider({
         </div>
       </div>
     </div>
-  ) : active.engineering ? (
-    <EngineeringDocument
-      api={api}
-      refresh={refresh}
-      revision={state.project.revision}
-      openFile={(path) => void openFile(path)}
-      hasUnsaved={dirty}
-    />
-  ) : active.design ? (
+  ) : active.engineering ? null : active.design ? (
     designIndex ? (
       <DesignDocument
         index={designIndex}
@@ -2288,9 +2282,29 @@ export function CoreWorkspaceProvider({
     sidebar,
     editor: (
       <>
-        <div className="core-editor-page" hidden={settingsActive}>
+        <div
+          className="core-editor-page"
+          hidden={settingsActive || (!!active?.engineering && !searchEditorActive && !diffActive)}
+        >
           {editorContent}
         </div>
+        {documents.some((item) => item.engineering) && (
+          <div
+            className="core-editor-page"
+            hidden={settingsActive || !active?.engineering || searchEditorActive || diffActive}
+          >
+            <EngineeringDocument
+              key={state.project.path}
+              api={api}
+              refresh={refresh}
+              revision={state.project.revision}
+              openFile={(path) => void openFile(path)}
+              hasUnsaved={dirty}
+              designIndex={designIndexRevision === state.project.revision ? designIndex : undefined}
+              openDesign={openDesign}
+            />
+          </div>
+        )}
         {settingsOpen && (
           <Settings api={api} titlebar={titlebarSettings} hidden={!settingsActive} />
         )}

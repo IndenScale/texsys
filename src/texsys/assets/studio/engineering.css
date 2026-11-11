@@ -29,6 +29,13 @@
   margin: 0;
   color: var(--muted);
 }
+.engineering-adapter {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 16px 0;
+}
 .engineering-actions {
   display: flex;
   align-items: center;
