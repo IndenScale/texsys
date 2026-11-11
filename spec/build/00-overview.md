@@ -1,6 +1,6 @@
 # 构建 target 契约
 
-> 状态：有效。本文定义当前可执行的 target 选择、结果和证据子集。架构依据见 ADR-0011、ADR-0012、ADR-0013。
+> 状态：有效。本文定义当前可执行的 target 选择、结果和证据子集。架构依据见 ADR-0011、ADR-0012、ADR-0013 和 [ADR-0027](../../docs/adr/0027-incremental-build-and-project-preview.md)。
 
 特定交付物契约见 [Target BOM](01-target-bom.md)、[Hook Runner](02-hooks.md) 和 [HVAC 系统图／原理图](03-system-schematic.md)。
 
@@ -39,23 +39,38 @@ CLI 的 profile 和 scope 覆盖清单值。target 声明自己的 profile 集�
 领域包通过 `TargetDefinition` 注册 target，builder 返回 `TargetResult`：
 
 - `status`：`pass`、`fail`、`indeterminate` 或 `error`；
-- `artifacts`：稳定 artifact ID、项目相对路径和 `authoritative`／`diagnostic` 类型；
+- `artifacts`：稳定 artifact ID、项目相对路径、`authoritative`／`diagnostic` 类型、完整性及可选预览描述；
 - `diagnostics`：结构化诊断；
 - `open_items`：开放项及影响；
 - `details`：target 特定的确定性摘要。
 
-产物必须位于项目 build 目录并实际存在。artifact ID 在同一 target 内唯一，路径本身不能代替稳定 ID。target 未闭环时，已生成产物标记为 `partial`。
+`status` 表达所选目标契约的判定。模型编译、图纸投影或预期反例回归的 `pass` 不能提升为工程满足；只有实际工程检查目标才可据其声明范围解释工程结论。Studio 通用构建预览显示“目标判定／通过”，具体物理判据由对应报告表达。
 
-## build.json v2
+产物必须位于项目 build 目录并实际存在。artifact ID 在同一 target 内唯一，路径本身不能代替稳定 ID。`complete` 表达产物完整性；工程判定为 `fail` 时，图纸、场景或检查报告仍可能完整。生产者对未解析对象、缺失几何等结构缺口显式标注不完整及诊断，不能通过成功序列化掩盖缺失。
+
+## 增量执行与失败分支
+
+目标按依赖图执行，前置目标未满足契约时记录 `blocked` 和阻断原因，不执行该目标；其他独立目标继续执行。目标的 `execution` 区分 `executed`、`cached` 和 `blocked`，`status` 仍表示契约判定。项目检查结果纳入总体状态，可判定的工程不满足不自动阻断所有无关产物的生成。无法读取的项目清单、失效锁和不安全路径仍拒绝构建。
+
+每个目标的缓存依据实现身份、运行环境、profile、scope、声明输入及上游产物摘要。没有声明输入范围时保守使用完整输入集；声明范围需要包含该目标真实读取的源与资产，不得省略隐式依赖。目标实现或输入变化使缓存失效。缓存命中校验内容，并恢复缺失的原始输出。完整且可重现的失败判定可以复用；异常、输入漂移或无法固定外部依赖的钩子不能作为成功缓存。
+
+`TargetDefinition.input_patterns` 可以是项目相对路径模式元组，或根据 `BuildContext` 返回模式的函数；未声明时为 `None`。`cache` 可以显式关闭复用，或按上下文返回是否可缓存。`cache_environment` 声明影响结果的环境变量名，缓存记录其值的摘要，不存储原始值。工具链记录 Python、平台、发行包版本及实际实现文件身份；依赖外部求解器或其他未固定状态的目标须补齐输入契约或关闭缓存，不能仅因命令相同便认为可复用。
+
+## build.json v3
 
 构建证据至少包含：
 
 - 请求 target 和解析后的 target、profile、scope、解析来源及依赖；
 - 实际执行的包名称和版本；
 - 源输入路径与 SHA-256 摘要；
-- 每个 target 的状态、诊断、开放项、详情和 hook 证据；
-- 每个产物的 target、artifact ID、类型、路径、摘要及 partial 状态。
+- 每个 target 的执行状态、工程判定、缓存身份、阻断原因、诊断、开放项、详情和 hook 证据；
+- 每个产物的 target、artifact ID、类型、原始路径、快照路径、摘要、完整性及预览描述；
+- 本次 `run_id`、输入与工具身份摘要、输入一致性。
 
-证据不包含开始时间、结束时间、进程 ID 或运行耗时。权威输入、依赖锁和后端版本不变时，权威产物和证据应保持确定性。构建 `pass` 只表示所选 target 及 profile、scope 闭环，不表示整个项目、采购、现场验收或现实运维已经完成。
+每次构建在 `build/runs/<run_id>/` 保存独立运行清单与输入、产物快照，`build/build.json` 是最新运行入口。运行身份与缓存命中情况允许不同；相同输入和工具下的产物内容应保持可重复。构建 `pass` 只表示所选 target 及 profile、scope 闭环，不表示整个项目、采购、现场验收或现实运维已经完成。
 
-`build/` 可以从空目录或缺失状态重建。构建前后核对清单、锁文件、源文件、资产及锁定依赖的内容。若执行期间检测到输入变化，构建报告 `E_INPUT_CHANGED`，本次产物标记为 `partial`。CLI 构建读取工作目录，需保持输入稳定。后台 Studio 任务使用固定输入副本。
+`build/` 可以从空目录或缺失状态重建。构建前后核对清单、锁文件、源文件、资产及锁定依赖的内容。若执行期间检测到输入变化，构建报告 `E_INPUT_CHANGED`，本次结果不作为当前输入的成功缓存。CLI 构建读取工作目录，需保持输入稳定。后台 Studio 任务使用固定输入副本。
+
+## 只读项目预览
+
+产物可声明 `preview` 元数据，标明 BOM、拓扑、原理图、场景或报告类型，以及所属根对象和可定位的源映射。Studio 从构建清单读取对应产物，不扫描文件时间推断主场景；历史回退保留来源运行与过期状态。场景、图元、结果与源声明关联同一实例身份。首期只读，不向源文件反向写回；未来编辑需要在源操作契约上扩展。

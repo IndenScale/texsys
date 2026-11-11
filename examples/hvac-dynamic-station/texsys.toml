@@ -9,9 +9,10 @@ assets = "assets"
 build = "build"
 
 [build]
-default_targets = ["hvac:equipment-bom", "hvac:physical-model", "hvac:system-schematic"]
+default_targets = ["hvac:equipment-bom", "hvac:physical-model", "hvac:system-schematic", "hvac:system-topology", "hvac:project-layout"]
 
 [dependencies]
 hvac-diagram = { path = "../../packages/hvac-diagram", version = "0.1.0" }
 hvac-dynamics = { path = "../../packages/hvac-dynamics", version = "0.1.0" }
 hvac-bom = { path = "../../packages/hvac-bom", version = "0.1.0" }
+hvac-equipment = { path = "../../packages/hvac-equipment", version = "0.1.0" }

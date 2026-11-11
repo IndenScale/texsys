@@ -51,7 +51,7 @@ name = "hvac-dynamics"
 version = "0.1.0"
 source = "path"
 path = "../../packages/hvac-dynamics"
-digest = "sha256:66fbdffde20c8f1688cc4b089f31bc2af93a61c96c6f3253090f2df1900339db"
+digest = "sha256:a0401646148d87703baae97dfb039a402c928c86bbfe72d7baf5ba9c5e747fe6"
 direct = false
 dependencies = []
 
@@ -60,7 +60,7 @@ name = "hvac-equipment"
 version = "0.1.0"
 source = "path"
 path = "../../packages/hvac-equipment"
-digest = "sha256:d78d62615d00755b7678934fde71d74e974428e255ea63ba1d52c658f8495900"
+digest = "sha256:d5e4080aa0220ca70c50f628d981d0d89b9551eb778af370db43b6ef0311b63f"
 direct = false
 dependencies = ["spatial", "structure"]
 

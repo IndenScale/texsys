@@ -1,0 +1,187 @@
+/** Read-only build artifact contracts. Source paths are retained for future editing tools. */
+export type PreviewSource = { file: string; path?: string; line?: number; column?: number };
+export type PreviewArtifact = {
+  id: string;
+  target: string;
+  run_id: string;
+  path: string;
+  digest?: string;
+  title?: string;
+  kind: string;
+  root?: string;
+  preview?: { kind?: string; root?: string; title?: string; [key: string]: unknown };
+  current: boolean;
+  freshness: string;
+  partial?: boolean;
+  complete?: boolean;
+  completeness?: string;
+  status?: string;
+  execution?: string;
+  fallback?: boolean;
+  available: boolean;
+  error?: string;
+  latest_target?: { status: string; diagnostics?: unknown[] };
+  diagnostics?: unknown[];
+  open_items?: unknown[];
+};
+export type PreviewIndex = {
+  schema_version: number;
+  project: { name: string; root: string | null };
+  build: {
+    run_id: string;
+    status: string;
+    current: boolean;
+    freshness: string;
+    targets?: unknown[];
+    diagnostics?: unknown[];
+  } | null;
+  artifacts: PreviewArtifact[];
+  diagnostics: unknown[];
+};
+export type PreviewPayload = {
+  artifact: PreviewArtifact;
+  format: "json" | "svg" | "text";
+  data: unknown;
+};
+export type PreviewKind = "bom" | "topology" | "schematic" | "layout" | "results";
+export const artifactKey = (artifact: PreviewArtifact) => `${artifact.target}/${artifact.id}`;
+export function sameArtifact(
+  left: PreviewArtifact | undefined,
+  right: PreviewArtifact | undefined,
+) {
+  return (
+    !!left &&
+    !!right &&
+    left.run_id === right.run_id &&
+    left.target === right.target &&
+    left.id === right.id &&
+    left.digest === right.digest
+  );
+}
+export function artifactQuery(artifact: PreviewArtifact, scene = false) {
+  return new URLSearchParams({
+    run: artifact.run_id,
+    target: artifact.target,
+    [scene ? "artifact" : "id"]: artifact.id,
+  }).toString();
+}
+export function previewArtifacts(
+  index: PreviewIndex | undefined,
+  kind: PreviewKind,
+  root?: string,
+) {
+  return (index?.artifacts ?? []).filter((artifact) => {
+    const artifactRoot = artifact.root ?? artifact.preview?.root;
+    if (root !== undefined && artifactRoot !== root) return false;
+    const artifactKind = artifact.preview?.kind ?? artifact.kind;
+    if (kind === "layout") return ["scene", "spatial", "layout"].includes(artifactKind);
+    if (kind === "results")
+      return ["report", "result", "simulation", "scenario", "diagnostics"].includes(artifactKind);
+    return artifactKind === kind;
+  });
+}
+export function record(value: unknown): Record<string, unknown> {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : {};
+}
+export function records(value: unknown): Record<string, unknown>[] {
+  return Array.isArray(value) ? value.map(record) : [];
+}
+export function displayValue(value: unknown): string {
+  if (value === null || value === undefined) return "—";
+  return typeof value === "object" ? JSON.stringify(value) : String(value);
+}
+export function sourceReference(
+  data: unknown,
+  semanticRef: string,
+  id = semanticRef,
+): PreviewSource | undefined {
+  const sources = record(record(data).source_map);
+  const source = record(sources[semanticRef] ?? sources[id] ?? sources[`node:${semanticRef}`]);
+  const file = source.file;
+  // Only the explicit project-relative file field is navigable; path is a declaration path.
+  if (
+    typeof file !== "string" ||
+    !file ||
+    /[\\\0]/.test(file) ||
+    file.startsWith("/") ||
+    /^[a-z]+:/i.test(file) ||
+    file.split("/").includes("..")
+  )
+    return;
+  return {
+    file,
+    path: typeof source.path === "string" ? source.path : undefined,
+    line:
+      Number.isInteger(source.line) && Number(source.line) > 0 ? Number(source.line) : undefined,
+    column:
+      Number.isInteger(source.column) && Number(source.column) > 0
+        ? Number(source.column)
+        : undefined,
+  };
+}
+const tags = new Set(["path", "line", "rect", "circle", "ellipse", "polyline", "polygon"]);
+const attributes = new Set([
+  "d",
+  "x",
+  "y",
+  "x1",
+  "x2",
+  "y1",
+  "y2",
+  "width",
+  "height",
+  "rx",
+  "ry",
+  "cx",
+  "cy",
+  "r",
+  "points",
+  "transform",
+  "fill",
+  "stroke",
+  "stroke-width",
+  "strokeWidth",
+  "stroke-dasharray",
+  "strokeDasharray",
+  "opacity",
+  "fill-opacity",
+  "fillOpacity",
+  "stroke-linecap",
+  "strokeLinecap",
+  "stroke-linejoin",
+  "strokeLinejoin",
+]);
+export function safePrimitive(
+  value: unknown,
+): { tag: string; attrs: Record<string, string | number> } | undefined {
+  const primitive = record(value);
+  if (typeof primitive.tag !== "string" || !tags.has(primitive.tag)) return;
+  const attrs: Record<string, string | number> = {};
+  for (const [name, value] of Object.entries(record(primitive.attrs))) {
+    if (!attributes.has(name) || !["string", "number"].includes(typeof value)) continue;
+    if (typeof value === "number" && !Number.isFinite(value)) continue;
+    if (typeof value === "string" && /url\s*\(|javascript:|data:|[<>]/i.test(value)) continue;
+    const key = name.replace(/-([a-z])/g, (_, letter: string) => letter.toUpperCase());
+    attrs[key] = value as string | number;
+  }
+  return { tag: primitive.tag, attrs };
+}
+/** Canvas picking in CSS pixels; caller supplies faces from back to front. */
+export function pickedFace<T extends { vertices: number[][] }>(
+  faces: T[],
+  x: number,
+  y: number,
+): T | undefined {
+  for (let face = faces.length - 1; face >= 0; face--) {
+    const vertices = faces[face].vertices;
+    let inside = false;
+    for (let i = 0, j = vertices.length - 1; i < vertices.length; j = i++) {
+      const [xi, yi] = vertices[i],
+        [xj, yj] = vertices[j];
+      if (yi > y !== yj > y && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi) inside = !inside;
+    }
+    if (inside) return faces[face];
+  }
+}

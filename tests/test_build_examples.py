@@ -57,3 +57,48 @@ def test_python_transient_example_returns_existing_artifacts(tmp_path):
   assert output["artifacts"]
   assert all(Path(path).is_file() for path in output["artifacts"])
   assert output["report"] in output["artifacts"]
+
+
+def test_real_cli_reuses_targets_and_rebuilds_only_changed_layout(tmp_path):
+  project = tmp_path / "project"
+  shutil.copytree(ROOT / "examples/hvac-dynamic-station", project, ignore=shutil.ignore_patterns("build", "texsys.lock"))
+  manifest = project / "texsys.toml"
+  manifest.write_text(manifest.read_text().replace('"../../packages/', f'"{ROOT / "packages"}/'))
+
+  def cli(command):
+    return subprocess.run([sys.executable, "-B", "-m", "texsys", command, "-p", str(project)],
+                          capture_output=True, text=True, check=False)
+
+  def build():
+    process = cli("build")
+    assert process.returncode == 0, process.stdout + process.stderr
+    return json.loads((project / "build/build.json").read_text())
+
+  assert cli("lock").returncode == 0
+  first = build()
+  assert all(target["execution"] == "executed" for target in first["targets"])
+  original_scene = next(item for item in first["artifacts"] if (item.get("preview") or {}).get("kind") == "scene")
+  original_bytes = (project / original_scene["stored_path"]).read_bytes()
+  second = build()
+  assert all(target["execution"] == "cached" for target in second["targets"])
+  assert second["previous_run_id"] == first["run_id"]
+  layout = project / "assets/layout.json"
+  document = json.loads(layout.read_text())
+  document["objects"]["CH-01"]["origin"][0] += 0.5
+  layout.write_text(json.dumps(document))
+  third = build()
+  assert {target["id"]: target["execution"] for target in third["targets"]} == {
+    "hvac:equipment-bom": "cached", "hvac:physical-model": "cached", "hvac:system-schematic": "cached",
+    "hvac:system-topology": "cached", "hvac:project-layout": "executed",
+  }
+  assert (project / original_scene["stored_path"]).read_bytes() == original_bytes
+  assert (project / original_scene["path"]).read_bytes() != original_bytes
+  document["objects"]["CH-01"]["size"][0] = -1
+  layout.write_text(json.dumps(document))
+  failed = cli("build")
+  assert failed.returncode != 0
+  report = json.loads((project / "build/build.json").read_text())
+  records = {target["id"]: target for target in report["targets"]}
+  assert records["hvac:project-layout"]["status"] != "pass"
+  assert records["hvac:equipment-bom"]["status"] == records["hvac:system-topology"]["status"] == "pass"
+  assert records["hvac:equipment-bom"]["execution"] == records["hvac:system-topology"]["execution"] == "cached"

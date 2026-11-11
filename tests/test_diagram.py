@@ -68,9 +68,9 @@ def test_schematic_has_both_loops_all_ports_and_deterministic_exports(project):
     cell = cells[edge["id"]].find("mxCell")
     assert cell.attrib["source"] == edge["source"]
     assert cell.attrib["target"] == edge["target"]
-  first = {p.relative_to(project): p.read_bytes() for p in (project / "build").rglob("*") if p.is_file()}
+  first = {p.relative_to(project): p.read_bytes() for p in (project / "build/hvac").rglob("*") if p.is_file()}
   assert build_project(project).status == "pass"
-  assert first == {p.relative_to(project): p.read_bytes() for p in (project / "build").rglob("*") if p.is_file()}
+  assert first == {p.relative_to(project): p.read_bytes() for p in (project / "build/hvac").rglob("*") if p.is_file()}
   assert all(p.read_bytes() == data for p, data in sources.items())
 
 

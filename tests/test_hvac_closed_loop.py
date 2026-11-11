@@ -30,10 +30,12 @@ def copied_project(tmp_path: Path) -> Path:
 
 
 def build_snapshot(root: Path) -> dict[str, bytes]:
+  report = json.loads((root / "build/build.json").read_text())
+  outputs = {root / item["path"] for item in report["artifacts"]}
+  outputs.update((root / "build/tests/results.json", root / "build/simulations/event.json"))
   return {
     path.relative_to(root).as_posix(): path.read_bytes()
-    for path in sorted((root / "build").rglob("*"))
-    if path.is_file() and "dependencies" not in path.relative_to(root).parts
+    for path in sorted(outputs)
   }
 
 
@@ -106,8 +108,21 @@ def test_hvac_closed_loop_is_real_and_deterministic(tmp_path: Path) -> None:
   assert event_report["results"][0]["assertions"][0]["status"] == "pass"
 
   first_snapshot = build_snapshot(root)
+  first_report = json.loads((root / "build/build.json").read_text())
+  first_run = root / "build/runs" / first_report["run_id"]
+  first_history = {path: path.read_bytes() for path in first_run.rglob("*") if path.is_file()}
   second_build = runner.invoke(app, ["build", "-p", str(root)])
   assert second_build.exit_code == 0, second_build.output
+  second_report = json.loads((root / "build/build.json").read_text())
+  assert second_report["run_id"] != first_report["run_id"]
+  assert second_report["previous_run_id"] == first_report["run_id"]
+  assert {target["id"]: target["execution"] for target in second_report["targets"]} == {
+    "hvac:equipment-bom": "executed",  # Authoritative external hook runs every time.
+    "hvac:equipment-layout": "cached",
+    "hvac:equipment-projection": "cached",
+    "hvac:design-checks": "cached",
+  }
+  assert first_history == {path: path.read_bytes() for path in first_run.rglob("*") if path.is_file()}
   assert runner.invoke(app, ["test", "-p", str(root)]).exit_code == 0
   assert runner.invoke(app, ["sim", "-p", str(root)]).exit_code == 0
   assert build_snapshot(root) == first_snapshot

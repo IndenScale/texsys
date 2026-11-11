@@ -10,6 +10,7 @@ from texsys.project import inspect_project
 from texsys.targets import Artifact, BuildContext, TargetDefinition, TargetResult
 
 from .domain import PhysicsInputError, PhysicsUnresolved, compile_model
+from .inputs import physical_projection_inputs
 from .scenario import load_scenario
 from .thermal import ThermalNetwork, TransientFailure
 from .hydraulics import HydraulicFailure
@@ -51,7 +52,7 @@ class HvacDynamicsPackage(TexsysPackage):
 
   def targets(self):
     return (TargetDefinition("hvac:physical-model", self.name, self.version, self.build_model,
-                             profiles=("engineering",), default_profile="engineering"),)
+                             profiles=("engineering",), default_profile="engineering", input_patterns=physical_projection_inputs),)
 
   def build_model(self, context: BuildContext):
     if not has_physics(context.root):
@@ -62,7 +63,8 @@ class HvacDynamicsPackage(TexsysPackage):
       return TargetResult("indeterminate", open_items=({"id": "unresolved-physical-model", "impact": str(error)},))
     output = context.build_path / "hvac/behavior/model.json"
     write_json(output, model.as_dict())
-    return TargetResult(artifacts=(Artifact("physical-model", output.relative_to(context.root).as_posix()),),
+    return TargetResult(artifacts=(Artifact("physical-model", output.relative_to(context.root).as_posix(),
+      preview={"kind": "report", "title": "物理模型", "root": model.root}),),
                         details={"model_digest": model.snapshot_digest, "branches": len(model.branches),
                                  "components": len(model.components), "backend_model": ThermalNetwork.version})
 

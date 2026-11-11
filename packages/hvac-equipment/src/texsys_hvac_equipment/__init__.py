@@ -16,6 +16,7 @@ from texsys.project import inspect_project
 from texsys.targets import Artifact, BuildContext, TargetDefinition, TargetResult
 
 from texsys_hvac_equipment.domain import load_system
+from texsys_hvac_equipment.project_layout import build_project_layout, layout_inputs
 
 
 class HvacEquipmentPackage(TexsysPackage):
@@ -26,6 +27,7 @@ class HvacEquipmentPackage(TexsysPackage):
     from texsys_hvac_equipment.air_room import build_air_room
 
     return (
+      TargetDefinition("hvac:project-layout", self.name, self.version, build_project_layout, input_patterns=layout_inputs),
       TargetDefinition(
         id="hvac:equipment-layout",
         package_name=self.name,
@@ -52,7 +54,11 @@ class HvacEquipmentPackage(TexsysPackage):
         open_items=({"id": "missing-hvac-input", "impact": "No HVAC layout was generated."},),
       )
     identifiers = ("equipment-data", "layout-scene", "brep-asset")
-    return TargetResult(artifacts=tuple(Artifact(key, path) for key, path in zip(identifiers, paths)))
+    source_map = {item.identity: {"file": "src/hvac.json", "path": f"equipment.{item.identity}"}
+                  for item in load_system(context.root).equipment}
+    return TargetResult(artifacts=tuple(Artifact(key, path,
+      preview={"kind": "scene", "title": "设备布局", "source_map": source_map} if key == "layout-scene" else None)
+      for key, path in zip(identifiers, paths)))
 
   def build(self, root: Path) -> tuple[str, ...]:
     system = load_system(root)

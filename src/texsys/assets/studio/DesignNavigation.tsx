@@ -14,6 +14,9 @@ import {
 import { t } from "./i18n";
 import { Empty, Icon } from "./ui";
 import type { TreeEntry } from "./workspace-model";
+import type { WorkbenchProps } from "./sdk";
+import type { PreviewSource } from "./project-preview-model";
+import { ProjectPreview } from "./ProjectPreview";
 
 type Binding = { value?: number; unit: string; state: string; source: string };
 type Instance = {
@@ -80,12 +83,13 @@ export const designViews = {
   schematic: { label: "原理图", icon: "system" },
   bom: { label: "物料清单", icon: "files" },
   layout: { label: "三维布置", icon: "cube" },
+  results: { label: "检查与结果", icon: "check" },
 };
 export type DesignView = keyof typeof designViews;
 export type DesignSelection = { definition: string } | { occurrence: string[] };
 type OpenDesign = (selection: DesignSelection, view?: DesignView) => void;
 const libraryLabels = { cells: "单元", devices: "器件", modules: "模块", models: "型号" };
-const artifactViews = ["topology", "schematic", "bom", "layout"] as const;
+const artifactViews = ["topology", "schematic", "bom", "layout", "results"] as const;
 
 function sourceLabel(source: LibrarySource) {
   return [source.name, source.version, source.locked ? t("已锁定") : ""]
@@ -335,18 +339,24 @@ export function DesignExplorer({
       return;
     }
     const next = new Set([...ancestors, key]);
-    append(path, name, "system", () => {
-      appendDesign(path, selection);
-      for (const child of children) {
-        appendInstance(
-          path + "/child-" + child.name,
-          [...occurrence, child.name],
-          child.name,
-          child.definition,
-          next,
-        );
-      }
-    });
+    append(
+      path,
+      name,
+      "system",
+      () => {
+        appendDesign(path, selection);
+        for (const child of children) {
+          appendInstance(
+            path + "/child-" + child.name,
+            [...occurrence, child.name],
+            child.name,
+            child.definition,
+            next,
+          );
+        }
+      },
+      { selection, view: "model" },
+    );
   }
 
   if (mode === "library" && !showResults) {
@@ -433,39 +443,8 @@ export function DesignExplorer({
   );
 }
 
-function quantities(index: DesignIndex, key: string) {
-  const cache = new Map<string, Map<string, bigint>>();
-  const visiting = new Set<string>();
-  let incomplete = false;
-  function visit(id: string) {
-    const known = cache.get(id);
-    if (known) return known;
-    const result = new Map<string, bigint>();
-    if (visiting.has(id)) {
-      incomplete = true;
-      return result;
-    }
-    visiting.add(id);
-    for (const child of index.definitions[id].instances) {
-      if (!child.definition) {
-        incomplete = true;
-      } else if (!index.definitions[child.definition].instances.length) {
-        result.set(child.definition, (result.get(child.definition) ?? 0n) + 1n);
-      } else {
-        for (const [definition, count] of visit(child.definition)) {
-          result.set(definition, (result.get(definition) ?? 0n) + count);
-        }
-      }
-    }
-    visiting.delete(id);
-    cache.set(id, result);
-    return result;
-  }
-  const rows = [...visit(key)];
-  return { rows, incomplete };
-}
-
 export function DesignDocument({
+  api,
   index,
   selection,
   view,
@@ -473,11 +452,12 @@ export function DesignDocument({
   openFile,
   referenceEntry,
 }: {
+  api?: WorkbenchProps["api"];
   index: DesignIndex;
   selection: DesignSelection;
   view: DesignView;
   setView: (view: DesignView) => void;
-  openFile: (path: string) => void;
+  openFile: (path: string, location?: PreviewSource) => void;
   referenceEntry: SaveLibraryReference;
 }) {
   const tabId = useId();
@@ -545,7 +525,8 @@ export function DesignDocument({
     ...scope.instance?.parameters,
   });
   const views = Object.entries(designViews) as [DesignView, (typeof designViews)[DesignView]][];
-  const quantitiesForView = view === "bom" ? quantities(index, scope.key) : undefined;
+  const previewRoot = index.root ? index.definitions[index.root].name : undefined;
+  const projectScope = occurrence !== undefined || scope.key === index.root;
   return (
     <section className="core-design-document" aria-label={title}>
       <header className="core-design-header">
@@ -606,7 +587,7 @@ export function DesignDocument({
         ))}
       </div>
       <div
-        className="core-design-body"
+        className={"core-design-body" + (view !== "model" ? " core-design-preview-body" : "")}
         id={tabId + "-panel"}
         role="tabpanel"
         aria-labelledby={tabId + "-" + view}
@@ -654,56 +635,22 @@ export function DesignDocument({
             )}
           </>
         )}
-        {view === "topology" && (
-          <>
-            <h2>{t("拓扑图")}</h2>
-            <p>{t("按当前范围查看组成与端口连接。")}</p>
-            <h3>{t("子实例")}</h3>
-            <ul>
-              {definition.instances.map((child) => (
-                <li key={child.name}>
-                  {child.name} · {child.type}
-                </li>
-              ))}
-            </ul>
-            <h3>{t("连接")}</h3>
-            <ul>
-              {definition.connections.map((connection, index) => (
-                <li key={index}>
-                  {connection.from} → {connection.to}
-                </li>
-              ))}
-            </ul>
-          </>
-        )}
-        {quantitiesForView && (
-          <>
-            <h2>{t("物料清单")}</h2>
-            <p>{t("按叶子定义汇总的组成预览。")}</p>
-            {quantitiesForView.incomplete && (
-              <p role="status">{t("有未解析或循环的实例，数量不完整。")}</p>
-            )}
-            <table>
-              <thead>
-                <tr>
-                  <th>{t("定义")}</th>
-                  <th>{t("数量")}</th>
-                </tr>
-              </thead>
-              <tbody>
-                {quantitiesForView.rows.map(([key, count]) => (
-                  <tr key={key}>
-                    <td title={key}>{index.definitions[key].name}</td>
-                    <td>{String(count)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </>
-        )}
-        {(view === "schematic" || view === "layout") && (
-          <Empty title={t("尚无关联交付物")}>{t("当前范围没有已关联的交付物。")}</Empty>
-        )}
+        {view !== "model" &&
+          (api && previewRoot && projectScope ? (
+            <ProjectPreview
+              api={api}
+              root={previewRoot}
+              kind={view}
+              initialObject={
+                occurrence?.length ? [previewRoot, ...occurrence].join(".") : undefined
+              }
+              openSource={(source) => openFile(source.file, source)}
+            />
+          ) : (
+            <Empty title={t("尚无关联构建产物")}>
+              {t("请打开项目实例根，查看该项目的构建预览。")}
+            </Empty>
+          ))}
       </div>
     </section>
   );

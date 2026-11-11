@@ -127,7 +127,7 @@ def test_authoritative_hook_status_closes_target_as_non_pass(tmp_path: Path, mon
   assert result.status == status
   report = json.loads(result.report.read_text())
   assert report["targets"][0]["status"] == status
-  assert all(item["partial"] for item in report["artifacts"])
+  assert all(item["partial"] == (status == "error") for item in report["artifacts"])
 
 
 def test_nonzero_exit_without_result_is_execution_error(tmp_path: Path, monkeypatch) -> None:

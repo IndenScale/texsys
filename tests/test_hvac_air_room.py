@@ -80,10 +80,11 @@ def test_air_room_builds_dimensioned_scene_and_deterministic_evidence(air_room):
       location = UsdGeom.Xformable(anchor).ComputeLocalToWorldTransform(Usd.TimeCode.Default()).ExtractTranslation()
       assert tuple(endpoint) == pytest.approx(tuple(location))
     assert path.GetCustomDataByKey("texsys:routeLengthM") > 0
-  snapshot = {path.name: path.read_bytes() for path in (*run.items, run.report)}
+  snapshot = {path.name: path.read_bytes() for path in run.items}
   second = build(air_room)
   assert second.status == "pass"
-  assert {path.name: path.read_bytes() for path in (*second.items, second.report)} == snapshot
+  assert {path.name: path.read_bytes() for path in second.items} == snapshot
+  assert json.loads(second.report.read_text())["targets"][0]["execution"] == "cached"
 
 
 def test_air_room_reports_obstructed_aisle_and_insufficient_backup_airflow(air_room):
@@ -108,7 +109,8 @@ def test_air_room_reports_obstructed_aisle_and_insufficient_backup_airflow(air_r
   assert checks["air-budget-normal"]["status"] == "pass"
   assert checks["air-budget-AC-01-out"]["status"] == "fail"
   assert checks["air-budget-AC-02-out"]["status"] == "pass"
-  assert all(item["partial"] for item in json.loads(result.report.read_text())["artifacts"])
+  assert all(item["complete"] and not item["partial"]
+             for item in json.loads(result.report.read_text())["artifacts"])
 
 
 def test_air_room_is_a_versioned_library_source_with_syncable_module_assets(air_room, tmp_path):

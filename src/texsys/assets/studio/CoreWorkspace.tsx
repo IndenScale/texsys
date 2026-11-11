@@ -2213,6 +2213,7 @@ export function CoreWorkspaceProvider({
   ) : active.design ? (
     designIndex ? (
       <DesignDocument
+        api={api}
         index={designIndex}
         selection={active.design.selection}
         view={active.design.view}
@@ -2225,7 +2226,12 @@ export function CoreWorkspaceProvider({
             ),
           )
         }
-        openFile={(path) => void openFile(path)}
+        openFile={(path, source) =>
+          void openFile(path, {
+            location: source?.line ? { line: source.line, column: source.column ?? 1 } : undefined,
+            focus: true,
+          })
+        }
         referenceEntry={referenceLibrary}
       />
     ) : (

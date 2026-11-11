@@ -125,3 +125,80 @@ test("a locked component can be referenced and outdated references are reviewed 
   assert.match(html, /复核部件引用/);
   assert.doesNotMatch(html, /更新项目库|升级依赖/);
 });
+
+const { ArtifactStatus, BuildSummary } = await load("src/texsys/assets/studio/ProjectPreview.tsx");
+test("a cached failed preview remains failed, and historical success does not hide the latest failure", () => {
+  const base = {
+    id: "bom",
+    target: "bom",
+    run_id: "run-old",
+    current: true,
+    status: "fail",
+    execution: "cached",
+    available: true,
+  };
+  const failed = renderToStaticMarkup(React.createElement(ArtifactStatus, { artifact: base }));
+  assert.match(failed, /未通过/);
+  assert.match(failed, /目标判定/);
+  assert.doesNotMatch(failed, /工程判定|满足/);
+  assert.match(failed, /复用缓存/);
+  const fallback = renderToStaticMarkup(
+    React.createElement(ArtifactStatus, {
+      artifact: {
+        ...base,
+        current: false,
+        fallback: true,
+        status: "pass",
+        latest_target: { status: "error" },
+      },
+    }),
+  );
+  assert.match(fallback, /历史产物.*已过期/);
+  assert.match(fallback, /历史目标判定/);
+  assert.doesNotMatch(fallback, /工程判定|满足/);
+  assert.match(fallback, /本次目标判定/);
+  assert.match(fallback, /执行失败/);
+  assert.match(fallback, /run-old/);
+});
+
+test("build summary exposes failed and blocked targets even when they have no artifacts", () => {
+  const html = renderToStaticMarkup(
+    React.createElement(BuildSummary, {
+      build: {
+        run_id: "run-failed-without-artifacts",
+        current: true,
+        status: "error",
+        targets: [
+          { id: "equipment", status: "pass", execution: "cached", diagnostics: [] },
+          {
+            id: "solver",
+            status: "error",
+            execution: "executed",
+            diagnostics: [{ rule: "E_SOLVER", message: "Solver process could not start" }],
+          },
+          {
+            id: "report",
+            status: "indeterminate",
+            execution: "blocked",
+            blocked_by: ["solver"],
+            diagnostics: [],
+          },
+        ],
+        diagnostics: [{ message: "Build has incomplete targets" }],
+      },
+    }),
+  );
+  for (const expected of [
+    "run-failed-without-artifacts",
+    "复用缓存",
+    "执行失败",
+    "E_SOLVER",
+    "Solver process could not start",
+    "已阻断",
+    "阻断依赖",
+    "solver",
+    "无法判定",
+    "Build has incomplete targets",
+  ])
+    assert.ok(html.includes(expected), expected);
+});

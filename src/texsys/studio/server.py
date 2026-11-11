@@ -16,6 +16,7 @@ from texsys.project import ProjectError
 from .ai import AiSettings, draft_commit_message, is_ai_config_path, test_connection
 from .runtime import Conflict, StudioRuntime
 from .scene import ScenePreview
+from .preview import ProjectPreview
 from .files import file_operation, project_file, project_files, search_project
 from .search import replacement
 from .source_control import (repository, source_commit_diff, source_diff, source_history, source_operation,
@@ -114,6 +115,7 @@ def create_server(runtime: StudioRuntime, port=8710, frontend=None, token=None, 
   ai_settings = AiSettings()
   terminals = TerminalService()
   scene = ScenePreview(runtime.root, runtime.project.build)
+  previews = ProjectPreview(runtime.root, runtime.project.build)
 
   def scm_root(scope):
     if scope not in {"project", "repository"}:
@@ -194,9 +196,15 @@ def create_server(runtime: StudioRuntime, port=8710, frontend=None, token=None, 
           from .library_sources import library_index
 
           self._send(200, library_index(runtime.root, runtime.project.source, []))
+        elif parsed.path == "/api/preview":
+          self._send(200, previews.read(parse_qs(parsed.query).get("root", [""])[0]))
+        elif parsed.path == "/api/preview/artifact":
+          query = parse_qs(parsed.query)
+          self._send(200, previews.artifact(query.get("run", [""])[0], query.get("target", [""])[0], query.get("id", [""])[0]))
         elif parsed.path == "/api/scene":
-          known = parse_qs(parsed.query).get("revision", [""])[0]
-          self._send(200, scene.read(known))
+          query = parse_qs(parsed.query)
+          self._send(200, scene.read(query.get("revision", [""])[0], run=query.get("run", [""])[0],
+                                    target=query.get("target", [""])[0], artifact=query.get("artifact", [""])[0]))
         elif parsed.path == "/api/ai/settings":
           self._send(200, ai_settings.read().public())
         elif parsed.path == "/api/files":

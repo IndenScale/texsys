@@ -13,6 +13,7 @@ from texsys_diagram_elk import BackendUnavailable
 from texsys_hvac_graphics import prepare_layout, render
 from texsys_hvac_dynamics import has_physics
 from texsys_hvac_dynamics.domain import PhysicsUnresolved, compile_model
+from texsys_hvac_dynamics.inputs import physical_projection_inputs, projection_cacheable
 
 def symbols(request: dict) -> dict:
   """Geometry and compatible family resolution belong to the TypeScript catalog."""
@@ -130,7 +131,12 @@ class HvacDiagramPackage(TexsysPackage):
   def targets(self):
     return (TargetDefinition("hvac:system-schematic", self.name, self.version, self.build_schematic,
                              profiles=("review", "engineering"), default_profile="review",
-                             default_scope={"view": "schematic"}),)
+                             default_scope={"view": "schematic"}, input_patterns=physical_projection_inputs,
+                             cache=projection_cacheable),
+            TargetDefinition("hvac:system-topology", self.name, self.version, self.build_schematic,
+                             profiles=("review", "engineering"), default_profile="review",
+                             default_scope={"view": "system"}, input_patterns=physical_projection_inputs,
+                             cache=projection_cacheable))
 
   def build_schematic(self, context: BuildContext) -> TargetResult:
     info = inspect_project(context.root)
@@ -139,7 +145,7 @@ class HvacDiagramPackage(TexsysPackage):
     path = source / "system.sdl.json"
     if set(context.scope) - {"view", "overlay", "approval", "results"}:
       return TargetResult("fail", diagnostics=({"rule": "D_SCOPE", "status": "fail", "message": "Unknown schematic scope fields."},))
-    view = context.scope.get("view", "schematic")
+    view = "system" if context.target == "hvac:system-topology" else context.scope.get("view", "schematic")
     if view not in {"system", "schematic"}:
       return TargetResult("fail", diagnostics=({"rule": "D_SCOPE", "status": "fail", "message": "view must be system or schematic."},))
     if not path.is_file():
@@ -232,7 +238,7 @@ class HvacDiagramPackage(TexsysPackage):
              "visual_review": visual_review, "open_items": open_items,
              "closure": "review-draft" if not strict else "engineering-diagram",
              "limits": ["No physical layout or construction acceptance.", "Behavior references/bindings are checked; model equations are not solved by this target.", "One page, flat root leaf instances; no folding or cross-page projection.", "Host font glyphs and draw.io editing require visual review."]}
-    output = context.build_path / "hvac" / view
+    output = context.build_path / "hvac" / ("topology" if context.target == "hvac:system-topology" else view)
     output.mkdir(parents=True, exist_ok=True)
     write_json(output / "system.json", document)
     write_json(output / "system-check.json", check)
@@ -240,7 +246,13 @@ class HvacDiagramPackage(TexsysPackage):
     (output / "system.svg").write_text(rendered["svg"], encoding="utf-8")
     (output / "system.html").write_text(rendered["html"], encoding="utf-8")
     (output / "system.drawio").write_text(render_drawio(document), encoding="utf-8")
-    return TargetResult(status, tuple(Artifact(identifier, (output / filename).relative_to(context.root).as_posix(), kind)
+    metadata = {"kind": "topology" if view == "system" else "schematic", "title": document["title"],
+                "root": sdl["root"], "source_map": document["source_map"]}
+    complete = not (view == "schematic" and document["missing_behavior"])
+    return TargetResult(status, tuple(Artifact(identifier, (output / filename).relative_to(context.root).as_posix(), kind,
+                                      complete=complete if identifier != "system-check" else True,
+                                      preview=metadata if identifier == "system-data" else
+                                      {**metadata, "kind": "report", "title": document["title"] + " · 检查"} if identifier == "system-check" else None)
                                      for identifier, filename, kind in (("system-data", "system.json", "authoritative"),
                                        ("system-svg", "system.svg", "authoritative"), ("system-viewer", "system.html", "diagnostic"), ("system-drawio", "system.drawio", "authoritative"),
                                        ("system-check", "system-check.json", "diagnostic"))),

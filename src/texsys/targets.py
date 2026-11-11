@@ -16,10 +16,16 @@ class Artifact:
   id: str
   path: str
   kind: str = "authoritative"
+  complete: bool = True
+  preview: Mapping[str, Any] | None = None
 
   def __post_init__(self) -> None:
     if not self.id or not self.path:
       raise ValueError("Artifact id and path must be non-empty.")
+    if type(self.complete) is not bool:
+      raise ValueError("Artifact completeness must be a boolean.")
+    if self.preview is not None and not isinstance(self.preview, Mapping):
+      raise ValueError("Artifact preview must be a mapping.")
 
 
 @dataclass(frozen=True)
@@ -59,12 +65,24 @@ class TargetDefinition:
   default_profile: str | None = None
   default_scope: Mapping[str, Any] = field(default_factory=dict)
   dependencies: tuple[str, ...] = ()
+  input_patterns: tuple[str, ...] | Callable[[BuildContext], tuple[str, ...] | None] | None = None
+  cache: bool | Callable[[BuildContext], bool] = True
+  cache_environment: tuple[str, ...] = ()
 
   def __post_init__(self) -> None:
     if not self.id:
       raise ValueError("Target id must be non-empty.")
     if self.default_profile is not None and self.profiles and self.default_profile not in self.profiles:
       raise ValueError(f"Default profile is not supported by target {self.id}.")
+    if self.input_patterns is not None and not callable(self.input_patterns) and any(
+      not isinstance(pattern, str) or not pattern or pattern.startswith("/") or ".." in pattern.split("/")
+      for pattern in self.input_patterns
+    ):
+      raise ValueError("Target input patterns must be non-empty project-relative glob patterns.")
+    if any(not isinstance(name, str) or not name for name in self.cache_environment):
+      raise ValueError("Cache environment variables must have non-empty names.")
+    if not isinstance(self.cache, bool) and not callable(self.cache):
+      raise ValueError("Target cache must be a boolean or a context predicate.")
 
 
 @dataclass(frozen=True)

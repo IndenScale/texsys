@@ -68,7 +68,7 @@ def test_explicit_target_builds_only_selected_contract(tmp_path: Path, monkeypat
   assert calls == ["demo:a"]
   assert not (root / "build" / "demo-b.json").exists()
   report = json.loads(result.report.read_text())
-  assert report["schema_version"] == 2
+  assert report["schema_version"] == 3
   assert report["requested_targets"] == ["demo:a"]
   assert report["resolved_targets"] == [
     {
@@ -230,3 +230,262 @@ def test_cli_accepts_repeatable_target_profile_and_scope(tmp_path: Path, monkeyp
   assert result.exit_code == 0, result.output
   assert "Target demo:a (profile=engineering, source=cli)" in result.output
   assert calls == ["demo:a", "demo:b"]
+
+
+def read_build(result):
+  return json.loads(result.report.read_text())
+
+
+def test_cached_build_restores_outputs_and_keeps_immutable_history(tmp_path, monkeypatch):
+  root = copied_project(tmp_path)
+  calls = []
+  package = FakePackage((definition("demo:a", calls),))
+  monkeypatch.setattr("texsys.execution.project_packages", lambda root: (package,))
+  first = read_build(build_project(root, ("demo:a",)))
+  artifact = first["artifacts"][0]
+  saved = (root / artifact["stored_path"]).read_bytes()
+  (root / artifact["path"]).unlink()
+  second = read_build(build_project(root, ("demo:a",)))
+  assert calls == ["demo:a"]
+  assert first["run_id"] != second["run_id"]
+  assert first["previous_run_id"] is None
+  assert second["previous_run_id"] == first["run_id"]
+  assert first["targets"][0]["execution"] == "executed"
+  assert second["targets"][0]["execution"] == "cached"
+  assert second["targets"][0]["reused_from"] == first["run_id"]
+  assert (root / artifact["path"]).read_bytes() == saved
+  (root / artifact["path"]).write_text("later unrelated overwrite")
+  assert (root / artifact["stored_path"]).read_bytes() == saved
+  assert json.loads((root / "build/runs" / first["run_id"] / "build.json").read_text()) == first
+
+
+def test_corrupt_cached_bytes_rebuild_instead_of_reusing(tmp_path, monkeypatch):
+  root = copied_project(tmp_path)
+  calls = []
+  package = FakePackage((definition("demo:a", calls),))
+  monkeypatch.setattr("texsys.execution.project_packages", lambda root: (package,))
+  first = read_build(build_project(root, ("demo:a",)))
+  key = first["targets"][0]["cache_key"].removeprefix("sha256:")
+  (root / "build/.cache/targets" / key / "files/build/demo-a.json").write_text("corrupt")
+  second = read_build(build_project(root, ("demo:a",)))
+  assert calls == ["demo:a", "demo:a"]
+  assert second["targets"][0]["execution"] == "executed"
+  assert json.loads((root / "build/demo-a.json").read_text())["target"] == "demo:a"
+
+
+def test_only_declared_inputs_and_upstream_changes_invalidate_target_cache(tmp_path, monkeypatch):
+  from dataclasses import replace
+
+  root = copied_project(tmp_path)
+  (root / "assets/a.txt").write_text("a1")
+  (root / "assets/b.txt").write_text("b1")
+  calls = []
+  package = FakePackage((
+    replace(definition("demo:a", calls), input_patterns=("assets/a.txt",)),
+    replace(definition("demo:b", calls), input_patterns=("assets/b.txt",)),
+    replace(definition("demo:c", calls, dependencies=("demo:a",)), input_patterns=()),
+  ))
+  monkeypatch.setattr("texsys.execution.project_packages", lambda root: (package,))
+  build_project(root, ("demo:b", "demo:c"))
+  (root / "assets/a.txt").write_text("a2")
+  changed = read_build(build_project(root, ("demo:b", "demo:c")))
+  assert calls == ["demo:b", "demo:a", "demo:c", "demo:a", "demo:c"]
+  assert {t["id"]: t["execution"] for t in changed["targets"]} == {
+    "demo:a": "executed", "demo:b": "cached", "demo:c": "executed",
+  }
+
+
+def test_profile_and_builder_identity_invalidate_cache(tmp_path, monkeypatch):
+  from dataclasses import replace
+
+  root = copied_project(tmp_path)
+  calls = []
+  target = definition("demo:a", calls, profiles=("engineering", "concept"))
+  package = FakePackage((target,))
+  monkeypatch.setattr("texsys.execution.project_packages", lambda root: (package,))
+  first = read_build(build_project(root, ("demo:a",)))
+  second = read_build(build_project(root, ("demo:a",), profile="concept"))
+  package._definitions = (replace(target, package_version="1.2.4"),)
+  third = read_build(build_project(root, ("demo:a",), profile="concept"))
+  assert calls == ["demo:a"] * 3
+  assert len({r["targets"][0]["cache_key"] for r in (first, second, third)}) == 3
+
+
+def test_failed_branch_keeps_complete_outputs_and_blocks_only_its_dependents(tmp_path, monkeypatch):
+  root = copied_project(tmp_path)
+  calls = []
+  package = FakePackage((definition("demo:bad", calls, status="fail"),
+                         definition("demo:blocked", calls, dependencies=("demo:bad",)),
+                         definition("demo:independent", calls)))
+  monkeypatch.setattr("texsys.execution.project_packages", lambda root: (package,))
+  result = build_project(root, ("demo:blocked", "demo:independent"))
+  first = read_build(result)
+  assert result.status == "fail"
+  assert calls == ["demo:bad", "demo:independent"]
+  rows = {r["id"]: r for r in first["targets"]}
+  assert rows["demo:blocked"]["execution"] == "blocked"
+  assert rows["demo:blocked"]["blocked_by"] == ["demo:bad"]
+  assert rows["demo:independent"]["status"] == "pass"
+  assert all(item["complete"] and not item["partial"] for item in first["artifacts"])
+  second = read_build(build_project(root, ("demo:blocked", "demo:independent")))
+  assert calls == ["demo:bad", "demo:independent"]
+  assert {r["execution"] for r in second["targets"]} == {"cached", "blocked"}
+  assert second["status"] == "fail"
+
+
+def test_execution_errors_are_never_cached_and_independent_target_still_runs(tmp_path, monkeypatch):
+  root = copied_project(tmp_path)
+  calls = []
+
+  def crash(context):
+    calls.append("crash")
+    raise ValueError("no solver available")
+
+  package = FakePackage((TargetDefinition("demo:crash", "fake", "1", crash),
+                         definition("demo:ok", calls)))
+  monkeypatch.setattr("texsys.execution.project_packages", lambda root: (package,))
+  for _ in range(2):
+    assert build_project(root, ("demo:crash", "demo:ok")).status == "error"
+  assert calls == ["crash", "demo:ok", "crash"]
+
+
+def test_incomplete_artifact_is_not_cached_even_when_target_passes(tmp_path, monkeypatch):
+  root = copied_project(tmp_path)
+  calls = []
+
+  def partial(context):
+    calls.append("partial")
+    write_json(context.build_path / "partial.json", {"unresolved": ["pump"]})
+    return TargetResult("pass", (Artifact("partial", "build/partial.json", complete=False,
+                                          preview={"kind": "bom", "root": "Station"}),))
+
+  package = FakePackage((TargetDefinition("demo:partial", "fake", "1", partial),))
+  monkeypatch.setattr("texsys.execution.project_packages", lambda root: (package,))
+  for _ in range(2):
+    report = read_build(build_project(root, ("demo:partial",)))
+    assert report["artifacts"][0]["partial"] is True
+    assert report["artifacts"][0]["preview"] == {"kind": "bom", "root": "Station"}
+  assert calls == ["partial", "partial"]
+
+
+def test_input_race_does_not_publish_cache_or_current_evidence(tmp_path, monkeypatch):
+  from texsys.build_records import build_freshness
+
+  root = copied_project(tmp_path)
+
+  def mutate(context):
+    write_json(context.build_path / "data.json", {"value": 1})
+    (context.root / "assets/raced.txt").write_text("changed")
+    return TargetResult("pass", (Artifact("data", "build/data.json"),))
+
+  monkeypatch.setattr("texsys.execution.project_packages", lambda root: (
+    FakePackage((TargetDefinition("demo:a", "fake", "1", mutate),)),
+  ))
+  report = read_build(build_project(root, ("demo:a",)))
+  assert report["inputs_consistent"] is False
+  assert not (root / "build/.cache/targets").exists()
+  assert build_freshness(root, report) == {"current": False, "freshness": "input-inconsistent"}
+
+
+def test_build_freshness_detects_input_change_and_damaged_record(tmp_path, monkeypatch):
+  from texsys.build_records import build_freshness
+
+  root = copied_project(tmp_path)
+  monkeypatch.setattr("texsys.execution.project_packages", lambda root: (
+    FakePackage((definition("demo:a", []),)),
+  ))
+  report = read_build(build_project(root, ("demo:a",)))
+  assert build_freshness(root, report) == {"current": True, "freshness": "current"}
+  (root / "assets/new.txt").write_text("new input")
+  assert build_freshness(root, report)["freshness"] == "inputs-changed"
+  report["status"] = "fail"
+  assert build_freshness(root, report)["freshness"] == "invalid-record"
+
+
+def test_preflight_failure_does_not_suppress_independent_diagnostics(tmp_path, monkeypatch):
+  from texsys.formal import CheckResult, Diagnostic
+
+  root = copied_project(tmp_path)
+  calls = []
+  monkeypatch.setattr("texsys.execution.check_project", lambda root: CheckResult(
+    "fail", 1, (Diagnostic("F001", "fail", "src/system.sdl.json", "unresolved connection"),),
+  ))
+  monkeypatch.setattr("texsys.execution.project_packages", lambda root: (
+    FakePackage((definition("demo:a", calls),)),
+  ))
+  report = read_build(build_project(root, ("demo:a",)))
+  assert report["status"] == "fail"
+  assert report["preflight"]["diagnostics"][0]["rule"] == "F001"
+  assert calls == ["demo:a"]
+  assert report["artifacts"][0]["complete"] is True
+
+
+def test_concurrent_build_lock_fails_without_touching_owner(tmp_path, monkeypatch):
+  from texsys.build_records import build_lock
+
+  root = copied_project(tmp_path)
+  monkeypatch.setattr("texsys.execution.project_packages", lambda root: (
+    FakePackage((definition("demo:a", []),)),
+  ))
+  with build_lock(root, "build"):
+    with pytest.raises(ProjectError, match="Another build"):
+      build_project(root, ("demo:a",))
+    assert (root / "build/.build.lock/owner.json").exists()
+  assert not (root / "build/.build.lock").exists()
+
+
+def test_callable_inputs_cache_policy_and_declared_environment(tmp_path, monkeypatch):
+  from dataclasses import replace
+
+  root = copied_project(tmp_path)
+  calls = []
+  (root / "assets/model.txt").write_text("input")
+  target = replace(definition("demo:a", calls), input_patterns=lambda context: ("assets/model.txt",),
+                   cache=lambda context: not context.scope.get("external"),
+                   cache_environment=("TEXSYS_TEST_TOOL_VERSION",))
+  monkeypatch.setattr("texsys.execution.project_packages", lambda root: (FakePackage((target,)),))
+  monkeypatch.setenv("TEXSYS_TEST_TOOL_VERSION", "1")
+  build_project(root, ("demo:a",))
+  monkeypatch.setenv("SHLVL", "987")
+  monkeypatch.setenv("_", "different-launcher")
+  (root / "assets/unrelated.txt").write_text("unrelated")
+  assert read_build(build_project(root, ("demo:a",)))["targets"][0]["execution"] == "cached"
+  monkeypatch.setenv("TEXSYS_TEST_TOOL_VERSION", "2")
+  assert read_build(build_project(root, ("demo:a",)))["targets"][0]["execution"] == "executed"
+  for _ in range(2):
+    result = read_build(build_project(root, ("demo:a",), scope={"external": True}))
+    assert result["targets"][0]["cache_enabled"] is False
+  assert calls == ["demo:a"] * 4
+
+
+def test_input_selector_error_keeps_independent_branch_running(tmp_path, monkeypatch):
+  from dataclasses import replace
+
+  root = copied_project(tmp_path)
+  calls = []
+
+  def broken_selector(context):
+    raise RuntimeError("invalid reference")
+
+  package = FakePackage((replace(definition("demo:bad", calls), input_patterns=broken_selector),
+                         definition("demo:ok", calls)))
+  monkeypatch.setattr("texsys.execution.project_packages", lambda root: (package,))
+  result = read_build(build_project(root, ("demo:bad", "demo:ok")))
+  assert calls == ["demo:ok"]
+  assert result["status"] == "error"
+  assert [target["status"] for target in result["targets"]] == ["error", "pass"]
+
+
+def test_changed_runtime_versions_invalidate_freshness_and_target_cache(tmp_path, monkeypatch):
+  from texsys.build_records import build_freshness
+
+  root = copied_project(tmp_path)
+  calls = []
+  monkeypatch.setattr("texsys.execution.project_packages", lambda root: (
+    FakePackage((definition("demo:a", calls),)),
+  ))
+  report = read_build(build_project(root, ("demo:a",)))
+  monkeypatch.setattr("texsys.build_records.distribution_versions", lambda: [["solver", "different"]])
+  assert build_freshness(root, report)["freshness"] == "tools-changed"
+  assert read_build(build_project(root, ("demo:a",)))["targets"][0]["execution"] == "executed"
+  assert calls == ["demo:a", "demo:a"]

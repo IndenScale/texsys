@@ -984,3 +984,114 @@ test("editor and terminal preferences persist independently and tolerate invalid
     else delete globalThis.localStorage;
   }
 });
+
+const {
+  artifactKey,
+  artifactQuery,
+  previewArtifacts,
+  sourceReference,
+  safePrimitive,
+  pickedFace,
+  sameArtifact,
+} = load("src/texsys/assets/studio/project-preview-model.ts");
+test("project preview selects only declared artifacts for the exact root and kind", () => {
+  const items = [
+    { target: "bom-a", id: "data", root: "Station", kind: "bom", run_id: "first" },
+    { target: "bom-b", id: "data", root: "Station2", kind: "bom", run_id: "second" },
+    { target: "legacy", id: "data", kind: "bom", run_id: "first" },
+    { target: "layout", id: "scene", preview: { root: "Station", kind: "scene" }, run_id: "first" },
+    {
+      target: "analysis",
+      id: "result",
+      root: "Station",
+      kind: "report",
+      run_id: "first",
+      status: "fail",
+    },
+  ];
+  assert.deepEqual(previewArtifacts({ artifacts: items }, "bom", "Station"), [items[0]]);
+  assert.deepEqual(previewArtifacts({ artifacts: items }, "layout", "Station"), [items[3]]);
+  assert.deepEqual(previewArtifacts({ artifacts: items }, "results", "Station"), [items[4]]);
+  assert.notEqual(artifactKey(items[0]), artifactKey(items[1]));
+  assert.equal(new URLSearchParams(artifactQuery(items[3], true)).get("artifact"), "scene");
+  assert.equal(new URLSearchParams(artifactQuery(items[0])).get("run"), "first");
+});
+test("preview source navigation uses mapped files, never declaration paths or inferred object names", () => {
+  const source = { file: "src/system.sdl.json", path: "components.Station.instances.P1", line: 15 };
+  assert.deepEqual(sourceReference({ source_map: { "node:Station.P1": source } }, "Station.P1"), {
+    ...source,
+    column: undefined,
+  });
+  assert.equal(sourceReference({ source_map: { "Station.P1": source } }, "Station.P10"), undefined);
+  for (const file of [
+    "../outside.json",
+    "/absolute.json",
+    "C:\\outside.json",
+    "https://bad/file",
+    "a\0b",
+  ]) {
+    assert.equal(
+      sourceReference({ source_map: { P1: { file, path: "src/legitimate.json" } } }, "P1"),
+      undefined,
+    );
+  }
+  assert.equal(
+    sourceReference({ source_map: { P1: { path: "src/legitimate.json" } } }, "P1"),
+    undefined,
+  );
+});
+test("diagram primitives exclude executable tags, event handlers and external paint references", () => {
+  for (const tag of ["script", "foreignObject", "image", "use", "iframe", "a"])
+    assert.equal(safePrimitive({ tag, attrs: {} }), undefined);
+  assert.deepEqual(
+    safePrimitive({
+      tag: "rect",
+      attrs: {
+        width: 20,
+        height: 30,
+        onClick: "steal()",
+        href: "javascript:steal()",
+        fill: "url(https://external)",
+        "stroke-width": 2,
+      },
+    }),
+    { tag: "rect", attrs: { width: 20, height: 30, strokeWidth: 2 } },
+  );
+});
+test("scene picking selects the visible face and clears outside geometry", () => {
+  const far = {
+    id: "far",
+    vertices: [
+      [0, 0],
+      [20, 0],
+      [20, 20],
+      [0, 20],
+    ],
+  };
+  const near = {
+    id: "near",
+    vertices: [
+      [5, 5],
+      [15, 5],
+      [15, 15],
+      [5, 15],
+    ],
+  };
+  assert.equal(pickedFace([far, near], 10, 10), near);
+  assert.equal(pickedFace([far, near], 2, 2), far);
+  assert.equal(pickedFace([far, near], 30, 30), undefined);
+});
+
+test("preview payload identity cannot cross runs, targets or content revisions", () => {
+  const selected = { run_id: "new", target: "layout", id: "scene", digest: "sha256:new" };
+  assert.equal(sameArtifact({ ...selected }, selected), true);
+  for (const changed of [
+    { run_id: "old" },
+    { target: "other" },
+    { id: "other" },
+    { digest: "sha256:old" },
+  ]) {
+    assert.equal(sameArtifact({ ...selected, ...changed }, selected), false);
+  }
+  assert.equal(sameArtifact(undefined, selected), false);
+});
