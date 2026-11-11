@@ -1,7 +1,14 @@
-import { readFileSync } from 'node:fs';
+import { readFileSync } from "node:fs";
 
-const evidence = JSON.parse(readFileSync(new URL('../public/evidence/pipe-change.json', import.meta.url), 'utf8'));
-const escape = (value) => String(value).replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;');
+const evidence = JSON.parse(
+  readFileSync(new URL("../public/evidence/pipe-change.json", import.meta.url), "utf8"),
+);
+const escape = (value) =>
+  String(value)
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;");
 const baseline = evidence.states.baseline;
 const failed = evidence.states.changed;
 
@@ -45,26 +52,31 @@ function consoleMarkup(compact = false) {
     </div>
     <p class="lab-status" role="status" aria-live="polite" aria-atomic="true" data-lab-field="status">基线记录：计算完成，254 项检查满足；已另行记录自动化测试接受。</p>
     <p class="lab-detail" data-lab-field="explanation">供冷与已建模几何在声明工况内满足。这个结论绑定当前输入与工具版本。</p>
-    ${compact ? '' : `<dl class="lab-record-meta">
+    ${
+      compact
+        ? ""
+        : `<dl class="lab-record-meta">
       <div><dt>输入修订</dt><dd><code data-lab-field="revision">${escape(baseline.revision)}</code></dd></div>
       <div><dt>原运行 ID</dt><dd><code data-lab-field="run-id">${escape(baseline.run_id)}</code></dd></div>
       <div><dt>原证据摘要</dt><dd><code data-lab-field="digest">${escape(baseline.evidence_digest)}</code></dd></div>
       <div><dt>接受记录</dt><dd data-lab-field="acceptance">${escape(baseline.recorded_follow_up)}</dd></div>
-    </dl>`}
+    </dl>`
+    }
     <p class="lab-caption">概念水力算例 · 回放已保存结果，非浏览器实时求解。图示表达依赖关系，不代表实际管路布置。</p>
     <noscript><p>当前展示基线。开启 JavaScript 可切换回放；三组记录均可在下方 JSON 中读取。</p></noscript>
-    <script type="application/json" data-lab-records>${JSON.stringify(evidence.states).replaceAll('<', '\\u003c')}</script>
+    <script type="application/json" data-lab-records>${JSON.stringify(evidence.states).replaceAll("<", "\\u003c")}</script>
   </div>`;
 }
 
 export const labPreview = consoleMarkup(true);
 
 export const labPage = {
-  path: '/lab/pipe-change/',
-  section: 'Lab',
-  title: '一根管路改变，哪些结论需要重来？',
-  english: 'A change. A chain of consequences.',
-  summary: '从管径与路由修改，到几何提取、水力重算和旧证据失效。回放 Texsys 原型的一次完整概念实验。',
+  path: "/lab/pipe-change/",
+  section: "Lab",
+  title: "一根管路改变，哪些结论需要重来？",
+  english: "A change. A chain of consequences.",
+  summary:
+    "从管径与路由修改，到几何提取、水力重算和旧证据失效。回放 Texsys 原型的一次完整概念实验。",
   body: `<p class="lead">一个“完成”的计算，可以得出一个“不满足”的工程结果。一次通过的设计，也会在输入改变后失去原来的依据。我们用设施水管路原型，把这两件事放到同一个可追踪的循环里。</p>
     <div class="callout"><strong>本页展示什么</strong><p>这是 2026 年 11 月 11 日通过公开 CLI 实际运行的概念算例。页面回放三个已保存状态；数据、摘要与局限可以下载。这里没有调用实时求解器，也不代表真实工程签核。</p></div>
     <h2 id="replay">观察一次变更</h2>
@@ -96,14 +108,14 @@ export const labPage = {
   --output build/engineering-poc/website-replay</code></pre>
     <p>下载 JSON 是精简摘录，不是完整原始运行文件；其中的证据摘要对应原记录，不能用于校验这份删节文件。重跑会产生新的运行 ID 与证据摘要，应比较输入、判据、结果与状态变化，而不是要求 ID 相同。</p>
     <h2 id="limits">这个实验的边界</h2>
-    <ul>${evidence.limitations.map((item) => `<li>${escape(item)}</li>`).join('')}</ul>
+    <ul>${evidence.limitations.map((item) => `<li>${escape(item)}</li>`).join("")}</ul>
     <p>这次实验说明一个有限工程闭环可以运行、解释和复核。真实厂家曲线、现场标定、独立工程审查与第二项目复用仍需要单独证据。网站回放也不替代 Tex Studio 的完整操作验收。</p>
     <h2 id="next-question">下一步，检验哪些问题？</h2>
     <p>在换用真实设备曲线后，诊断是否仍能定位决定性的约束？另一位工程师能否独立还原这个实验？当电气、控制或施工条件同时改变时，如何清楚地表达已覆盖的影响与尚未登记的依赖？这些问题决定原型能否从一个概念案例走向可靠的工程环境。</p>`,
   related: [
-    { href: '/ideas/feedback/', label: '为什么实现必须反过来修正原理' },
-    { href: '/ideas/engineering-evidence/', label: '证据为什么必须绑定版本与条件' },
-    { href: '/system/compiler/', label: 'Engineering Compiler 如何组织这个循环' },
-    { href: '/participate/', label: '参与验证与提出反例' },
+    { href: "/ideas/feedback/", label: "为什么实现必须反过来修正原理" },
+    { href: "/ideas/engineering-evidence/", label: "证据为什么必须绑定版本与条件" },
+    { href: "/system/compiler/", label: "Engineering Compiler 如何组织这个循环" },
+    { href: "/participate/", label: "参与验证与提出反例" },
   ],
 };
