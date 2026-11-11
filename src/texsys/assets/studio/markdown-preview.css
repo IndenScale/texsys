@@ -87,6 +87,8 @@
 }
 .markdown-preview th,
 .markdown-preview td {
+  min-width: 6ch;
+  overflow-wrap: normal;
   border: 1px solid var(--ui-border);
   padding: 8px 10px;
   text-align: left;
