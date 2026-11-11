@@ -36,6 +36,8 @@ design_app = typer.Typer(help="Inspect, preview and apply SDL design edits.", no
 app.add_typer(design_app, name="design")
 engineering_app = typer.Typer(help="Inspect, change, evaluate and review engineering evidence.", no_args_is_help=True)
 app.add_typer(engineering_app, name="engineering")
+package_app = typer.Typer(help="Publish, inspect and manage versioned engineering capability packages.", no_args_is_help=True)
+app.add_typer(package_app, name="package")
 
 PathOption = Annotated[
   Path,
@@ -145,19 +147,141 @@ def info_command(path: PathOption = Path(".")) -> None:
 
 @app.command("add")
 def add_command(
-  source: Annotated[Path, typer.Argument(help="Path to a texsys dependency package.")],
+  source: Annotated[str, typer.Argument(help="Local package path, or package name with --registry.")],
   path: PathOption = Path("."),
   version: Annotated[
     str | None,
     typer.Option("--version", help="Require an exact package version."),
   ] = None,
+  registry: Annotated[Path | None, typer.Option("--registry", help="Shared package repository directory.")] = None,
 ) -> None:
-  """Add a path dependency, lock its graph and synchronize it."""
+  """Add a local or released dependency, lock its graph and synchronize it."""
   try:
-    result = add_dependency(path, source, version)
+    if registry is None:
+      result = add_dependency(path, Path(source), version)
+    else:
+      from texsys.dependencies import add_registry_dependency
+      if version is None:
+        raise ProjectError("Registry packages require an explicit --version.")
+      result = add_registry_dependency(path, source, version, registry.expanduser().resolve())
   except ProjectError as error:
     _print_error(error)
   typer.echo(f"Added dependency; locked and synced {len(result.packages)} package(s).")
+
+
+@package_app.command("pack")
+def package_pack_command(
+  source: Annotated[Path, typer.Argument(help="Capability package source directory.")],
+  output: Annotated[Path | None, typer.Option("--output", "-o", help="Output directory for portable .texpkg releases.")] = None,
+) -> None:
+  """Prepare immutable package archives, including declared dependencies."""
+  from texsys.registry import pack_package
+  try:
+    result = pack_package(source, output)
+  except ProjectError as error:
+    _print_error(error)
+  typer.echo(json.dumps(result, ensure_ascii=False, indent=2))
+
+
+@package_app.command("publish")
+def package_publish_command(
+  source: Annotated[Path, typer.Argument(help="Capability directory or .texpkg archive.")],
+  registry: Annotated[Path, typer.Option("--registry", help="Shared package repository directory.")],
+) -> None:
+  """Publish immutable exact versions to a local or shared repository."""
+  from texsys.registry import publish_package
+  try:
+    result = publish_package(source, registry)
+  except ProjectError as error:
+    _print_error(error)
+  typer.echo(json.dumps(result, ensure_ascii=False, indent=2))
+
+
+@package_app.command("list")
+def package_list_command(
+  registry: Annotated[Path, typer.Option("--registry", help="Shared package repository directory.")],
+  query: Annotated[str, typer.Option("--query", "-q", help="Search package names and descriptions.")] = "",
+) -> None:
+  """Browse available package versions without changing a project."""
+  from texsys.registry import search_packages
+  try:
+    result = search_packages(registry, query)
+  except ProjectError as error:
+    _print_error(error)
+  typer.echo(json.dumps(result, ensure_ascii=False, indent=2))
+
+
+@package_app.command("show")
+def package_show_command(
+  name: Annotated[str, typer.Argument(help="Released package name.")],
+  version: Annotated[str, typer.Option("--version", help="Exact package version.")],
+  registry: Annotated[Path, typer.Option("--registry", help="Shared package repository directory.")],
+) -> None:
+  """Show package contents, capabilities, scope and runtime requirements."""
+  from texsys.registry import package_details
+  try:
+    result = package_details(registry, name, version)
+  except ProjectError as error:
+    _print_error(error)
+  typer.echo(json.dumps(result, ensure_ascii=False, indent=2))
+
+
+@package_app.command("status")
+def package_status_command(path: PathOption = Path(".")) -> None:
+  """Report declared, locked, synchronized and runtime states separately."""
+  from texsys.dependencies import dependency_status
+  from texsys.packages import runtime_status
+  try:
+    result = dependency_status(path)
+    result["runtime"] = runtime_status(path)
+  except ProjectError as error:
+    _print_error(error)
+  typer.echo(json.dumps(result, ensure_ascii=False, indent=2))
+
+
+@package_app.command("plan")
+def package_plan_command(
+  request: Annotated[Path, typer.Argument(help="JSON dependency change request.")],
+  path: PathOption = Path("."),
+) -> None:
+  """Preview package version and content changes before applying them."""
+  from texsys.dependencies import plan_dependency_change
+  try:
+    result = plan_dependency_change(path, _load_json(request.read_text(encoding="utf-8")))
+  except (ProjectError, OSError, ValueError) as error:
+    _print_error(error if isinstance(error, ProjectError) else ProjectError(str(error)))
+  typer.echo(json.dumps(result, ensure_ascii=False, indent=2))
+
+
+@package_app.command("test")
+def package_test_command(
+  name: Annotated[str, typer.Argument(help="Locked package whose bundled tests should run.")],
+  path: PathOption = Path("."),
+) -> None:
+  """Run the capability's own tests; this does not accept a project design."""
+  from texsys.package_tests import test_capability_package
+  try:
+    result = test_capability_package(path, name)
+  except ProjectError as error:
+    _print_error(error)
+  typer.echo(json.dumps(result, ensure_ascii=False, indent=2))
+  if result["status"] != "pass":
+    raise typer.Exit(code=1 if result["status"] == "fail" else 2)
+
+
+@package_app.command("apply")
+def package_apply_command(
+  request: Annotated[Path, typer.Argument(help="Previously previewed JSON dependency change request.")],
+  plan: Annotated[str, typer.Option("--plan", help="Exact preview digest.")],
+  path: PathOption = Path("."),
+) -> None:
+  """Apply only an unchanged, explicitly previewed dependency change."""
+  from texsys.dependencies import apply_dependency_change
+  try:
+    result = apply_dependency_change(path, _load_json(request.read_text(encoding="utf-8")), plan)
+  except (ProjectError, OSError, ValueError) as error:
+    _print_error(error if isinstance(error, ProjectError) else ProjectError(str(error)))
+  typer.echo(json.dumps(result, ensure_ascii=False, indent=2))
 
 
 @app.command("remove")

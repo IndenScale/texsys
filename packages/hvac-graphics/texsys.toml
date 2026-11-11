@@ -10,5 +10,23 @@ assets = "assets"
 build = "build"
 
 [dependencies]
-diagram = { path = "../diagram", version = "0.1.0" }
-diagram-elk = { path = "../diagram-elk", version = "0.1.0" }
+[dependencies.diagram-elk]
+path = "../diagram-elk"
+version = "0.1.0"
+
+
+[dependencies.diagram]
+path = "../diagram"
+version = "0.1.0"
+
+[package]
+kind = "capability"
+description = "暖通TypeScript图元和渲染接口"
+capabilities = ["graphics"]
+scope = "图纸实现可分发；Node.js及React/ELK/esbuild运行依赖仍需独立安装，本包同步不等于出图环境已就绪。"
+include = []
+
+[package.runtime]
+api_version = 1
+modules = ["texsys_hvac_graphics"]
+requires = ["texsys>=0.1,<0.2"]

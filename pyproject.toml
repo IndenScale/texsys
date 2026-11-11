@@ -9,6 +9,7 @@ description = "Reference implementation, toolchain and ecosystem for SDL"
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
+  "packaging>=24,<27",
   "tomlkit>=0.13,<1",
   "typer>=0.27,<1",
   "usd-core>=25.5,<27",

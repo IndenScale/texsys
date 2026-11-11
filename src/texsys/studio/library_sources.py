@@ -109,7 +109,7 @@ def library_index(root: Path, source: str, folders: object) -> dict:
   seen = {item["id"] for item in index["sources"]}
   attached = set()
 
-  def append(folder: str, *, locked: bool = False, expected_digest: str | None = None) -> None:
+  def append(folder: str, *, locked: bool = False, expected_digest: str | None = None, package=None) -> None:
     try:
       metadata, external = _source(root, folder, locked=locked)
       if expected_digest is not None and metadata["digest"] != expected_digest:
@@ -118,19 +118,41 @@ def library_index(root: Path, source: str, folders: object) -> dict:
       index["source_errors"].append({"path": folder, "message": str(error)})
       return
     source_id = metadata["id"]
-    if source_id in seen:
+    if package is not None:
+      origin = f"registry:{package.registry}:{package.name}" if package.source == "registry" else str(package.root)
+      source_id = hashlib.sha256(f"{origin}@{package.version}:{package.digest}".encode()).hexdigest()
+      old_id = hashlib.sha256(str(package.root).encode()).hexdigest()
+      for identity, definition in index["definitions"].items():
+        if identity.startswith(f"@{package.name}/") and definition.get("source") == old_id:
+          definition["source"] = source_id
+      for entry in index["library"]:
+        if entry["definition"].startswith(f"@{package.name}/") and entry.get("source") == old_id:
+          entry["source"] = source_id
+      index["sources"] = [source for source in index["sources"]
+                          if source["id"] != source_id and not (source["id"] == old_id and source["digest"] == package.digest)]
+      metadata.update(id=source_id, origin=package.source,
+                      registry=str(package.registry) if package.registry else None)
+    elif source_id in seen:
       return
     seen.add(source_id)
     if not locked:
       attached.add((metadata["name"], metadata["digest"]))
     metadata["locked"] = locked
     index["sources"].append(metadata)
-    keys = {key: f"external:{source_id}:{key}" for key in external["definitions"]}
+    source_project = inspect_project(Path(metadata["path"]))
+    prefix = f"{source_project.source}/"
+    keys = {key: (f"@{package.name}/{key[len(prefix):]}" if package is not None and key.startswith(prefix)
+                  else f"external:{source_id}:{key}") for key in external["definitions"]}
     for key, definition in external["definitions"].items():
+      if keys[key] in index["definitions"]:
+        continue
       for item in definition["instances"]:
         item["definition"] = keys.get(item["definition"])
       index["definitions"][keys[key]] = {**definition, "source": source_id, "entry": key}
+    existing = {item["definition"] for item in index["library"]}
     for item in external["library"]:
+      if keys[item["definition"]] in existing:
+        continue
       index["library"].append({
         **item, "source": source_id, "definition": keys[item["definition"]],
         "owner": keys.get(item["owner"]), "folder": None,
@@ -140,19 +162,19 @@ def library_index(root: Path, source: str, folders: object) -> dict:
 
   for folder in folders:
     append(folder)
-  if index["references"] and (root / LOCK_NAME).exists():
+  if (root / LOCK_NAME).exists():
     try:
       _, packages = _read_lock(root)
     except ProjectError as error:
       index["source_errors"].append({"path": LOCK_NAME, "message": str(error)})
     else:
-      referenced = {(record["package"], record["digest"]) for record in index["references"]}
       project = inspect_project(root)
       for package in packages:
         key = (package.name, package.digest)
-        if key in referenced and key not in attached:
+        if key not in attached:
           folder = root / project.build / "dependencies" / package.name
-          append(str(folder), locked=True, expected_digest=package.digest)
+          if folder.is_dir():
+            append(str(folder), locked=True, expected_digest=package.digest, package=package)
   return index
 
 
@@ -165,6 +187,10 @@ def reference_library_entry(root: Path, request: dict) -> dict:
   if item is None or item["owner"] is not None:
     raise ProjectError("Select a public library entry.")
   name, path, version, digest = (metadata[key] for key in ("name", "path", "version", "digest"))
+  if (root / LOCK_NAME).exists():
+    _, packages = _read_lock(root)
+    if any(item.name == name and item.source == "registry" for item in packages):
+      raise ProjectError("This package is managed by its registry. Use package management to change its version.")
   record = {"package": name, "version": version, "digest": digest, "entry": entry, "kind": item["kind"]}
   previous_digest = request.get("previous_digest")
   if previous_digest is not None and (not isinstance(previous_digest, str) or previous_digest == digest):

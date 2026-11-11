@@ -52,3 +52,15 @@ def installed_packages() -> tuple[TexsysPackage, ...]:
     names.add(package.name)
     packages.append(package)
   return tuple(packages)
+
+
+def project_packages(root: Path, *, installed=None, locked_only: bool = False) -> tuple[TexsysPackage, ...]:
+  """Use locked runtime capabilities, with local workspace compatibility."""
+  from texsys.package_runtime import load_project_packages
+  return load_project_packages(root, installed_packages if installed is None else installed, locked_only=locked_only)
+
+
+def runtime_status(root: Path) -> dict:
+  """Describe locked runtime availability without executing package code."""
+  from texsys.package_runtime import runtime_status as inspect_runtime
+  return inspect_runtime(root)

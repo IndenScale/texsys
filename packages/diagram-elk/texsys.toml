@@ -10,4 +10,19 @@ assets = "assets"
 build = "build"
 
 [dependencies]
-diagram = { path = "../diagram", version = "0.1.0" }
+
+[dependencies.diagram]
+path = "../diagram"
+version = "0.1.0"
+
+[package]
+kind = "capability"
+description = "ELK图布局后端适配"
+capabilities = ["projection"]
+scope = "图纸实现可分发；Node.js及React/ELK/esbuild运行依赖仍需独立安装，本包同步不等于出图环境已就绪。"
+include = []
+
+[package.runtime]
+api_version = 1
+modules = ["texsys_diagram_elk"]
+requires = ["texsys>=0.1,<0.2"]

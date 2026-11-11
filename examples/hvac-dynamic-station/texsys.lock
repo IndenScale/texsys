@@ -6,7 +6,7 @@ name = "bom"
 version = "0.1.0"
 source = "path"
 path = "../../packages/bom"
-digest = "sha256:2015569433e093b6ab52f00c38ed5eeed0723ec92e8cc72d1da951bd38559ab6"
+digest = "sha256:6db3a7a22f1ba224ab0acf83a53faaec69646a089ec12317fa6d73947e4102c2"
 direct = false
 dependencies = []
 
@@ -15,7 +15,7 @@ name = "diagram"
 version = "0.1.0"
 source = "path"
 path = "../../packages/diagram"
-digest = "sha256:736bf377691091cdc6ecfbb69248c00d92b001a7394a6101d955011f39e4d04e"
+digest = "sha256:ed2217ad426263bd74c74e0f5115fe66f3103da7bbf9faa8503d1e1e95a44b94"
 direct = false
 dependencies = []
 
@@ -24,7 +24,7 @@ name = "diagram-elk"
 version = "0.1.0"
 source = "path"
 path = "../../packages/diagram-elk"
-digest = "sha256:e966308c93944349e28622ea509bcbc467673e73d8e005efdc4f8859fa31727f"
+digest = "sha256:aad14882e8135140e0b9cba632b909e415959b4197f2d33933a0f137fdb95f29"
 direct = false
 dependencies = ["diagram"]
 
@@ -33,7 +33,7 @@ name = "hvac-bom"
 version = "0.1.0"
 source = "path"
 path = "../../packages/hvac-bom"
-digest = "sha256:243665d6766e4f61fa43f061c0cf2a83a27b9cffb2900fabe30251dd829d3850"
+digest = "sha256:60623b01422effb93f311fd968cad4fe6110df946ccf59d2a4f11ff26073ff3d"
 direct = true
 dependencies = ["bom", "hvac-dynamics", "hvac-equipment"]
 
@@ -42,7 +42,7 @@ name = "hvac-diagram"
 version = "0.1.0"
 source = "path"
 path = "../../packages/hvac-diagram"
-digest = "sha256:f225786445837f7ed3c6f55d7b272d1a79978d4364ef99b3ba42caccf3e475e5"
+digest = "sha256:0dfbac1ce6cfc20b6a3cb8bae37e1fcc69a4e24474abd0b54d5ddb37439cb318"
 direct = true
 dependencies = ["diagram", "diagram-elk", "hvac-dynamics", "hvac-graphics"]
 
@@ -51,7 +51,7 @@ name = "hvac-dynamics"
 version = "0.1.0"
 source = "path"
 path = "../../packages/hvac-dynamics"
-digest = "sha256:1a515c376c8dbde5cecc40938a6e6ef75e4cb47a1ad87bad00d4458963fa39bf"
+digest = "sha256:a6b41f394ca7c38b40d9a8b3d74ad19d2c901834d810006f0ddc0217634a6270"
 direct = true
 dependencies = []
 
@@ -60,15 +60,33 @@ name = "hvac-equipment"
 version = "0.1.0"
 source = "path"
 path = "../../packages/hvac-equipment"
-digest = "sha256:3320fc4dd604a9f389fc116fdb3ad40f411bb0c86ee9ac1ac3af989fcec2c150"
+digest = "sha256:596a7979f1d8cf38716191af91680b552dd41df262db91defe3bbf369c8a1462"
 direct = false
-dependencies = []
+dependencies = ["spatial", "structure"]
 
 [[packages]]
 name = "hvac-graphics"
 version = "0.1.0"
 source = "path"
 path = "../../packages/hvac-graphics"
-digest = "sha256:7d4487575eb1995366ed3beacc11b63d0a54cdd608a7b460ac10d5914bd69ff6"
+digest = "sha256:f3125866096b42d3f9b41b3e1caad05837de5dbb017f41a78bce16ba209347e1"
 direct = false
 dependencies = ["diagram", "diagram-elk"]
+
+[[packages]]
+name = "spatial"
+version = "0.1.0"
+source = "path"
+path = "../../packages/spatial"
+digest = "sha256:4e2f16cec10fdc1abd9119e5664a0d0d08f7a29433dc44c162374819f85c4090"
+direct = false
+dependencies = []
+
+[[packages]]
+name = "structure"
+version = "0.1.0"
+source = "path"
+path = "../../packages/structure"
+digest = "sha256:804d37f9f0bf77fbe8aa720eb414c7e0f31002a293e552e5086525428edf31d1"
+direct = false
+dependencies = ["spatial"]

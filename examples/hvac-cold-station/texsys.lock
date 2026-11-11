@@ -6,7 +6,7 @@ name = "bom"
 version = "0.1.0"
 source = "path"
 path = "../../packages/bom"
-digest = "sha256:2015569433e093b6ab52f00c38ed5eeed0723ec92e8cc72d1da951bd38559ab6"
+digest = "sha256:6db3a7a22f1ba224ab0acf83a53faaec69646a089ec12317fa6d73947e4102c2"
 direct = false
 dependencies = []
 
@@ -15,7 +15,7 @@ name = "hvac-bom"
 version = "0.1.0"
 source = "path"
 path = "../../packages/hvac-bom"
-digest = "sha256:243665d6766e4f61fa43f061c0cf2a83a27b9cffb2900fabe30251dd829d3850"
+digest = "sha256:60623b01422effb93f311fd968cad4fe6110df946ccf59d2a4f11ff26073ff3d"
 direct = true
 dependencies = ["bom", "hvac-dynamics", "hvac-equipment"]
 
@@ -24,7 +24,7 @@ name = "hvac-checks"
 version = "0.1.0"
 source = "path"
 path = "../../packages/hvac-checks"
-digest = "sha256:eb85911321f4a95d0e5f13c8246acfea181fe73aed131d60facabb636d41400e"
+digest = "sha256:f0f01fca5175a392a40ece163ad3ffa15a7a9036ffcd485f27f232adda2bebaf"
 direct = true
 dependencies = ["hvac-equipment"]
 
@@ -33,7 +33,7 @@ name = "hvac-dynamics"
 version = "0.1.0"
 source = "path"
 path = "../../packages/hvac-dynamics"
-digest = "sha256:1a515c376c8dbde5cecc40938a6e6ef75e4cb47a1ad87bad00d4458963fa39bf"
+digest = "sha256:a6b41f394ca7c38b40d9a8b3d74ad19d2c901834d810006f0ddc0217634a6270"
 direct = false
 dependencies = []
 
@@ -42,16 +42,16 @@ name = "hvac-equipment"
 version = "0.1.0"
 source = "path"
 path = "../../packages/hvac-equipment"
-digest = "sha256:3320fc4dd604a9f389fc116fdb3ad40f411bb0c86ee9ac1ac3af989fcec2c150"
+digest = "sha256:596a7979f1d8cf38716191af91680b552dd41df262db91defe3bbf369c8a1462"
 direct = true
-dependencies = []
+dependencies = ["spatial", "structure"]
 
 [[packages]]
 name = "hvac-formatter"
 version = "0.1.0"
 source = "path"
 path = "../../packages/hvac-formatter"
-digest = "sha256:74eb9589256bde90a8601060af5829f74d98fbff541ca71786af24dc287b4312"
+digest = "sha256:b7d558fb014933c44a2edc63ed3a615af8d8a3f64a0c3030f1482aed0bfffcd6"
 direct = true
 dependencies = ["hvac-equipment"]
 
@@ -60,6 +60,24 @@ name = "hvac-linter"
 version = "0.1.0"
 source = "path"
 path = "../../packages/hvac-linter"
-digest = "sha256:9891a7d2d71035d58b95e6ba76afc05fc90081314647f0e868196bd608c56fdf"
+digest = "sha256:c0422479bb843f8aadc5a41b6a61a60b8ab5bab68b8165774e81b054f199f7b6"
 direct = true
 dependencies = ["hvac-equipment"]
+
+[[packages]]
+name = "spatial"
+version = "0.1.0"
+source = "path"
+path = "../../packages/spatial"
+digest = "sha256:4e2f16cec10fdc1abd9119e5664a0d0d08f7a29433dc44c162374819f85c4090"
+direct = false
+dependencies = []
+
+[[packages]]
+name = "structure"
+version = "0.1.0"
+source = "path"
+path = "../../packages/structure"
+digest = "sha256:804d37f9f0bf77fbe8aa720eb414c7e0f31002a293e552e5086525428edf31d1"
+direct = false
+dependencies = ["spatial"]

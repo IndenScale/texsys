@@ -11,7 +11,7 @@ from texsys.dependencies import LOCK_NAME, lock_project
 from texsys.evidence import file_digest, write_json
 from texsys.formal import check_project
 from texsys.hooks import load_hooks, run_hook
-from texsys.packages import installed_packages
+from texsys.packages import installed_packages, project_packages
 from texsys.project import ProjectError, inspect_project
 from texsys.solver import TestResult
 from texsys.targets import BuildContext, ResolvedTarget, TargetResult, resolve_targets
@@ -99,7 +99,7 @@ def build_project(
   manifest = _manifest(root)
   if input_records[:1] != [{"path": "texsys.toml", "digest": manifest_digest}] or file_digest(manifest_path) != manifest_digest:
     raise ProjectError("texsys.toml changed while preparing the build. Retry with a stable input revision.")
-  packages = installed_packages()
+  packages = project_packages(root, installed=installed_packages)
   selection = resolve_targets(packages, manifest, targets, profile, scope)
 
   check = check_project(root)
@@ -275,7 +275,7 @@ def test_project(path: Path) -> ExecutionResult:
   project = _project(root)
   results: list[TestResult] = []
   try:
-    for package in installed_packages():
+    for package in project_packages(root, installed=installed_packages):
       for result in package.test(root):
         if not isinstance(result, TestResult):
           raise TypeError(f"Package {package.name} returned an invalid test result.")
@@ -310,7 +310,7 @@ def evaluate_project(path: Path, scenario: str | Path, backend: str = "scipy") -
   if manifest.get("dependencies"):
     lock_project(root, check=True)
   results = []
-  for package in installed_packages():
+  for package in project_packages(root, installed=installed_packages):
     result = package.evaluate(root, source, backend)
     if result is not None:
       if not isinstance(result, ExecutionResult):
@@ -330,7 +330,7 @@ def simulate_project(path: Path, kind: str) -> ExecutionResult:
   project = _project(root)
   results: list[dict[str, Any]] = []
   try:
-    for package in installed_packages():
+    for package in project_packages(root, installed=installed_packages):
       result = package.simulate(root, kind)
       if result is not None:
         if not isinstance(result, dict):

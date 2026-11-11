@@ -13,7 +13,7 @@ import uuid
 
 import tomlkit
 
-from texsys.dependencies import lock_project
+from texsys.dependencies import _dependency_specs, _lock_text, lock_project
 from texsys.evidence import canonical_digest, file_digest, write_json
 from texsys.project import ProjectError, inspect_project
 from . import discover_plugins
@@ -62,11 +62,16 @@ def revision(root: Path) -> str:
 
 
 def snapshot_project(root: Path, destination: Path, records: list[dict]) -> None:
+  # Lock paths are relative to canonical project roots. Temporary directories
+  # may arrive through aliases such as macOS /var -> /private/var.
+  root = root.expanduser().resolve()
+  destination = destination.expanduser().resolve()
   project = inspect_project(root)
   # Verify the user's original lock before adapting paths in the isolated copy.
   manifest = tomlkit.parse((root / "texsys.toml").read_text())
+  locked = None
   if manifest.get("dependencies"):
-    lock_project(root, check=True)
+    locked = lock_project(root, check=True)
   destination.mkdir(parents=True)
   for record in records:
     if record["path"] == "texsys.lock":
@@ -82,14 +87,19 @@ def snapshot_project(root: Path, destination: Path, records: list[dict]) -> None
   if canonical_digest(input_records(root)) != canonical_digest(records):
     raise Conflict("Project changed while preparing the task.")
   for dependency in manifest.get("dependencies", {}).values():
-    if "path" in dependency:
-      dependency["path"] = str((root / dependency["path"]).resolve())
+    for key in ("path", "registry"):
+      if key in dependency:
+        dependency[key] = str((root / dependency[key]).resolve())
   (destination / "texsys.toml").write_text(tomlkit.dumps(manifest), encoding="utf-8")
   (destination / project.source).mkdir(parents=True, exist_ok=True)
   (destination / project.assets).mkdir(parents=True, exist_ok=True)
   (destination / project.build).mkdir(parents=True, exist_ok=True)
-  if manifest.get("dependencies"):
-    lock_project(destination)
+  if locked is not None:
+    # Preserve exact original releases and digests; snapshot creation never
+    # resolves a newer package version or rebinds changed published content.
+    text = _lock_text(_dependency_specs(manifest, destination), locked.packages, destination)
+    (destination / "texsys.lock").write_text(text, encoding="utf-8")
+    lock_project(destination, check=True)
 
 
 class StudioRuntime:

@@ -51,3 +51,4 @@ adr/NNNN-short-title.md
 | [0021](0021-tex-studio-plugin-based-disciplinary-workbenches.md)         | Tex Studio 采用插件式多专业工作台架构                       | 已接受                                 |
 | [0022](0022-separate-project-check-and-style-lint.md)                    | 区分项目检查与源文件风格检查                                | 已接受                                 |
 | [0023](0023-design-commitments-and-professional-activities.md)           | 区分设计承诺层级与专业活动并统一容量归属                    | 已接受                                 |
+| [0024](0024-portable-capability-packages.md)                             | 可移动工程能力包与项目锁定执行                              | 已接受；修订 0006 来源范围与 0010 执行发现 |

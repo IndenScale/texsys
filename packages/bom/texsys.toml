@@ -10,3 +10,16 @@ assets = "assets"
 build = "build"
 
 [dependencies]
+
+[package]
+kind = "capability"
+description = "专业无关的清单投影、比较和检查"
+capabilities = ["projection", "rules"]
+scope = "可复用实现与概念参数；适用输入和近似以包内说明为准，不包含具体项目的工况、现场资料或接受记录。"
+include = []
+
+[package.runtime]
+api_version = 1
+modules = ["texsys_bom"]
+requires = ["texsys>=0.1,<0.2"]
+entry_point = "texsys_bom:package"

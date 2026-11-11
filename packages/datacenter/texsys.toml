@@ -10,12 +10,52 @@ assets = "assets"
 build = "build"
 
 [dependencies]
-architecture = { path = "../architecture", version = "0.1.0" }
-controls = { path = "../controls", version = "0.1.0" }
-electrical = { path = "../electrical", version = "0.1.0" }
-fire-protection = { path = "../fire-protection", version = "0.1.0" }
-hvac-dynamics = { path = "../hvac-dynamics", version = "0.1.0" }
-hvac-equipment = { path = "../hvac-equipment", version = "0.1.0" }
-plumbing = { path = "../plumbing", version = "0.1.0" }
-spatial = { path = "../spatial", version = "0.1.0" }
-structure = { path = "../structure", version = "0.1.0" }
+[dependencies.structure]
+path = "../structure"
+version = "0.1.0"
+
+[dependencies.spatial]
+path = "../spatial"
+version = "0.1.0"
+
+[dependencies.plumbing]
+path = "../plumbing"
+version = "0.1.0"
+
+[dependencies.hvac-equipment]
+path = "../hvac-equipment"
+version = "0.1.0"
+
+[dependencies.hvac-dynamics]
+path = "../hvac-dynamics"
+version = "0.1.0"
+
+[dependencies.fire-protection]
+path = "../fire-protection"
+version = "0.1.0"
+
+[dependencies.electrical]
+path = "../electrical"
+version = "0.1.0"
+
+[dependencies.controls]
+path = "../controls"
+version = "0.1.0"
+
+
+[dependencies.architecture]
+path = "../architecture"
+version = "0.1.0"
+
+[package]
+kind = "capability"
+description = "数据中心固定研究结构的跨专业概念计算"
+capabilities = ["rules", "solver", "engineering"]
+scope = "可复用实现与概念参数；适用输入和近似以包内说明为准，不包含具体项目的工况、现场资料或接受记录。"
+include = []
+
+[package.runtime]
+api_version = 1
+modules = ["texsys_datacenter"]
+requires = ["numpy>=1.26,<3", "texsys>=0.1,<0.2"]
+entry_point = "texsys_datacenter:package"

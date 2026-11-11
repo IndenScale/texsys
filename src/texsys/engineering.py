@@ -28,7 +28,7 @@ from texsys.dependencies import lock_project
 from texsys.evidence import canonical_digest, file_digest
 from texsys.execution import _input_digests
 from texsys.formal import VALUE_STATES, _atomic_write, _load_json
-from texsys.packages import installed_packages
+from texsys.packages import installed_packages, project_packages
 from texsys.project import ProjectError, inspect_project, project_write_lock
 
 ASSESSMENTS = {"pass", "fail", "indeterminate"}
@@ -68,7 +68,7 @@ def _lock_error(root):
 
 
 def _discover(root):
-  packages = installed_packages()
+  packages = project_packages(root, installed=installed_packages)
   found = {}
   for package in packages:
     for adapter in package.engineering_adapters():
@@ -119,6 +119,7 @@ def _toolchain(packages, adapter):
   distributions = sorted({(dist.metadata.get("Name", ""), dist.version) for dist in metadata.distributions()})
   return {"python": platform.python_version(), "platform": platform.platform(),
           "packages": [{"name": p.name, "version": p.version} for p in packages],
+          "locked_runtime": [p._texsys_locked_runtime for p in packages if hasattr(p, "_texsys_locked_runtime")],
           "distributions": [{"name": name, "version": version} for name, version in distributions],
           "sources": sources, "adapter_version": adapter.version,
           "runner": "fresh-python-process" if hasattr(sys, "_texsys_loaded_sources") else "in-process-test"}

@@ -697,6 +697,7 @@ name = "texsys"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [
+    { name = "packaging" },
     { name = "tomlkit" },
     { name = "typer" },
     { name = "usd-core" },
@@ -730,6 +731,7 @@ docs-lint = [
 
 [package.metadata]
 requires-dist = [
+    { name = "packaging", specifier = ">=24,<27" },
     { name = "tomlkit", specifier = ">=0.13,<1" },
     { name = "typer", specifier = ">=0.27,<1" },
     { name = "usd-core", specifier = ">=25.5,<27" },

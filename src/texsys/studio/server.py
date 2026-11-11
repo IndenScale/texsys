@@ -198,6 +198,10 @@ def create_server(runtime: StudioRuntime, port=8710, frontend=None, token=None, 
           from .library_sources import library_index
 
           self._send(200, library_index(runtime.root, runtime.project.source, []))
+        elif parsed.path == "/api/packages":
+          from .package_manager import package_status
+
+          self._send(200, package_status(runtime.root))
         elif parsed.path == "/api/scene":
           known = parse_qs(parsed.query).get("revision", [""])[0]
           self._send(200, scene.read(known))
@@ -290,6 +294,11 @@ def create_server(runtime: StudioRuntime, port=8710, frontend=None, token=None, 
             result = library_index(runtime.root, runtime.project.source, body.get("folders"))
           else:
             raise ProjectError("Unknown library operation.")
+        elif self.path == "/api/packages":
+          from .package_manager import package_operation
+
+          with runtime.lock:
+            result = package_operation(runtime.root, body)
         elif self.path == "/api/search/replace":
           with runtime.lock:
             result = replacement(runtime.root, runtime.project.build, body)

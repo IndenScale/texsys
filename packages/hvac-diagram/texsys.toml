@@ -10,7 +10,32 @@ assets = "assets"
 build = "build"
 
 [dependencies]
-diagram = { path = "../diagram", version = "0.1.0" }
-diagram-elk = { path = "../diagram-elk", version = "0.1.0" }
-hvac-graphics = { path = "../hvac-graphics", version = "0.1.0" }
-hvac-dynamics = { path = "../hvac-dynamics", version = "0.1.0" }
+[dependencies.hvac-dynamics]
+path = "../hvac-dynamics"
+version = "0.1.0"
+
+[dependencies.hvac-graphics]
+path = "../hvac-graphics"
+version = "0.1.0"
+
+[dependencies.diagram-elk]
+path = "../diagram-elk"
+version = "0.1.0"
+
+
+[dependencies.diagram]
+path = "../diagram"
+version = "0.1.0"
+
+[package]
+kind = "capability"
+description = "暖通系统图和原理图生成"
+capabilities = ["projection"]
+scope = "图纸实现可分发；Node.js及React/ELK/esbuild运行依赖仍需独立安装，本包同步不等于出图环境已就绪。"
+include = []
+
+[package.runtime]
+api_version = 1
+modules = ["texsys_hvac_diagram"]
+requires = ["texsys>=0.1,<0.2"]
+entry_point = "texsys_hvac_diagram:package"

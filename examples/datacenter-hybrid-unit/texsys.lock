@@ -6,7 +6,7 @@ name = "architecture"
 version = "0.1.0"
 source = "path"
 path = "../../packages/architecture"
-digest = "sha256:92fe47c24f9947bfee9fe5e098f85f44914961815681a8000601711ceb44887d"
+digest = "sha256:44f1041705627e82414323326cb18a4ad945f6385ab8e98c80548634e73e8133"
 direct = false
 dependencies = []
 
@@ -15,7 +15,7 @@ name = "controls"
 version = "0.1.0"
 source = "path"
 path = "../../packages/controls"
-digest = "sha256:40a5048a6e2490c6d3bf1a4383dcf7b3b68d8229953d1f6efcef0853f0ecf112"
+digest = "sha256:5665fc4839aab6e0bcc263fd1adaaa00035b45bb0f53fca611591e0fb7729a0b"
 direct = false
 dependencies = []
 
@@ -24,7 +24,7 @@ name = "datacenter"
 version = "0.1.0"
 source = "path"
 path = "../../packages/datacenter"
-digest = "sha256:c7665ff1ad1f9216ab5f944dad559b6ec71b967c4b873737a5cdae63936a7af2"
+digest = "sha256:12706e29903f08036e5c4ae16aed02966f90057192b28c10061bb1294a80f2c5"
 direct = true
 dependencies = ["architecture", "controls", "electrical", "fire-protection", "hvac-dynamics", "hvac-equipment", "plumbing", "spatial", "structure"]
 
@@ -33,7 +33,7 @@ name = "electrical"
 version = "0.1.0"
 source = "path"
 path = "../../packages/electrical"
-digest = "sha256:fc13a8626185fcdecf6f0b158a99989ab9a1adcf2140ed0c33960c35a91bc363"
+digest = "sha256:6448fff7efec1204d2063a1185677fa8c1ea5f263289dfa5f1184e330c7d13cc"
 direct = false
 dependencies = []
 
@@ -42,7 +42,7 @@ name = "fire-protection"
 version = "0.1.0"
 source = "path"
 path = "../../packages/fire-protection"
-digest = "sha256:1c2b6f150f2c75f03f7f0c01a885f964a4615239f7d9c4d859afe9051313c5a7"
+digest = "sha256:f8deeeae6fba6c3517d20d8a0964c875886b6ae6ff39b29ffe5852e2acc5f3fd"
 direct = false
 dependencies = []
 
@@ -51,7 +51,7 @@ name = "hvac-dynamics"
 version = "0.1.0"
 source = "path"
 path = "../../packages/hvac-dynamics"
-digest = "sha256:1a515c376c8dbde5cecc40938a6e6ef75e4cb47a1ad87bad00d4458963fa39bf"
+digest = "sha256:a6b41f394ca7c38b40d9a8b3d74ad19d2c901834d810006f0ddc0217634a6270"
 direct = false
 dependencies = []
 
@@ -60,16 +60,16 @@ name = "hvac-equipment"
 version = "0.1.0"
 source = "path"
 path = "../../packages/hvac-equipment"
-digest = "sha256:3320fc4dd604a9f389fc116fdb3ad40f411bb0c86ee9ac1ac3af989fcec2c150"
+digest = "sha256:596a7979f1d8cf38716191af91680b552dd41df262db91defe3bbf369c8a1462"
 direct = false
-dependencies = []
+dependencies = ["spatial", "structure"]
 
 [[packages]]
 name = "plumbing"
 version = "0.1.0"
 source = "path"
 path = "../../packages/plumbing"
-digest = "sha256:fd41c48a46a62026a77d7f7038ebe77b7871955cd154a32956a80c1cd7ac83c7"
+digest = "sha256:aee57efac6116d522a01490375b87d4a17cea2945f63477d8f2f2014beef768f"
 direct = false
 dependencies = []
 
@@ -78,7 +78,7 @@ name = "spatial"
 version = "0.1.0"
 source = "path"
 path = "../../packages/spatial"
-digest = "sha256:c6468793e45cee7eebbf206a4fe99a62983f13efe16526ac3eb855558c8b1332"
+digest = "sha256:4e2f16cec10fdc1abd9119e5664a0d0d08f7a29433dc44c162374819f85c4090"
 direct = false
 dependencies = []
 
@@ -87,6 +87,6 @@ name = "structure"
 version = "0.1.0"
 source = "path"
 path = "../../packages/structure"
-digest = "sha256:3164797c3151bfc8cb5d150339b4de0fd56fe574cf6e41d83622b7d403c7a15d"
+digest = "sha256:804d37f9f0bf77fbe8aa720eb414c7e0f31002a293e552e5086525428edf31d1"
 direct = false
 dependencies = ["spatial"]

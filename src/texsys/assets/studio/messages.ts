@@ -1,5 +1,8 @@
 /** Interface messages. Chinese source text is the stable lookup key. */
+import { packageEnglishMessages } from "./package-messages";
+
 export const englishMessages: Record<string, string> = {
+  ...packageEnglishMessages,
   应用菜单: "Application menu",
   更多: "More",
   更多菜单: "More menus",

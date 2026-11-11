@@ -8,3 +8,15 @@ version = "0.1.0"
 source = "src"
 assets = "assets"
 build = "build"
+
+[package]
+kind = "capability"
+description = "建筑空间与构造模块"
+capabilities = ["models", "geometry"]
+scope = "可复用实现与概念参数；适用输入和近似以包内说明为准，不包含具体项目的工况、现场资料或接受记录。"
+include = []
+
+[package.runtime]
+api_version = 1
+modules = ["texsys_architecture"]
+requires = []

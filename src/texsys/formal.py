@@ -533,12 +533,12 @@ def check_project(path: Path) -> CheckResult:
   diagnostics.extend(catalog.diagnostics)
   diagnostics.extend(check_sdl_sources(catalog.documents, project.source))
 
-  from texsys.packages import installed_packages
+  from texsys.packages import project_packages
 
   try:
-    for package in installed_packages():
+    for package in project_packages(root):
       diagnostics.extend(package.check(root))
-  except (ImportError, OSError, TypeError, ValueError) as error:
+  except (ImportError, OSError, TypeError, ValueError, ProjectError) as error:
     diagnostics.append(Diagnostic("P003", "error", "texsys.toml", str(error)))
 
   return CheckResult(_diagnostic_status(diagnostics), catalog.local_count, tuple(diagnostics))
@@ -645,16 +645,16 @@ def format_project(path: Path, check: bool = False, diff: bool = False) -> Forma
     if not check and not diff:
       _atomic_write(source, formatted)
 
-  from texsys.packages import installed_packages
+  from texsys.packages import project_packages
 
   try:
-    for package in installed_packages():
+    for package in project_packages(root):
       result = package.format(root, check=check, diff=diff)
       if result is None:
         continue
       changed.extend(result.changed)
       diagnostics.extend(result.diagnostics)
       differences.append(result.diff)
-  except (OSError, UnicodeError, json.JSONDecodeError, TypeError, ValueError) as error:
+  except (OSError, UnicodeError, json.JSONDecodeError, TypeError, ValueError, ProjectError) as error:
     diagnostics.append(Diagnostic("P003", "error", "texsys.toml", str(error)))
   return FormatResult(tuple(changed), tuple(diagnostics), "".join(differences))

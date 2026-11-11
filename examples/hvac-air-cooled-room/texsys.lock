@@ -6,16 +6,16 @@ name = "hvac-equipment"
 version = "0.1.0"
 source = "path"
 path = "../../packages/hvac-equipment"
-digest = "sha256:3320fc4dd604a9f389fc116fdb3ad40f411bb0c86ee9ac1ac3af989fcec2c150"
+digest = "sha256:596a7979f1d8cf38716191af91680b552dd41df262db91defe3bbf369c8a1462"
 direct = true
-dependencies = []
+dependencies = ["spatial", "structure"]
 
 [[packages]]
 name = "spatial"
 version = "0.1.0"
 source = "path"
 path = "../../packages/spatial"
-digest = "sha256:c6468793e45cee7eebbf206a4fe99a62983f13efe16526ac3eb855558c8b1332"
+digest = "sha256:4e2f16cec10fdc1abd9119e5664a0d0d08f7a29433dc44c162374819f85c4090"
 direct = true
 dependencies = []
 
@@ -24,6 +24,6 @@ name = "structure"
 version = "0.1.0"
 source = "path"
 path = "../../packages/structure"
-digest = "sha256:3164797c3151bfc8cb5d150339b4de0fd56fe574cf6e41d83622b7d403c7a15d"
+digest = "sha256:804d37f9f0bf77fbe8aa720eb414c7e0f31002a293e552e5086525428edf31d1"
 direct = true
 dependencies = ["spatial"]

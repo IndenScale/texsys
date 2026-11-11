@@ -18,7 +18,7 @@ texsys 得名于「文本化系统」，目标是让复杂系统像软件一样�
 | 工程反馈基础     | 同源冷站及数据中心支管几何—水力—泵组配流；变更、证据和接受的公共流程正在贯通 |
 | 系统图／原理图   | TypeScript 共享工程图元、React/SVG、draw.io、离线交互与工况回放                                              |
 
-项目当前处于**可执行参考实现与工程 POC 建设阶段**。JSON 交换子集、形式检查、本地路径依赖、暖通链路和数据中心概念计算已可执行；最终 SDL 文本语法、通用工程事实／结论模型及真实工程接受尚未完成。Python 支持准稳态水力与集总热动态，既有 OpenModelica 路线对三个暖通工况有独立比较记录；几何包括 USD 包络、路由和有限空间校核，通用精确几何与高保真求解仍未完成。见 [项目进度审查](docs/progress.md) 和 [完整目标台账](docs/engineering-poc.md)。
+项目当前处于**可执行参考实现与工程 POC 建设阶段**。JSON 交换子集、形式检查、路径与发布包依赖、暖通链路和数据中心概念计算已可执行；最终 SDL 文本语法、通用工程事实／结论模型及真实工程接受尚未完成。Python 支持准稳态水力与集总热动态，既有 OpenModelica 路线对三个暖通工况有独立比较记录；几何包括 USD 包络、路由和有限空间校核，通用精确几何与高保真求解仍未完成。见 [项目进度审查](docs/progress.md) 和 [完整目标台账](docs/engineering-poc.md)。
 
 Tex Studio 已提供本地网页插件宿主、通用项目编辑、模块库／实例导航、场景预览与暖通工作台，支持实例参数编辑、后台检查、出图、仿真和结果回放。跨专业对象视图和工程变更闭环仍在贯通；领域计算存在不等于相应专业界面已可用。Electron 桌面端与远程协作尚未实现。
 
@@ -83,6 +83,8 @@ uv run texsys studio -p examples/hvac-dynamic-station --hmr
 专业插件通过 `texsys.studio` 入口发现，宿主启动时加载已安装专业并提供切换入口。目前接入了暖通专业。架构搜索、物理布局布线和正式提资显示为未接入。 [插件架构](docs/adr/0021-tex-studio-plugin-based-disciplinary-workbenches.md) · [工作台契约](spec/studio/01-workbench.md)
 
 ## 工程变更与证据
+
+可复用的模型、规则、求解器适配和包自身测试通过工程能力包发布；项目实例、工况和接受记录保留在项目。`texsys package` 管理共享文件仓库中的明确版本，`add / sync` 将能力还原到项目。Tex Studio 的「包管理」展示依赖、同步、运行要求和包测试状态；完整使用方式与首期边界见 [工程能力包](docs/package-management.md)。
 
 数据中心混合冷却示例提供 `datacenter:fws-change`，将已有设施水管路几何、压损和泵组配流接入工程变更流程。Studio 左侧「工程变更」打开相同操作的图形入口。CLI 和 Studio 共用 [工程变更与证据契约](spec/engineering/01-change-evidence.md)；当前接受限于声明的概念工况，不是整个数据中心的工程批准。
 

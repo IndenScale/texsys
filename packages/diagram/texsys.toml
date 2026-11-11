@@ -10,3 +10,15 @@ assets = "assets"
 build = "build"
 
 [dependencies]
+
+[package]
+kind = "capability"
+description = "专业无关的系统图投影契约"
+capabilities = ["projection"]
+scope = "可复用实现与概念参数；适用输入和近似以包内说明为准，不包含具体项目的工况、现场资料或接受记录。"
+include = []
+
+[package.runtime]
+api_version = 1
+modules = ["texsys_diagram"]
+requires = ["texsys>=0.1,<0.2"]

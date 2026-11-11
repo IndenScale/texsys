@@ -10,4 +10,20 @@ assets = "assets"
 build = "build"
 
 [dependencies]
-hvac-equipment = { path = "../hvac-equipment", version = "0.1.0" }
+
+[dependencies.hvac-equipment]
+path = "../hvac-equipment"
+version = "0.1.0"
+
+[package]
+kind = "capability"
+description = "暖通源文件格式化"
+capabilities = ["formatter"]
+scope = "可复用实现与概念参数；适用输入和近似以包内说明为准，不包含具体项目的工况、现场资料或接受记录。"
+include = []
+
+[package.runtime]
+api_version = 1
+modules = ["texsys_hvac_formatter"]
+requires = ["texsys>=0.1,<0.2"]
+entry_point = "texsys_hvac_formatter:package"
