@@ -126,79 +126,78 @@ test("a locked component can be referenced and outdated references are reviewed 
   assert.doesNotMatch(html, /更新项目库|升级依赖/);
 });
 
-const { ArtifactStatus, BuildSummary } = await load("src/texsys/assets/studio/ProjectPreview.tsx");
-test("a cached failed preview remains failed, and historical success does not hide the latest failure", () => {
-  const base = {
-    id: "bom",
-    target: "bom",
-    run_id: "run-old",
-    current: true,
-    status: "fail",
-    execution: "cached",
-    available: true,
-  };
-  const failed = renderToStaticMarkup(React.createElement(ArtifactStatus, { artifact: base }));
-  assert.match(failed, /未通过/);
-  assert.match(failed, /目标判定/);
-  assert.doesNotMatch(failed, /工程判定|满足/);
-  assert.match(failed, /复用缓存/);
-  const fallback = renderToStaticMarkup(
-    React.createElement(ArtifactStatus, {
-      artifact: {
-        ...base,
-        current: false,
-        fallback: true,
-        status: "pass",
-        latest_target: { status: "error" },
-      },
-    }),
-  );
-  assert.match(fallback, /历史产物.*已过期/);
-  assert.match(fallback, /历史目标判定/);
-  assert.doesNotMatch(fallback, /工程判定|满足/);
-  assert.match(fallback, /本次目标判定/);
-  assert.match(fallback, /执行失败/);
-  assert.match(fallback, /run-old/);
-});
-
-test("build summary exposes failed and blocked targets even when they have no artifacts", () => {
+test("model documents retain their object information without project artifact tabs", () => {
   const html = renderToStaticMarkup(
-    React.createElement(BuildSummary, {
-      build: {
-        run_id: "run-failed-without-artifacts",
-        current: true,
-        status: "error",
-        targets: [
-          { id: "equipment", status: "pass", execution: "cached", diagnostics: [] },
-          {
-            id: "solver",
-            status: "error",
-            execution: "executed",
-            diagnostics: [{ rule: "E_SOLVER", message: "Solver process could not start" }],
+    React.createElement(DesignDocument, {
+      index: {
+        root: "Plant",
+        definitions: {
+          Plant: {
+            name: "Plant",
+            file: "src/model.json",
+            instances: [],
+            ports: { inlet: { kind: "water", direction: "in" } },
+            behavior: null,
+            connections: [],
           },
-          {
-            id: "report",
-            status: "indeterminate",
-            execution: "blocked",
-            blocked_by: ["solver"],
-            diagnostics: [],
-          },
-        ],
-        diagnostics: [{ message: "Build has incomplete targets" }],
+        },
+        sources: [],
+        library: [],
+        references: [],
       },
+      selection: { occurrence: [] },
+      openFile() {},
+      referenceEntry() {},
     }),
   );
-  for (const expected of [
-    "run-failed-without-artifacts",
-    "复用缓存",
-    "执行失败",
-    "E_SOLVER",
-    "Solver process could not start",
-    "已阻断",
-    "阻断依赖",
-    "solver",
-    "无法判定",
-    "Build has incomplete targets",
-  ])
-    assert.ok(html.includes(expected), expected);
+  assert.match(html, /Plant/);
+  assert.match(html, /inlet/);
+  assert.doesNotMatch(html, /role="tab"|拓扑图|原理图|物料清单|三维布置|交付物/);
+});
+const { FilePreviewContent } = await load("src/texsys/assets/studio/ProjectPreview.tsx");
+function renderFilePreview(content, kind = "diagram") {
+  return renderToStaticMarkup(
+    React.createElement(FilePreviewContent, {
+      path: "build/schematic/system.json",
+      kind,
+      content,
+      version: "current",
+      dirty: true,
+      preview: { kind: "schematic" },
+      api() {
+        throw new Error("No snapshot or discovery requests allowed");
+      },
+      openSource() {},
+      openFile() {},
+    }),
+  );
+}
+test("diagram preview renders the current file buffer without a specialized document header or build status", () => {
+  const diagram = (label) =>
+    JSON.stringify({
+      pages: [{ id: "page", width: 300, height: 200 }],
+      nodes: [
+        { id: "node", semantic_ref: "Plant.Pump", label, x: 10, y: 20, width: 100, height: 50 },
+      ],
+      edges: [],
+    });
+  const original = renderFilePreview(diagram("Original pump"));
+  const edited = renderFilePreview(diagram("Edited unsaved pump"));
+  assert.match(original, /Original pump/);
+  assert.match(edited, /Edited unsaved pump/);
+  assert.doesNotMatch(edited, /Original pump|目标判定|来源运行|复用缓存|只读|<header/);
+  assert.match(edited, /<svg/);
+  const invalid = renderFilePreview("invalid json");
+  assert.match(invalid, /无法预览此文件/);
+  assert.doesNotMatch(invalid, /Original pump|Edited unsaved pump|project-preview-drawing/);
+});
+test("Markdown uses the same preview content slot and renders the current edited table", () => {
+  const html = renderFilePreview(
+    "# BOM\n\n| 名称 | 数量 |\n| --- | --- |\n| 水泵 | 3 |",
+    "markdown",
+  );
+  assert.match(html, /<table>/);
+  assert.match(html, /水泵/);
+  assert.match(html, /<td[^>]*>3<\/td>/);
+  assert.doesNotMatch(html, /目标判定|来源运行|只读|<header/);
 });

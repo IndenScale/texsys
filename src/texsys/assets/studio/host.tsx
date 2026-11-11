@@ -318,6 +318,7 @@ function Studio({
     canSaveAll: false,
     canRevert: false,
     canEditSource: false,
+    canReadSource: false,
     canCommentSource: false,
     canUndo: false,
     canRedo: false,
@@ -334,6 +335,7 @@ function Studio({
         previous.canSaveAll === next.canSaveAll &&
         previous.canRevert === next.canRevert &&
         previous.canEditSource === next.canEditSource &&
+        previous.canReadSource === next.canReadSource &&
         previous.canCommentSource === next.canCommentSource &&
         previous.canUndo === next.canUndo &&
         previous.canRedo === next.canRedo
@@ -508,13 +510,13 @@ function Studio({
     "file.revert": coreHistory.canRevert,
     "editor.undo": coreHistory.canUndo,
     "editor.redo": coreHistory.canRedo,
-    "editor.find": coreHistory.canEditSource,
+    "editor.find": coreHistory.canReadSource,
     "editor.replace": coreHistory.canEditSource,
-    "editor.gotoLine": coreHistory.canEditSource,
+    "editor.gotoLine": coreHistory.canReadSource,
     "editor.comment": coreHistory.canCommentSource,
-    "editor.selectAll": coreHistory.canEditSource,
-    "editor.nextMatch": coreHistory.canEditSource,
-    "editor.allMatches": coreHistory.canEditSource,
+    "editor.selectAll": coreHistory.canReadSource,
+    "editor.nextMatch": coreHistory.canReadSource,
+    "editor.allMatches": coreHistory.canReadSource,
     "help.shortcuts": coreHistory.canCreateFile,
   };
   const invokeCommand = (id: string) => {
@@ -632,7 +634,7 @@ function Studio({
         });
         break;
       case "view.wordWrap":
-        if (coreHistory.canEditSource)
+        if (coreHistory.canReadSource)
           updateUserPreferences({ editorWordWrap: editorWordWrap === "off" ? "on" : "off" });
         break;
       case "view.fullscreen":
@@ -812,7 +814,7 @@ function Studio({
         (!emptyWorkspace && isEditorMenuCommand(item.id) && !editorMenuEnabled[item.id]) ||
         !!activeRunCommands?.find((command) => command.id === item.id)?.disabled ||
         (item.id === "view.fullscreen" && !document.fullscreenEnabled) ||
-        (item.id === "view.wordWrap" && !coreHistory.canEditSource) ||
+        (item.id === "view.wordWrap" && !coreHistory.canReadSource) ||
         (item.id === "objects.search" && !objectIndex?.objects.length) ||
         (item.id === "objects.definition" && !objectDefinition) ||
         (item.id === "objects.references" && !usageObjects.length) ||

@@ -16,13 +16,22 @@ uv run examples/build-deliverables/run.py all
 
 运行前先在仓库根目录同步依赖并检查项目锁，完整命令和 Python 接口见 [调用示例](../build-deliverables/README.md)。
 
-项目级只读预览使用默认构建目标，生成设备 BOM、物理模型、拓扑图、原理图与概念场景：
+项目预览使用默认构建目标，生成设备 BOM、物理模型、拓扑图、原理图与概念场景：
 
 ```bash
 uv run --locked texsys build -p examples/hvac-dynamic-station
 ```
 
-在 Tex Studio 的“项目实例”中点击 `ColdStation` 根名称，在中央文档切换对应预览。重复构建复用有效目标缓存；只修改 `assets/layout.json` 中的位置或包络时，图纸、BOM 和物理模型不需要重建。输入变化后旧预览标为过期，构建失败保留独立分支的产物，历史回退明确显示来源。各次清单与输入／输出快照位于 `build/runs/`，`build/build.json` 指向最新运行。预览不写回源文件，修改仍通过通用编辑器和 CLI 完成。
+在 Tex Studio 的文件资源管理器中直接打开下列真实文件，每个文件拥有独立文档标签；无需进入项目实例 Activity：
+
+- `build/hvac/schematic/system.json`：原理图。
+- `build/hvac/topology/system.json`：拓扑图。
+- `build/hvac/bom.json`：设备 BOM 数据，使用普通 JSON 编辑器。
+- `build/hvac/bom.md`：设备 BOM 文档，可切换 Markdown 预览。
+- `build/hvac/layout/scene.usda`：概念场景。
+- `build/build.json`：本次构建清单与诊断。
+
+文件使用统一的“预览 / 源代码”布局，Markdown、图纸和场景在预览区域渲染；JSON 保持代码编辑体验。生成文件可以直接编辑和保存，预览使用当前文件内容。重新构建可能覆盖生成文件的手工修改；要持续保留设计变化，应修改声明式源文件。图形预览暂不反向写回声明式设计。重复构建复用有效目标缓存；只修改 `assets/layout.json` 中的位置或包络时，图纸、BOM 和物理模型不需要重建。构建失败保留独立分支的产物，执行信息保存在 `build/build.json`，各次清单与输入／输出快照位于 `build/runs/`；这些信息不占据文件预览布局。
 
 从仓库根目录运行 `uv run --locked python tools/verify_project_preview.py`，可在隔离的两个项目副本中回放首次构建、缓存命中、布局变化、失败回退、修复及产物恢复，证据写入 `build/project-preview-poc/`。这是开发机制与概念模型的验证，不替代真实工程校准。
 

@@ -55,3 +55,4 @@ adr/NNNN-short-title.md
 | [0025](0025-package-component-ide-boundaries.md) | 明确 CLI 项目依赖、部件包与 IDE 插件独立边界 | 已接受；修订 0024 与 0021 |
 | [0026](0026-git-build-workflow-and-devops-boundary.md) | 工程变更使用 Git 与构建，DevOps 集成不纳入 POC | 已接受 |
 | [0027](0027-incremental-build-and-project-preview.md) | 增量构建、独立分支失败隔离与只读项目预览 | 已接受；补充 0011、0013、0021、0026 |
+| [0028](0028-file-based-artifact-preview.md) | 独立文件文档与预览渲染契约，预览不依赖 Activity | 已接受；修订 0027 的文档入口 |

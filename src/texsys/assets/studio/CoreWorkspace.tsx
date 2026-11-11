@@ -5,6 +5,7 @@ import React, {
   useContext,
   useEffect,
   useLayoutEffect,
+  useMemo,
   useRef,
   useState,
   type ReactNode,
@@ -17,6 +18,12 @@ import {
   explorerCreationParent,
   sourceFileFormat,
   visibleFileTree,
+  filePreviewKind,
+  fileDocumentSnapshot,
+  fileDocumentTitle,
+  refreshedFileDocument,
+  savedFileDocument,
+  FileReadRequests,
   type FileListing,
   type GitDiff,
   type GitEntry,
@@ -67,6 +74,7 @@ import {
 import { isSourceEditCommand, type EditorMenuCommand, type CommandItem } from "./menus";
 import { Settings, type TitlebarSettings } from "./Settings";
 import { Keycaps } from "./Keycaps";
+import { FilePreviewContent } from "./ProjectPreview";
 
 type Activity = "explorer" | "search" | "scm" | "extensions" | "library" | "instances";
 function isCoreActivity(id: string): id is Activity {
@@ -84,6 +92,9 @@ type Document = {
   cursorLine?: number;
   design?: { selection: DesignSelection; view: DesignView };
   untitled?: string;
+  generated?: boolean;
+  preview?: FilePreview["preview"];
+  presentation?: "preview" | "source";
 };
 type FileRequest = {
   path: string;
@@ -285,6 +296,7 @@ export function CoreWorkspaceProvider({
     canSaveAll: boolean;
     canRevert: boolean;
     canEditSource: boolean;
+    canReadSource: boolean;
     canCommentSource: boolean;
     canUndo: boolean;
     canRedo: boolean;
@@ -413,7 +425,7 @@ export function CoreWorkspaceProvider({
   const [diskComparison, setDiskComparison] = useState<{ path: string; file: FilePreview }>();
   const searchInput = useRef<HTMLInputElement>(null);
   const [sourceFocus, setSourceFocus] = useState<{ path: string; origin: Element | null }>();
-  const openReads = useRef(new Map<string, symbol>());
+  const fileReads = useRef(new FileReadRequests());
   const untitledSequence = useRef(0);
   const fileWriteInFlight = useRef(false);
   const failedAutoSaves = useRef(new Map<string, { content: string; version: string }>());
@@ -437,6 +449,11 @@ export function CoreWorkspaceProvider({
   const documentsRef = useRef(documents);
   documentsRef.current = documents;
   const active = documents.find((item) => item.path === activePath);
+  const previewKind = useMemo(
+    () => filePreviewKind(active),
+    [active?.path, active?.preview?.kind, active?.content],
+  );
+  const showingPreview = !!previewKind && active?.presentation !== "source";
   const activeTab = settingsActive
     ? "settings"
     : !documentActive
@@ -504,15 +521,25 @@ export function CoreWorkspaceProvider({
     diskComparison
   );
   const canClose = !!activeTab && !closeDisabled;
-  const canEditSource =
+  const canReadSource =
     activeTab === "source" &&
     !!active &&
     !active.design &&
     !active.loading &&
     !active.error &&
     !active.reason &&
-    !closeDisabled;
-  const canSave = canEditSource && (!!active.untitled || active.content !== active.saved);
+    !closeDisabled &&
+    !showingPreview;
+  const canEditSource = canReadSource;
+  const canSave =
+    activeTab === "source" &&
+    !!active &&
+    !active.design &&
+    !active.loading &&
+    !active.error &&
+    !active.reason &&
+    !closeDisabled &&
+    (!!active.untitled || active.content !== active.saved);
   const canCommentSource = canEditSource && supportsSourceLineComments(active.path);
   const canRevert = canEditSource && !active.untitled;
   const dirty = documents.some((item) => item.content !== item.saved);
@@ -534,7 +561,14 @@ export function CoreWorkspaceProvider({
   const readFiles = useCallback(async () => {
     setLoadingFiles(true);
     try {
-      setListing(await api<FileListing>("/api/files"));
+      const next = await api<FileListing>("/api/files");
+      setListing(next);
+      setDocuments((previous) =>
+        previous.map((item) => {
+          const file = next.files.find((entry) => entry.path === item.path);
+          return file ? { ...item, generated: !!file.generated, preview: file.preview } : item;
+        }),
+      );
       setListingError("");
     } catch (error) {
       setListingError(String(error));
@@ -568,7 +602,10 @@ export function CoreWorkspaceProvider({
       void readGit();
     };
     window.addEventListener("focus", focus);
-    const terminalCompleted = () => void readGit();
+    const terminalCompleted = () => {
+      void readGit();
+      void readFiles();
+    };
     window.addEventListener("texsys:terminal:completed", terminalCompleted);
     const timer = setInterval(() => {
       if (activity === "scm" && !busy) void readGit();
@@ -683,7 +720,7 @@ export function CoreWorkspaceProvider({
     const hasEdits = existing && existing.content !== existing.saved;
     if (hasEdits || (focus && existing && !existing.loading && !existing.error)) {
       rememberRecentFile(state.project.path, path);
-      openReads.current.delete(path);
+      fileReads.current.invalidate(path);
       if (target && hasEdits && fromDiskSearch) {
         notify(t("文件有未保存的编辑，已打开文件；请保存后再按磁盘搜索结果定位。"));
       } else if (focus) {
@@ -693,8 +730,7 @@ export function CoreWorkspaceProvider({
       }
       return;
     }
-    const read = Symbol(path);
-    openReads.current.set(path, read);
+    const read = fileReads.current.begin(path);
     setDocuments((previous) =>
       previous.some((item) => item.path === path)
         ? previous
@@ -705,33 +741,27 @@ export function CoreWorkspaceProvider({
     );
     try {
       const file = await api<FilePreview>(`/api/file?path=${encodeURIComponent(path)}`);
-      if (openReads.current.get(path) !== read) return;
+      if (!read.isCurrent()) return;
+      const snapshot = fileDocumentSnapshot(path, file);
       rememberRecentFile(state.project.path, path);
       setDocuments((previous) =>
-        previous.map((item) =>
-          item.path === path && item.content === item.saved
-            ? {
-                ...item,
-                location: target,
-                error: undefined,
-                saved: file.content ?? "",
-                content: file.content ?? "",
-                version: file.version ?? "",
-                loading: false,
-                reason: file.reason,
-              }
-            : item,
+        read.update(previous, (items) =>
+          items.map((item) =>
+            item.path === path && item.content === item.saved
+              ? { ...item, location: target, ...snapshot }
+              : item,
+          ),
         ),
       );
     } catch (error) {
-      if (openReads.current.get(path) !== read) return;
+      if (!read.isCurrent()) return;
       setDocuments((previous) =>
-        previous.map((item) =>
-          item.path === path ? { ...item, loading: false, error: String(error) } : item,
+        read.update(previous, (items) =>
+          items.map((item) =>
+            item.path === path ? { ...item, loading: false, error: String(error) } : item,
+          ),
         ),
       );
-    } finally {
-      if (openReads.current.get(path) === read) openReads.current.delete(path);
     }
   };
   useEffect(() => {
@@ -746,6 +776,7 @@ export function CoreWorkspaceProvider({
       canSaveAll,
       canRevert,
       canEditSource,
+      canReadSource,
       canCommentSource,
       canUndo: model?.canUndo() ?? false,
       canRedo: model?.canRedo() ?? false,
@@ -761,6 +792,7 @@ export function CoreWorkspaceProvider({
     canRevert,
     closeDisabled,
     canEditSource,
+    canReadSource,
     canCommentSource,
     active,
     sourceModels,
@@ -802,6 +834,7 @@ export function CoreWorkspaceProvider({
       for (const path of paths) {
         const document = documentsRef.current.find((item) => item.path === path);
         if (!document?.version || document.content === document.saved) continue;
+        fileReads.current.invalidate(path);
         try {
           const saved = await api<FilePreview>("/api/file", {
             action: "save",
@@ -810,11 +843,7 @@ export function CoreWorkspaceProvider({
             version: document.version,
           });
           setDocuments((previous) =>
-            previous.map((item) =>
-              item.path === path
-                ? { ...item, saved: saved.content ?? "", version: saved.version! }
-                : item,
-            ),
+            previous.map((item) => (item.path === path ? savedFileDocument(item, saved) : item)),
           );
           failedAutoSaves.current.delete(path);
           count += 1;
@@ -888,45 +917,105 @@ export function CoreWorkspaceProvider({
     return () => clearTimeout(timer);
   }, [autoSave, canSaveAll, documents]);
   const compareDisk = async (path: string) => {
+    const read = fileReads.current.begin(path);
     try {
       const file = await api<FilePreview>(`/api/file?path=${encodeURIComponent(path)}`);
+      if (!read.isCurrent()) return;
       if (!file.previewable) throw new Error(file.reason ?? t("磁盘版本无法作为文本读取。"));
       setDiskComparison({ path, file });
     } catch (error) {
-      notify(String(error), true);
+      if (read.isCurrent()) notify(String(error), true);
     }
   };
   const rereadFile = async (path: string) => {
     const original = documentsRef.current.find((item) => item.path === path);
     if (!original || original.untitled) return;
+    const read = fileReads.current.begin(path);
     try {
       const file = await api<FilePreview>(`/api/file?path=${encodeURIComponent(path)}`);
+      if (!read.isCurrent()) return;
       if (!file.previewable && original.content !== original.saved)
         throw new Error(file.reason ?? t("磁盘版本无法作为文本读取。"));
+      const snapshot = fileDocumentSnapshot(path, file);
       setDocuments((previous) =>
-        previous.map((item) =>
-          item.path === path &&
-          item.content === original.content &&
-          item.version === original.version
-            ? {
-                ...item,
-                saved: file.content ?? "",
-                content: file.content ?? "",
-                version: file.version ?? "",
-                error: undefined,
-                reason: file.reason,
-                location: undefined,
-              }
-            : item,
+        read.update(previous, (items) =>
+          items.map((item) =>
+            item.path === path &&
+            item.content === original.content &&
+            item.version === original.version
+              ? { ...item, ...snapshot, location: undefined }
+              : item,
+          ),
         ),
       );
     } catch (error) {
+      if (!read.isCurrent()) return;
+      if (original.content === original.saved)
+        setDocuments((previous) =>
+          read.update(previous, (items) =>
+            items.map((item) =>
+              item.path === path && item.content === item.saved
+                ? { ...item, error: String(error) }
+                : item,
+            ),
+          ),
+        );
       notify(String(error), true);
     }
   };
+  useEffect(() => {
+    if (!active || active.design || active.untitled) return;
+    const path = active.path;
+    let closed = false;
+    let cancelRead: (() => void) | undefined;
+    let timer: ReturnType<typeof setTimeout>;
+    const poll = async () => {
+      const original = documentsRef.current.find((item) => item.path === path);
+      if (fileWriteInFlight.current || !original || original.content !== original.saved) {
+        if (!closed) timer = setTimeout(() => void poll(), 2000);
+        return;
+      }
+      const read = fileReads.current.begin(path);
+      cancelRead = read.cancel;
+      try {
+        const file = await api<FilePreview>(`/api/file?path=${encodeURIComponent(path)}`);
+        if (!read.isCurrent()) return;
+        fileDocumentSnapshot(path, file);
+        if (!closed)
+          setDocuments((previous) =>
+            read.update(previous, (items) =>
+              items.map((item) =>
+                item.path === path ? refreshedFileDocument(item, file, original.version) : item,
+              ),
+            ),
+          );
+      } catch (error) {
+        if (!closed && read.isCurrent())
+          setDocuments((previous) =>
+            read.update(previous, (items) =>
+              items.map((item) =>
+                item.path === path &&
+                item.content === item.saved &&
+                item.version === original.version
+                  ? { ...item, error: String(error), loading: false }
+                  : item,
+              ),
+            ),
+          );
+      } finally {
+        if (!closed) timer = setTimeout(() => void poll(), 2000);
+      }
+    };
+    void poll();
+    return () => {
+      closed = true;
+      cancelRead?.();
+      clearTimeout(timer);
+    };
+  }, [api, active?.path, active?.design, active?.untitled]);
   const removeDocument = (path: string) => {
     const index = documentsRef.current.findIndex((item) => item.path === path);
-    openReads.current.delete(path);
+    fileReads.current.invalidate(path);
     failedAutoSaves.current.delete(path);
     if (path.startsWith("\0untitled:")) {
       setHistory(({ entries, index }) => ({
@@ -1322,13 +1411,18 @@ export function CoreWorkspaceProvider({
     else if (id === "file.new") startCreation("create");
     else if (id === "file.untitled") newUntitled();
     else if (id === "file.saveAll" && canSaveAll) void saveAll();
-    else if (id === "editor.gotoLine" && canEditSource)
+    else if (id === "editor.gotoLine" && canReadSource)
       setLinePrompt({ path: active.path, input: "" });
     else if (id === "file.saveAs" && canEditSource) startSaveAs(active.path);
     else if (id === "file.revert" && canRevert) {
       if (active.content === active.saved) void rereadFile(active.path);
       else setRevertPath(active.path);
-    } else if (canEditSource && isSourceEditCommand(id)) {
+    } else if (
+      canReadSource &&
+      isSourceEditCommand(id) &&
+      (canEditSource ||
+        ["editor.find", "editor.selectAll", "editor.nextMatch", "editor.allMatches"].includes(id))
+    ) {
       runSourceEditCommand(active.path, sourceModels, id);
     }
   }, [editorMenuRequest]);
@@ -1930,9 +2024,7 @@ export function CoreWorkspaceProvider({
                       item.path === diskComparison.path
                         ? {
                             ...item,
-                            content: diskComparison.file.content ?? "",
-                            saved: diskComparison.file.content ?? "",
-                            version: diskComparison.file.version!,
+                            ...fileDocumentSnapshot(diskComparison.path, diskComparison.file),
                             location: undefined,
                           }
                         : item,
@@ -2005,7 +2097,11 @@ export function CoreWorkspaceProvider({
           ? (("occurrence" in selection ? selection.occurrence.at(-1) : undefined) ??
             scope?.definition?.name ??
             t("模型"))
-          : (document.untitled ?? document.path.split("/").pop());
+          : (document.untitled ??
+            fileDocumentTitle(
+              document.path,
+              documents.filter((item) => !item.design).map((item) => item.path),
+            ));
         return (
           <DocumentTab
             key={document.path}
@@ -2118,7 +2214,11 @@ export function CoreWorkspaceProvider({
         onClick={() => void openFile(diffProjectPath)}
       />
     )
-  ) : active && !active.design && !active.loading && !active.error && !active.reason ? (
+  ) : active &&
+    !active.design &&
+    !active.loading &&
+    !active.error &&
+    (!active.reason || previewKind) ? (
     <>
       {designEntry && (
         <EditorActionButton
@@ -2129,12 +2229,14 @@ export function CoreWorkspaceProvider({
       )}
       {!active.untitled && (
         <>
-          <EditorActionButton
-            label={t("与磁盘内容比较")}
-            icon="compare"
-            disabled={busy}
-            onClick={() => void compareDisk(active.path)}
-          />
+          {!active.reason && (
+            <EditorActionButton
+              label={t("与磁盘内容比较")}
+              icon="compare"
+              disabled={busy}
+              onClick={() => void compareDisk(active.path)}
+            />
+          )}
           <EditorActionButton
             label={t("重新读取文件")}
             icon="refresh"
@@ -2143,12 +2245,14 @@ export function CoreWorkspaceProvider({
           />
         </>
       )}
-      <EditorActionButton
-        label={t("保存")}
-        icon="save"
-        disabled={!canSave}
-        onClick={() => void saveFile()}
-      />
+      {canReadSource || showingPreview ? (
+        <EditorActionButton
+          label={t("保存")}
+          icon="save"
+          disabled={!canSave}
+          onClick={() => void saveFile()}
+        />
+      ) : null}
     </>
   ) : null;
   const editorContent = searchEditorActive ? (
@@ -2213,25 +2317,9 @@ export function CoreWorkspaceProvider({
   ) : active.design ? (
     designIndex ? (
       <DesignDocument
-        api={api}
         index={designIndex}
         selection={active.design.selection}
-        view={active.design.view}
-        setView={(view) =>
-          setDocuments((previous) =>
-            previous.map((item) =>
-              item.path === active.path && item.design
-                ? { ...item, design: { ...item.design, view } }
-                : item,
-            ),
-          )
-        }
-        openFile={(path, source) =>
-          void openFile(path, {
-            location: source?.line ? { line: source.line, column: source.column ?? 1 } : undefined,
-            focus: true,
-          })
-        }
+        openFile={(path) => void openFile(path, { focus: true })}
         referenceEntry={referenceLibrary}
       />
     ) : (
@@ -2239,9 +2327,9 @@ export function CoreWorkspaceProvider({
     )
   ) : active.loading ? (
     <Empty title={t("正在打开文件")}>{active.path}</Empty>
-  ) : active.error || active.reason ? (
+  ) : active.error ? (
     <Empty
-      title={active.error ? t("文件读取失败") : t("暂不支持编辑此文件")}
+      title={t("文件读取失败")}
       action={
         <EditorActionButton
           label={t("重新读取")}
@@ -2255,7 +2343,9 @@ export function CoreWorkspaceProvider({
   ) : (
     <section
       className="core-text-document"
-      aria-label={t("编辑 {0}", { "0": active.untitled ?? active.path })}
+      aria-label={t("编辑 {0}", {
+        "0": active.untitled ?? active.path,
+      })}
     >
       <div className="core-document-header">
         <nav
@@ -2299,46 +2389,98 @@ export function CoreWorkspaceProvider({
             </React.Fragment>
           ))}
         </nav>
+        {previewKind && (
+          <div className="core-file-presentation" role="group" aria-label={t("文件显示方式")}>
+            <button
+              aria-pressed={active.presentation !== "source"}
+              onClick={() =>
+                setDocuments((previous) =>
+                  previous.map((item) =>
+                    item.path === active.path ? { ...item, presentation: "preview" } : item,
+                  ),
+                )
+              }
+            >
+              {t("预览")}
+            </button>
+            <button
+              aria-pressed={active.presentation === "source"}
+              onClick={() =>
+                setDocuments((previous) =>
+                  previous.map((item) =>
+                    item.path === active.path ? { ...item, presentation: "source" } : item,
+                  ),
+                )
+              }
+            >
+              {t("源代码")}
+            </button>
+          </div>
+        )}
       </div>
-      <SourceEditor
-        path={active.path}
-        value={active.content}
-        models={sourceModels}
-        visible={documentActive && !settingsActive}
-        location={active.location}
-        focusRequest={sourceFocus?.path === active.path ? sourceFocus : undefined}
-        onFocusHandled={() => setSourceFocus(undefined)}
-        onChange={(content) => {
-          setDocuments((previous) =>
-            previous.map((item) =>
-              item.path === active.path && item.content !== content
-                ? { ...item, content, location: undefined }
-                : item,
-            ),
-          );
-        }}
-        onCursorLine={(cursorLine) => {
-          setDocuments((previous) =>
-            previous.map((item) =>
-              item.path === active.path && (item.cursorLine ?? 1) !== cursorLine
-                ? { ...item, cursorLine }
-                : item,
-            ),
-          );
-        }}
-      />
-      <div className="core-editor-status">
-        <span className="core-editor-status-details">
-          <span>UTF-8 · {sourceFileFormat(active.path).toUpperCase()}</span>
-          <span>{active.untitled || activeDirty ? t("未保存") : t("已保存")}</span>
-        </span>
-        <span>
-          {t("行 {0} · 共 {1} 行", {
-            0: active.cursorLine ?? 1,
-            1: active.content.split("\n").length,
-          })}
-        </span>
-      </div>
+      {showingPreview && previewKind ? (
+        <FilePreviewContent
+          key={active.path}
+          api={api}
+          path={active.path}
+          kind={previewKind}
+          content={active.content}
+          version={active.version}
+          preview={active.preview}
+          dirty={activeDirty}
+          openFile={(path) => void openFile(path)}
+          openSource={(source) =>
+            void openFile(source.file, {
+              focus: true,
+              location: source.line ? { line: source.line, column: source.column ?? 1 } : undefined,
+            })
+          }
+        />
+      ) : active.reason ? (
+        <Empty title={t("暂不支持显示源代码")}>{t(active.reason)}</Empty>
+      ) : (
+        <>
+          <SourceEditor
+            path={active.path}
+            value={active.content}
+            models={sourceModels}
+            visible={documentActive && !settingsActive}
+            location={active.location}
+            focusRequest={sourceFocus?.path === active.path ? sourceFocus : undefined}
+            onFocusHandled={() => setSourceFocus(undefined)}
+            onChange={(content) => {
+              setDocuments((previous) =>
+                previous.map((item) =>
+                  item.path === active.path && item.content !== content
+                    ? { ...item, content, location: undefined }
+                    : item,
+                ),
+              );
+            }}
+            onCursorLine={(cursorLine) => {
+              setDocuments((previous) =>
+                previous.map((item) =>
+                  item.path === active.path && (item.cursorLine ?? 1) !== cursorLine
+                    ? { ...item, cursorLine }
+                    : item,
+                ),
+              );
+            }}
+          />
+          <div className="core-editor-status">
+            <span className="core-editor-status-details">
+              <span>UTF-8 · {sourceFileFormat(active.path).toUpperCase()}</span>
+              <span>{active.untitled || activeDirty ? t("未保存") : t("已保存")}</span>
+            </span>
+            <span>
+              {t("行 {0} · 共 {1} 行", {
+                0: active.cursorLine ?? 1,
+                1: active.content.split("\n").length,
+              })}
+            </span>
+          </div>
+        </>
+      )}
     </section>
   );
   const inspector = (

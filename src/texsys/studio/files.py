@@ -7,6 +7,7 @@ import tempfile
 
 from texsys.project import ProjectError
 from .ai import is_ai_config_path
+from .preview import ProjectPreview
 
 SKIP_DIRECTORIES = {".git", ".hg", ".svn", ".venv", "venv", "node_modules", "__pycache__",
                     ".pytest_cache", ".mypy_cache", ".ruff_cache"}
@@ -14,6 +15,15 @@ MAX_FILES = 5000
 MAX_PREVIEW_BYTES = 1024 * 1024
 MAX_SEARCH_MATCHES = 1000
 MAX_SEARCH_BYTES = 32 * 1024 * 1024
+
+
+def private_build_path(root: Path, file: Path, build: str) -> bool:
+  output = (root / build).resolve()
+  if not file.is_relative_to(output):
+    return False
+  parts = file.relative_to(output).parts
+  return bool(parts) and (parts[0].casefold() in {"runs", "dependencies", "studio"}
+                          or any(part.startswith(".") for part in parts))
 
 
 def workspace_path(root: Path, relative: str, build: str, *, missing=False) -> Path:
@@ -29,7 +39,8 @@ def workspace_path(root: Path, relative: str, build: str, *, missing=False) -> P
     raise ProjectError("不允许通过符号链接访问项目文件。")
   candidate = candidate.resolve()
   if (candidate == root or not candidate.is_relative_to(root)
-      or candidate.is_relative_to((root / build).resolve())
+      or candidate == (root / build).resolve()
+      or private_build_path(root, candidate, build)
       or is_ai_config_path(candidate)
       or (not missing and not candidate.exists())):
     raise ProjectError("Project file not found.")
@@ -46,25 +57,30 @@ def _file_path(root: Path, relative: str, build: str) -> Path:
 def project_files(root: Path, build: str) -> dict:
   root = root.resolve()
   output = (root / build).resolve()
+  metadata = {entry["path"]: entry for entry in ProjectPreview(root, build).file_entries()}
   entries, folders = [], []
   for parent, directories, names in os.walk(root, followlinks=False):
     directories[:] = sorted(name for name in directories if name not in SKIP_DIRECTORIES
                             and not (Path(parent) / name).is_symlink()
-                            and not (Path(parent) / name).resolve().is_relative_to(output))
+                            and not private_build_path(root, (Path(parent) / name).resolve(), build))
     folders.extend((Path(parent) / name).relative_to(root).as_posix() for name in directories)
     if len(folders) >= MAX_FILES:
       return {"files": entries, "directories": folders[:MAX_FILES], "truncated": True}
     for name in sorted(names):
       file = Path(parent) / name
-      if name == ".DS_Store" or file.is_symlink() or not file.is_file() or is_ai_config_path(file):
+      if (name == ".DS_Store" or file.is_symlink() or not file.is_file() or is_ai_config_path(file)
+          or private_build_path(root, file, build)):
         continue
       try:
         size = file.stat().st_size
       except OSError:
         continue
       relative = file.relative_to(root)
-      entries.append({"path": relative.as_posix(), "name": name,
-                      "parent": "" if relative.parent == Path(".") else relative.parent.as_posix(), "size": size})
+      entry = {**metadata.get(relative.as_posix(), {}), "path": relative.as_posix(), "name": name,
+               "parent": "" if relative.parent == Path(".") else relative.parent.as_posix(), "size": size}
+      if file.is_relative_to(output):
+        entry["generated"] = True
+      entries.append(entry)
       if len(entries) >= MAX_FILES:
         return {"files": entries, "directories": folders, "truncated": True}
   return {"files": entries, "directories": folders, "truncated": False}
@@ -83,14 +99,24 @@ def file_version(file: Path) -> str:
 
 def project_file(root: Path, relative: str, build: str) -> dict:
   file = _file_path(root, relative, build)
+  metadata = {}
+  if file.is_relative_to((root.resolve() / build).resolve()):
+    metadata["generated"] = True
+    declarations = ProjectPreview(root, build).file_entries(relative)
+    if declarations:
+      metadata.update({key: value for key, value in declarations[0].items()
+                       if key in {"artifact", "preview", "preview_error"}})
   size = file.stat().st_size
-  result = {"path": file.relative_to(root.resolve()).as_posix(), "size": size, "previewable": False, "version": file_version(file)}
+  result = {"path": file.relative_to(root.resolve()).as_posix(), "size": size, "previewable": False, "version": file_version(file), **metadata}
   if size > MAX_PREVIEW_BYTES:
     return {**result, "reason": "文件超过 1 MiB，暂不提供文本编辑。"}
   with file.open("rb") as stream:
     content = stream.read(MAX_PREVIEW_BYTES + 1)
   if len(content) > MAX_PREVIEW_BYTES:
     return {**result, "reason": "文件超过 1 MiB，暂不提供文本编辑。"}
+  if result.get("artifact") and version(content) != result["artifact"]["digest"]:
+    result.pop("artifact")
+    result["preview_error"] = "文件在读取期间发生变化，无法关联构建预览；请刷新。"
   try:
     text = content.decode("utf-8-sig")
     if "\0" in text:

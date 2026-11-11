@@ -107,14 +107,16 @@ class ProjectPreview:
       raise ProjectError("Preview artifact digest does not match the build manifest.")
     return file
 
-  def _describe(self, report: dict, record: dict, validity: dict, fallback: bool = False) -> dict:
+  def _describe(self, report: dict, record: dict, validity: dict, fallback: bool = False, *, allow_unpreviewed=False) -> dict:
     preview = record.get("preview")
     if not isinstance(preview, dict) or preview.get("kind") not in PREVIEW_KINDS:
-      raise ProjectError("Artifact does not declare a supported preview.")
+      if not allow_unpreviewed:
+        raise ProjectError("Artifact does not declare a supported preview.")
+      preview = {}
     target = next((item for item in report["targets"] if item.get("id") == record.get("target")), {})
     complete = record.get("complete", not record.get("partial", False)) is True
     item = {"id": record.get("id"), "target": record.get("target"), "run_id": report["run_id"],
-            "path": record.get("path"), "digest": record.get("digest"), "kind": preview["kind"],
+            "path": record.get("path"), "digest": record.get("digest"), "kind": preview.get("kind"),
             "title": preview.get("title", record.get("id", "")), "root": preview.get("root"),
             "preview": preview, "current": bool(validity.get("current")) and not fallback,
             "freshness": "historical" if fallback else validity.get("freshness", "invalid-record"),
@@ -128,7 +130,7 @@ class ProjectPreview:
       item.update(available=False, current=False, freshness="artifact-invalid", error=str(error))
     return item
 
-  def read(self, root: str = "") -> dict:
+  def read(self, root: str = "", *, _all_artifacts=False) -> dict:
     diagnostics = []
     try:
       latest = self._report()
@@ -150,7 +152,9 @@ class ProjectPreview:
       for record in report["artifacts"]:
         metadata = record.get("preview") if isinstance(record, dict) else None
         if not isinstance(metadata, dict) or metadata.get("kind") not in PREVIEW_KINDS:
-          continue
+          if not _all_artifacts:
+            continue
+          metadata = {}
         if root and metadata.get("root") != root:
           continue
         identity = (record.get("target"), record.get("id"))
@@ -167,7 +171,7 @@ class ProjectPreview:
             continue
         if identity in seen and seen[identity]["available"]:
           continue
-        item = self._describe(report, record, validity, fallback=report is not latest)
+        item = self._describe(report, record, validity, fallback=report is not latest, allow_unpreviewed=_all_artifacts)
         if report is latest and not item["available"]:
           invalid_current.add(identity)
         if identity in seen and not item["available"]:
@@ -184,6 +188,59 @@ class ProjectPreview:
       result["project"]["roots"] = roots
     result["revision"] = canonical_digest({"build": result["build"], "artifacts": result["artifacts"]})
     return result
+
+  def _generated_location(self, relative: str) -> Path:
+    file = _inside(self.root, relative, self.build)
+    parts = file.relative_to(self.build).parts
+    if (not parts or parts[0].casefold() in {"runs", "dependencies", "studio"}
+        or any(part.startswith(".") for part in parts)):
+      raise ProjectError("Internal build storage is not an Explorer document.")
+    return file
+
+  def file_entries(self, relative: str | None = None) -> list[dict]:
+    """Expose declared canonical files, preserving the bytes the user opens.
+
+    Snapshot selection only supplies a possible preview identity. It never
+    substitutes another path or another version for the selected file.
+    """
+    manifest = (self.build / "build.json").relative_to(self.root).as_posix()
+    candidates: dict[str, list[dict]] = {manifest: []}
+    try:
+      latest = self._report()
+    except (OSError, ValueError, ProjectError):
+      latest = None
+    selected = self.read(_all_artifacts=True)["artifacts"] if latest else []
+    for item in selected:
+      if isinstance(item.get("path"), str):
+        candidates.setdefault(item["path"], []).append(item)
+    # A missing/bad immutable snapshot must not hide the actual current file.
+    # Keep it readable, but do not borrow a different path's preview identity.
+    for record in latest["artifacts"] if latest else ():
+      if isinstance(record.get("path"), str):
+        candidates.setdefault(record["path"], [])
+    entries = []
+    for path, items in sorted(candidates.items()):
+      if relative is not None and path != relative:
+        continue
+      try:
+        file = self._generated_location(path)
+      except (OSError, ValueError, ProjectError):
+        continue
+      normalized = file.relative_to(self.root)
+      entry = {"path": normalized.as_posix(), "name": file.name, "parent": normalized.parent.as_posix(),
+               "size": file.stat().st_size, "generated": True}
+      if path != manifest:
+        previews = [item for item in items if item["kind"] in PREVIEW_KINDS]
+        if len(previews) > 1:
+          entry["preview_error"] = "多个构建产物声明了同一个文件路径，无法确定唯一预览。"
+        elif previews:
+          item = previews[0]
+          if item["kind"] in {"schematic", "topology", "scene"}:
+            entry["preview"] = {"kind": item["kind"], "source_map": item["preview"].get("source_map", {})}
+          if item["available"] and file_digest(file) == item["digest"]:
+            entry["artifact"] = item
+      entries.append(entry)
+    return entries
 
   def resolve(self, run: str, target: str, identifier: str) -> tuple[dict, dict, Path, dict]:
     report = self._report(run)

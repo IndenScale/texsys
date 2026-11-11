@@ -203,8 +203,11 @@ def create_server(runtime: StudioRuntime, port=8710, frontend=None, token=None, 
           self._send(200, previews.artifact(query.get("run", [""])[0], query.get("target", [""])[0], query.get("id", [""])[0]))
         elif parsed.path == "/api/scene":
           query = parse_qs(parsed.query)
-          self._send(200, scene.read(query.get("revision", [""])[0], run=query.get("run", [""])[0],
-                                    target=query.get("target", [""])[0], artifact=query.get("artifact", [""])[0]))
+          if "path" in query:
+            self._send(200, scene.read_file(query["path"][0], query.get("revision", [""])[0], version=query.get("version", [""])[0]))
+          else:
+            self._send(200, scene.read(query.get("revision", [""])[0], run=query.get("run", [""])[0],
+                                      target=query.get("target", [""])[0], artifact=query.get("artifact", [""])[0]))
         elif parsed.path == "/api/ai/settings":
           self._send(200, ai_settings.read().public())
         elif parsed.path == "/api/files":
@@ -255,6 +258,8 @@ def create_server(runtime: StudioRuntime, port=8710, frontend=None, token=None, 
             self._send(200, file.read_bytes(), kind + "; charset=utf-8")
         else:
           self._send(404, {"error": "Unknown API route."})
+      except Conflict as error:
+        self._send(409, {"error": str(error)})
       except (ProjectError, OSError, ValueError) as error:
         self._send(400, {"error": str(error)})
 
@@ -281,6 +286,10 @@ def create_server(runtime: StudioRuntime, port=8710, frontend=None, token=None, 
         elif self.path == "/api/search/replace":
           with runtime.lock:
             result = replacement(runtime.root, runtime.project.build, body)
+        elif self.path == "/api/scene":
+          if not isinstance(body.get("content"), str):
+            raise ProjectError("Scene preview requires the current document text.")
+          result = scene.read_file(body.get("path"), version=body.get("version", ""), content=body["content"])
         elif self.path == "/api/file":
           with runtime.lock:
             result = file_operation(runtime.root, runtime.project.build, body)

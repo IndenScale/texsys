@@ -1,16 +1,11 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { t } from "./i18n";
 import type { WorkbenchProps } from "./sdk";
 import { Empty, Icon } from "./ui";
 import {
-  artifactQuery,
-  artifactKey,
   pickedFace,
-  previewArtifacts,
+  sceneFileRequest,
   sourceReference,
-  sameArtifact,
-  type PreviewArtifact,
-  type PreviewIndex,
   type PreviewSource,
 } from "./project-preview-model";
 import "./scene-preview.css";
@@ -27,8 +22,8 @@ type SceneObject = {
 };
 type Scene = {
   status: "ready";
-  artifact: PreviewArtifact;
   path: string;
+  version: string;
   revision: string;
   objects: SceneObject[];
   source_map?: Record<string, PreviewSource>;
@@ -149,82 +144,65 @@ function drawScene(
 export function ScenePreview({
   api,
   active,
-  artifact: suppliedArtifact,
-  selected: suppliedSelected,
-  onSelect,
+  path,
+  version,
+  content,
+  dirty,
   openSource,
 }: {
   api: WorkbenchProps["api"];
   active: boolean;
-  artifact?: PreviewArtifact;
-  selected?: string;
-  onSelect?: (semanticRef: string) => void;
+  path: string;
+  version: string;
+  content: string;
+  dirty: boolean;
   openSource?: (source: PreviewSource) => void;
 }) {
-  const [index, setIndex] = useState<PreviewIndex>();
-  const [chosen, setChosen] = useState("");
-  const [localSelected, setLocalSelected] = useState("");
-  const selected = suppliedSelected ?? localSelected;
-  const select = (semanticRef: string) => {
-    setLocalSelected(semanticRef);
-    onSelect?.(semanticRef);
-  };
-  const candidates = previewArtifacts(index, "layout");
-  const artifact =
-    suppliedArtifact ?? candidates.find((item) => artifactKey(item) === chosen) ?? candidates[0];
-  const [result, setResult] = useState<Exclude<Response, { status: "unchanged" }>>();
-  const [error, setError] = useState("");
-  const [indexError, setIndexError] = useState("");
+  const [selected, select] = useState("");
+  const [result, setResult] = useState<{
+    key: string;
+    value: Exclude<Response, { status: "unchanged" }>;
+  }>();
+  const [failure, setFailure] = useState<{ key: string; message: string }>();
   const [view, setView] = useState(initialView);
   const canvas = useRef<HTMLCanvasElement>(null);
   const hits = useRef<NonNullable<ReturnType<typeof drawScene>>>([]);
   const drag = useRef<{ id: number; x: number; y: number; distance: number } | null>(null);
+  const request = useMemo(
+    () => sceneFileRequest(path, version, content, dirty),
+    [path, version, content, dirty],
+  );
+  const current = result?.key === request.key ? result.value : undefined;
   const scene =
-    result?.status === "ready" && sameArtifact(result.artifact, artifact) ? result : undefined;
-  const query = artifact ? artifactQuery(artifact, true) : "";
-  const digest = artifact?.digest;
-  const available = artifact?.available;
-  useEffect(() => {
-    if (!active || suppliedArtifact) return;
-    let closed = false;
-    let timer: ReturnType<typeof setTimeout>;
-    const poll = async () => {
-      try {
-        const value = await api<PreviewIndex>("/api/preview");
-        if (!closed) {
-          setIndex(value);
-          setIndexError("");
-        }
-      } catch (failure) {
-        if (!closed) setIndexError(String(failure));
-      } finally {
-        if (!closed) timer = setTimeout(() => void poll(), 2000);
-      }
-    };
-    void poll();
-    return () => {
-      closed = true;
-      clearTimeout(timer);
-    };
-  }, [api, active, suppliedArtifact]);
+    current?.status === "ready" && current.path === path && current.version === version
+      ? current
+      : undefined;
+  const error = failure?.key === request.key ? failure.message : "";
   useEffect(() => {
     if (!active) return;
     let closed = false;
     setResult(undefined);
-    setError("");
-    if (query && available)
-      void api<Response>(`/api/scene?${query}`).then(
-        (response) => {
-          if (!closed && response.status !== "unchanged") setResult(response);
-        },
-        (failure) => {
-          if (!closed) setError(String(failure));
-        },
-      );
+    setFailure(undefined);
+    void api<Response>(request.url, request.body).then(
+      (response) => {
+        if (closed || response.status === "unchanged") return;
+        if (
+          response.status === "ready" &&
+          (response.path !== path || response.version !== version)
+        ) {
+          setFailure({ key: request.key, message: t("场景响应与当前文件不匹配") });
+          return;
+        }
+        setResult({ key: request.key, value: response });
+      },
+      (error) => {
+        if (!closed) setFailure({ key: request.key, message: String(error) });
+      },
+    );
     return () => {
       closed = true;
     };
-  }, [api, active, query, digest, available]);
+  }, [api, active, request, path, version]);
   useEffect(() => {
     const surface = canvas.current;
     if (!surface || !scene || !active) return;
@@ -253,60 +231,20 @@ export function ScenePreview({
     : undefined;
   return (
     <section className="scene-preview">
-      <header className="scene-preview-header">
-        <Icon name="cube" size={19} />
-        <div className="scene-preview-source">
-          <strong>{t("场景预览")}</strong>
-          {!suppliedArtifact && candidates.length > 1 ? (
-            <select
-              aria-label={t("场景产物")}
-              value={artifact ? artifactKey(artifact) : ""}
-              onChange={(event) => setChosen(event.target.value)}
-            >
-              {candidates.map((item) => (
-                <option key={artifactKey(item)} value={artifactKey(item)}>
-                  {item.title ?? item.target}
-                </option>
-              ))}
-            </select>
-          ) : (
-            <span title={scene?.path}>{scene?.path ?? t("读取构建清单中的场景")}</span>
-          )}
-        </div>
-        <div className="scene-preview-controls">
-          <button disabled={!visible} onClick={() => zoom(1 / 1.25)} aria-label={t("缩小")}>
-            −
-          </button>
-          <button disabled={!visible} onClick={() => zoom(1.25)} aria-label={t("放大")}>
-            +
-          </button>
-          <button disabled={!visible} onClick={() => setView(initialView)}>
-            {t("重置视角")}
-          </button>
-        </div>
-      </header>
-      {!suppliedArtifact && artifact && (
-        <div className="scene-preview-provenance">
-          {t(artifact.current && !artifact.fallback ? "当前" : "已过期")} · {t("来源运行")}{" "}
-          {artifact.run_id} · {t("目标判定")}{" "}
-          {t(
-            (
-              {
-                pass: "通过",
-                fail: "未通过",
-                error: "执行失败",
-                indeterminate: "无法判定",
-              } as Record<string, string>
-            )[artifact.status ?? ""] ??
-              artifact.status ??
-              "未判定",
-          )}
-          {artifact.partial && ` · ${t("部分产物")}`}
-        </div>
-      )}
-      {(error || indexError) && (
+      <div className="scene-preview-controls" role="toolbar" aria-label={t("场景视角")}>
+        <button disabled={!visible} onClick={() => zoom(1 / 1.25)} aria-label={t("缩小")}>
+          −
+        </button>
+        <button disabled={!visible} onClick={() => zoom(1.25)} aria-label={t("放大")}>
+          +
+        </button>
+        <button disabled={!visible} onClick={() => setView(initialView)}>
+          {t("重置视角")}
+        </button>
+      </div>
+      {error && (
         <div role="alert" className="scene-preview-error">
-          {t("无法读取构建场景")} · {error || indexError}
+          {error}
         </div>
       )}
       {visible ? (
@@ -401,24 +339,9 @@ export function ScenePreview({
         </div>
       ) : (
         <Empty
-          title={t(
-            scene
-              ? "此场景没有可预览的几何"
-              : result?.status === "empty"
-                ? "此场景没有可预览的几何"
-                : artifact && !error && artifact.available
-                  ? "正在读取场景"
-                  : "尚无可读场景产物",
-          )}
+          title={t(error ? "无法预览此文件" : current ? "此场景没有可预览的几何" : "正在读取场景")}
         >
-          {scene ? (
-            t("预览支持 USD 网格、立方体和 BRep 包络。")
-          ) : (
-            <>
-              <p>{t("在项目终端运行构建，完成后这里会自动刷新。")}</p>
-              <code>texsys build</code>
-            </>
-          )}
+          {current && t("预览支持 USD 网格、立方体和 BRep 包络。")}
         </Empty>
       )}
       {selectedObject && (
@@ -426,16 +349,9 @@ export function ScenePreview({
           <span title={selectedObject.prim_path}>
             {selectedObject.semantic_ref || selectedObject.name}
           </span>
-          <span>{t(selectedObject.envelope ? "包络几何 · 只读" : "网格几何 · 只读")}</span>
+          <span>{t(selectedObject.envelope ? "包络几何" : "网格几何")}</span>
           {source && openSource && (
-            <button
-              onClick={() =>
-                openSource(
-                  artifact?.current ? source : { ...source, line: undefined, column: undefined },
-                )
-              }
-              title={source.file}
-            >
+            <button onClick={() => openSource(source)} title={source.file}>
               <Icon name="files" size={14} />
               {t("定位源码")}
             </button>

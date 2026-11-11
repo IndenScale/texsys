@@ -1,4 +1,4 @@
-/** Read-only build artifact contracts. Source paths are retained for future editing tools. */
+/** File preview geometry and explicit source mappings. */
 export type PreviewSource = { file: string; path?: string; line?: number; column?: number };
 export type PreviewArtifact = {
   id: string;
@@ -24,61 +24,14 @@ export type PreviewArtifact = {
   diagnostics?: unknown[];
   open_items?: unknown[];
 };
-export type PreviewIndex = {
-  schema_version: number;
-  project: { name: string; root: string | null };
-  build: {
-    run_id: string;
-    status: string;
-    current: boolean;
-    freshness: string;
-    targets?: unknown[];
-    diagnostics?: unknown[];
-  } | null;
-  artifacts: PreviewArtifact[];
-  diagnostics: unknown[];
-};
-export type PreviewPayload = {
-  artifact: PreviewArtifact;
-  format: "json" | "svg" | "text";
-  data: unknown;
-};
-export type PreviewKind = "bom" | "topology" | "schematic" | "layout" | "results";
-export const artifactKey = (artifact: PreviewArtifact) => `${artifact.target}/${artifact.id}`;
-export function sameArtifact(
-  left: PreviewArtifact | undefined,
-  right: PreviewArtifact | undefined,
-) {
-  return (
-    !!left &&
-    !!right &&
-    left.run_id === right.run_id &&
-    left.target === right.target &&
-    left.id === right.id &&
-    left.digest === right.digest
-  );
-}
-export function artifactQuery(artifact: PreviewArtifact, scene = false) {
-  return new URLSearchParams({
-    run: artifact.run_id,
-    target: artifact.target,
-    [scene ? "artifact" : "id"]: artifact.id,
-  }).toString();
-}
-export function previewArtifacts(
-  index: PreviewIndex | undefined,
-  kind: PreviewKind,
-  root?: string,
-) {
-  return (index?.artifacts ?? []).filter((artifact) => {
-    const artifactRoot = artifact.root ?? artifact.preview?.root;
-    if (root !== undefined && artifactRoot !== root) return false;
-    const artifactKind = artifact.preview?.kind ?? artifact.kind;
-    if (kind === "layout") return ["scene", "spatial", "layout"].includes(artifactKind);
-    if (kind === "results")
-      return ["report", "result", "simulation", "scenario", "diagnostics"].includes(artifactKind);
-    return artifactKind === kind;
-  });
+/** Unsaved scene text is parsed in memory; clean files are read by their exact path and version. */
+export function sceneFileRequest(path: string, version: string, content: string, dirty: boolean) {
+  const query = new URLSearchParams({ path, version }).toString();
+  return {
+    key: JSON.stringify([path, version, dirty ? content : null]),
+    url: dirty ? "/api/scene" : `/api/scene?${query}`,
+    body: dirty ? { path, version, content } : undefined,
+  };
 }
 export function record(value: unknown): Record<string, unknown> {
   return value && typeof value === "object" && !Array.isArray(value)

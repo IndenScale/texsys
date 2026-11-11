@@ -22,7 +22,7 @@ texsys 得名于「文本化系统」，目标是让复杂系统像软件一样�
 
 Tex Studio 已提供本地网页插件宿主、通用项目编辑、模块库／实例导航、场景预览与暖通工作台，支持实例参数编辑、后台检查、出图、仿真和结果回放。跨专业对象视图仍在贯通；工程变更复用 Git 与命令行检查，领域计算存在不等于相应专业界面已可用。Electron 桌面端与远程协作尚未实现。
 
-项目级预览直接消费 `texsys build` 的版本化产物，在现有中央文档查看 BOM、拓扑、原理图与场景。构建按目标复用缓存，独立分支可在其他目标失败后继续，必需检查失败仍返回非零退出码。预览区分当前、过期、部分和历史结果；首期只读，保留对象与源码映射。可执行入口见 [同源冷站示例](examples/hvac-dynamic-station/README.md)，行为契约见 [ADR-0027](docs/adr/0027-incremental-build-and-project-preview.md)。
+`texsys build` 生成的 BOM、拓扑、原理图与场景作为独立文件，从文件资源管理器或快速打开进入各自的文档标签。预览按真实文件路径识别，与 Activity 或项目根对象视图无关。构建按目标复用缓存，独立分支可在其他目标失败后继续，必需检查失败仍返回非零退出码。文件共用“预览 / 源代码”和保存布局，Markdown、图纸和场景只替换预览渲染器，普通 JSON 使用代码编辑器。生成文件也能编辑；预览不额外展示构建状态、运行 ID 或缓存信息，对象与源码映射保留在底层。可执行入口见 [同源冷站示例](examples/hvac-dynamic-station/README.md)，行为契约见 [ADR-0027](docs/adr/0027-incremental-build-and-project-preview.md) 和 [ADR-0028](docs/adr/0028-file-based-artifact-preview.md)。
 
 ## 文档地图
 

@@ -1,4 +1,4 @@
-import React, { useId, useMemo, useState } from "react";
+import React, { useMemo, useState } from "react";
 import { ExplorerTree } from "./ExplorerTree";
 import {
   CatalogControls,
@@ -14,9 +14,6 @@ import {
 import { t } from "./i18n";
 import { Empty, Icon } from "./ui";
 import type { TreeEntry } from "./workspace-model";
-import type { WorkbenchProps } from "./sdk";
-import type { PreviewSource } from "./project-preview-model";
-import { ProjectPreview } from "./ProjectPreview";
 
 type Binding = { value?: number; unit: string; state: string; source: string };
 type Instance = {
@@ -77,19 +74,10 @@ export type DesignIndex = {
   source_errors: { path: string; message: string }[];
   references: { package: string; version: string; digest: string; entry: string }[];
 };
-export const designViews = {
-  model: { label: "模型", icon: "system" },
-  topology: { label: "拓扑图", icon: "branch" },
-  schematic: { label: "原理图", icon: "system" },
-  bom: { label: "物料清单", icon: "files" },
-  layout: { label: "三维布置", icon: "cube" },
-  results: { label: "检查与结果", icon: "check" },
-};
-export type DesignView = keyof typeof designViews;
+export type DesignView = "model";
 export type DesignSelection = { definition: string } | { occurrence: string[] };
 type OpenDesign = (selection: DesignSelection, view?: DesignView) => void;
 const libraryLabels = { cells: "单元", devices: "器件", modules: "模块", models: "型号" };
-const artifactViews = ["topology", "schematic", "bom", "layout", "results"] as const;
 
 function sourceLabel(source: LibrarySource) {
   return [source.name, source.version, source.locked ? t("已锁定") : ""]
@@ -262,20 +250,6 @@ export function DesignExplorer({
     if (destination) destinations.set(path, destination);
     if (expanded.has(path)) children?.();
   };
-  function appendDesign(path: string, selection: DesignSelection) {
-    append(path + "/model", t("模型"), "system", undefined, { selection });
-    append(path + "/artifacts", t("交付物"), "files", () => {
-      for (const view of artifactViews) {
-        append(
-          path + "/artifacts/" + view,
-          t(designViews[view].label),
-          designViews[view].icon,
-          undefined,
-          { selection, view },
-        );
-      }
-    });
-  }
   function appendLibrary(owner: string | null, path: string, source?: string, models = false) {
     const kinds = models ? (["models"] as const) : (["cells", "devices", "modules"] as const);
     for (const kind of kinds) {
@@ -344,7 +318,6 @@ export function DesignExplorer({
       name,
       "system",
       () => {
-        appendDesign(path, selection);
         for (const child of children) {
           appendInstance(
             path + "/child-" + child.name,
@@ -444,23 +417,16 @@ export function DesignExplorer({
 }
 
 export function DesignDocument({
-  api,
   index,
   selection,
-  view,
-  setView,
   openFile,
   referenceEntry,
 }: {
-  api?: WorkbenchProps["api"];
   index: DesignIndex;
   selection: DesignSelection;
-  view: DesignView;
-  setView: (view: DesignView) => void;
-  openFile: (path: string, location?: PreviewSource) => void;
+  openFile: (path: string) => void;
   referenceEntry: SaveLibraryReference;
 }) {
-  const tabId = useId();
   const scope = resolveDesign(index, selection);
   const definition = scope?.definition;
   if (!scope?.key || !definition) return <Empty title={t("无法解析设计对象")} />;
@@ -524,9 +490,6 @@ export function DesignDocument({
     ...definition.behavior?.parameters,
     ...scope.instance?.parameters,
   });
-  const views = Object.entries(designViews) as [DesignView, (typeof designViews)[DesignView]][];
-  const previewRoot = index.root ? index.definitions[index.root].name : undefined;
-  const projectScope = occurrence !== undefined || scope.key === index.root;
   return (
     <section className="core-design-document" aria-label={title}>
       <header className="core-design-header">
@@ -553,104 +516,45 @@ export function DesignDocument({
           </button>
         )}
       </header>
-      <div
-        className="core-design-views"
-        role="tablist"
-        aria-label={t("设计视图")}
-        onKeyDown={(event) => {
-          if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
-          const current = views.findIndex(([id]) => id === view);
-          const target =
-            event.key === "Home"
-              ? 0
-              : event.key === "End"
-                ? views.length - 1
-                : (current + (event.key === "ArrowRight" ? 1 : -1) + views.length) % views.length;
-          event.preventDefault();
-          setView(views[target][0]);
-          event.currentTarget.querySelectorAll<HTMLButtonElement>('[role="tab"]')[target]?.focus();
-        }}
-      >
-        {views.map(([id, option]) => (
-          <button
-            key={id}
-            type="button"
-            role="tab"
-            id={tabId + "-" + id}
-            aria-controls={tabId + "-panel"}
-            aria-selected={view === id}
-            tabIndex={view === id ? 0 : -1}
-            onClick={() => setView(id)}
-          >
-            <Icon name={option.icon} size={15} /> {t(id === "model" ? "概览" : option.label)}
-          </button>
-        ))}
-      </div>
-      <div
-        className={"core-design-body" + (view !== "model" ? " core-design-preview-body" : "")}
-        id={tabId + "-panel"}
-        role="tabpanel"
-        aria-labelledby={tabId + "-" + view}
-        tabIndex={0}
-      >
-        {view === "model" && (
-          <>
-            <dl className="core-design-summary">
-              <div>
-                <dt>{t("子实例")}</dt>
-                <dd>{definition.instances.length}</dd>
-              </div>
-              <div>
-                <dt>{t("端口")}</dt>
-                <dd>{ports.length}</dd>
-              </div>
-              <div>
-                <dt>{t("连接")}</dt>
-                <dd>{definition.connections.length}</dd>
-              </div>
-            </dl>
-            <h3>{t("端口")}</h3>
-            {ports.length ? (
-              <ul>
-                {ports.map(([name, port]) => (
-                  <li key={name}>
-                    {name} · {port.kind} · {port.direction}
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <p>{t("未声明端口。")}</p>
-            )}
-            <h3>{t("参数")}</h3>
-            {bindings.length ? (
-              <ul>
-                {bindings.map(([name, binding]) => (
-                  <li key={name} title={binding.source}>
-                    {name} · {binding.value ?? t("待定")} {binding.unit} · {t(binding.state)}
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <p>{t("未声明参数。")}</p>
-            )}
-          </>
+      <div className="core-design-body">
+        <dl className="core-design-summary">
+          <div>
+            <dt>{t("子实例")}</dt>
+            <dd>{definition.instances.length}</dd>
+          </div>
+          <div>
+            <dt>{t("端口")}</dt>
+            <dd>{ports.length}</dd>
+          </div>
+          <div>
+            <dt>{t("连接")}</dt>
+            <dd>{definition.connections.length}</dd>
+          </div>
+        </dl>
+        <h3>{t("端口")}</h3>
+        {ports.length ? (
+          <ul>
+            {ports.map(([name, port]) => (
+              <li key={name}>
+                {name} · {port.kind} · {port.direction}
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p>{t("未声明端口。")}</p>
         )}
-        {view !== "model" &&
-          (api && previewRoot && projectScope ? (
-            <ProjectPreview
-              api={api}
-              root={previewRoot}
-              kind={view}
-              initialObject={
-                occurrence?.length ? [previewRoot, ...occurrence].join(".") : undefined
-              }
-              openSource={(source) => openFile(source.file, source)}
-            />
-          ) : (
-            <Empty title={t("尚无关联构建产物")}>
-              {t("请打开项目实例根，查看该项目的构建预览。")}
-            </Empty>
-          ))}
+        <h3>{t("参数")}</h3>
+        {bindings.length ? (
+          <ul>
+            {bindings.map(([name, binding]) => (
+              <li key={name} title={binding.source}>
+                {name} · {binding.value ?? t("待定")} {binding.unit} · {t(binding.state)}
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p>{t("未声明参数。")}</p>
+        )}
       </div>
     </section>
   );

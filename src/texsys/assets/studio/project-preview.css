@@ -1,8 +1,3 @@
-.core-design-body.core-design-preview-body {
-  padding: 0;
-  overflow: hidden;
-  display: flex;
-}
 .project-preview {
   display: flex;
   flex: 1;
@@ -10,93 +5,6 @@
   min-width: 0;
   flex-direction: column;
   color: var(--ui-text);
-}
-.project-preview-toolbar {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  min-height: 41px;
-  padding: 7px 24px;
-  border-bottom: 1px solid var(--ui-border);
-}
-.project-preview-toolbar > span:first-child {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.project-preview-toolbar select {
-  max-width: min(520px, 80%);
-  min-width: 0;
-  padding: 4px 8px;
-  color: inherit;
-  background: var(--ui-canvas);
-  border: 1px solid var(--ui-border);
-  border-radius: 3px;
-}
-.project-preview-toolbar > .project-preview-readonly {
-  margin-left: auto;
-  white-space: nowrap;
-}
-.project-preview-readonly {
-  color: var(--ui-text-muted);
-  font-size: 12px;
-}
-.project-preview-status {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 5px 16px;
-  padding: 8px 24px;
-  font-size: 11px;
-  color: var(--ui-text-muted);
-  background: var(--ui-workspace-chrome);
-  border-bottom: 1px solid var(--ui-border);
-  overflow-wrap: anywhere;
-}
-.project-preview-status [data-state="current"] {
-  color: var(--ui-proof);
-}
-.project-preview-status [data-state="stale"] {
-  color: #985d1e;
-}
-.project-preview-warning {
-  margin: 0;
-  padding: 8px 24px;
-  font-size: 12px;
-  color: #813c27;
-  background: #fff1e9;
-  overflow-wrap: anywhere;
-}
-.project-preview-scroll {
-  flex: 1;
-  min-height: 0;
-  overflow: auto;
-  padding: 12px 24px;
-}
-.project-preview-table {
-  width: 100%;
-  font-size: 12px;
-}
-.project-preview-table th {
-  color: var(--ui-text-muted);
-  font-weight: 500;
-  white-space: nowrap;
-}
-.project-preview-table td {
-  vertical-align: top;
-}
-.project-preview-table td > div {
-  margin-bottom: 4px;
-}
-.project-preview-table button {
-  color: var(--ui-proof);
-  text-align: left;
-  overflow-wrap: anywhere;
-}
-.project-preview-table button:hover {
-  text-decoration: underline;
-}
-.project-preview-table tr[aria-selected="true"] {
-  background: var(--accent-soft);
 }
 .project-preview-selection {
   display: flex;
@@ -196,65 +104,22 @@
   stroke: var(--ui-proof);
   stroke-width: 3.5;
 }
-.project-preview-results pre,
-.project-preview .empty pre {
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
-  font-size: 12px;
-}
-.project-preview-results details {
-  margin-top: 12px;
-}
-.project-preview-results summary {
-  cursor: pointer;
-  color: var(--ui-text-muted);
-}
-.project-preview > .scene-preview {
-  flex: 1;
-  min-height: 0;
-  height: auto;
-}
-.project-preview-diagnostics {
-  padding: 7px 24px;
-  font-size: 12px;
-  border-bottom: 1px solid var(--ui-border);
-}
-.project-preview-diagnostics summary {
-  cursor: pointer;
-  color: var(--ui-text-muted);
-}
-.project-preview-diagnostics ul {
-  margin: 6px 0;
-  padding-left: 16px;
-}
-.project-preview-build-summary {
+.core-file-presentation {
+  display: flex;
+  gap: 4px;
+  margin-left: auto;
   flex-shrink: 0;
-  max-height: 45%;
-  overflow: auto;
-  border-bottom: 1px solid var(--ui-border);
-  background: var(--ui-workspace-chrome);
+}
+.core-file-presentation button {
+  padding: 3px 10px;
+  border-radius: 3px;
   font-size: 12px;
+  color: var(--ui-text-muted);
 }
-.project-preview-build-summary > summary {
-  display: list-item;
-  padding: 10px 24px;
-  cursor: pointer;
+.core-file-presentation button[aria-pressed="true"] {
+  background: var(--accent-soft);
+  color: var(--ui-proof);
 }
-.project-preview-build-summary > summary > .project-preview-readonly {
-  margin-left: 16px;
-  overflow-wrap: anywhere;
-}
-.project-preview-build-content {
-  padding: 0 24px 12px;
-}
-.project-preview-build-content td:first-child {
-  white-space: nowrap;
-}
-.project-preview-build-content td:nth-child(2),
-.project-preview-build-content td:nth-child(3) {
-  white-space: nowrap;
-}
-.project-preview-build-content ul {
-  margin: 8px 0 0;
-  padding-left: 18px;
+.core-file-presentation button:hover {
+  background: var(--ui-workspace-chrome);
 }

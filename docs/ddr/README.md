@@ -44,3 +44,4 @@ ddr/NNNN-short-title.md
 | [0009](0009-studio-visual-identity-and-logo-design.md) | Tex Studio 视觉识别（VI）系统、标志语义与正交节点设计演进 | 提议 |
 | [0010](0010-studio-disabled-action-feedback.md) | 在主要操作旁说明禁用原因和可执行的下一步 | 已取代 |
 | [0011](0011-studio-disabled-action-tooltip.md) | 通过浮层说明禁用原因，保持面板布局稳定 | 已接受 |
+| [0012](0012-studio-file-preview-and-source.md) | 统一文件组件与「预览 / 源代码」，专业能力只替换预览实现 | 已接受 |

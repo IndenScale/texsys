@@ -985,37 +985,9 @@ test("editor and terminal preferences persist independently and tolerate invalid
   }
 });
 
-const {
-  artifactKey,
-  artifactQuery,
-  previewArtifacts,
-  sourceReference,
-  safePrimitive,
-  pickedFace,
-  sameArtifact,
-} = load("src/texsys/assets/studio/project-preview-model.ts");
-test("project preview selects only declared artifacts for the exact root and kind", () => {
-  const items = [
-    { target: "bom-a", id: "data", root: "Station", kind: "bom", run_id: "first" },
-    { target: "bom-b", id: "data", root: "Station2", kind: "bom", run_id: "second" },
-    { target: "legacy", id: "data", kind: "bom", run_id: "first" },
-    { target: "layout", id: "scene", preview: { root: "Station", kind: "scene" }, run_id: "first" },
-    {
-      target: "analysis",
-      id: "result",
-      root: "Station",
-      kind: "report",
-      run_id: "first",
-      status: "fail",
-    },
-  ];
-  assert.deepEqual(previewArtifacts({ artifacts: items }, "bom", "Station"), [items[0]]);
-  assert.deepEqual(previewArtifacts({ artifacts: items }, "layout", "Station"), [items[3]]);
-  assert.deepEqual(previewArtifacts({ artifacts: items }, "results", "Station"), [items[4]]);
-  assert.notEqual(artifactKey(items[0]), artifactKey(items[1]));
-  assert.equal(new URLSearchParams(artifactQuery(items[3], true)).get("artifact"), "scene");
-  assert.equal(new URLSearchParams(artifactQuery(items[0])).get("run"), "first");
-});
+const { sourceReference, sceneFileRequest, safePrimitive, pickedFace } = load(
+  "src/texsys/assets/studio/project-preview-model.ts",
+);
 test("preview source navigation uses mapped files, never declaration paths or inferred object names", () => {
   const source = { file: "src/system.sdl.json", path: "components.Station.instances.P1", line: 15 };
   assert.deepEqual(sourceReference({ source_map: { "node:Station.P1": source } }, "Station.P1"), {
@@ -1082,16 +1054,225 @@ test("scene picking selects the visible face and clears outside geometry", () =>
   assert.equal(pickedFace([far, near], 30, 30), undefined);
 });
 
-test("preview payload identity cannot cross runs, targets or content revisions", () => {
-  const selected = { run_id: "new", target: "layout", id: "scene", digest: "sha256:new" };
-  assert.equal(sameArtifact({ ...selected }, selected), true);
-  for (const changed of [
-    { run_id: "old" },
-    { target: "other" },
-    { id: "other" },
-    { digest: "sha256:old" },
-  ]) {
-    assert.equal(sameArtifact({ ...selected, ...changed }, selected), false);
+test("scene previews use current files or unsaved buffers without historical artifact selection", () => {
+  const path = "build/layout/a scene.usda";
+  const clean = sceneFileRequest(path, "disk-v1", "disk bytes", false);
+  const params = new URL(clean.url, "http://localhost").searchParams;
+  assert.equal(params.get("path"), path);
+  assert.equal(params.get("version"), "disk-v1");
+  assert.equal(params.has("run"), false);
+  assert.equal(params.has("artifact"), false);
+  assert.equal(clean.body, undefined);
+  const dirty = sceneFileRequest(path, "disk-v1", "unsaved bytes", true);
+  assert.equal(dirty.url, "/api/scene");
+  assert.deepEqual(dirty.body, { path, version: "disk-v1", content: "unsaved bytes" });
+  assert.notEqual(dirty.key, clean.key);
+  assert.notEqual(dirty.key, sceneFileRequest(path, "disk-v1", "newer unsaved bytes", true).key);
+  assert.notEqual(clean.key, sceneFileRequest(path, "disk-v2", "disk bytes", false).key);
+});
+
+const {
+  fileDocumentSnapshot,
+  fileDocumentTitle,
+  filePreviewKind,
+  refreshedFileDocument,
+  savedFileDocument,
+  FileReadRequests,
+} = load("src/texsys/assets/studio/workspace-model.ts");
+test("late file poll success and failure cannot replace newer file metadata", async () => {
+  const path = "build/hvac/schematic/system.json";
+  const response = (run) => ({
+    path,
+    content: "{}",
+    version: "same-bytes",
+    generated: true,
+    preview: { kind: "schematic", source_map: { node: { file: `${run}.json` } } },
+  });
+  for (const outcome of ["success", "failure"]) {
+    const reads = new FileReadRequests();
+    let document = fileDocumentSnapshot(path, response("old"));
+    let finishOld;
+    const oldResponse = new Promise((resolve, reject) => {
+      finishOld = () =>
+        outcome === "success" ? resolve(response("old")) : reject(new Error("old 404"));
+    });
+    const poll = reads.begin(path);
+    const oldCompletion = oldResponse.then(
+      (file) => {
+        document = poll.update(document, (current) => ({
+          ...current,
+          ...fileDocumentSnapshot(path, file),
+        }));
+      },
+      (error) => {
+        document = poll.update(document, (current) => ({
+          ...current,
+          error: String(error),
+        }));
+      },
+    );
+    const reread = reads.begin(path);
+    document = reread.update(document, () => fileDocumentSnapshot(path, response("new")));
+    const restored = document;
+    finishOld();
+    await oldCompletion;
+    assert.equal(document, restored);
+    assert.equal(document.preview.source_map.node.file, "new.json");
+    assert.equal(document.error, undefined);
+
+    const failedCurrent = reads.begin(path);
+    document = failedCurrent.update(document, (current) => ({
+      ...current,
+      error: "current 404",
+    }));
+    assert.equal(document.error, "current 404");
   }
-  assert.equal(sameArtifact(undefined, selected), false);
+});
+test("a queued file state update rechecks request identity when React applies it", () => {
+  const reads = new FileReadRequests();
+  const opened = reads.begin("build/result.json");
+  assert.equal(opened.isCurrent(), true);
+  const queued = (state) => opened.update(state, () => ({ run: "old" }));
+  const poll = reads.begin("build/result.json");
+  const current = poll.update({ run: "initial" }, () => ({ run: "new" }));
+  assert.equal(queued(current), current);
+  assert.equal(poll.isCurrent(), true);
+});
+test("file read cleanup cancels only its own request and closed paths cannot update reopened files", () => {
+  const reads = new FileReadRequests();
+  const poll = reads.begin("a.json");
+  const reread = reads.begin("a.json");
+  const other = reads.begin("b.json");
+  poll.cancel();
+  assert.equal(reread.isCurrent(), true);
+  assert.equal(other.isCurrent(), true);
+  reads.invalidate("a.json");
+  const reopened = reads.begin("a.json");
+  reread.cancel();
+  assert.equal(reread.isCurrent(), false);
+  assert.equal(reopened.isCurrent(), true);
+  assert.equal(other.isCurrent(), true);
+  const current = { run: "reopened" };
+  assert.equal(
+    reread.update(current, () => ({ run: "closed" })),
+    current,
+  );
+  reopened.cancel();
+  assert.equal(reopened.isCurrent(), false);
+});
+test("file snapshots keep current bytes and format, without turning generated files read-only", () => {
+  const path = "build/hvac/schematic/system.json";
+  const first = fileDocumentSnapshot(path, {
+    path,
+    content: "{}",
+    version: "one",
+    generated: true,
+    preview: { kind: "schematic" },
+    artifact: { path, run_id: "old" },
+    readonly: true,
+  });
+  assert.equal(first.readonly, undefined);
+  assert.equal(first.artifact, undefined);
+  assert.equal(first.preview.kind, "schematic");
+  const changed = {
+    ...first,
+    ...fileDocumentSnapshot(path, { path, content: "changed", version: "two" }),
+  };
+  assert.equal(changed.preview, undefined);
+  assert.equal(changed.content, "changed");
+  assert.throws(() => fileDocumentSnapshot(path, { path: "another.json" }), /requested path/);
+});
+test("same-named file tabs use their shortest distinct parent path", () => {
+  const paths = [
+    "build/hvac/schematic/system.json",
+    "build/hvac/topology/system.json",
+    "src/ordinary.json",
+  ];
+  assert.equal(fileDocumentTitle(paths[0], paths), "system.json · schematic");
+  assert.equal(fileDocumentTitle(paths[1], paths), "system.json · topology");
+  assert.equal(fileDocumentTitle(paths[2], paths), "ordinary.json");
+});
+test("only Markdown, USD and explicit diagram formats select a preview renderer", () => {
+  assert.equal(filePreviewKind({ path: "build/hvac/bom.md" }), "markdown");
+  assert.equal(filePreviewKind({ path: "notes.markdown" }), "markdown");
+  assert.equal(filePreviewKind({ path: "new.usda" }), "scene");
+  for (const name of ["bom.json", "system-check.json", "build.json", "ordinary.json"])
+    assert.equal(
+      filePreviewKind({
+        path: name,
+        content: JSON.stringify({ schema_version: 1, status: "pass" }),
+      }),
+      undefined,
+    );
+  assert.equal(
+    filePreviewKind({ path: "ordinary.json", content: '{"nodes":[],"edges":[],"pages":[]}' }),
+    undefined,
+  );
+  assert.equal(
+    filePreviewKind({ path: "system.json", preview: { kind: "schematic" }, content: "invalid" }),
+    "diagram",
+  );
+  const diagram = {
+    schema_version: 1,
+    view: "schematic",
+    deliverable: "schematic",
+    backend: { protocol: 1 },
+    view_contract: {},
+    pages: [],
+    nodes: [],
+    edges: [],
+  };
+  assert.equal(
+    filePreviewKind({ path: "renamed.json", content: JSON.stringify(diagram) }),
+    "diagram",
+  );
+});
+test("background file refresh preserves dirty buffers and rejects reads from an older baseline", () => {
+  for (const path of ["src/settings.json", "build/bom.md"]) {
+    const clean = { path, content: "old", saved: "old", version: "v1", presentation: "source" };
+    const dirty = { ...clean, content: "local typing" };
+    const disk = { path, content: "external", version: "v2" };
+    assert.equal(refreshedFileDocument(dirty, disk, "v1"), dirty);
+    const refreshed = refreshedFileDocument(clean, disk, "v1");
+    assert.equal(refreshed.content, "external");
+    assert.equal(refreshed.saved, "external");
+    assert.equal(refreshed.presentation, "source");
+    assert.equal(
+      refreshedFileDocument(refreshed, { path, content: "late old", version: "v1" }, "v1"),
+      refreshed,
+    );
+  }
+});
+test("save completion retains typing during the request and invalidates an earlier poll", () => {
+  const path = "build/bom.md";
+  const reads = new FileReadRequests();
+  const poll = reads.begin(path);
+  const submitted = {
+    path,
+    content: "submitted",
+    saved: "old",
+    version: "v1",
+    presentation: "preview",
+  };
+  reads.invalidate(path);
+  const typed = { ...submitted, content: "submitted and more typing" };
+  const saved = savedFileDocument(typed, {
+    path,
+    content: "submitted",
+    version: "v2",
+    generated: true,
+  });
+  assert.equal(saved.content, typed.content);
+  assert.equal(saved.saved, "submitted");
+  assert.equal(saved.version, "v2");
+  assert.equal(saved.presentation, "preview");
+  assert.equal(
+    poll.update(saved, (item) =>
+      refreshedFileDocument(item, { path, content: "old", version: "v1" }, "v1"),
+    ),
+    saved,
+  );
+  const clean = savedFileDocument(submitted, { path, content: "submitted", version: "v2" });
+  assert.equal(clean.content, clean.saved);
+  assert.equal(refreshedFileDocument(clean, { path, content: "old", version: "v1" }, "v1"), clean);
 });

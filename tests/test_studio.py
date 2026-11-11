@@ -316,7 +316,7 @@ def test_project_git_context_preserves_checkout_identity(tmp_path):
   assert git("rev-parse", "HEAD") == commit
 
 
-def test_file_search_is_project_relative_and_skips_outputs_caches_and_links(tmp_path):
+def test_file_listing_includes_public_outputs_but_skips_caches_and_links(tmp_path):
   from texsys.studio.files import project_files
   root = tmp_path / "project"
   for directory in ("src", "out/nested", ".git", "node_modules/pkg"):
@@ -327,7 +327,7 @@ def test_file_search_is_project_relative_and_skips_outputs_caches_and_links(tmp_
   outside.write_text("outside")
   (root / "link.txt").symlink_to(outside)
   listing = project_files(root, "out")
-  assert {file["path"] for file in listing["files"]} == {"README.md", "src/model.json"}
+  assert {file["path"] for file in listing["files"]} == {"README.md", "src/model.json", "out/nested/result.json"}
   assert listing["truncated"] is False
 
 
@@ -346,7 +346,8 @@ def test_file_preview_enforces_scope_and_reports_binary_and_size_limits(tmp_path
   (root / "alias").symlink_to(outside)
   (root / "build").mkdir()
   (root / "build/result.txt").write_text("output")
-  for path in ("../outside.txt", str(outside), "alias", "build/result.txt", ".git/config"):
+  assert project_file(root, "build/result.txt", "build")["content"] == "output"
+  for path in ("../outside.txt", str(outside), "alias", "build/runs/result.txt", ".git/config"):
     with pytest.raises(ProjectError):
       project_file(root, path, "build")
 

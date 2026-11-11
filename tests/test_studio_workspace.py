@@ -103,7 +103,7 @@ def test_save_as_creates_complete_text_and_leaves_existing_files_intact(tmp_path
   assert not list(tmp_path.glob(".studio-*"))
 
 
-@pytest.mark.parametrize("path", ["../outside", "/tmp/outside", "build/output", ".git/config", "node_modules/package", "."])
+@pytest.mark.parametrize("path", ["../outside", "/tmp/outside", "build/runs/output", ".git/config", "node_modules/package", "."])
 def test_mutations_cannot_escape_project_or_touch_internal_outputs(tmp_path, path):
   with pytest.raises(ProjectError):
     file_operation(tmp_path, "build", {"action": "create", "path": path})

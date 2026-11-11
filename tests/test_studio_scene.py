@@ -119,3 +119,113 @@ def test_multiple_scenes_require_explicit_selection(tmp_path):
   with pytest.raises(ProjectError, match="Multiple scene artifacts"):
     preview.read()
   assert preview.read(run="one", target="test:preview", artifact="two")["objects"][0]["points"][0] == (-1, -1, -1)
+
+
+def test_current_scene_uses_edited_file_and_does_not_change_recorded_snapshot(tmp_path):
+  from texsys.studio.files import file_operation, project_file
+
+  initialize_project(tmp_path)
+  file = tmp_path / "build/scene.usda"
+  _cube(file, 4)
+  report = preview_record(tmp_path, "one", (("scene", "build/scene.usda", {"kind": "scene"}),))
+  snapshot = tmp_path / report["artifacts"][0]["stored_path"]
+  original = snapshot.read_bytes()
+  document = project_file(tmp_path, "build/scene.usda", "build")
+  updated = file_operation(tmp_path, "build", {"action": "save", "path": "build/scene.usda", "version": document["version"],
+                                              "content": document["content"].replace("double size = 4", "double size = 8")})
+  preview = ScenePreview(tmp_path, "build")
+  current = preview.read_file("build/scene.usda", version=updated["version"])
+  assert current["objects"][0]["points"][0] == (-4, -4, -4)
+  assert current["version"] == updated["version"] and "artifact" not in current
+  assert "current" not in current and "freshness" not in current
+  assert preview.read_file("build/scene.usda", current["revision"], version=updated["version"])["status"] == "unchanged"
+  assert snapshot.read_bytes() == original
+  historical = preview.read(run="one", target="test:preview", artifact="scene")
+  assert historical["objects"][0]["points"][0] == (-2, -2, -2)
+
+
+def test_unsaved_usda_preview_uses_memory_and_relative_public_dependencies(tmp_path):
+  from texsys.studio.files import project_file
+  from texsys.studio.runtime import Conflict
+
+  initialize_project(tmp_path)
+  _cube(tmp_path / "build/asset.usda", 4)
+  scene = Usd.Stage.CreateNew(str(tmp_path / "build/main.usda"))
+  UsdGeom.SetStageMetersPerUnit(scene, 1)
+  UsdGeom.SetStageUpAxis(scene, UsdGeom.Tokens.z)
+  scene.GetRootLayer().subLayerPaths.append("asset.usda")
+  scene.Save()
+  document = project_file(tmp_path, "build/main.usda", "build")
+  unchanged = (tmp_path / "build/main.usda").read_bytes()
+  content = document["content"] + '\nover "Cube" {\n  double size = 10\n}\n'
+  preview = ScenePreview(tmp_path, "build")
+  result = preview.read_file("build/main.usda", version=document["version"], content=content)
+  assert result["objects"][0]["points"][0] == (-5, -5, -5)
+  assert result["version"] == document["version"] and result["content_digest"] != document["version"]
+  assert (tmp_path / "build/main.usda").read_bytes() == unchanged
+  assert preview.read_file("build/main.usda", version=document["version"])["objects"][0]["points"][0] == (-2, -2, -2)
+  with pytest.raises(ProjectError):
+    preview.read_file("build/main.usda", content="{ incomplete USD")
+  with pytest.raises(Conflict):
+    preview.read_file("build/main.usda", version="stale", content=content)
+  assert (tmp_path / "build/main.usda").read_bytes() == unchanged
+
+
+@pytest.mark.parametrize("dependency", ["runs/secret.usda", ".cache/secret.usda", "studio/secret.usda", "dependencies/secret.usda"])
+def test_current_and_unsaved_scenes_cannot_reference_private_build_storage(tmp_path, dependency):
+  initialize_project(tmp_path)
+  _cube(tmp_path / "build" / dependency, 20)
+  scene = Usd.Stage.CreateNew(str(tmp_path / "build/main.usda"))
+  scene.GetRootLayer().subLayerPaths.append(dependency)
+  scene.Save()
+  preview = ScenePreview(tmp_path, "build")
+  with pytest.raises(ProjectError):
+    preview.read_file("build/main.usda")
+  with pytest.raises(ProjectError):
+    preview.read_file("build/main.usda", content=(tmp_path / "build/main.usda").read_text())
+  with pytest.raises(ProjectError):
+    preview.read_file("build/" + dependency)
+
+
+def test_current_scene_http_uses_file_version_and_previews_buffer_without_writing(tmp_path, monkeypatch):
+  from io import BytesIO
+  import json
+  from types import SimpleNamespace
+
+  from texsys.project import inspect_project
+  from texsys.studio import server
+  from texsys.studio.files import project_file
+
+  initialize_project(tmp_path)
+  _cube(tmp_path / "build/scene.usda", 4)
+  document = project_file(tmp_path, "build/scene.usda", "build")
+  before = (tmp_path / "build/scene.usda").read_bytes()
+  monkeypatch.setattr(server, "StudioServer", lambda address, handler, terminals: handler)
+  runtime = SimpleNamespace(root=tmp_path, project=inspect_project(tmp_path))
+  handler_type = server.create_server(runtime, frontend=tmp_path, token="scene-test")
+
+  def request(path, content=None, authorized=True):
+    handler = object.__new__(handler_type)
+    handler.server = SimpleNamespace(server_port=8710)
+    handler.path = path
+    handler.headers = {"Host": "127.0.0.1:8710", **({"X-Tex-Studio-Token": "scene-test"} if authorized else {})}
+    result = []
+    handler._send = lambda code, payload: result.extend([code, payload])
+    if content is None:
+      handler.do_GET()
+    else:
+      payload = json.dumps({"path": "build/scene.usda", "version": document["version"], "content": content}).encode()
+      handler.headers["Content-Length"] = str(len(payload))
+      handler.rfile = BytesIO(payload)
+      handler.do_POST()
+    return result
+
+  current = request("/api/scene?path=build/scene.usda&version=" + document["version"])
+  assert current[0] == 200 and current[1]["status"] == "ready"
+  assert current[1]["version"] == document["version"]
+  content = document["content"].replace("double size = 4", "double size = 12")
+  assert request("/api/scene", content, authorized=False)[0] == 403
+  memory = request("/api/scene", content)
+  assert memory[0] == 200 and memory[1]["objects"][0]["points"][0] == (-6, -6, -6)
+  assert (tmp_path / "build/scene.usda").read_bytes() == before
+  assert request("/api/scene?path=build/scene.usda&version=stale")[0] == 409

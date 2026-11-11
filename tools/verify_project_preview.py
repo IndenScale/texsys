@@ -1,4 +1,4 @@
-"""Replay incremental builds and read-only project previews in two isolated projects."""
+"""Replay incremental builds and file previews in two isolated projects."""
 
 import argparse
 from datetime import datetime, timezone
@@ -12,6 +12,7 @@ import time
 import uuid
 
 from texsys.studio.preview import ProjectPreview
+from texsys.studio.files import project_file, project_files
 
 
 REPO = Path(__file__).resolve().parents[1]
@@ -53,7 +54,7 @@ def main():
   first, second = projects
   commands = []
   summary = {"status": "running", "created_at": datetime.now(timezone.utc).isoformat(),
-             "scope": "概念暖通项目的增量构建、部分失败与只读预览；不代表真实设备校准。",
+             "scope": "概念暖通项目的增量构建、部分失败与文件预览；不代表真实设备校准。",
              "projects": [str(path) for path in projects], "steps": {}}
 
   def cli(root, *arguments, expected=0):
@@ -93,6 +94,17 @@ def main():
     require(EXPECTED_KINDS <= {item["kind"] for item in preview["artifacts"]}, "Missing project preview kinds")
     require(all(item["current"] and item["available"] for item in preview["artifacts"]), "Initial previews are not current")
     require(all(item["execution"] == "executed" for item in baseline["targets"]), "First build unexpectedly reused another project")
+    listing = project_files(first, "build")
+    files = {item["path"]: item for item in listing["files"]}
+    require({item["path"] for item in baseline["artifacts"]} <= files.keys(), "Formal artifacts are missing from the file explorer")
+    require(not any(name.startswith(("build/runs/", "build/.cache/", "build/dependencies/", "build/studio/"))
+                    for name in files), "File explorer exposed internal build storage")
+    for item in preview["artifacts"]:
+      file = project_file(first, item["path"], "build")
+      require(not file.get("readonly") and file.get("generated"), "Generated file was made read-only")
+      require(file["path"] == item["path"] and file["version"] == digest(first / item["path"]),
+              "File opening selected another path or snapshot")
+    write_json(output / "previews/files.json", listing)
     old_bytes = (first / "build/runs" / baseline["run_id"] / "build.json").read_bytes()
     for item in preview["artifacts"]:
       if item["kind"] != "scene":

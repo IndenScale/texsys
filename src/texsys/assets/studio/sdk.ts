@@ -1,3 +1,4 @@
+import type { PreviewArtifact } from "./project-preview-model";
 import type { ComponentType, ReactNode } from "react";
 import type { MenuItem } from "./menus";
 
@@ -61,7 +62,16 @@ export type StudioState = {
   jobs: StudioJob[];
   diagnostics: { plugin?: string; message: string }[];
 };
-export type ProjectFile = { path: string; name: string; parent: string; size: number };
+export type ProjectFile = {
+  path: string;
+  name: string;
+  parent: string;
+  size: number;
+  generated?: boolean;
+  preview?: FilePreviewFormat;
+  artifact?: PreviewArtifact;
+  preview_error?: string;
+};
 export type FilePreview = {
   path: string;
   size: number;
@@ -69,6 +79,14 @@ export type FilePreview = {
   content?: string;
   reason?: string;
   version?: string;
+  generated?: boolean;
+  preview?: FilePreviewFormat;
+  artifact?: PreviewArtifact;
+  preview_error?: string;
+};
+export type FilePreviewFormat = {
+  kind: "diagram" | "schematic" | "topology" | "scene";
+  source_map?: Record<string, import("./project-preview-model").PreviewSource>;
 };
 export type WorkbenchRunCommand = MenuItem & {
   disabled?: boolean;

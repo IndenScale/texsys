@@ -1,4 +1,4 @@
-import type { ProjectFile } from "./sdk";
+import type { FilePreview, ProjectFile } from "./sdk";
 
 export function sourceFileFormat(path: string): string {
   const name = path.slice(path.lastIndexOf("/") + 1).toLowerCase();
@@ -164,4 +164,96 @@ export function commitGraph(commits: GitCommit[]) {
     });
     return { commit, lane, before, after: [...lanes] };
   });
+}
+
+/** All readers of one document share the latest request, including deferred state updates. */
+export class FileReadRequests {
+  private latest = new Map<string, symbol>();
+
+  begin(path: string) {
+    const token = Symbol(path);
+    this.latest.set(path, token);
+    const isCurrent = () => this.latest.get(path) === token;
+    return {
+      isCurrent,
+      update: <T>(previous: T, apply: (previous: T) => T) =>
+        isCurrent() ? apply(previous) : previous,
+      cancel: () => {
+        if (isCurrent()) this.latest.delete(path);
+      },
+    };
+  }
+
+  // Keep completed tokens until superseded or closed: React may apply their updates later.
+  invalidate(path: string) {
+    this.latest.delete(path);
+  }
+}
+
+export function filePreviewKind(file?: Pick<FilePreview, "path" | "preview" | "content">) {
+  if (!file) return;
+  if (/\.(md|markdown)$/i.test(file.path)) return "markdown";
+  if (file.preview?.kind === "scene" || /\.usd[ac]?$/i.test(file.path)) return "scene";
+  if (["diagram", "schematic", "topology"].includes(file.preview?.kind ?? "")) return "diagram";
+  if (/\.json$/i.test(file.path) && file.content) {
+    try {
+      const data = JSON.parse(file.content);
+      if (
+        data?.schema_version === 1 &&
+        ["system", "schematic"].includes(data.view) &&
+        ["system-diagram", "schematic"].includes(data.deliverable) &&
+        data.backend?.protocol === 1 &&
+        data.view_contract &&
+        typeof data.view_contract === "object" &&
+        Array.isArray(data.pages) &&
+        Array.isArray(data.nodes) &&
+        Array.isArray(data.edges)
+      )
+        return "diagram";
+    } catch {
+      // Invalid JSON remains editable as source; declared diagrams still show their parse error.
+    }
+  }
+}
+export function fileDocumentSnapshot(path: string, file: FilePreview) {
+  if (file.path !== path) throw new Error("File response does not match the requested path.");
+  return {
+    saved: file.content ?? "",
+    content: file.content ?? "",
+    version: file.version ?? "",
+    reason: file.reason,
+    generated: !!file.generated,
+    preview: file.preview,
+    loading: false,
+    error: undefined,
+  };
+}
+type FileDocumentState = { path: string; content: string; saved: string; version: string };
+/** Background reads cannot replace edits or a newer disk baseline. */
+export function refreshedFileDocument<T extends FileDocumentState>(
+  document: T,
+  file: FilePreview,
+  expectedVersion: string,
+): T {
+  if (document.content !== document.saved || document.version !== expectedVersion) return document;
+  return { ...document, ...fileDocumentSnapshot(document.path, file) };
+}
+/** A save acknowledges its submitted bytes while preserving typing after the request began. */
+export function savedFileDocument<T extends FileDocumentState>(document: T, file: FilePreview): T {
+  return { ...document, ...fileDocumentSnapshot(document.path, file), content: document.content };
+}
+/** Use the shortest unique trailing path so same-named generated files keep distinct tabs. */
+export function fileDocumentTitle(path: string, openPaths: string[]) {
+  const parts = path.split("/");
+  let count = 1;
+  while (
+    count < parts.length &&
+    openPaths.some(
+      (other) =>
+        other !== path &&
+        other.split("/").slice(-count).join("/") === parts.slice(-count).join("/"),
+    )
+  )
+    count += 1;
+  return count === 1 ? parts.at(-1)! : `${parts.at(-1)} · ${parts.slice(-count, -1).join("/")}`;
 }
