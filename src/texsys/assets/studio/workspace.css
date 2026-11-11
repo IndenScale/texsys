@@ -674,6 +674,7 @@
   flex-shrink: 0;
 }
 .core-text-document > .core-code-editor,
+.core-text-document > .core-markdown-editor,
 .core-text-document > .project-preview,
 .core-text-document > .scene-preview {
   flex: 1;
@@ -1379,4 +1380,25 @@
 }
 .core-file-icon.file-git {
   color: #cd5143;
+}
+
+.core-editor-groups {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  height: 100%;
+  min-height: 0;
+  min-width: 0;
+}
+.core-editor-divider {
+  background: var(--ui-chrome-divider);
+  cursor: col-resize;
+  touch-action: none;
+  outline: none;
+}
+.core-editor-divider:hover,
+.core-editor-divider:focus-visible {
+  background: var(--primary);
+}
+.core-editor-groups.is-split .core-editor-surface:not(.is-focused) .core-file-tab.active {
+  color: var(--ui-text-muted);
 }

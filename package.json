@@ -13,6 +13,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
+    "@milkdown/kit": "7.23.0",
     "@types/react": "19.2.2",
     "@types/react-dom": "19.2.2",
     "@vitejs/plugin-react": "^4.7.0",
@@ -22,6 +23,7 @@
     "esbuild-wasm": "0.25.12",
     "eslint": "^10.14.0",
     "globals": "^17.14.0",
+    "jsdom": "26.1.0",
     "markdownlint-cli2": "^0.24.0",
     "monaco-editor": "0.57.0",
     "prettier": "^3.5.2",

@@ -45,3 +45,4 @@ ddr/NNNN-short-title.md
 | [0010](0010-studio-disabled-action-feedback.md) | 在主要操作旁说明禁用原因和可执行的下一步 | 已取代 |
 | [0011](0011-studio-disabled-action-tooltip.md) | 通过浮层说明禁用原因，保持面板布局稳定 | 已接受 |
 | [0012](0012-studio-file-preview-and-source.md) | 统一文件组件与「预览 / 源代码」，专业能力只替换预览实现 | 已接受 |
+| [0013](0013-studio-editor-actions-and-open-with.md) | 统一打开方式与文件类型默认值，提供 Markdown 编辑、预览、分栏和共享文档 | 已接受 |

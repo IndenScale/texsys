@@ -970,6 +970,7 @@ test("editor and terminal preferences persist independently and tolerate invalid
       terminalFontSize: 16,
       autoSave: false,
       confirmBeforeUnload: true,
+      fileAssociations: {},
     });
     updateUserPreferences({ autoSave: true, confirmBeforeUnload: false });
     updateUserPreferences(defaultEditorPreferences);
@@ -978,10 +979,122 @@ test("editor and terminal preferences persist independently and tolerate invalid
       terminalFontSize: 16,
       autoSave: true,
       confirmBeforeUnload: false,
+      fileAssociations: {},
     });
   } finally {
     if (original) Object.defineProperty(globalThis, "localStorage", original);
     else delete globalThis.localStorage;
+  }
+});
+
+test("file opening defaults only select renderers supported by the current file", () => {
+  const { fileEditorDefault, fileEditorExtension } = load(
+    "src/texsys/assets/studio/user-preferences.ts",
+  );
+  assert.equal(fileEditorExtension("docs/Guide.MD"), "md");
+  assert.equal(fileEditorExtension("folder.md/README"), "");
+  assert.equal(fileEditorExtension("texsys.lock"), "lock");
+  assert.equal(fileEditorDefault("README.md", "markdown", {}), "source");
+  assert.equal(fileEditorDefault("model.usda", "scene", {}), "preview");
+  assert.equal(fileEditorDefault("schematic.json", "diagram", {}), "preview");
+  assert.equal(fileEditorDefault("data.json", undefined, {}), "source");
+  const associations = { md: "markdown-editor", json: "preview", usda: "source" };
+  assert.equal(fileEditorDefault("Guide.MD", "markdown", associations), "markdown-editor");
+  assert.equal(fileEditorDefault("data.json", undefined, associations), "source");
+  assert.equal(fileEditorDefault("schematic.json", "diagram", associations), "preview");
+  assert.equal(fileEditorDefault("model.usda", "scene", associations), "source");
+  assert.equal(fileEditorDefault("README.md", "markdown", { md: "missing-editor" }), "source");
+  assert.equal(fileEditorDefault("model.usda", "scene", { usda: "markdown-editor" }), "preview");
+  assert.equal(
+    fileEditorDefault("README.md", "markdown", Object.create({ md: "preview" })),
+    "source",
+  );
+});
+
+test("file opening defaults validate storage, persist across reloads and follow storage events", () => {
+  const storageKey = "texsys.studio.user-preferences";
+  const values = new Map([
+    [
+      storageKey,
+      JSON.stringify({
+        editorFontSize: 16,
+        fileAssociations: {
+          md: "preview",
+          markdown: "markdown-editor",
+          json: "markdown-editor",
+          txt: "unknown",
+          "*.md": "source",
+          MD: "preview",
+          constructor: "preview",
+        },
+      }),
+    ],
+  ]);
+  const originalStorage = Object.getOwnPropertyDescriptor(globalThis, "localStorage");
+  const originalWindow = Object.getOwnPropertyDescriptor(globalThis, "window");
+  let storageListener;
+  Object.defineProperty(globalThis, "localStorage", {
+    configurable: true,
+    value: {
+      getItem: (key) => values.get(key) ?? null,
+      setItem: (key, value) => values.set(key, value),
+    },
+  });
+  Object.defineProperty(globalThis, "window", {
+    configurable: true,
+    value: {
+      addEventListener: (name, listener) => {
+        if (name === "storage") storageListener = listener;
+      },
+    },
+  });
+  try {
+    const first = load("src/texsys/assets/studio/user-preferences.ts");
+    first.updateUserPreferences({});
+    assert.deepEqual(JSON.parse(values.get(storageKey)).fileAssociations, {
+      md: "preview",
+      markdown: "markdown-editor",
+    });
+    const beforeInvalid = values.get(storageKey);
+    assert.equal(first.setFileEditorDefault("data.json", undefined, "preview"), false);
+    assert.equal(first.setFileEditorDefault("data.json", undefined, "markdown-editor"), false);
+    assert.equal(first.setFileEditorDefault("README", undefined, "source"), false);
+    assert.equal(first.setFileEditorDefault("README.md", "markdown", "missing-editor"), false);
+    assert.equal(values.get(storageKey), beforeInvalid);
+    assert.equal(first.setFileEditorDefault("README.MD", "markdown", "markdown-editor"), true);
+    assert.equal(first.setFileEditorDefault("data.json", undefined, "source"), true);
+
+    const reloaded = load("src/texsys/assets/studio/user-preferences.ts");
+    reloaded.updateUserPreferences({ editorLineNumbers: false });
+    const restored = JSON.parse(values.get(storageKey));
+    assert.equal(restored.editorFontSize, 16);
+    assert.deepEqual(restored.fileAssociations, {
+      md: "markdown-editor",
+      markdown: "markdown-editor",
+      json: "source",
+    });
+
+    storageListener({
+      key: storageKey,
+      newValue: JSON.stringify({ fileAssociations: { md: "preview" } }),
+    });
+    reloaded.setFileEditorDefault("README.markdown", "markdown", "source");
+    assert.deepEqual(JSON.parse(values.get(storageKey)).fileAssociations, {
+      md: "preview",
+      markdown: "source",
+    });
+    storageListener({ key: null, newValue: null });
+    reloaded.updateUserPreferences({});
+    assert.deepEqual(JSON.parse(values.get(storageKey)).fileAssociations, {});
+    reloaded.updateUserPreferences({ fileAssociations: ["preview"] });
+    assert.deepEqual(JSON.parse(values.get(storageKey)).fileAssociations, {});
+    reloaded.updateUserPreferences({ fileAssociations: { md: false, json: "markdown-editor" } });
+    assert.deepEqual(JSON.parse(values.get(storageKey)).fileAssociations, {});
+  } finally {
+    if (originalStorage) Object.defineProperty(globalThis, "localStorage", originalStorage);
+    else delete globalThis.localStorage;
+    if (originalWindow) Object.defineProperty(globalThis, "window", originalWindow);
+    else delete globalThis.window;
   }
 });
 

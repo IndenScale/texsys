@@ -5,6 +5,7 @@
 - 取代：无；补充 [DDR-0005](0005-studio-core-editor.md) 的文件编辑与预览约束
 - 被取代：无
 - 关联：[ADR-0028](../adr/0028-file-based-artifact-preview.md)
+- 后继修订：[DDR-0013](0013-studio-editor-actions-and-open-with.md) 将视图切换入口改为打开方式选择器，并补充编辑器操作栏与分栏规则；本文的统一文件组件和仅替换预览实现约束继续有效。
 
 ## 背景
 

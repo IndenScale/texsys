@@ -1,0 +1,36 @@
+.navigator-button.file-open-with-trigger {
+  width: auto;
+  max-width: min(240px, 40%);
+  height: 26px;
+  gap: 5px;
+  padding: 2px 6px;
+  color: var(--ui-text-muted);
+}
+
+.file-open-with-trigger > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.file-open-with-trigger > svg {
+  flex-shrink: 0;
+}
+
+.navigator-button.file-editor-more-action {
+  width: 28px;
+  height: 28px;
+  flex: 0 0 28px;
+  padding: 0;
+  border-radius: 5px;
+  color: var(--ui-text-muted);
+}
+
+.navigator-button:is(.file-open-with-trigger, .file-editor-more-action):hover {
+  color: var(--ui-text);
+}
+
+.navigator-button:is(.file-open-with-trigger, .file-editor-more-action):focus-visible {
+  outline: 2px solid var(--ui-proof);
+  outline-offset: -2px;
+}

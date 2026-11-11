@@ -49,37 +49,44 @@ const markdownPunctuation = Object.fromEntries(
 
 type ModelState = {
   model: editor.ITextModel;
-  viewState: editor.ICodeEditorViewState | null;
+  viewStates: Map<string, editor.ICodeEditorViewState | null>;
 };
 export type SourceModels = Map<string, ModelState>;
+const editorViews = new WeakMap<editor.ICodeEditor, string>();
 
-export function selectedSourceText(path: string, models: SourceModels) {
-  const model = models.get(path)?.model;
-  if (!model) return "";
-  const code = editor.getEditors().find((candidate) => candidate.getModel() === model);
-  const selection = code?.getSelection();
-  return selection ? model.getValueInRange(selection) : "";
+export function selectedSourceText(path: string, models: SourceModels, viewId?: string) {
+  const target = visibleSourceEditor(path, models, viewId);
+  const selection = target?.code.getSelection();
+  return selection ? target!.model.getValueInRange(selection) : "";
 }
 
 export function supportsSourceLineComments(path: string) {
   return ["ini", "py", "sh", "toml", "yaml", "yml"].includes(sourceFileFormat(path));
 }
 
-function visibleSourceEditor(path: string, models: SourceModels) {
+function visibleSourceEditor(path: string, models: SourceModels, viewId?: string) {
   const model = models.get(path)?.model;
   if (!model || model.isDisposed()) return;
-  const code = editor
+  const candidates = editor
     .getEditors()
-    .find(
+    .filter(
       (candidate) =>
-        candidate.getModel() === model && candidate.getDomNode()?.getClientRects().length,
+        candidate.getModel() === model &&
+        (viewId === undefined || editorViews.get(candidate) === viewId) &&
+        candidate.getDomNode()?.getClientRects().length,
     );
+  const code = candidates.find((candidate) => candidate.hasWidgetFocus()) ?? candidates[0];
   return code ? { model, code } : undefined;
 }
 
-export function goToSourcePosition(path: string, models: SourceModels, input: string) {
+export function goToSourcePosition(
+  path: string,
+  models: SourceModels,
+  input: string,
+  viewId?: string,
+) {
   const match = /^([1-9]\d*)(?::([1-9]\d*))?$/.exec(input.trim());
-  const target = visibleSourceEditor(path, models);
+  const target = visibleSourceEditor(path, models, viewId);
   if (!match || !target) return false;
   const lineNumber = Number(match[1]);
   const column = Number(match[2] ?? 1);
@@ -99,8 +106,9 @@ export function runSourceEditCommand(
   path: string,
   models: SourceModels,
   command: SourceEditCommand,
+  viewId?: string,
 ) {
-  const target = visibleSourceEditor(path, models);
+  const target = visibleSourceEditor(path, models, viewId);
   if (!target) return;
   const { model, code } = target;
   code.focus();
@@ -133,6 +141,7 @@ export function runSourceEditCommand(
 }
 
 export function SourceEditor({
+  viewId = "primary",
   path,
   value,
   models,
@@ -142,7 +151,9 @@ export function SourceEditor({
   onFocusHandled,
   onChange,
   onCursorLine,
+  onFocus,
 }: {
+  viewId?: string;
   path: string;
   value: string;
   models: SourceModels;
@@ -152,12 +163,13 @@ export function SourceEditor({
   onFocusHandled: () => void;
   onChange: (value: string) => void;
   onCursorLine: (line: number) => void;
+  onFocus?: () => void;
 }) {
   const container = useRef<HTMLDivElement>(null);
   const instance = useRef<editor.IStandaloneCodeEditor>(null);
   const attached = useRef<ModelState>(null);
-  const callbacks = useRef({ onChange, onCursorLine });
-  callbacks.current = { onChange, onCursorLine };
+  const callbacks = useRef({ onChange, onCursorLine, onFocus });
+  callbacks.current = { onChange, onCursorLine, onFocus };
   const label = t("文件内容");
   const language = languageByExtension[sourceFileFormat(path)] ?? "plaintext";
   const { editorFontSize, editorWordWrap, editorLineNumbers, editorMinimap } = useUserPreferences();
@@ -175,22 +187,26 @@ export function SourceEditor({
       fixedOverflowWidgets: true,
     });
     instance.current = code;
+    editorViews.set(code, viewId);
     const change = code.onDidChangeModelContent((event) => {
       if (!event.isFlush) callbacks.current.onChange(code.getValue());
     });
     const cursor = code.onDidChangeCursorPosition(({ position }) => {
       callbacks.current.onCursorLine(position.lineNumber);
     });
+    const focus = code.onDidFocusEditorWidget(() => callbacks.current.onFocus?.());
     return () => {
       if (attached.current && !attached.current.model.isDisposed())
-        attached.current.viewState = code.saveViewState();
+        attached.current.viewStates.set(viewId, code.saveViewState());
       attached.current = null;
       instance.current = null;
       change.dispose();
       cursor.dispose();
+      focus.dispose();
+      editorViews.delete(code);
       code.dispose();
     };
-  }, []);
+  }, [viewId]);
 
   useLayoutEffect(() => {
     instance.current?.updateOptions({
@@ -202,7 +218,7 @@ export function SourceEditor({
       minimap: { enabled: editorMinimap, renderCharacters: false, showSlider: "mouseover" },
       unicodeHighlight: { allowedCharacters: language === "markdown" ? markdownPunctuation : {} },
     });
-  }, [label, language, editorFontSize, editorWordWrap, editorLineNumbers, editorMinimap]);
+  }, [viewId, label, language, editorFontSize, editorWordWrap, editorLineNumbers, editorMinimap]);
 
   useLayoutEffect(() => {
     const code = instance.current!;
@@ -214,21 +230,22 @@ export function SourceEditor({
       return;
     }
     if (attached.current && !attached.current.model.isDisposed())
-      attached.current.viewState = code.saveViewState();
+      attached.current.viewStates.set(viewId, code.saveViewState());
     if (!next) {
       const model = editor.createModel(value, language);
       model.updateOptions({ tabSize: 2, insertSpaces: true });
-      next = { model, viewState: null };
+      next = { model, viewStates: new Map() };
       models.set(path, next);
     } else if (next.model.getValue() !== value) {
       next.model.setValue(value);
-      next.viewState = null;
+      next.viewStates.clear();
     }
     attached.current = next;
     code.setModel(next.model);
-    if (next.viewState) code.restoreViewState(next.viewState);
+    const viewState = next.viewStates.get(viewId);
+    if (viewState) code.restoreViewState(viewState);
     callbacks.current.onCursorLine(code.getPosition()?.lineNumber ?? 1);
-  }, [models, path, value, language]);
+  }, [models, path, value, language, viewId]);
 
   useLayoutEffect(() => {
     const code = instance.current;
@@ -247,14 +264,14 @@ export function SourceEditor({
     });
     code.revealPositionInCenter(start);
     if (!focusRequest) code.focus();
-  }, [path, visible, location]);
+  }, [viewId, path, visible, location]);
 
   useLayoutEffect(() => {
     if (!visible || !focusRequest) return;
     if (document.activeElement === focusRequest.origin || document.activeElement === document.body)
       instance.current?.focus();
     onFocusHandled();
-  }, [visible, focusRequest, onFocusHandled]);
+  }, [viewId, visible, focusRequest, onFocusHandled]);
 
   return <div className="core-code-editor" ref={container} />;
 }

@@ -1,0 +1,28 @@
+.core-markdown-editor .milkdown,
+.core-markdown-editor .ProseMirror {
+  min-height: 100%;
+}
+.core-markdown-editor .ProseMirror {
+  padding: 0 0 40px;
+  outline: none;
+  white-space: pre-wrap;
+}
+.core-markdown-editor .ProseMirror > :first-child {
+  margin-top: 0;
+}
+.core-markdown-editor li[data-item-type="task"] {
+  list-style: none;
+}
+.core-markdown-editor li[data-checked="true"]::marker {
+  content: "☑ ";
+}
+.core-markdown-editor li[data-checked="false"]::marker {
+  content: "☐ ";
+}
+.core-markdown-editor [data-type="html"] {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  color: var(--ui-text-muted);
+}
+.core-markdown-editor .selectedCell {
+  background: var(--ui-selected);
+}

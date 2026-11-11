@@ -261,6 +261,19 @@ const paths: Record<string, React.ReactNode> = {
       <path d="M12 3.5v17" />
     </>
   ),
+  preview: (
+    <>
+      <rect x="4" y="3" width="16" height="18" rx="2" />
+      <path d="M8 7h8M8 11h8M8 15h4" />
+      <rect x="14" y="15" width="2" height="2" rx="0.5" />
+    </>
+  ),
+  "preview-beside": (
+    <>
+      <rect x="3" y="3.5" width="18" height="17" rx="1.5" />
+      <path d="M11 3.5v17M14 7.5h4M14 11.5h4M14 15.5h2M6 8l2 2-2 2" />
+    </>
+  ),
   "terminal-tab": (
     <>
       <path d="m4 8 3 3-3 3m4 0h4" />

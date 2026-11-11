@@ -1,0 +1,110 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import Module from "node:module";
+import path from "node:path";
+import esbuild from "esbuild-wasm";
+
+const filename = path.resolve("src/texsys/assets/studio/editor-groups.ts");
+const result = esbuild.buildSync({
+  entryPoints: [filename],
+  bundle: true,
+  write: false,
+  platform: "node",
+  format: "cjs",
+});
+const loaded = new Module(filename);
+loaded._compile(result.outputFiles[0].text, filename);
+const {
+  emptyEditorGroup,
+  openEditorView,
+  updateEditorView,
+  closeEditorView,
+  removeEditorDocument,
+  renameEditorDocument,
+  editorViewCount,
+  resolvedEditorPresentation,
+  initializeEditorView,
+} = loaded.exports;
+
+function splitDocument() {
+  let groups = [emptyEditorGroup()];
+  groups = openEditorView(groups, "primary", "README.md", { presentation: "source" });
+  return openEditorView(groups, "secondary", "README.md", { presentation: "preview" });
+}
+
+test("same document keeps independent opening modes and navigation in both groups", () => {
+  let groups = splitDocument();
+  groups = openEditorView(groups, "secondary", "notes.md");
+  groups = openEditorView(groups, "secondary", "README.md");
+  assert.equal(groups[0].views[0].presentation, "source");
+  assert.equal(groups[1].views[0].presentation, "preview");
+  groups = updateEditorView(groups, "secondary", "README.md", {
+    cursorLine: 20,
+    presentation: "source",
+  });
+  assert.equal(groups[0].views[0].cursorLine, undefined);
+  assert.equal(groups[1].views[0].cursorLine, 20);
+  assert.equal(editorViewCount(groups, "README.md"), 2);
+});
+
+test("closing one shared file view keeps the document reference and other group tab", () => {
+  let groups = splitDocument();
+  groups = closeEditorView(groups, "secondary", "README.md");
+  assert.equal(editorViewCount(groups, "README.md"), 1);
+  assert.equal(groups.length, 1);
+  assert.equal(groups[0].activePath, "README.md");
+  groups = closeEditorView(groups, "primary", "README.md");
+  assert.equal(editorViewCount(groups, "README.md"), 0);
+  assert.equal(groups[0].activePath, null);
+});
+
+test("closing a tab selects the adjacent tab only in its own group", () => {
+  let groups = splitDocument();
+  groups = openEditorView(groups, "primary", "left.md");
+  groups = openEditorView(groups, "secondary", "right.md");
+  groups = closeEditorView(groups, "primary", "left.md");
+  assert.equal(groups[0].activePath, "README.md");
+  assert.equal(groups[1].activePath, "right.md");
+  groups = removeEditorDocument(groups, "README.md");
+  assert.equal(groups[0].activePath, null);
+  assert.equal(groups[1].activePath, "right.md");
+});
+
+test("Save As and rename move every view while preserving each opening mode", () => {
+  const groups = renameEditorDocument(splitDocument(), "README.md", "guide.md");
+  assert.equal(editorViewCount(groups, "README.md"), 0);
+  assert.equal(editorViewCount(groups, "guide.md"), 2);
+  assert.deepEqual(
+    groups.map((group) => group.activePath),
+    ["guide.md", "guide.md"],
+  );
+  assert.deepEqual(
+    groups.map((group) => group.views[0].presentation),
+    ["source", "preview"],
+  );
+});
+
+test("Markdown defaults to text, rendered diagrams default to preview, and explicit modes win", () => {
+  assert.equal(resolvedEditorPresentation("markdown"), "source");
+  assert.equal(resolvedEditorPresentation("markdown", "preview"), "preview");
+  assert.equal(resolvedEditorPresentation("diagram"), "preview");
+  assert.equal(resolvedEditorPresentation("scene", "source"), "source");
+  assert.equal(resolvedEditorPresentation(undefined, "preview"), "source");
+});
+
+test("new views capture defaults once and reopening keeps their chosen editor", () => {
+  let groups = openEditorView([emptyEditorGroup()], "primary", "README.md");
+  groups = initializeEditorView(groups, "primary", "README.md", "markdown-editor");
+  groups = initializeEditorView(groups, "primary", "README.md", "preview");
+  assert.equal(groups[0].views[0].presentation, "markdown-editor");
+  groups = openEditorView(groups, "secondary", "README.md");
+  groups = initializeEditorView(groups, "secondary", "README.md", "preview");
+  assert.equal(groups[1].views[0].presentation, "preview");
+  assert.equal(groups[0].views[0].presentation, "markdown-editor");
+});
+
+test("Markdown Editor remains a real opening mode only for Markdown", () => {
+  assert.equal(resolvedEditorPresentation("markdown", "markdown-editor"), "markdown-editor");
+  assert.equal(resolvedEditorPresentation("diagram", "markdown-editor"), "source");
+  assert.equal(resolvedEditorPresentation(undefined, "markdown-editor"), "source");
+});
