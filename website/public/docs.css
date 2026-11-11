@@ -24,6 +24,8 @@
 }
 .mobile-nav {
   top: 72px;
+  max-height: calc(100dvh - 72px);
+  overflow-y: auto;
 }
 .site-header .wordmark svg {
   width: 23px;
@@ -746,6 +748,7 @@
   }
   .mobile-nav {
     top: 64px;
+    max-height: calc(100dvh - 64px);
   }
   .wordmark {
     font-size: 22px;

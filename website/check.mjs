@@ -214,7 +214,12 @@ for (const document of documents.values()) {
     /<script\b[^>]*id="page-markdown"[^>]*>([\s\S]*?)<\/script>/,
   )?.[1];
   try {
-    const markdown = await readFile(path.join(dist, markdownPath(document.route)), "utf8");
+    const markdownFile = await readFile(path.join(dist, markdownPath(document.route)));
+    check(
+      markdownFile.subarray(0, 3).equals(Buffer.from([0xef, 0xbb, 0xbf])),
+      `${document.route}: Markdown 缺少 UTF-8 编码签名，静态托管可能误判中文编码。`,
+    );
+    const markdown = markdownFile.toString("utf8").replace(/^\uFEFF/, "");
     check(Boolean(payload), `${document.route}: 缺少本页 Markdown 复制内容。`);
     check(
       JSON.parse(payload) === markdown,

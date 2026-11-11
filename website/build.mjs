@@ -163,12 +163,12 @@ function docsSidebar(page) {
     .join("")}</nav><a class="sidebar-home" href="/">返回 Movement 首页</a></aside>`;
 }
 function pagination(page) {
-  const group = readingGroups.find((g) => g.paths.includes(page.path));
-  if (!group) return "";
-  const index = group.paths.indexOf(page.path);
+  const readingPath = readingGroups.flatMap((group) => group.paths);
+  const index = readingPath.indexOf(page.path);
+  if (index < 0) return "";
   return `<nav class="docs-pagination" aria-label="相邻文档">${[
-    group.paths[index - 1],
-    group.paths[index + 1],
+    readingPath[index - 1],
+    readingPath[index + 1],
   ]
     .map((url, i) => {
       const next = entries.find((p) => p.path === url);
@@ -232,6 +232,10 @@ function home() {
 await rm(dist, { recursive: true, force: true });
 await mkdir(dist, { recursive: true });
 await cp(path.join(root, "public"), dist, { recursive: true });
+await writeFile(
+  path.join(dist, "discussion-template.md"),
+  `\uFEFF${(await readFile(path.join(root, "public/discussion-template.md"), "utf8")).replace(/^\uFEFF/, "")}`,
+);
 
 const outputs = new Map([["/", home()]]);
 for (const page of entries) outputs.set(page.path, article(page));
@@ -299,7 +303,9 @@ outputs.set(
 );
 for (const [url, markdown] of markdownOutputs) {
   await mkdir(path.dirname(path.join(dist, url)), { recursive: true });
-  await writeFile(path.join(dist, url), markdown);
+  // Plain Markdown has no HTML charset declaration. The UTF-8 signature also
+  // works on static hosts that omit charset from text/markdown responses.
+  await writeFile(path.join(dist, url), `\uFEFF${markdown}`);
 }
 await writeFile(
   path.join(dist, "llms.txt"),

@@ -185,6 +185,13 @@ const closeDocsNav = () => {
   docsNav?.classList.remove("is-open");
   docsToggle?.setAttribute("aria-expanded", "false");
 };
+matchMedia("(min-width: 761px)").addEventListener("change", (event) => {
+  if (!event.matches) return;
+  closeDocsNav();
+  mobileNav.hidden = true;
+  menu?.setAttribute("aria-expanded", "false");
+  menu?.setAttribute("aria-label", "展开导航");
+});
 docsToggle?.addEventListener("click", () => {
   const open = docsNav.classList.toggle("is-open");
   docsToggle.setAttribute("aria-expanded", String(open));

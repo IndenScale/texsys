@@ -39,6 +39,8 @@ node serve.mjs
 
 文章使用共同的三栏阅读框架：持续侧栏、适度行宽的正文、页内目录；窄屏将导航折叠为菜单。所有内容页提供复制 Markdown、打开和下载 Markdown、复制页面链接；代码块可单独复制。`lib/markdown.mjs` 从正文生成 GFM 表格、列表、代码和绝对链接，排除导航与交互控件。复制按钮与 `.md` 文件使用同一份文本；剪贴板不可用时展示可手动选取的文本。首页 Markdown 地址为 `/index.md`，其他页面如 `/docs/quick-start/` 对应 `/docs/quick-start.md`；`/llms.txt` 提供完整阅读索引。
 
+发布的 Markdown 文件带 UTF-8 编码签名，保证在托管服务没有返回 charset 时仍能直接读取中文；页面复制文本不含该文件签名。检查器验证签名字节，并在移除签名后比较正文一致性。
+
 `public/app.js` 实现搜索、键盘导航、术语筛选、移动菜单和阅读进度。`public/lab.js` 只回放 `public/evidence/pipe-change.json` 中冻结的真实运行摘录，不执行求解，不提交工程接受。站点不包含账号、消息接收、遥测或虚假联系表单。
 
 ## 设计约定
