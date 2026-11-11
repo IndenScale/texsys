@@ -14,6 +14,7 @@ import { Empty, Icon } from "./ui";
 import type { FilePreview, StudioLayout, StudioState, WorkbenchProps } from "./sdk";
 import {
   gitPathInProject,
+  explorerCreationParent,
   sourceFileFormat,
   visibleFileTree,
   type FileListing,
@@ -26,7 +27,7 @@ import { visitDocument, stepDocument, type DocumentHistory } from "./navigation"
 import { rememberRecentFile, type FileLocation } from "./search";
 import { useUserPreferences } from "./user-preferences";
 import { useCodeSearch } from "./CodeSearch";
-import { ExplorerTree } from "./ExplorerTree";
+import { ExplorerTree, type ExplorerCreation } from "./ExplorerTree";
 import {
   DesignDocument,
   DesignExplorer,
@@ -359,6 +360,12 @@ export function CoreWorkspaceProvider({
   const [explorerMenu, setExplorerMenu] = useState<{ x: number; y: number; path: string }>();
   const [rootOpen, setRootOpen] = useState(true),
     [selected, setSelected] = useState("");
+  const projectRootRef = useRef<HTMLButtonElement>(null);
+  const explorerRef = useRef<HTMLDivElement>(null);
+  const [creation, setCreation] = useState<ExplorerCreation>();
+  const [creating, setCreating] = useState(false);
+  const [treeFocusRequest, setTreeFocusRequest] = useState<{ path: string; token: number }>();
+  const explorerFocusSequence = useRef(0);
   const [documents, setDocuments] = useState<Document[]>([]),
     [activePath, setActivePath] = useState<string | null>(null);
   const [documentActive, setDocumentActive] = useState(true);
@@ -384,13 +391,16 @@ export function CoreWorkspaceProvider({
     [diffError, setDiffError] = useState("");
   const diffSequence = useRef(0);
   const [form, setForm] = useState<{
-    action: "create" | "mkdir" | "rename" | "delete" | "saveAs";
+    action: "rename" | "delete" | "saveAs";
     path: string;
     value: string;
     closeAfter?: boolean;
     remainingDrafts?: string[];
   }>();
   const [formError, setFormError] = useState("");
+  useEffect(() => {
+    if (form && !["rename", "delete", "saveAs"].includes(form.action)) setForm(undefined);
+  }, [form]);
   const [closePath, setClosePath] = useState<string>();
   const [revertPath, setRevertPath] = useState<string>();
   const [showShortcuts, setShowShortcuts] = useState(false);
@@ -1080,7 +1090,7 @@ export function CoreWorkspaceProvider({
       }
       await api("/api/file", {
         action: form.action,
-        path: ["create", "mkdir"].includes(form.action) ? form.value : form.path,
+        path: form.path,
         target: form.value,
         version,
       });
@@ -1088,23 +1098,8 @@ export function CoreWorkspaceProvider({
       setForm(undefined);
       setSelected("");
       await reload();
-      if (
-        form.action === "create" ||
-        (form.action === "rename" && !listing.directories.includes(form.path))
-      )
+      if (form.action === "rename" && !listing.directories.includes(form.path))
         await openFile(form.value);
-      if (form.action === "mkdir") {
-        const parts = form.value.split("/");
-        setExpanded((previous) => {
-          const next = new Set(previous);
-          while (parts.length) {
-            next.add(parts.join("/"));
-            parts.pop();
-          }
-          return next;
-        });
-        setSelected(form.value);
-      }
     } catch (error) {
       setFormError(String(error));
     } finally {
@@ -1207,15 +1202,101 @@ export function CoreWorkspaceProvider({
     select(activityRequest.id);
     if (activityRequest.id === "search") codeSearch.focus(activityRequest.replace);
   }, [activityRequest?.token]);
-  const startForm = (action: "create" | "mkdir" | "rename" | "delete", path = selected) => {
-    const parent = listing.directories.includes(path)
-      ? path
-      : path.split("/").slice(0, -1).join("/");
+  const focusTreePath = (path: string) => {
+    setSelected(path);
+    if (!path) projectRootRef.current?.focus();
+    else setTreeFocusRequest({ path, token: ++explorerFocusSequence.current });
+  };
+  const revealDirectory = (path: string) => {
+    setRootOpen(true);
+    setExpanded((previous) => {
+      const next = new Set(previous);
+      const parts = path.split("/").filter(Boolean);
+      while (parts.length) {
+        next.add(parts.join("/"));
+        parts.pop();
+      }
+      return next;
+    });
+  };
+  const startCreation = (action: "create" | "mkdir", path = selected) => {
+    if (busy) return;
+    const parent = explorerCreationParent(listing, path);
+    select("explorer");
+    revealDirectory(parent);
+    setTreeFocusRequest(undefined);
+    setCreation((previous) => ({
+      action,
+      parent,
+      value: previous?.value ?? "",
+      focus: ++explorerFocusSequence.current,
+    }));
+  };
+  const submitCreation = async () => {
+    if (!creation || fileWriteInFlight.current) return;
+    const name = creation.value;
+    let error = "";
+    if (!name.trim()) error = t("请输入名称。");
+    else if (
+      name !== name.trim() ||
+      name === "." ||
+      name === ".." ||
+      /[/\\]/.test(name) ||
+      Array.from(name).some(
+        (character) => character.charCodeAt(0) < 32 || character.charCodeAt(0) === 127,
+      )
+    )
+      error = t("请输入有效名称，不能包含路径分隔符、控制字符或首尾空格。");
+    const path = creation.parent ? `${creation.parent}/${name}` : name;
+    if (
+      !error &&
+      (listing.directories.includes(path) || listing.files.some((file) => file.path === path))
+    )
+      error = t("同名文件或文件夹已存在，请使用其他名称。");
+    if (error) {
+      setCreation({ ...creation, error, focus: ++explorerFocusSequence.current });
+      return;
+    }
+    fileWriteInFlight.current = true;
+    setBusy(true);
+    setCreating(true);
+    try {
+      await api("/api/file", { action: creation.action, path });
+      setCreation(undefined);
+      await reload();
+      if (creation.action === "create") await openFile(path, { focus: true });
+      else {
+        revealDirectory(path);
+        focusTreePath(path);
+      }
+    } catch (error) {
+      setCreation({ ...creation, error: String(error), focus: ++explorerFocusSequence.current });
+    } finally {
+      fileWriteInFlight.current = false;
+      setBusy(false);
+      setCreating(false);
+    }
+  };
+  const cancelCreation = () => {
+    if (creating) return;
+    const parent = creation?.parent ?? "";
+    setCreation(undefined);
+    focusTreePath(parent);
+  };
+  const collapseExplorer = () => {
+    if (busy) return;
+    setExpanded(new Set());
+    setRootOpen(false);
+    setTreeFocusRequest(undefined);
+    // A nonempty draft survives hiding the tree and can be resumed by reopening its parent.
+    focusTreePath("");
+  };
+  const startForm = (action: "rename" | "delete", path = selected) => {
     setFormError("");
     setForm({
       action,
       path,
-      value: action === "rename" ? path : parent ? parent + "/" : "",
+      value: path,
     });
   };
   const newUntitled = () => {
@@ -1238,7 +1319,7 @@ export function CoreWorkspaceProvider({
     const { id } = editorMenuRequest;
     if (closeDisabled) return;
     if (id === "help.shortcuts") setShowShortcuts(true);
-    else if (id === "file.new") startForm("create", "");
+    else if (id === "file.new") startCreation("create");
     else if (id === "file.untitled") newUntitled();
     else if (id === "file.saveAll" && canSaveAll) void saveAll();
     else if (id === "editor.gotoLine" && canEditSource)
@@ -1255,18 +1336,18 @@ export function CoreWorkspaceProvider({
     {
       label: t("新建文件…"),
       icon: "new-file",
-      run: busy ? undefined : () => startForm("create", path),
+      run: busy ? undefined : () => startCreation("create", path),
     },
     {
       label: t("新建文件夹…"),
       icon: "new-folder",
-      run: busy ? undefined : () => startForm("mkdir", path),
+      run: busy ? undefined : () => startCreation("mkdir", path),
     },
     { label: t("刷新"), icon: "refresh", run: busy ? undefined : () => void reload() },
     {
       label: t("折叠所有文件夹"),
       icon: "collapse",
-      run: busy ? undefined : () => setExpanded(new Set()),
+      run: busy ? undefined : collapseExplorer,
     },
     {
       label: t("重命名…"),
@@ -1352,90 +1433,146 @@ export function CoreWorkspaceProvider({
       title={t(coreSidebarTitles[activity])}
       actions={sidebarActions}
     >
-      <NavigatorPage hidden={activity !== "explorer"} aria-label={t("文件资源管理器内容")}>
-        <div className="core-project-row" data-expanded={rootOpen}>
-          <button
-            aria-label={t("项目 {0}", { "0": state.project.name })}
-            className="core-project-root"
-            title={state.project.name}
-            onClick={() => setRootOpen(!rootOpen)}
-            aria-expanded={rootOpen}
-          >
-            <span className="core-tree-twistie" aria-hidden="true">
-              <Icon name="chevron" size={12} expanded={rootOpen} />
-            </span>
-            <strong>{state.project.name}</strong>
-          </button>
-          <NavigatorToolbar
-            className="core-project-tools"
-            role="toolbar"
-            aria-label={t("项目文件操作")}
-            hidden={!rootOpen}
-          >
-            <Tool
-              label={t("新建文件")}
-              icon="new-file"
-              onClick={() => startForm("create")}
-              disabled={busy}
+      <NavigatorPage
+        hidden={activity !== "explorer"}
+        aria-label={t("文件资源管理器内容")}
+        onPointerDown={(event) => {
+          if (!creation || creating || event.button !== 0) return;
+          const target = event.target;
+          if (
+            target === event.currentTarget ||
+            target === explorerRef.current ||
+            (target instanceof HTMLElement && target.classList.contains("core-file-tree"))
+          ) {
+            event.preventDefault();
+            cancelCreation();
+          }
+        }}
+      >
+        <div ref={explorerRef}>
+          <div className="core-project-row" data-expanded={rootOpen}>
+            <button
+              ref={projectRootRef}
+              aria-label={t("项目 {0}", { "0": state.project.name })}
+              className={`core-project-root${selected === "" ? " selected" : ""}`}
+              title={state.project.name}
+              onFocus={() => setSelected("")}
+              onClick={() => {
+                setSelected("");
+                setRootOpen(!rootOpen);
+              }}
+              onContextMenu={(event) => {
+                event.preventDefault();
+                setSelected("");
+                setExplorerMenu({ path: "", x: event.clientX, y: event.clientY });
+              }}
+              onKeyDown={(event) => {
+                if (event.key === "ArrowLeft") {
+                  event.preventDefault();
+                  setRootOpen(false);
+                } else if (event.key === "ArrowRight" || event.key === "ArrowDown") {
+                  event.preventDefault();
+                  if (!rootOpen) setRootOpen(true);
+                  else
+                    explorerRef.current
+                      ?.querySelector<HTMLButtonElement>("[data-tree-path]")
+                      ?.focus();
+                }
+              }}
+              aria-expanded={rootOpen}
+            >
+              <span className="core-tree-twistie" aria-hidden="true">
+                <Icon name="chevron" size={12} expanded={rootOpen} />
+              </span>
+              <strong>{state.project.name}</strong>
+            </button>
+            <NavigatorToolbar
+              className="core-project-tools"
+              role="toolbar"
+              aria-label={t("项目文件操作")}
+            >
+              <Tool
+                label={t("新建文件")}
+                icon="new-file"
+                onClick={() => startCreation("create")}
+                disabled={busy}
+              />
+              <Tool
+                label={t("新建文件夹")}
+                icon="new-folder"
+                onClick={() => startCreation("mkdir")}
+                disabled={busy}
+              />
+              <Tool
+                label={t("刷新资源")}
+                icon="refresh"
+                onClick={() => void reload()}
+                disabled={busy}
+              />
+              <Tool
+                label={t("全部折叠")}
+                icon="collapse"
+                onClick={collapseExplorer}
+                disabled={busy}
+              />
+            </NavigatorToolbar>
+          </div>
+          {listingError && (
+            <p className="core-error" role="alert">
+              {listingError}
+            </p>
+          )}
+          {loadingFiles && !listing.files.length && (
+            <p className="core-hint">{t("正在读取文件…")}</p>
+          )}
+          {rootOpen && (
+            <ExplorerTree
+              entries={tree}
+              expanded={expanded}
+              selected={selected}
+              dirtyPaths={
+                new Set(
+                  documents
+                    .filter((document) => document.content !== document.saved)
+                    .map((document) => document.path),
+                )
+              }
+              select={setSelected}
+              toggle={(path) =>
+                setExpanded((previous) => {
+                  const next = new Set(previous);
+                  if (next.has(path)) next.delete(path);
+                  else next.add(path);
+                  return next;
+                })
+              }
+              open={(path, keyboard) => {
+                const definition = moduleDirectories.get(path);
+                if (definition) openDesign({ definition }, "model");
+                else void openFile(path, { focus: keyboard });
+              }}
+              contextMenu={(path, x, y) => setExplorerMenu({ path, x, y })}
+              rename={() => startForm("rename")}
+              remove={() => startForm("delete")}
+              creation={creation}
+              creating={creating}
+              changeCreation={(value) =>
+                setCreation((previous) => previous && { ...previous, value, error: undefined })
+              }
+              submitCreation={() => void submitCreation()}
+              cancelCreation={cancelCreation}
+              focusRequest={treeFocusRequest}
+              focusHandled={() => setTreeFocusRequest(undefined)}
+              focusParent={() => focusTreePath("")}
             />
-            <Tool
-              label={t("新建文件夹")}
-              icon="new-folder"
-              onClick={() => startForm("mkdir")}
-              disabled={busy}
-            />
-            <Tool
-              label={t("刷新资源")}
-              icon="refresh"
-              onClick={() => void reload()}
-              disabled={busy}
-            />
-            <Tool label={t("全部折叠")} icon="collapse" onClick={() => setExpanded(new Set())} />
-          </NavigatorToolbar>
+          )}
+          {listing.truncated && (
+            <p className="core-hint">{t("文件列表达到上限，部分文件未显示。")}</p>
+          )}
+          {!loadingFiles && !listing.files.length && !listing.directories.length && (
+            <p className="core-hint">{t("项目中尚无文件，可在上方新建。")}</p>
+          )}
         </div>
-        {listingError && (
-          <p className="core-error" role="alert">
-            {listingError}
-          </p>
-        )}
-        {loadingFiles && !listing.files.length && <p className="core-hint">{t("正在读取文件…")}</p>}
-        {rootOpen && (
-          <ExplorerTree
-            entries={tree}
-            expanded={expanded}
-            selected={selected}
-            dirtyPaths={
-              new Set(
-                documents
-                  .filter((document) => document.content !== document.saved)
-                  .map((document) => document.path),
-              )
-            }
-            select={setSelected}
-            toggle={(path) =>
-              setExpanded((previous) => {
-                const next = new Set(previous);
-                if (next.has(path)) next.delete(path);
-                else next.add(path);
-                return next;
-              })
-            }
-            open={(path, keyboard) => {
-              const definition = moduleDirectories.get(path);
-              if (definition) openDesign({ definition }, "model");
-              else void openFile(path, { focus: keyboard });
-            }}
-            contextMenu={(path, x, y) => setExplorerMenu({ path, x, y })}
-            rename={() => startForm("rename")}
-            remove={() => startForm("delete")}
-          />
-        )}
-        {listing.truncated && (
-          <p className="core-hint">{t("文件列表达到上限，部分文件未显示。")}</p>
-        )}
-        {!loadingFiles && !listing.files.length && !listing.directories.length && (
-          <p className="core-hint">{t("项目中尚无文件，可在上方新建。")}</p>
-        )}
       </NavigatorPage>
       <NavigatorPage
         className="core-search"
@@ -1537,8 +1674,6 @@ export function CoreWorkspaceProvider({
     form &&
     t(
       {
-        create: "新建文件",
-        mkdir: "新建文件夹",
         rename: "重命名",
         delete: "删除文件",
         saveAs: "另存为",
@@ -1632,7 +1767,7 @@ export function CoreWorkspaceProvider({
           </form>
         </div>
       )}
-      {form && (
+      {form && ["rename", "delete", "saveAs"].includes(form.action) && (
         <div className="core-dialog-backdrop">
           <form
             className="core-dialog"

@@ -16,6 +16,28 @@ export type TreeEntry = {
   virtual?: boolean;
   opensDocument?: boolean;
 };
+export function explorerCreationParent(listing: FileListing, selected: string): string {
+  if (listing.directories.includes(selected)) return selected;
+  if (listing.files.some((file) => file.path === selected))
+    return selected.split("/").slice(0, -1).join("/");
+  return "";
+}
+
+/** Insert a draft among direct children without splitting an expanded folder's subtree. */
+export function explorerCreationIndex(entries: TreeEntry[], parent: string, directory: boolean) {
+  const start = parent ? entries.findIndex((entry) => entry.path === parent) + 1 : 0;
+  if (parent && start === 0) return -1;
+  const depth = parent ? parent.split("/").length : 0;
+  if (directory) return start;
+  let index = start;
+  while (index < entries.length) {
+    const entry = entries[index];
+    if (entry.depth < depth || (entry.depth === depth && !entry.directory)) break;
+    index += 1;
+  }
+  return index;
+}
+
 export function visibleFileTree(listing: FileListing, expanded: Set<string>): TreeEntry[] {
   const children = new Map<string, TreeEntry[]>();
   const add = (path: string, directory: boolean) => {

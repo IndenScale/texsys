@@ -434,9 +434,15 @@ test("file locations keep exact filenames containing colons and reject unsafe of
   });
 });
 
-const { visibleFileTree, gitGroups, gitPathInProject, sourceOffset, commitGraph } = load(
-  "src/texsys/assets/studio/workspace-model.ts",
-);
+const {
+  visibleFileTree,
+  explorerCreationParent,
+  explorerCreationIndex,
+  gitGroups,
+  gitPathInProject,
+  sourceOffset,
+  commitGraph,
+} = load("src/texsys/assets/studio/workspace-model.ts");
 test("Explorer preserves empty directories and expands ancestors without duplicating them", () => {
   const listing = {
     files: [
@@ -453,6 +459,39 @@ test("Explorer preserves empty directories and expands ancestors without duplica
   const rows = visibleFileTree(listing, new Set(["src", "src/nested"]));
   assert.equal(rows.filter((entry) => entry.path === "src").length, 1);
   assert.equal(rows.find((entry) => entry.path === "src/nested/model.json").depth, 2);
+});
+test("Explorer creates within a selected directory or beside a selected file", () => {
+  const listing = {
+    files: [{ path: "src/main.json" }, { path: "texsys.toml" }],
+    directories: ["src", "empty"],
+    truncated: false,
+  };
+  assert.equal(explorerCreationParent(listing, "src"), "src");
+  assert.equal(explorerCreationParent(listing, "src/main.json"), "src");
+  assert.equal(explorerCreationParent(listing, "empty"), "empty");
+  assert.equal(explorerCreationParent(listing, "texsys.toml"), "");
+  assert.equal(explorerCreationParent(listing, ""), "");
+  assert.equal(explorerCreationParent(listing, "removed/file.json"), "");
+});
+test("Explorer inline creation respects folder groups and complete expanded subtrees", () => {
+  const listing = {
+    files: [{ path: "src/nested/model.json" }, { path: "src/main.json" }, { path: "README.md" }],
+    directories: ["empty", "src", "src/nested"],
+    truncated: false,
+  };
+  const rows = visibleFileTree(listing, new Set(["src", "src/nested", "empty"]));
+  const before = (parent, directory) => rows[explorerCreationIndex(rows, parent, directory)]?.path;
+  assert.equal(before("", true), "empty");
+  assert.equal(before("", false), "README.md");
+  assert.equal(before("src", true), "src/nested");
+  assert.equal(before("src", false), "src/main.json");
+  assert.equal(before("empty", false), "src");
+  assert.equal(explorerCreationIndex(rows, "missing", false), -1);
+  const foldersOnly = visibleFileTree(
+    { ...listing, files: [{ path: "src/nested/model.json" }] },
+    new Set(["src", "src/nested"]),
+  );
+  assert.equal(explorerCreationIndex(foldersOnly, "", false), foldersOnly.length);
 });
 test("Source Control shows partially staged files in both change groups", () => {
   const entry = { path: "model", index: "M", worktree: "M" };

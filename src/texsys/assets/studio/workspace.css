@@ -360,9 +360,44 @@
 .core-change-row:hover {
   background: var(--ui-control-hover);
 }
-.core-tree-row.selected {
+.core-tree-row.selected,
+.core-project-root.selected {
   background: #e1ecee;
   color: #185f66;
+}
+.core-tree-creation .core-tree-row:hover {
+  background: transparent;
+}
+.core-tree-creation input {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  height: 24px;
+  padding: 0 4px;
+  border: 1px solid var(--ui-proof);
+  border-radius: 2px;
+  background: var(--ui-canvas);
+  color: var(--ui-text);
+  font: inherit;
+  line-height: 20px;
+}
+.core-tree-creation input:focus {
+  outline: 1px solid var(--ui-proof);
+  outline-offset: -1px;
+}
+.core-tree-creation input[aria-invalid="true"] {
+  border-color: #b54339;
+}
+.core-tree-create-error {
+  margin: 2px 10px 4px
+    calc(
+      var(--tree-base) + var(--tree-depth) * var(--tree-indent) + var(--tree-twistie-size) +
+        var(--tree-icon-size) + 8px
+    );
+  font-size: 11px;
+  line-height: 1.5;
+  color: #b54339;
+  overflow-wrap: anywhere;
 }
 .core-dirty {
   width: 6px;
