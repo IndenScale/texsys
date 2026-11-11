@@ -1,0 +1,223 @@
+{
+  "schema_version": 1,
+  "title": "FWS 管路变更：公开 CLI 验证结果摘录",
+  "record_kind": "saved-concept-prototype-replay",
+  "recorded_at": "2026-11-11T03:02:13.548158+00:00",
+  "source_commit": "8a4a3d53f19b814b3b581cfe65ded011bd426582",
+  "source_files": [
+    {
+      "path": "tools/verify_engineering_poc.py",
+      "sha256": "17634bb7c4dcaeb13db63466fd56f49bc8b797dd63f322a429d95fa18642eaab"
+    },
+    {
+      "path": "src/texsys/engineering.py",
+      "sha256": "c0e3ca68a4c274b5b8d447110f72e8fd7e7fa08aac99782d6cdeffecc0f88b57"
+    },
+    {
+      "path": "packages/datacenter/src/texsys_datacenter/engineering.py",
+      "sha256": "a663d7f558404bba580bce9bd4b0157f83ced2320b72359a873f98281c0aa1c3"
+    }
+  ],
+  "adapter": "datacenter:fws-change",
+  "toolchain_digest": "sha256:611914bbba3347b9d47ed8841fcd8bb908d0c6d6b8e1c6d0c2f5e7a702c58414",
+  "verification": {
+    "status": "pass",
+    "commands_executed": 15,
+    "changed_route_lengths": 96,
+    "failed_acceptance_exit_code": 2,
+    "old_acceptance_after_change": "needs-review",
+    "baseline_repaired_checks_equal": true
+  },
+  "scope": "概念设施水支管：初期正常、满配正常及满配 A 路失电时的逐机房供冷与已建模几何净距。",
+  "states": {
+    "baseline": {
+      "run_id": "4623f9b8168f426d90972a65a97b9e36",
+      "revision": "sha256:6c849e208684ed817dea51d331a281f3209a22378b90a847d4163bc4337141ad",
+      "evidence_digest": "sha256:02728841f79f0a15f36dc508bece5ab40c83c59caf30f4a0fdf05b4beb79ed0b",
+      "execution": "completed",
+      "assessment": "pass",
+      "acceptance_at_run_completion": "unreviewed",
+      "input_values": [
+        {
+          "id": "fws.spine-x",
+          "label": "楼层主配水管 X 坐标",
+          "value": 46.4,
+          "unit": "m",
+          "state": "assumed",
+          "object_ref": "src/fws-branches.study.json#/spine_x_m"
+        },
+        {
+          "id": "fws.spine-diameter",
+          "label": "主配水管内径",
+          "value": 0.34,
+          "unit": "m",
+          "state": "assumed",
+          "object_ref": "src/fws-branches.study.json#/pipe_types/spine/diameter_m"
+        },
+        {
+          "id": "fws.row-diameter",
+          "label": "机柜列配水管内径",
+          "value": 0.16,
+          "unit": "m",
+          "state": "assumed",
+          "object_ref": "src/fws-branches.study.json#/pipe_types/row/diameter_m"
+        },
+        {
+          "id": "fws.drop-diameter",
+          "label": "CDU 接管内径",
+          "value": 0.08,
+          "unit": "m",
+          "state": "assumed",
+          "object_ref": "src/fws-branches.study.json#/pipe_types/drop/diameter_m"
+        }
+      ],
+      "failed_checks": 0,
+      "total_checks": 254,
+      "selected_check": {
+        "id": "fws:initial-normal:L01/Unit-01-01",
+        "label": "机房液侧供冷需求",
+        "actual": 300.0,
+        "limit": 300.0,
+        "operator": ">=",
+        "status": "pass",
+        "unit": "kW",
+        "scenario": "initial-normal",
+        "object_ref": "L01/Unit-01-01"
+      },
+      "recorded_follow_up": "自动化测试接受；后续输入改变时转为待复核。"
+    },
+    "changed": {
+      "run_id": "7f80eec05a4c4abbac1b485f63787fd2",
+      "revision": "sha256:06e3467692192ab857a705e4041f5143436e9e3c046507bd5b68da7447372092",
+      "evidence_digest": "sha256:9648092cb515f0677e969ebb8a03ce32e1c228bc730e2fb6a28fa3039298b184",
+      "execution": "completed",
+      "assessment": "fail",
+      "acceptance_at_run_completion": "unreviewed",
+      "input_values": [
+        {
+          "id": "fws.spine-x",
+          "label": "楼层主配水管 X 坐标",
+          "value": 46.5,
+          "unit": "m",
+          "state": "assumed",
+          "object_ref": "src/fws-branches.study.json#/spine_x_m"
+        },
+        {
+          "id": "fws.spine-diameter",
+          "label": "主配水管内径",
+          "value": 0.34,
+          "unit": "m",
+          "state": "assumed",
+          "object_ref": "src/fws-branches.study.json#/pipe_types/spine/diameter_m"
+        },
+        {
+          "id": "fws.row-diameter",
+          "label": "机柜列配水管内径",
+          "value": 0.05,
+          "unit": "m",
+          "state": "assumed",
+          "object_ref": "src/fws-branches.study.json#/pipe_types/row/diameter_m"
+        },
+        {
+          "id": "fws.drop-diameter",
+          "label": "CDU 接管内径",
+          "value": 0.08,
+          "unit": "m",
+          "state": "assumed",
+          "object_ref": "src/fws-branches.study.json#/pipe_types/drop/diameter_m"
+        }
+      ],
+      "failed_checks": 250,
+      "total_checks": 254,
+      "selected_check": {
+        "id": "fws:initial-normal:L01/Unit-01-01",
+        "label": "机房液侧供冷需求",
+        "actual": 81.82788575080825,
+        "limit": 300.0,
+        "operator": ">=",
+        "status": "fail",
+        "unit": "kW",
+        "scenario": "initial-normal",
+        "object_ref": "L01/Unit-01-01"
+      },
+      "recorded_follow_up": "接受请求被拒绝；旧基线接受已失效，需要复核。",
+      "diagnosis": {
+        "message": "供冷路径中 4 个管段达到流速上限 2.5 m/s；按可用泵与转速上限，参与供冷泵组的最小扬程余量为 408.89 kPa。",
+        "velocity_limited_segments": 4,
+        "velocity_limit_m_s": 2.5,
+        "minimum_pump_head_margin_kpa": 408.893459665324,
+        "changed_route_lengths": 96
+      }
+    },
+    "repaired": {
+      "run_id": "b30d286c30e34cb9bb62c6175fe1bbfe",
+      "revision": "sha256:6c849e208684ed817dea51d331a281f3209a22378b90a847d4163bc4337141ad",
+      "evidence_digest": "sha256:038d747ad00d29a23e975cfc5f1454b312a39f1640a444d815923d3d3128ea6b",
+      "execution": "completed",
+      "assessment": "pass",
+      "acceptance_at_run_completion": "unreviewed",
+      "input_values": [
+        {
+          "id": "fws.spine-x",
+          "label": "楼层主配水管 X 坐标",
+          "value": 46.4,
+          "unit": "m",
+          "state": "assumed",
+          "object_ref": "src/fws-branches.study.json#/spine_x_m"
+        },
+        {
+          "id": "fws.spine-diameter",
+          "label": "主配水管内径",
+          "value": 0.34,
+          "unit": "m",
+          "state": "assumed",
+          "object_ref": "src/fws-branches.study.json#/pipe_types/spine/diameter_m"
+        },
+        {
+          "id": "fws.row-diameter",
+          "label": "机柜列配水管内径",
+          "value": 0.16,
+          "unit": "m",
+          "state": "assumed",
+          "object_ref": "src/fws-branches.study.json#/pipe_types/row/diameter_m"
+        },
+        {
+          "id": "fws.drop-diameter",
+          "label": "CDU 接管内径",
+          "value": 0.08,
+          "unit": "m",
+          "state": "assumed",
+          "object_ref": "src/fws-branches.study.json#/pipe_types/drop/diameter_m"
+        }
+      ],
+      "failed_checks": 0,
+      "total_checks": 254,
+      "selected_check": {
+        "id": "fws:initial-normal:L01/Unit-01-01",
+        "label": "机房液侧供冷需求",
+        "actual": 300.0,
+        "limit": 300.0,
+        "operator": ">=",
+        "status": "pass",
+        "unit": "kW",
+        "scenario": "initial-normal",
+        "object_ref": "L01/Unit-01-01"
+      },
+      "recorded_follow_up": "新运行先保持待审查；随后另行记录自动化测试接受。"
+    }
+  },
+  "limitations": [
+    "evaluation 仅分离计算执行与算例回归判定；模型保真度仍为 concept，不代表施工设计或现场验收。",
+    "管路、泵曲线、CDU 接口、温差和流量限制采用算例假设，尚未取得厂家曲线及现场标定。",
+    "提取长度是当前概念几何中的确定值，输入依据仍为 assumed，不升级为现场实测。",
+    "本次接受仅覆盖列明工况的 FWS 供冷与几何检查；TCS、热瞬态、控制、电气、结构承载、消防和施工审查未包含在接受范围。",
+    "其他专业影响关系尚未登记；这些专业的既有结论需要复核，不能据此认定不受影响。"
+  ],
+  "provenance_note": "这是本次实跑的可公开精简摘录，保留原运行标识与摘要；并非完整原始运行文件。摘要对应原记录，不能用它校验这份删节 JSON。页面仅回放已保存结果，不在浏览器内执行求解。",
+  "reproduction": {
+    "working_directory": "texsys 仓库根目录",
+    "command": "uv run --locked tools/verify_engineering_poc.py --output build/engineering-poc/website-replay",
+    "requirements": "使用所列源码提交及其 uv.lock；输出目录必须尚不存在。下载脚本需放置于仓库 tools/ 下，或直接使用该提交已有脚本。需具备仓库依赖与概念算例输入。",
+    "acceptance_boundary": "脚本中的具名接受仅用于自动化概念测试，不是工程师签核或现场验收。"
+  }
+}
