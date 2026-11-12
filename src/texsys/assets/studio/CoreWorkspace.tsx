@@ -17,7 +17,14 @@ import {
   WorkbenchLayout,
 } from "./atomstudio/Layout";
 import { Empty, Icon } from "./ui";
-import type { FilePreview, StudioLayout, StudioState, WorkbenchProps } from "./sdk";
+import type {
+  FilePreview,
+  StudioLayout,
+  StudioState,
+  TextFormat,
+  TextFormatChange,
+  WorkbenchProps,
+} from "./sdk";
 import {
   gitPathInProject,
   explorerCreationParent,
@@ -27,6 +34,8 @@ import {
   fileDocumentTitle,
   refreshedFileDocument,
   savedFileDocument,
+  isDocumentDirty,
+  editorTextFormat,
   FileReadRequests,
   type FileListing,
   type GitDiff,
@@ -71,6 +80,9 @@ import {
   goToSourcePosition,
   supportsSourceLineComments,
   runSourceEditCommand,
+  runSourceStatusAction,
+  watchSourceProblems,
+  type SourceProblem,
   selectedSourceText,
   SourceEditor,
   type SourceModels,
@@ -98,6 +110,7 @@ import {
   type EditorPresentation,
   type EditorGroupTab,
   type SourceEditorStatus,
+  type SourceStatusAction,
 } from "./editor-groups";
 export type { EditorGroupTab } from "./editor-groups";
 
@@ -108,6 +121,8 @@ function isCoreActivity(id: string): id is Activity {
 type Document = {
   path: string;
   saved: string;
+  textFormat?: TextFormat;
+  formatChange?: TextFormatChange;
   content: string;
   version: string;
   reason?: string;
@@ -156,6 +171,8 @@ type Core = {
   setDomainTabsOpen: (open: boolean) => void;
   hasDomain: boolean;
   changeCount: number;
+  sourceProblems: SourceProblem[];
+  openSourceProblem: (problem: SourceProblem) => void;
 };
 const CoreContext = createContext<Core | null>(null);
 export const useCoreWorkspace = () => useContext(CoreContext);
@@ -307,6 +324,9 @@ export function CoreWorkspaceProvider({
   navigationRequest,
   onNavigationState,
   onSourceStatus,
+  sourceStatusRequest,
+  onSourceProblems,
+  openAiSettingsRequest,
   hasDomain,
   showEditorPicker,
   children,
@@ -344,6 +364,9 @@ export function CoreWorkspaceProvider({
     canRedo: boolean;
   }) => void;
   onSourceStatus?: (status?: SourceEditorStatus) => void;
+  sourceStatusRequest?: { action: SourceStatusAction };
+  onSourceProblems?: (counts: { errors: number; warnings: number }) => void;
+  openAiSettingsRequest?: number;
   hasDomain: boolean;
   showEditorPicker: (items: EditorPickerItem[]) => void;
   children: ReactNode;
@@ -372,7 +395,7 @@ export function CoreWorkspaceProvider({
     changeLibraryFolders([...libraryFolders, source.path]);
   }
   async function referenceLibrary(source: LibrarySource, entry: string, previousDigest?: string) {
-    if (documents.some((item) => item.path === "texsys.toml" && item.saved !== item.content)) {
+    if (documents.some((item) => item.path === "texsys.toml" && isDocumentDirty(item))) {
       throw new Error(t("请先保存项目清单的修改。"));
     }
     await api("/api/library", {
@@ -481,7 +504,7 @@ export function CoreWorkspaceProvider({
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [settingsActive, setSettingsActive] = useState(false);
   const [settingsCategoryRequest, setSettingsCategoryRequest] = useState<{
-    category: "editor";
+    category: "editor" | "ai";
     token: number;
   }>();
   const [searchEditorActive, setSearchEditorActive] = useState(false);
@@ -533,8 +556,19 @@ export function CoreWorkspaceProvider({
   const fileReads = useRef(new FileReadRequests());
   const untitledSequence = useRef(0);
   const fileWriteInFlight = useRef(false);
-  const failedAutoSaves = useRef(new Map<string, { content: string; version: string }>());
+  const failedAutoSaves = useRef(
+    new Map<string, { content: string; version: string; formatChange?: TextFormatChange }>(),
+  );
   const [sourceModels] = useState<SourceModels>(() => new Map());
+  const [diagnostics, setDiagnostics] = useState<SourceProblem[]>([]);
+  useEffect(() => watchSourceProblems(sourceModels, setDiagnostics), [sourceModels]);
+  const sourceProblems = useMemo(() => {
+    const openPaths = new Set(documents.map(({ path }) => path));
+    return diagnostics.filter(({ path }) => openPaths.has(path));
+  }, [documents, diagnostics]);
+  const errors = sourceProblems.filter(({ severity }) => severity === "error").length;
+  const warnings = sourceProblems.length - errors;
+  useEffect(() => onSourceProblems?.({ errors, warnings }), [errors, warnings, onSourceProblems]);
   useEffect(() => {
     const paths = new Set(documents.map(({ path }) => path));
     for (const [path, { model }] of sourceModels) {
@@ -642,10 +676,40 @@ export function CoreWorkspaceProvider({
     activePresentation === "source"
       ? active?.path
       : undefined;
+  const { encoding, lineEnding } = active
+    ? editorTextFormat(active)
+    : { encoding: "utf8" as const, lineEnding: "LF" as const };
+  const formatEditable = !closeDisabled && !busy;
+  const publishSourceStatus = useCallback(
+    (status?: SourceEditorStatus) => {
+      onSourceStatus?.(status && { ...status, format: { encoding, lineEnding }, formatEditable });
+    },
+    [onSourceStatus, encoding, lineEnding, formatEditable],
+  );
   useLayoutEffect(() => {
     const snapshot = sourceStatuses.current.get(activeGroup.id);
-    onSourceStatus?.(snapshot?.path === sourceStatusPath ? snapshot?.status : undefined);
-  }, [activeGroup.id, sourceStatusPath, onSourceStatus]);
+    publishSourceStatus(snapshot?.path === sourceStatusPath ? snapshot?.status : undefined);
+  }, [activeGroup.id, sourceStatusPath, publishSourceStatus]);
+  useEffect(() => {
+    if (!sourceStatusRequest || !sourceStatusPath || closeDisabled) return;
+    const { action } = sourceStatusRequest;
+    if (action.kind !== "format") {
+      runSourceStatusAction(sourceStatusPath, sourceModels, activeGroup.id, action);
+      return;
+    }
+    if (fileWriteInFlight.current) return;
+    fileReads.current.invalidate(sourceStatusPath);
+    setDocuments((previous) =>
+      previous.map((item) => {
+        if (item.path !== sourceStatusPath) return item;
+        const original = editorTextFormat({ textFormat: item.textFormat });
+        const change = { ...item.formatChange, ...action.change };
+        if (change.encoding === original.encoding) delete change.encoding;
+        if (change.lineEnding === original.lineEnding) delete change.lineEnding;
+        return { ...item, formatChange: Object.keys(change).length ? change : undefined };
+      }),
+    );
+  }, [sourceStatusRequest]);
   const canEditSource = canReadSource;
   const canSave =
     activeTab === "source" &&
@@ -655,7 +719,7 @@ export function CoreWorkspaceProvider({
     !active.error &&
     !active.reason &&
     !closeDisabled &&
-    (!!active.untitled || active.content !== active.saved);
+    (!!active.untitled || isDocumentDirty(active));
   const canSaveAs =
     activeTab === "source" &&
     !!active &&
@@ -666,7 +730,7 @@ export function CoreWorkspaceProvider({
     !closeDisabled;
   const canCommentSource = canEditSource && supportsSourceLineComments(active.path);
   const canRevert = canSaveAs && !active.untitled;
-  const dirty = documents.some((item) => item.content !== item.saved);
+  const dirty = documents.some((item) => isDocumentDirty(item));
   const canSaveAll = dirty && !closeDisabled;
   const select = useCallback(
     (id: Activity) => changeLayout({ sidebarOpen: true, sidebarActivity: id }),
@@ -868,7 +932,7 @@ export function CoreWorkspaceProvider({
       ...(presentation || target ? { presentation: presentation ?? "source" } : {}),
     });
     const existing = documentsRef.current.find((item) => item.path === path);
-    const hasEdits = existing && existing.content !== existing.saved;
+    const hasEdits = existing && isDocumentDirty(existing);
     if (hasEdits || (focus && existing && !existing.loading && !existing.error)) {
       rememberRecentFile(state.project.path, path);
       fileReads.current.invalidate(path);
@@ -907,7 +971,7 @@ export function CoreWorkspaceProvider({
       setDocuments((previous) =>
         read.update(previous, (items) =>
           items.map((item) =>
-            item.path === path && item.content === item.saved
+            item.path === path && !isDocumentDirty(item)
               ? { ...item, location: target, ...snapshot }
               : item,
           ),
@@ -994,6 +1058,16 @@ export function CoreWorkspaceProvider({
     setSettingsOpen(true);
     setSettingsActive(true);
   }, [settingsRequest]);
+  useEffect(() => {
+    if (!openAiSettingsRequest) return;
+    focusGroup(primaryEditorGroup);
+    setSettingsOpen(true);
+    setSettingsActive(true);
+    setSettingsCategoryRequest((previous) => ({
+      category: "ai",
+      token: (previous?.token ?? 0) + 1,
+    }));
+  }, [openAiSettingsRequest]);
   const saveFiles = async (paths: string[], automatic = false): Promise<boolean> => {
     if (fileWriteInFlight.current) return false;
     fileWriteInFlight.current = true;
@@ -1003,7 +1077,7 @@ export function CoreWorkspaceProvider({
     try {
       for (const path of paths) {
         const document = documentsRef.current.find((item) => item.path === path);
-        if (!document?.version || document.content === document.saved) continue;
+        if (!document?.version || !isDocumentDirty(document)) continue;
         fileReads.current.invalidate(path);
         try {
           const saved = await api<FilePreview>("/api/file", {
@@ -1011,6 +1085,7 @@ export function CoreWorkspaceProvider({
             path,
             content: document.content,
             version: document.version,
+            ...document.formatChange,
           });
           const nextDocuments = documentsRef.current.map((item) =>
             item.path === path ? savedFileDocument(item, saved) : item,
@@ -1023,6 +1098,7 @@ export function CoreWorkspaceProvider({
           failedAutoSaves.current.set(path, {
             content: document.content,
             version: document.version,
+            formatChange: document.formatChange,
           });
           errors.push(`${path}: ${error instanceof Error ? error.message : String(error)}`);
         }
@@ -1056,7 +1132,7 @@ export function CoreWorkspaceProvider({
     return saveFiles([document.path]);
   };
   const saveAll = async () => {
-    const pending = documentsRef.current.filter((item) => item.content !== item.saved);
+    const pending = documentsRef.current.filter((item) => isDocumentDirty(item));
     const named = pending.filter((item) => !item.untitled).map((item) => item.path);
     if (named.length) await saveFiles(named);
     const [first, ...remaining] = pending.filter((item) => item.untitled);
@@ -1073,8 +1149,10 @@ export function CoreWorkspaceProvider({
       const failed = failedAutoSaves.current.get(item.path);
       return (
         item.version &&
-        item.content !== item.saved &&
-        (failed?.version !== item.version || failed.content !== item.content)
+        isDocumentDirty(item) &&
+        (failed?.version !== item.version ||
+          failed.content !== item.content ||
+          failed.formatChange !== item.formatChange)
       );
     });
     if (!pending.length) return;
@@ -1095,7 +1173,7 @@ export function CoreWorkspaceProvider({
     try {
       const file = await api<FilePreview>(`/api/file?path=${encodeURIComponent(path)}`);
       if (!read.isCurrent()) return;
-      if (!file.previewable && original.content !== original.saved)
+      if (!file.previewable && isDocumentDirty(original))
         throw new Error(file.reason ?? t("磁盘版本无法作为文本读取。"));
       const snapshot = fileDocumentSnapshot(path, file);
       setDocuments((previous) =>
@@ -1103,6 +1181,7 @@ export function CoreWorkspaceProvider({
           items.map((item) =>
             item.path === path &&
             item.content === original.content &&
+            item.formatChange === original.formatChange &&
             item.version === original.version
               ? { ...item, ...snapshot, location: undefined }
               : item,
@@ -1111,11 +1190,11 @@ export function CoreWorkspaceProvider({
       );
     } catch (error) {
       if (!read.isCurrent()) return;
-      if (original.content === original.saved)
+      if (!isDocumentDirty(original))
         setDocuments((previous) =>
           read.update(previous, (items) =>
             items.map((item) =>
-              item.path === path && item.content === item.saved
+              item.path === path && !isDocumentDirty(item)
                 ? { ...item, error: String(error) }
                 : item,
             ),
@@ -1143,7 +1222,7 @@ export function CoreWorkspaceProvider({
     let timer: ReturnType<typeof setTimeout>;
     const pollPath = async (path: string) => {
       const original = documentsRef.current.find((item) => item.path === path);
-      if (fileWriteInFlight.current || !original || original.content !== original.saved) return;
+      if (fileWriteInFlight.current || !original || isDocumentDirty(original)) return;
       const read = fileReads.current.begin(path);
       cancelReads.set(path, read.cancel);
       try {
@@ -1162,9 +1241,7 @@ export function CoreWorkspaceProvider({
           setDocuments((previous) =>
             read.update(previous, (items) =>
               items.map((item) =>
-                item.path === path &&
-                item.content === item.saved &&
-                item.version === original.version
+                item.path === path && !isDocumentDirty(item) && item.version === original.version
                   ? { ...item, error: String(error), loading: false }
                   : item,
               ),
@@ -1258,11 +1335,7 @@ export function CoreWorkspaceProvider({
     if (pendingClose.current) return Promise.resolve(false);
     focusGroup(groupId);
     const document = documentsRef.current.find((item) => item.path === path);
-    if (
-      editorViewCount(groupsRef.current, path) === 1 &&
-      document &&
-      document.saved !== document.content
-    ) {
+    if (editorViewCount(groupsRef.current, path) === 1 && document && isDocumentDirty(document)) {
       setClosePath(path);
       return new Promise((resolve) => {
         pendingClose.current = { path, groupId, resolve };
@@ -1365,6 +1438,9 @@ export function CoreWorkspaceProvider({
       sourceModels.delete(previousPath);
       sourceModels.set(nextPath, sourceModel);
     }
+    setDiagnostics((items) =>
+      items.map((item) => (item.path === previousPath ? { ...item, path: nextPath } : item)),
+    );
     setEditorGroups((groups) => renameEditorDocument(groups, previousPath, nextPath));
     setDocuments((previous) =>
       previous.map((item) =>
@@ -1388,7 +1464,7 @@ export function CoreWorkspaceProvider({
     if (!form || fileWriteInFlight.current) return;
     if (
       form.action !== "saveAs" &&
-      documentsRef.current.some((item) => item.path === form.path && item.content !== item.saved)
+      documentsRef.current.some((item) => item.path === form.path && isDocumentDirty(item))
     ) {
       setFormError(t("请先保存或关闭该文件的未保存编辑。"));
       return;
@@ -1404,9 +1480,12 @@ export function CoreWorkspaceProvider({
           action: "create_text",
           path: form.value,
           content: source.content,
+          ...(editorTextFormat(source).lineEnding === "CRLF" && { lineEnding: "CRLF" }),
+          ...(editorTextFormat(source).encoding === "utf8bom" && { encoding: "utf8bom" }),
         });
         const current = documentsRef.current.find((item) => item.path === source.path);
-        const canReplaceTab = current?.content === source.content;
+        const canReplaceTab =
+          current?.content === source.content && current?.formatChange === source.formatChange;
         if (canReplaceTab) {
           if (form.closeAfter) finishPendingClose(true);
           else moveDocument(source.path, saved.path, saved);
@@ -1524,11 +1603,11 @@ export function CoreWorkspaceProvider({
     onChanged: async (paths) => {
       await reload();
       for (const path of paths)
-        if (documentsRef.current.some((item) => item.path === path && item.content === item.saved))
+        if (documentsRef.current.some((item) => item.path === path && !isDocumentDirty(item)))
           await rereadFile(path);
     },
     hasDirtyFile: (path) =>
-      documentsRef.current.some((item) => item.path === path && item.content !== item.saved),
+      documentsRef.current.some((item) => item.path === path && isDocumentDirty(item)),
     dirty,
     gitEntries:
       gitStatus?.entries.flatMap((entry) => {
@@ -1678,7 +1757,7 @@ export function CoreWorkspaceProvider({
       setLinePrompt({ path: active.path, input: "" });
     else if (id === "file.saveAs" && canSaveAs) startSaveAs(active.path);
     else if (id === "file.revert" && canRevert) {
-      if (active.content === active.saved) void rereadFile(active.path);
+      if (!isDocumentDirty(active)) void rereadFile(active.path);
       else setRevertPath(active.path);
     } else if (
       canReadSource &&
@@ -1961,7 +2040,7 @@ export function CoreWorkspaceProvider({
             dirtyPaths={
               new Set(
                 documents
-                  .filter((document) => document.content !== document.saved)
+                  .filter((document) => isDocumentDirty(document))
                   .map((document) => document.path),
               )
             }
@@ -2302,7 +2381,7 @@ export function CoreWorkspaceProvider({
                     startSaveAs(closePath, true);
                   } else if (await saveFile(closePath)) {
                     const current = documentsRef.current.find((item) => item.path === closePath);
-                    if (current?.content === current?.saved) finishPendingClose(true);
+                    if (!current || !isDocumentDirty(current)) finishPendingClose(true);
                   }
                 }}
               >
@@ -2444,9 +2523,7 @@ export function CoreWorkspaceProvider({
                   <FileIcon path={document.path} />
                 )}
                 <span>{preview ? t("预览 {0}", { 0: title }) : title}</span>
-                {document.content !== document.saved && (
-                  <span className="core-dirty" title={t("未保存")} />
-                )}
+                {isDocumentDirty(document) && <span className="core-dirty" title={t("未保存")} />}
               </DocumentTab>
             );
           })}
@@ -2565,7 +2642,7 @@ export function CoreWorkspaceProvider({
           label: preview ? t("预览 {0}", { 0: label }) : label,
           description: document.untitled ?? (selection ? "" : document.path),
           icon: selection ? "system" : preview ? "preview" : "file",
-          dirty: !!document.untitled || document.content !== document.saved,
+          dirty: !!document.untitled || isDocumentDirty(document),
           selected:
             group.activePath === document.path &&
             (!primary || (documentActive && !settingsActive && !searchEditorActive && !diffActive)),
@@ -2824,7 +2901,7 @@ export function CoreWorkspaceProvider({
     const previewKind = filePreviewKind(active);
     const presentation = resolvedEditorPresentation(previewKind, view?.presentation);
     const showingPreview = presentation === "preview";
-    const activeDirty = !!active && active.content !== active.saved;
+    const activeDirty = !!active && isDocumentDirty(active);
     const primary = group.id === primaryEditorGroup;
     return primary && searchEditorActive ? (
       codeSearch.editor
@@ -3013,7 +3090,7 @@ export function CoreWorkspaceProvider({
               onStatus={(status) => {
                 sourceStatuses.current.set(group.id, { path: active.path, status });
                 if (group.id === activeGroup.id && active.path === sourceStatusPath)
-                  onSourceStatus?.(status);
+                  publishSourceStatus(status);
               }}
             />
           </>
@@ -3031,14 +3108,14 @@ export function CoreWorkspaceProvider({
           <dt>{t("路径")}</dt>
           <dd>{active.untitled ?? active.path}</dd>
           <dt>{t("编码")}</dt>
-          <dd>UTF-8</dd>
+          <dd>{editorTextFormat(active).encoding === "utf8bom" ? "UTF-8 BOM" : "UTF-8"}</dd>
           <dt>{t("状态")}</dt>
           <dd>
             {active.loading
               ? t("读取中")
               : active.reason
                 ? t("不可编辑")
-                : active.untitled || active.content !== active.saved
+                : active.untitled || isDocumentDirty(active)
                   ? t("未保存")
                   : t("已保存")}
           </dd>
@@ -3092,6 +3169,9 @@ export function CoreWorkspaceProvider({
     setDomainTabsOpen,
     hasDomain,
     changeCount: gitStatus?.entries.length ?? 0,
+    sourceProblems,
+    openSourceProblem: ({ path, line, column }) =>
+      void openFile(path, { location: { line, column }, focus: true, presentation: "source" }),
   };
   return (
     <CoreContext.Provider value={value}>

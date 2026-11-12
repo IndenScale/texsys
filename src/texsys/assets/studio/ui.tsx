@@ -291,6 +291,15 @@ const paths: Record<string, React.ReactNode> = {
       <rect x="8" y="8" width="8" height="8" rx="1.5" />
     </>
   ),
+  "error-circle": (
+    <>
+      <circle cx="12" cy="12" r="9" />
+      <path d="m9 9 6 6m0-6-6 6" />
+    </>
+  ),
+  bell: <path d="M5 17h14l-2-3V9a5 5 0 0 0-10 0v5zm5 3a2 2 0 0 0 4 0" />,
+  keyboard: <path d="M3 6h18v12H3zm3 4h1m3 0h1m3 0h1m3 0h1M6 14h1m3 0h5m3 0h1" />,
+  remote: <path d="m13 3-5 5 5 5m-2-2 5 5-5 5" />,
   warning: (
     <>
       <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />

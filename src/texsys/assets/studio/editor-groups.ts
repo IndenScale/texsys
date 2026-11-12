@@ -1,3 +1,4 @@
+import type { TextFormat, TextFormatChange } from "./sdk";
 import type { SearchMatch } from "./workspace-model";
 
 export type EditorPresentation = "source" | "preview" | "markdown-editor";
@@ -7,7 +8,30 @@ export type SourceEditorStatus = {
   tabSize: number;
   insertSpaces: boolean;
   language: string;
+  languageOverride: string;
+  selected: number;
+  selections: number;
+  format?: TextFormat;
+  formatEditable?: boolean;
 };
+
+export type SourceStatusAction =
+  | { kind: "indent"; tabSize?: number; insertSpaces?: boolean }
+  | { kind: "convertIndent"; insertSpaces: boolean }
+  | { kind: "language"; language: string }
+  | { kind: "format"; change: TextFormatChange };
+
+export const sourceLanguages = {
+  auto: "自动检测",
+  plaintext: "纯文本",
+  json: "JSON",
+  markdown: "Markdown",
+  ini: "INI",
+  toml: "TOML",
+  python: "Python",
+  shell: "Shell",
+  yaml: "YAML",
+} as const;
 
 export type EditorView = {
   path: string;

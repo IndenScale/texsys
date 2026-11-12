@@ -2,6 +2,7 @@
 
 import hashlib
 import os
+import re
 from pathlib import Path
 import tempfile
 
@@ -97,6 +98,43 @@ def file_version(file: Path) -> str:
   return version(file.read_bytes())
 
 
+_UTF8_BOM = b"\xef\xbb\xbf"
+_LINE_ENDINGS = {"LF": "\n", "CRLF": "\r\n", "CR": "\r"}
+
+
+def _text_format(raw: bytes) -> dict:
+  without_pairs = raw.replace(b"\r\n", b"")
+  kinds = (
+    (["CRLF"] if len(without_pairs) < len(raw) else [])
+    + (["CR"] if b"\r" in without_pairs else [])
+    + (["LF"] if b"\n" in without_pairs else [])
+  )
+  return {
+    "encoding": "utf8bom" if raw.startswith(_UTF8_BOM) else "utf8",
+    "lineEnding": "mixed" if len(kinds) > 1 else kinds[0] if kinds else "LF",
+  }
+
+
+def _encode_text(text, request, original_format=None, original_bytes=None):
+  if not isinstance(text, str) or "\0" in text:
+    raise ProjectError("文件内容必须是 UTF-8 文本。")
+  line_ending = request.get("lineEnding")
+  encoding = request.get("encoding")
+  if "lineEnding" in request and line_ending not in ("LF", "CRLF"):
+    raise ProjectError("行尾只能设置为 LF 或 CRLF。")
+  if "encoding" in request and encoding not in ("utf8", "utf8bom"):
+    raise ProjectError("编码只能设置为 UTF-8 或带 BOM 的 UTF-8。")
+  original = original_format or {"encoding": "utf8", "lineEnding": "LF"}
+  newline = _LINE_ENDINGS[line_ending or original["lineEnding"]]
+  try:
+    raw = (original_bytes.removeprefix(_UTF8_BOM)
+           if original_bytes is not None and not line_ending
+           else re.sub(r"\r\n|\r|\n", lambda _: newline, text).encode("utf-8"))
+  except UnicodeError as error:
+    raise ProjectError("文件内容必须是 UTF-8 文本。") from error
+  return (_UTF8_BOM if (encoding or original["encoding"]) == "utf8bom" else b"") + raw
+
+
 def project_file(root: Path, relative: str, build: str) -> dict:
   file = _file_path(root, relative, build)
   metadata = {}
@@ -123,7 +161,8 @@ def project_file(root: Path, relative: str, build: str) -> dict:
       raise UnicodeError("binary content")
   except UnicodeError:
     return {**result, "reason": "该文件不能以 UTF-8 文本编辑。"}
-  return {**result, "previewable": True, "content": text.replace("\r\n", "\n").replace("\r", "\n"), "version": version(content)}
+  return {**result, "previewable": True, "content": text.replace("\r\n", "\n").replace("\r", "\n"),
+          "textFormat": _text_format(content), "version": version(content)}
 
 
 def file_operation(root: Path, build: str, request: dict) -> dict:
@@ -143,13 +182,7 @@ def file_operation(root: Path, build: str, request: dict) -> dict:
   elif action == "create_text":
     if not file.parent.is_dir():
       raise ProjectError("父目录不存在。")
-    text = request.get("content")
-    if not isinstance(text, str) or "\0" in text:
-      raise ProjectError("文件内容必须是 UTF-8 文本。")
-    try:
-      raw = text.replace("\r\n", "\n").replace("\r", "\n").encode("utf-8")
-    except UnicodeError as error:
-      raise ProjectError("文件内容必须是 UTF-8 文本。") from error
+    raw = _encode_text(request.get("content"), request)
     if len(raw) > MAX_PREVIEW_BYTES:
       raise ProjectError("文件超过 1 MiB。")
     descriptor, temporary = tempfile.mkstemp(prefix=".studio-", dir=file.parent)
@@ -169,15 +202,13 @@ def file_operation(root: Path, build: str, request: dict) -> dict:
       raise ProjectError(original["reason"])
     if request.get("version") != original["version"]:
       raise Conflict("文件已被外部修改，未覆盖文件；编辑内容已保留。请另存为，或还原文件后重新编辑。")
-    text = request.get("content")
-    if not isinstance(text, str) or "\0" in text:
-      raise ProjectError("文件内容必须是 UTF-8 文本。")
     current_bytes = file.read_bytes()
-    text = text.replace("\r\n", "\n").replace("\r", "\n")
-    newline = "\r\n" if b"\r\n" in current_bytes else "\r" if b"\r" in current_bytes else "\n"
-    raw = text.replace("\n", newline).encode("utf-8")
-    if file.read_bytes().startswith(b"\xef\xbb\xbf"):
-      raw = b"\xef\xbb\xbf" + raw
+    original_format = original["textFormat"]
+    if original_format["lineEnding"] == "mixed":
+      # Keep the existing save convention unless a specific line ending is chosen.
+      original_format["lineEnding"] = "CRLF" if b"\r\n" in current_bytes else "CR"
+    text = request.get("content")
+    raw = _encode_text(text, request, original_format, current_bytes if text == original["content"] else None)
     if len(raw) > MAX_PREVIEW_BYTES:
       raise ProjectError("文件超过 1 MiB。")
     descriptor, temporary = tempfile.mkstemp(prefix=".studio-", dir=file.parent)

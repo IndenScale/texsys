@@ -961,12 +961,13 @@ test("editor and terminal preferences persist independently and tolerate invalid
     const { updateUserPreferences, defaultEditorPreferences } = load(
       "src/texsys/assets/studio/user-preferences.ts",
     );
-    updateUserPreferences({ editorLineNumbers: false });
+    updateUserPreferences({ editorLineNumbers: false, editorScreenReader: true });
     assert.deepEqual(JSON.parse(values.get(storageKey)), {
       editorFontSize: 13,
       editorWordWrap: "off",
       editorLineNumbers: false,
       editorMinimap: false,
+      editorScreenReader: true,
       terminalFontSize: 16,
       autoSave: false,
       confirmBeforeUnload: true,

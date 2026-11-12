@@ -248,6 +248,16 @@ export function Settings({
       wordWrap,
     ),
     preference(
+      "editorScreenReader",
+      {
+        category: "editor",
+        label: "屏幕阅读器模式",
+        description: "强制开启源码编辑器的屏幕阅读器支持。关闭此设置时自动检测。",
+        keywords: "editor.accessibilitySupport screen reader 无障碍",
+      },
+      checkbox,
+    ),
+    preference(
       "editorLineNumbers",
       {
         category: "editor",

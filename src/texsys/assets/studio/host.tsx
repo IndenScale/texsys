@@ -27,7 +27,14 @@ import { CommandCenter } from "./CommandCenter";
 import { AnimatedPresence } from "./AnimatedPresence";
 import { ToolbarButton } from "./ToolbarButton";
 import { ApplicationMenuBar } from "./ApplicationMenuBar";
-import { StatusBar, createSourceStatusStore, useStatusBarPreferences } from "./StatusBar";
+import {
+  StatusBar,
+  createSourceStatusStore,
+  useStatusBarPreferences,
+  type StudioNotice,
+} from "./StatusBar";
+import type { SourceStatusAction } from "./editor-groups";
+import type { StudioAiSettings } from "./ai-settings";
 import { NavigatorMenu } from "./NavigatorMenu";
 import { WorkbenchBottomPanel } from "./BottomPanel";
 import {
@@ -248,7 +255,8 @@ function Studio({
   const locale = useLocale();
   const welcome = useRef<{ run: (id: string) => void }>(null);
   const [welcomeEditor, setWelcomeEditor] = useState<WelcomeEditorState>();
-  const { autoSave, confirmBeforeUnload, editorWordWrap } = useUserPreferences();
+  const { autoSave, confirmBeforeUnload, editorWordWrap, editorScreenReader } =
+    useUserPreferences();
   useEffect(() => {
     document.documentElement.lang = locale;
     document.title = emptyWorkspace ? `${t("空白工作区")} — Tex Studio` : "Tex Studio";
@@ -281,6 +289,29 @@ function Studio({
   const titlebar = useRef<HTMLElement>(null);
   const statusBar = useStatusBarPreferences();
   const [sourceStatus] = useState(createSourceStatusStore);
+  const [sourceStatusRequest, setSourceStatusRequest] = useState<{ action: SourceStatusAction }>();
+  const [editorProblems, setEditorProblems] = useState({ errors: 0, warnings: 0 });
+  const [openAiSettingsRequest, setOpenAiSettingsRequest] = useState(0);
+  const [aiMode, setAiMode] = useState<StudioAiSettings["mode"]>();
+  const projectReady = !!state;
+  useEffect(() => {
+    if (!projectReady) return;
+    let current = true;
+    const load = () =>
+      void api<StudioAiSettings>("/api/ai/settings")
+        .then((settings) => {
+          if (current) setAiMode(settings.mode);
+        })
+        .catch(() => {
+          if (current) setAiMode(undefined);
+        });
+    load();
+    window.addEventListener("texsys:ai-settings-changed", load);
+    return () => {
+      current = false;
+      window.removeEventListener("texsys:ai-settings-changed", load);
+    };
+  }, [projectReady]);
   const [titlebarMenuPoint, setTitlebarMenuPoint] = useState<{ x: number; y: number }>();
   const [hiddenTitlebarGroups, setHiddenTitlebarGroups] = useState(readHiddenTitlebarGroups);
   useEffect(() => {
@@ -400,10 +431,13 @@ function Studio({
   const [toast, setToast] = useState<{ message: string; error?: boolean }>();
   const mounted = useRef(true),
     refreshing = useRef(false);
-  const notify = useCallback(
-    (message: string, isError = false) => setToast({ message, error: isError }),
-    [],
-  );
+  const [notices, setNotices] = useState<StudioNotice[]>([]);
+  const noticeSequence = useRef(0);
+  const notify = useCallback((message: string, isError = false) => {
+    setToast({ message, error: isError });
+    const notice = { id: ++noticeSequence.current, message, error: isError, time: Date.now() };
+    setNotices((previous) => [notice, ...previous].slice(0, 25));
+  }, []);
   const refresh = useCallback(async () => {
     if (emptyWorkspace || refreshing.current) return;
     refreshing.current = true;
@@ -647,6 +681,9 @@ function Studio({
           bottomTab: "terminal",
         });
         break;
+      case "view.screenReader":
+        updateUserPreferences({ editorScreenReader: !editorScreenReader });
+        break;
       case "view.wordWrap":
         if (coreHistory.canReadSource)
           updateUserPreferences({ editorWordWrap: editorWordWrap === "off" ? "on" : "off" });
@@ -862,11 +899,13 @@ function Studio({
                         ? layout.bottomOpen && layout.bottomTab === "problems"
                         : item.id === "view.inspector"
                           ? layout.inspectorOpen
-                          : item.id === "view.wordWrap"
-                            ? editorWordWrap !== "off"
-                            : item.id === "view.fullscreen"
-                              ? fullscreen
-                              : undefined,
+                          : item.id === "view.screenReader"
+                            ? editorScreenReader
+                            : item.id === "view.wordWrap"
+                              ? editorWordWrap !== "off"
+                              : item.id === "view.fullscreen"
+                                ? fullscreen
+                                : undefined,
     })),
   );
   useEffect(() => {
@@ -1277,6 +1316,9 @@ function Studio({
             navigationRequest={navigation[active]}
             onNavigationState={reportCoreHistory}
             onSourceStatus={sourceStatus.set}
+            sourceStatusRequest={sourceStatusRequest}
+            onSourceProblems={setEditorProblems}
+            openAiSettingsRequest={openAiSettingsRequest}
             hasDomain={available.length > 0}
             showEditorPicker={(items) => {
               setEditorPickerItems(items);
@@ -1414,7 +1456,22 @@ function Studio({
             run: () => setActive(manifest.id),
           }))}
           connection={error ? "offline" : state ? "online" : "loading"}
-          problems={current ? historyStates[active]?.problemsCount : undefined}
+          editorProblems={editorProblems}
+          screenReader={editorScreenReader}
+          onToggleScreenReader={() => invokeCommand("view.screenReader")}
+          terminalVisible={layout.bottomOpen && layout.bottomTab === "terminal"}
+          engineeringProblems={current ? historyStates[active]?.problemsCount : undefined}
+          notices={notices}
+          onClearNotices={() => {
+            setNotices([]);
+            setToast(undefined);
+          }}
+          aiMode={aiMode}
+          onOpenAi={() => setOpenAiSettingsRequest((request) => request + 1)}
+          onShortcuts={() => invokeCommand("help.shortcuts")}
+          onNewWindow={() => invokeCommand("file.newWindow")}
+          onReconnect={() => void refresh()}
+          onSourceAction={(action) => setSourceStatusRequest({ action })}
           jobs={state?.jobs.length ?? 0}
           running={running}
           sourceStore={sourceStatus}

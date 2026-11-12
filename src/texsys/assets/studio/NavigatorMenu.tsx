@@ -27,6 +27,11 @@ function placeMenu(
   menu.style.overflow = "visible";
   menu.style.overflowY = "visible";
 
+  if (direction === "up") {
+    menu.style.maxHeight = `${Math.max(32, top - gap - edge)}px`;
+    menu.style.overflowY = "auto";
+  }
+
   const { width, height } = menu.getBoundingClientRect();
   const maxX = window.innerWidth - width - edge;
   const maxY = window.innerHeight - height - edge;
@@ -77,6 +82,7 @@ export function NavigatorMenu({
   items,
   point,
   onDismiss,
+  onOpen,
   placement = "end",
   direction = "auto",
   triggerClassName,
@@ -88,6 +94,7 @@ export function NavigatorMenu({
   items: NavigatorMenuItem[];
   point?: { x: number; y: number };
   onDismiss?: () => void;
+  onOpen?: () => void;
   placement?: "end" | "start" | "side";
   direction?: "down" | "up" | "auto";
   triggerClassName?: string;
@@ -222,7 +229,8 @@ export function NavigatorMenu({
         onToggle={(event) => {
           const isOpen = event.newState === "open";
           setOpen(isOpen);
-          if (!isOpen) {
+          if (isOpen) onOpen?.();
+          else {
             closeSubmenu();
             onDismiss?.();
           }

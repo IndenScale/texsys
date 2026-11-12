@@ -10,6 +10,7 @@ export type UserPreferences = {
   editorWordWrap: WordWrap;
   editorLineNumbers: boolean;
   editorMinimap: boolean;
+  editorScreenReader: boolean;
   terminalFontSize: number;
   autoSave: boolean;
   confirmBeforeUnload: boolean;
@@ -22,6 +23,7 @@ export const defaultEditorPreferences = {
   editorWordWrap: "bounded",
   editorLineNumbers: true,
   editorMinimap: true,
+  editorScreenReader: false,
 } satisfies Partial<UserPreferences>;
 
 export const defaultTerminalPreferences = { terminalFontSize: 12 };
@@ -94,6 +96,7 @@ function readPreferences(raw: string | null): UserPreferences {
             : defaultUserPreferences.editorLineNumbers,
         editorMinimap:
           typeof editorMinimap === "boolean" ? editorMinimap : defaultUserPreferences.editorMinimap,
+        editorScreenReader: saved.editorScreenReader === true,
         terminalFontSize: fontSize(saved.terminalFontSize, defaultUserPreferences.terminalFontSize),
         autoSave:
           typeof saved.autoSave === "boolean" ? saved.autoSave : defaultUserPreferences.autoSave,

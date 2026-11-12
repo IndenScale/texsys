@@ -47,6 +47,12 @@
   outline-offset: -2px;
 }
 
+.studio-statusbar .statusbar-problems {
+  flex: 0 0 auto;
+  margin-block: 2px;
+  border-radius: 4px;
+}
+
 .statusbar-item > svg {
   flex: 0 0 auto;
 }
@@ -77,19 +83,70 @@
   color: var(--ui-text-muted);
 }
 
-.statusbar-connection > i {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: currentColor;
+.studio-statusbar .statusbar-connection.online {
+  color: var(--accent);
 }
 
-.statusbar-connection[data-state="online"] > i {
-  background: #27896e;
-}
-
-.studio-statusbar .statusbar-connection[data-state="offline"] {
+.studio-statusbar .statusbar-connection.offline {
   color: #9a412e;
+}
+
+.statusbar-notice-list {
+  display: grid;
+  gap: 8px;
+  list-style: none;
+  max-height: min(38vh, 240px);
+  overflow: auto;
+  margin: 0;
+  padding: 0;
+}
+
+.statusbar-notice-list li {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+}
+
+.statusbar-notice-list svg {
+  flex: 0 0 auto;
+}
+
+.statusbar-notice-list small {
+  display: block;
+  margin-top: 2px;
+}
+
+.editor-problems {
+  display: grid;
+  padding: 6px 10px;
+  gap: 3px;
+}
+
+.editor-problems > strong {
+  padding: 4px 6px;
+  font-weight: inherit;
+  color: var(--ui-text-muted);
+}
+
+.editor-problem {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  padding: 4px 6px;
+  text-align: start;
+}
+
+.editor-problem:hover {
+  background: var(--ui-control-hover);
+}
+
+.editor-problem > svg {
+  flex: 0 0 auto;
+}
+
+.editor-problem > small {
+  margin-inline-start: auto;
+  color: var(--ui-text-muted);
 }
 
 .studio-statusbar .statusbar-tasks[data-running="true"] {
@@ -113,9 +170,10 @@
 }
 
 @media (max-width: 740px) {
-  .statusbar-connection:not([data-state="offline"]) .statusbar-label,
+  .statusbar-connection:not(.offline) .statusbar-label,
   .statusbar-discipline .statusbar-label,
-  .statusbar-discipline > svg:last-child {
+  .statusbar-discipline > svg:last-child,
+  .statusbar-selected {
     display: none;
   }
 }
@@ -129,7 +187,14 @@
   }
   .statusbar-item .statusbar-label,
   .statusbar-project > svg:last-child,
-  .studio-statusbar :is(.statusbar-indent, .statusbar-encoding) {
+  .studio-statusbar
+    :is(
+      .statusbar-indent,
+      .statusbar-encoding,
+      .statusbar-language-status,
+      .statusbar-ai,
+      .statusbar-keyboard
+    ) {
     display: none;
   }
 }

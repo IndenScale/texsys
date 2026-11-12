@@ -190,3 +190,34 @@ def test_generated_parent_directories_respect_explorer_limit(project, monkeypatc
   listing = project_files(project, "build")
   assert listing["truncated"]
   assert len(listing["files"]) <= 5 and len(listing["directories"]) <= 5
+
+
+def test_text_format_edit_uses_the_ordinary_versioned_save(project):
+  path = "src/source.txt"
+  source = project / path
+  source.write_bytes(b"first\r\nsecond\n")
+  file = project_file(project, path, "build")
+  assert file["textFormat"] == {"encoding": "utf8", "lineEnding": "mixed"}
+  assert file["content"] == "first\nsecond\n"
+
+  encoded = file_operation(project, "build", {
+    "action": "save", "path": path, "content": file["content"], "version": file["version"], "encoding": "utf8bom",
+  })
+  assert source.read_bytes() == b"\xef\xbb\xbffirst\r\nsecond\n"
+  assert encoded["textFormat"] == {"encoding": "utf8bom", "lineEnding": "mixed"}
+
+  change = {"action": "save", "path": path, "content": encoded["content"], "lineEnding": "LF"}
+  with pytest.raises(Conflict):
+    file_operation(project, "build", {**change, "version": file["version"]})
+  with pytest.raises(ProjectError):
+    file_operation(project, "build", {**change, "version": encoded["version"], "lineEnding": "mixed"})
+  saved = file_operation(project, "build", {**change, "version": encoded["version"]})
+  assert saved["textFormat"] == {"encoding": "utf8bom", "lineEnding": "LF"}
+  assert source.read_bytes() == b"\xef\xbb\xbffirst\nsecond\n"
+
+  copy = file_operation(project, "build", {
+    "action": "create_text", "path": "src/copy.txt", "content": saved["content"],
+    "lineEnding": "CRLF", "encoding": "utf8",
+  })
+  assert copy["textFormat"] == {"encoding": "utf8", "lineEnding": "CRLF"}
+  assert (project / "src/copy.txt").read_bytes() == b"first\r\nsecond\r\n"

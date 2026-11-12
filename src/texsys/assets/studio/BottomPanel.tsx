@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { Icon } from "./ui";
+import { useCoreWorkspace } from "./CoreWorkspace";
 import { NavigatorMenu, type NavigatorMenuItem } from "./NavigatorMenu";
 import { InlineTabStrip } from "./atomstudio/WorkspaceTabs";
 import { t } from "./i18n";
@@ -69,6 +70,9 @@ export function WorkbenchBottomPanel({
   notify?: (message: string, isError?: boolean) => void;
 }) {
   const { terminalFontSize } = useUserPreferences();
+  const core = useCoreWorkspace();
+  const sourceProblems = core?.sourceProblems ?? [];
+  const totalProblems = problemsCount + sourceProblems.length;
   const [sessions, setSessions] = useState<TerminalSession[]>(() => [createSession()]);
   const [primaryId, setPrimaryId] = useState(() => sessions[0].id);
   const [splitSessionId, setSplitSessionId] = useState<string | null>(null);
@@ -752,8 +756,8 @@ export function WorkbenchBottomPanel({
           tabs={visibleTabs.map((tabDef) => {
             const isBadgeHidden = Boolean(hideBadges[tabDef.id]);
             let badge: number | string | undefined = undefined;
-            if (tabDef.id === "problems" && !isBadgeHidden && problemsCount > 0) {
-              badge = problemsCount;
+            if (tabDef.id === "problems" && !isBadgeHidden && totalProblems > 0) {
+              badge = totalProblems;
             }
             return {
               id: tabDef.id,
@@ -981,7 +985,27 @@ export function WorkbenchBottomPanel({
       )}
 
       <div className="bottom-panel-content" hidden={layout.bottomTab !== "problems"}>
-        {problemsContent}
+        {sourceProblems.length > 0 && (
+          <section className="editor-problems" aria-label={t("源码诊断")}>
+            <strong>{t("源码诊断")}</strong>
+            {sourceProblems.map((problem, index) => (
+              <button
+                className="editor-problem"
+                type="button"
+                key={`${problem.path}:${problem.line}:${problem.column}:${index}`}
+                onClick={() => core?.openSourceProblem(problem)}
+              >
+                <Icon name={problem.severity === "error" ? "error-circle" : "warning"} size={14} />
+                <span>{problem.message}</span>
+                <small>
+                  {problem.path}:{problem.line}:{problem.column}
+                </small>
+              </button>
+            ))}
+          </section>
+        )}
+        {problemsContent ??
+          (!sourceProblems.length && <p className="resource-hint">{t("当前没有源码诊断。")}</p>)}
       </div>
 
       <div className="bottom-panel-content" hidden={layout.bottomTab !== "output"}>

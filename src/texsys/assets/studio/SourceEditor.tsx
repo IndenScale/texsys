@@ -1,11 +1,12 @@
 import React, { useLayoutEffect, useRef } from "react";
-import { editor } from "monaco-editor/editor/editor.api.js";
+import { editor, MarkerSeverity } from "monaco-editor/editor/editor.api.js";
 import EditorWorker from "monaco-editor/editor/editor.worker.js?worker";
 import JsonWorker from "monaco-editor/language/json/json.worker.js?worker";
 import "monaco-editor/features/codicon/register.js";
 import "monaco-editor/editor/browser/coreCommands.js";
 import "monaco-editor/editor/contrib/bracketMatching/browser/bracketMatching.js";
 import "monaco-editor/editor/contrib/comment/browser/comment.js";
+import "monaco-editor/editor/contrib/indentation/browser/indentation.js";
 import "monaco-editor/editor/contrib/multicursor/browser/multicursor.js";
 import "monaco-editor/editor/contrib/contextmenu/browser/contextmenu.js";
 import "monaco-editor/editor/contrib/find/browser/findController.js";
@@ -19,7 +20,7 @@ import "monaco-editor/languages/definitions/python/register.js";
 import "monaco-editor/languages/definitions/shell/register.js";
 import "monaco-editor/languages/definitions/yaml/register.js";
 import { t } from "./i18n";
-import type { SourceEditorStatus } from "./editor-groups";
+import type { SourceEditorStatus, SourceStatusAction } from "./editor-groups";
 import type { SourceEditCommand } from "./menus";
 import "./toml-language";
 import { useUserPreferences } from "./user-preferences";
@@ -51,9 +52,81 @@ const markdownPunctuation = Object.fromEntries(
 type ModelState = {
   model: editor.ITextModel;
   viewStates: Map<string, editor.ICodeEditorViewState | null>;
+  languageOverride?: string;
 };
 export type SourceModels = Map<string, ModelState>;
 const editorViews = new WeakMap<editor.ICodeEditor, string>();
+const sourceReports = new WeakMap<editor.ICodeEditor, () => void>();
+
+export type SourceProblem = {
+  path: string;
+  line: number;
+  column: number;
+  message: string;
+  severity: "error" | "warning";
+};
+
+export function watchSourceProblems(
+  models: SourceModels,
+  report: (items: SourceProblem[]) => void,
+) {
+  const update = () =>
+    report(
+      [...models].flatMap(([path, { model }]) =>
+        editor.getModelMarkers({ resource: model.uri }).flatMap((item): SourceProblem[] =>
+          item.severity === MarkerSeverity.Error || item.severity === MarkerSeverity.Warning
+            ? [
+                {
+                  path,
+                  line: item.startLineNumber,
+                  column: item.startColumn,
+                  message: item.message,
+                  severity: item.severity === MarkerSeverity.Error ? "error" : "warning",
+                },
+              ]
+            : [],
+        ),
+      ),
+    );
+  const listener = editor.onDidChangeMarkers(update);
+  update();
+  return () => listener.dispose();
+}
+
+export function runSourceStatusAction(
+  path: string,
+  models: SourceModels,
+  viewId: string,
+  action: Exclude<SourceStatusAction, { kind: "format" }>,
+) {
+  const target = visibleSourceEditor(path, models, viewId);
+  if (!target) return;
+  const { code, model } = target;
+  if (action.kind === "language") {
+    const state = models.get(path)!;
+    state.languageOverride = action.language === "auto" ? undefined : action.language;
+    editor.setModelLanguage(model, state.languageOverride ?? detectedSourceLanguage(path));
+    for (const view of editor.getEditors())
+      if (view.getModel() === model) sourceReports.get(view)?.();
+    return;
+  }
+  if (action.kind === "indent") {
+    model.updateOptions({
+      ...(action.insertSpaces !== undefined && { insertSpaces: action.insertSpaces }),
+      ...(action.tabSize !== undefined && { tabSize: action.tabSize, indentSize: action.tabSize }),
+    });
+    return;
+  }
+  void code
+    .getAction(
+      action.insertSpaces ? "editor.action.indentationToSpaces" : "editor.action.indentationToTabs",
+    )
+    ?.run();
+}
+
+function detectedSourceLanguage(path: string) {
+  return languageByExtension[sourceFileFormat(path)] ?? "plaintext";
+}
 
 export function selectedSourceText(path: string, models: SourceModels, viewId?: string) {
   const target = visibleSourceEditor(path, models, viewId);
@@ -143,13 +216,18 @@ export function runSourceEditCommand(
 
 function reportSourceStatus(
   code: editor.ICodeEditor,
-  report?: (status: SourceEditorStatus) => void,
+  report: ((status: SourceEditorStatus) => void) | undefined,
+  languageOverride = "auto",
 ) {
   const model = code.getModel();
   const position = code.getPosition();
   if (!report || !model || !position) return;
   const { tabSize, insertSpaces } = model.getOptions();
+  const selections = code.getSelections() ?? [];
   report({
+    languageOverride,
+    selected: selections.reduce((count, range) => count + model.getCharacterCountInRange(range), 0),
+    selections: selections.length,
     line: position.lineNumber,
     column: position.column,
     tabSize,
@@ -189,8 +267,9 @@ export function SourceEditor({
   const callbacks = useRef({ onChange, onStatus, onFocus });
   callbacks.current = { onChange, onStatus, onFocus };
   const label = t("文件内容");
-  const language = languageByExtension[sourceFileFormat(path)] ?? "plaintext";
-  const { editorFontSize, editorWordWrap, editorLineNumbers, editorMinimap } = useUserPreferences();
+  const language = detectedSourceLanguage(path);
+  const { editorFontSize, editorWordWrap, editorLineNumbers, editorMinimap, editorScreenReader } =
+    useUserPreferences();
 
   useLayoutEffect(() => {
     const code = editor.create(container.current!, {
@@ -209,9 +288,11 @@ export function SourceEditor({
     const change = code.onDidChangeModelContent((event) => {
       if (!event.isFlush) callbacks.current.onChange(code.getValue());
     });
-    const report = () => reportSourceStatus(code, callbacks.current.onStatus);
+    const report = () =>
+      reportSourceStatus(code, callbacks.current.onStatus, attached.current?.languageOverride);
+    sourceReports.set(code, report);
     const statusListeners = [
-      code.onDidChangeCursorPosition(report),
+      code.onDidChangeCursorSelection(report),
       code.onDidChangeModelOptions(report),
       code.onDidChangeModelLanguage(report),
     ];
@@ -225,6 +306,7 @@ export function SourceEditor({
       statusListeners.forEach((listener) => listener.dispose());
       focus.dispose();
       editorViews.delete(code);
+      sourceReports.delete(code);
       code.dispose();
     };
   }, [viewId]);
@@ -232,6 +314,7 @@ export function SourceEditor({
   useLayoutEffect(() => {
     instance.current?.updateOptions({
       ariaLabel: label,
+      accessibilitySupport: editorScreenReader ? "on" : "auto",
       fontSize: editorFontSize,
       lineHeight: Math.round((editorFontSize * 21) / 13),
       lineNumbers: editorLineNumbers ? "on" : "off",
@@ -239,15 +322,25 @@ export function SourceEditor({
       minimap: { enabled: editorMinimap, renderCharacters: false, showSlider: "mouseover" },
       unicodeHighlight: { allowedCharacters: language === "markdown" ? markdownPunctuation : {} },
     });
-  }, [viewId, label, language, editorFontSize, editorWordWrap, editorLineNumbers, editorMinimap]);
+  }, [
+    viewId,
+    label,
+    language,
+    editorFontSize,
+    editorWordWrap,
+    editorLineNumbers,
+    editorMinimap,
+    editorScreenReader,
+  ]);
 
   useLayoutEffect(() => {
     const code = instance.current!;
     let next = models.get(path);
-    if (next && next.model.getLanguageId() !== language)
-      editor.setModelLanguage(next.model, language);
+    if (next && next.model.getLanguageId() !== (next.languageOverride ?? language))
+      editor.setModelLanguage(next.model, next.languageOverride ?? language);
     if (attached.current === next && next) {
       if (next.model.getValue() !== value) next.model.setValue(value);
+      reportSourceStatus(code, callbacks.current.onStatus, next.languageOverride);
       return;
     }
     if (attached.current && !attached.current.model.isDisposed())
@@ -265,7 +358,7 @@ export function SourceEditor({
     code.setModel(next.model);
     const viewState = next.viewStates.get(viewId);
     if (viewState) code.restoreViewState(viewState);
-    reportSourceStatus(code, callbacks.current.onStatus);
+    reportSourceStatus(code, callbacks.current.onStatus, next.languageOverride);
   }, [models, path, value, language, viewId]);
 
   useLayoutEffect(() => {

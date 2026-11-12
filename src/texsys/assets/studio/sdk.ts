@@ -77,10 +77,19 @@ export type ProjectFile = {
   artifact?: PreviewArtifact;
   preview_error?: string;
 };
+export type TextFormat = {
+  encoding: "utf8" | "utf8bom";
+  lineEnding: "LF" | "CRLF" | "CR" | "mixed";
+};
+export type TextFormatChange = Partial<{
+  encoding: TextFormat["encoding"];
+  lineEnding: "LF" | "CRLF";
+}>;
 export type FilePreview = {
   path: string;
   size: number;
   previewable: boolean;
+  textFormat?: TextFormat;
   content?: string;
   reason?: string;
   version?: string;

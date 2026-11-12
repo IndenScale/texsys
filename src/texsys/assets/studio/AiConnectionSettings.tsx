@@ -67,6 +67,7 @@ export function AiConnectionSettings({ api }: { api: WorkbenchProps["api"] }) {
       setKey("");
       setRemoveKey(false);
       setNotice({ kind: "saved" });
+      window.dispatchEvent(new Event("texsys:ai-settings-changed"));
     } catch (error) {
       setNotice({ kind: "error", message: errorMessage(error) });
     } finally {

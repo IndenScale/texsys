@@ -339,7 +339,10 @@ test("Explorer headings manage views while the project tree keeps its own contex
   // The source editor uses browser workers. The fixture renders the real Explorer and menu
   // and uses the normal file-selection path without mounting the editor surface.
   const { CoreWorkspaceProvider, useCoreWorkspace } = loadStudioModule("CoreWorkspace.tsx", {
-    "./SourceEditor": { supportsSourceLineComments: () => false },
+    "./SourceEditor": {
+      supportsSourceLineComments: () => false,
+      watchSourceProblems: () => () => {},
+    },
     "./MarkdownEditor": {},
   });
   const defaults = {

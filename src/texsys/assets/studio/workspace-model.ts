@@ -1,3 +1,4 @@
+import type { TextFormat, TextFormatChange } from "./sdk";
 import type { FilePreview, ProjectFile } from "./sdk";
 
 export function sourceFileFormat(path: string): string {
@@ -221,6 +222,7 @@ export function fileDocumentSnapshot(path: string, file: FilePreview) {
     saved: file.content ?? "",
     content: file.content ?? "",
     version: file.version ?? "",
+    ...(file.textFormat ? { textFormat: file.textFormat, formatChange: undefined } : {}),
     reason: file.reason,
     generated: !!file.generated,
     preview: file.preview,
@@ -228,14 +230,31 @@ export function fileDocumentSnapshot(path: string, file: FilePreview) {
     error: undefined,
   };
 }
-type FileDocumentState = { path: string; content: string; saved: string; version: string };
+type FileDocumentState = {
+  path: string;
+  content: string;
+  saved: string;
+  version: string;
+  textFormat?: TextFormat;
+  formatChange?: TextFormatChange;
+};
+export function isDocumentDirty(
+  document: Pick<FileDocumentState, "content" | "saved" | "formatChange">,
+) {
+  return document.content !== document.saved || !!document.formatChange;
+}
+export function editorTextFormat(
+  document: Pick<FileDocumentState, "textFormat" | "formatChange">,
+): TextFormat {
+  return { encoding: "utf8", lineEnding: "LF", ...document.textFormat, ...document.formatChange };
+}
 /** Background reads cannot replace edits or a newer disk baseline. */
 export function refreshedFileDocument<T extends FileDocumentState>(
   document: T,
   file: FilePreview,
   expectedVersion: string,
 ): T {
-  if (document.content !== document.saved || document.version !== expectedVersion) return document;
+  if (isDocumentDirty(document) || document.version !== expectedVersion) return document;
   return { ...document, ...fileDocumentSnapshot(document.path, file) };
 }
 /** A save acknowledges its submitted bytes while preserving typing after the request began. */
