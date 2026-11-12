@@ -669,8 +669,7 @@
   min-height: 0;
   min-width: 0;
 }
-.core-text-document > .core-document-header,
-.core-text-document > .core-editor-status {
+.core-text-document > .core-document-header {
   flex-shrink: 0;
 }
 .core-text-document > .core-code-editor,
@@ -681,30 +680,10 @@
   min-height: 0;
   overflow: hidden;
 }
-.core-text-document > .core-editor-status {
-  min-height: 24px;
-}
 .core-code-editor {
   min-width: 0;
   min-height: 0;
   overflow: hidden;
-}
-.core-editor-status {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  border-top: 1px solid #edf0f2;
-  padding: 0 12px;
-  font-size: 10px;
-  color: var(--ui-text-muted);
-  gap: var(--space-1);
-  white-space: nowrap;
-  overflow: hidden;
-}
-.core-editor-status-details {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
 }
 .core-welcome {
   height: 100%;
@@ -900,45 +879,6 @@
   overflow-wrap: anywhere;
   line-height: 1.6;
 }
-.core-compare-dialog {
-  width: min(1000px, calc(100vw - 32px));
-}
-.core-compare-columns {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  gap: 12px;
-  margin-top: 16px;
-}
-.core-compare-columns label {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  font-size: 12px;
-  color: var(--ui-text-muted);
-}
-.core-compare-columns textarea {
-  width: 100%;
-  height: min(48vh, 500px);
-  resize: none;
-  white-space: pre;
-  font:
-    12px/20px ui-monospace,
-    SFMono-Regular,
-    Menlo,
-    monospace;
-}
-@media (max-width: 600px) {
-  .core-compare-columns {
-    grid-template-columns: minmax(0, 1fr);
-  }
-  .core-compare-columns textarea {
-    height: 20vh;
-  }
-  .core-compare-dialog .core-dialog-actions {
-    flex-wrap: wrap;
-  }
-}
-
 .core-file-icon {
   display: inline-flex;
   align-items: center;

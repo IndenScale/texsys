@@ -36,6 +36,7 @@ export function FileOpenWith({
   ];
   if (kind) openers.push({ mode: "preview", label: t(previewLabels[kind]) });
   if (kind === "markdown") openers.push({ mode: "markdown-editor", label: t("Markdown 编辑器") });
+  if (openers.length === 1) return null;
   const selected = openers.find(({ mode }) => mode === presentation) ?? openers[0];
   const defaultOpener =
     openers.find(({ mode }) => mode === defaultPresentation) ??

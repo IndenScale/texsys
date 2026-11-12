@@ -24,6 +24,7 @@ const {
   editorViewCount,
   resolvedEditorPresentation,
   initializeEditorView,
+  closeEditorsInOrder,
 } = loaded.exports;
 
 function splitDocument() {
@@ -107,4 +108,94 @@ test("Markdown Editor remains a real opening mode only for Markdown", () => {
   assert.equal(resolvedEditorPresentation("markdown", "markdown-editor"), "markdown-editor");
   assert.equal(resolvedEditorPresentation("diagram", "markdown-editor"), "source");
   assert.equal(resolvedEditorPresentation(undefined, "markdown-editor"), "source");
+});
+
+test("closing a group waits for a dirty editor and stops immediately when it is cancelled", async () => {
+  const calls = [];
+  let confirm;
+  const tab = (id, close) => ({ id, label: id, select() {}, close });
+  const closing = closeEditorsInOrder([
+    tab("clean", () => {
+      calls.push("clean");
+      return true;
+    }),
+    tab("dirty", () => {
+      calls.push("dirty");
+      return new Promise((resolve) => {
+        confirm = resolve;
+      });
+    }),
+    tab("later", () => {
+      calls.push("later");
+      return true;
+    }),
+  ]);
+  await Promise.resolve();
+  assert.deepEqual(calls, ["clean", "dirty"]);
+  confirm(false);
+  assert.equal(await closing, false);
+  assert.deepEqual(calls, ["clean", "dirty"]);
+});
+
+test("closing a group only advances after the dirty editor has finished saving", async () => {
+  let finishSave;
+  let saved = false;
+  let secondClosed = false;
+  const closing = closeEditorsInOrder([
+    {
+      id: "first",
+      label: "first",
+      select() {},
+      close: () =>
+        new Promise((resolve) => {
+          finishSave = () => {
+            saved = true;
+            resolve(true);
+          };
+        }),
+    },
+    {
+      id: "second",
+      label: "second",
+      select() {},
+      close: () => {
+        assert.equal(saved, true);
+        secondClosed = true;
+        return true;
+      },
+    },
+  ]);
+  await Promise.resolve();
+  assert.equal(secondClosed, false);
+  finishSave();
+  assert.equal(await closing, true);
+  assert.equal(secondClosed, true);
+});
+
+test("closing one group retains a dirty document still viewed by another group", async () => {
+  let groups = splitDocument();
+  const documents = new Map([["README.md", { content: "unsaved", saved: "original" }]]);
+  let requestedSave = false;
+  assert.equal(
+    await closeEditorsInOrder([
+      {
+        id: "README.md",
+        label: "README.md",
+        dirty: true,
+        select() {},
+        close: () => {
+          const draft = documents.get("README.md");
+          if (editorViewCount(groups, "README.md") === 1 && draft.content !== draft.saved)
+            requestedSave = true;
+          groups = closeEditorView(groups, "primary", "README.md");
+          if (editorViewCount(groups, "README.md") === 0) documents.delete("README.md");
+          return true;
+        },
+      },
+    ]),
+    true,
+  );
+  assert.equal(requestedSave, false);
+  assert.equal(editorViewCount(groups, "README.md"), 1);
+  assert.equal(documents.get("README.md").content, "unsaved");
 });

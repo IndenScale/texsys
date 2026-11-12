@@ -168,7 +168,7 @@ def file_operation(root: Path, build: str, request: dict) -> dict:
     if not original["previewable"]:
       raise ProjectError(original["reason"])
     if request.get("version") != original["version"]:
-      raise Conflict("文件已被外部修改。请重新读取并比较后保存；编辑内容已保留。")
+      raise Conflict("文件已被外部修改，未覆盖文件；编辑内容已保留。请另存为，或还原文件后重新编辑。")
     text = request.get("content")
     if not isinstance(text, str) or "\0" in text:
       raise ProjectError("文件内容必须是 UTF-8 文本。")

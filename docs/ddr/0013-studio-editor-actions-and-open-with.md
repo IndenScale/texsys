@@ -5,6 +5,7 @@
 - 取代：部分修订 [DDR-0012](0012-studio-file-preview-and-source.md) 的视图切换入口；统一文件组件和仅替换预览实现的约束继续有效
 - 被取代：无
 - 关联：[DDR-0005](0005-studio-core-editor.md)、[ADR-0028](../adr/0028-file-based-artifact-preview.md)
+- 后继修订：[DDR-0014](0014-studio-editor-group-actions-and-disk-comparison-removal.md) 将更多菜单明确为编辑器组操作，删除本文保留的磁盘比较流程，并取消单一打开方式的选择器；Markdown 三种打开方式、文件类型默认值和通用分栏继续有效。
 
 ## 背景
 

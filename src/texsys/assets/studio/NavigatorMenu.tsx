@@ -31,7 +31,11 @@ function placeMenu(
   const maxX = window.innerWidth - width - edge;
   const maxY = window.innerHeight - height - edge;
   const preferSide = placement === "side" && right <= maxX;
-  const x = preferSide ? right : placement === "point" || placement === "start" ? left : right - width;
+  const x = preferSide
+    ? right
+    : placement === "point" || placement === "start"
+      ? left
+      : right - width;
 
   const spaceBelow = window.innerHeight - bottom - gap - edge;
   const spaceAbove = top - gap - edge;
@@ -93,12 +97,47 @@ export function NavigatorMenu({
   const submenuRef = useRef<HTMLDivElement>(null);
   const [open, setOpen] = useState(false);
   const [activeSubmenuIndex, setActiveSubmenuIndex] = useState<number | null>(null);
+  const submenuCloseTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const focusSubmenuAfterOpen = useRef(false);
+  const cancelSubmenuClose = () => {
+    clearTimeout(submenuCloseTimer.current);
+    submenuCloseTimer.current = undefined;
+  };
+  const closeSubmenu = () => {
+    cancelSubmenuClose();
+    focusSubmenuAfterOpen.current = false;
+    setActiveSubmenuIndex(null);
+  };
+  const leaveSubmenu = () => {
+    cancelSubmenuClose();
+    // Preserve the submenu while the pointer crosses the gap between the two menus.
+    submenuCloseTimer.current = setTimeout(closeSubmenu, 160);
+  };
+  const openSubmenu = (index: number, focus = false) => {
+    cancelSubmenuClose();
+    focusSubmenuAfterOpen.current = focus;
+    setActiveSubmenuIndex(index);
+    if (focus && activeSubmenuIndex === index) {
+      submenuRef.current?.querySelector<HTMLButtonElement>("button:not(:disabled)")?.focus();
+      focusSubmenuAfterOpen.current = false;
+    }
+  };
+  const submenuParent = (index: number) =>
+    menuRef.current?.querySelector<HTMLButtonElement>(
+      `:scope > button[data-menu-index="${index}"]`,
+    );
+  useEffect(() => () => clearTimeout(submenuCloseTimer.current), []);
 
   useLayoutEffect(() => {
     const menu = menuRef.current;
     if (!menu || !point) return;
     if (!menu.matches(":popover-open")) menu.showPopover();
-    placeMenu(menu, { left: point.x, right: point.x, top: point.y, bottom: point.y }, "point", direction);
+    placeMenu(
+      menu,
+      { left: point.x, right: point.x, top: point.y, bottom: point.y },
+      "point",
+      direction,
+    );
     (menu.querySelector<HTMLButtonElement>("button:not(:disabled)") ?? menu).focus();
   }, [point, direction]);
 
@@ -107,8 +146,7 @@ export function NavigatorMenu({
     if (!sub || activeSubmenuIndex === null || !items[activeSubmenuIndex]?.submenu) return;
     const parentMenu = menuRef.current;
     if (!parentMenu) return;
-    const parentButtons = Array.from(parentMenu.querySelectorAll<HTMLButtonElement>(":scope > button"));
-    const button = parentButtons[activeSubmenuIndex];
+    const button = submenuParent(activeSubmenuIndex);
     if (!button) return;
     const rect = button.getBoundingClientRect();
     const { width, height } = sub.getBoundingClientRect();
@@ -124,6 +162,10 @@ export function NavigatorMenu({
     sub.style.maxHeight = "none";
     sub.style.overflow = "visible";
     sub.style.overflowY = "visible";
+    if (focusSubmenuAfterOpen.current) {
+      sub.querySelector<HTMLButtonElement>("button:not(:disabled)")?.focus();
+      focusSubmenuAfterOpen.current = false;
+    }
   }, [activeSubmenuIndex, items]);
 
   useEffect(() => {
@@ -139,6 +181,7 @@ export function NavigatorMenu({
     <>
       {!point && (
         <NavigatorButton
+          id={`${id}-trigger`}
           className={triggerClassName}
           label={label}
           title={title}
@@ -178,39 +221,42 @@ export function NavigatorMenu({
           const isOpen = event.newState === "open";
           setOpen(isOpen);
           if (!isOpen) {
-            setActiveSubmenuIndex(null);
+            closeSubmenu();
             onDismiss?.();
           }
         }}
         onPointerLeave={(event) => {
-          const next = event.relatedTarget as Node | null;
-          if (!submenuRef.current?.contains(next)) {
-            setActiveSubmenuIndex(null);
-          }
+          const next = event.relatedTarget instanceof Node ? event.relatedTarget : null;
+          if (!submenuRef.current?.contains(next)) leaveSubmenu();
         }}
         onKeyDown={(event) => {
+          if (event.key === "Escape") {
+            event.preventDefault();
+            event.stopPropagation();
+            event.currentTarget.hidePopover();
+            document.getElementById(`${id}-trigger`)?.focus();
+            return;
+          }
           if (event.key === "Tab") {
             event.currentTarget.hidePopover();
             return;
           }
           if (event.key === "ArrowRight") {
-            const buttons = Array.from(
-              event.currentTarget.querySelectorAll<HTMLButtonElement>(":scope > button:not(:disabled)"),
-            );
-            const index = buttons.indexOf(document.activeElement as HTMLButtonElement);
-            if (index >= 0 && items[index]?.submenu?.length) {
+            const focused = document.activeElement as HTMLElement | null;
+            const index = Number(focused?.dataset.menuIndex);
+            if (focused?.parentElement === event.currentTarget && items[index]?.submenu?.length) {
               event.preventDefault();
-              setActiveSubmenuIndex(index);
-              setTimeout(() => {
-                submenuRef.current?.querySelector<HTMLButtonElement>("button:not(:disabled)")?.focus();
-              }, 0);
+              event.stopPropagation();
+              openSubmenu(index, true);
               return;
             }
           }
           if (!["ArrowDown", "ArrowUp", "Home", "End"].includes(event.key)) return;
           event.preventDefault();
           const buttons = Array.from(
-            event.currentTarget.querySelectorAll<HTMLButtonElement>(":scope > button:not(:disabled)"),
+            event.currentTarget.querySelectorAll<HTMLButtonElement>(
+              ":scope > button:not(:disabled)",
+            ),
           );
           if (!buttons.length) return;
           const index = buttons.indexOf(document.activeElement as HTMLButtonElement);
@@ -262,6 +308,7 @@ export function NavigatorMenu({
                         ? "menuitem"
                         : "menuitemradio"
                 }
+                data-menu-index={index}
                 aria-checked={hasSubmenu ? undefined : checked}
                 aria-haspopup={hasSubmenu ? "menu" : undefined}
                 aria-expanded={hasSubmenu ? activeSubmenuIndex === index : undefined}
@@ -270,15 +317,15 @@ export function NavigatorMenu({
                 title={reason}
                 className={separator ? "navigator-menu-group-start" : undefined}
                 onPointerEnter={() => {
-                  if (hasSubmenu) {
-                    setActiveSubmenuIndex(index);
-                  } else {
-                    setActiveSubmenuIndex(null);
-                  }
+                  if (hasSubmenu) openSubmenu(index);
+                  else closeSubmenu();
+                }}
+                onFocus={() => {
+                  if (activeSubmenuIndex !== index) closeSubmenu();
                 }}
                 onClick={() => {
                   if (hasSubmenu) {
-                    setActiveSubmenuIndex(activeSubmenuIndex === index ? null : index);
+                    openSubmenu(index, true);
                     return;
                   }
                   if (!checkbox) menuRef.current?.hidePopover();
@@ -286,7 +333,11 @@ export function NavigatorMenu({
                 }}
               >
                 <span className="navigator-menu-icon" aria-hidden="true">
-                  {checked ? <Icon name="tick" size={16} /> : icon && <Icon name={icon} size={16} />}
+                  {checked ? (
+                    <Icon name="tick" size={16} />
+                  ) : (
+                    icon && <Icon name={icon} size={16} />
+                  )}
                 </span>
                 <span>{itemLabel}</span>
                 {shortcut && <Keycaps keys={shortcut} />}
@@ -306,22 +357,19 @@ export function NavigatorMenu({
             role="menu"
             aria-label={items[activeSubmenuIndex].label}
             tabIndex={-1}
+            onPointerEnter={cancelSubmenuClose}
             onKeyDown={(event) => {
               if (event.key === "ArrowLeft" || event.key === "Escape") {
                 event.preventDefault();
                 event.stopPropagation();
                 const parentIndex = activeSubmenuIndex;
-                setActiveSubmenuIndex(null);
-                if (parentIndex !== null) {
-                  const parentButtons = Array.from(
-                    menuRef.current?.querySelectorAll<HTMLButtonElement>(":scope > button") ?? [],
-                  );
-                  parentButtons[parentIndex]?.focus();
-                }
+                closeSubmenu();
+                if (parentIndex !== null) submenuParent(parentIndex)?.focus();
                 return;
               }
               if (!["ArrowDown", "ArrowUp", "Home", "End"].includes(event.key)) return;
               event.preventDefault();
+              event.stopPropagation();
               const buttons = Array.from(
                 event.currentTarget.querySelectorAll<HTMLButtonElement>("button:not(:disabled)"),
               );
@@ -332,13 +380,14 @@ export function NavigatorMenu({
                   ? 0
                   : event.key === "End"
                     ? buttons.length - 1
-                    : (index + (event.key === "ArrowDown" ? 1 : buttons.length - 1)) % buttons.length;
+                    : (index + (event.key === "ArrowDown" ? 1 : buttons.length - 1)) %
+                      buttons.length;
               buttons[next]?.focus();
             }}
             onPointerLeave={(event) => {
-              const next = event.relatedTarget as Node | null;
+              const next = event.relatedTarget instanceof Node ? event.relatedTarget : null;
               if (!menuRef.current?.contains(next)) {
-                setActiveSubmenuIndex(null);
+                leaveSubmenu();
               }
             }}
           >
@@ -361,7 +410,7 @@ export function NavigatorMenu({
                 onClick={() => {
                   if (!subItem.checkbox) {
                     menuRef.current?.hidePopover();
-                    setActiveSubmenuIndex(null);
+                    closeSubmenu();
                   }
                   subItem.run?.();
                 }}

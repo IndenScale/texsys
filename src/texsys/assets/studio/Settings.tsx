@@ -1,4 +1,4 @@
-import React, { useId, useRef, useState, type ReactNode } from "react";
+import React, { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { AiConnectionSettings } from "./AiConnectionSettings";
 import { defaultLocale, setLocale, t, translate, useLocale } from "./i18n";
 import { titlebarGroups, type TitlebarGroup } from "./layout-preferences";
@@ -154,10 +154,12 @@ export function Settings({
   api,
   titlebar,
   hidden,
+  categoryRequest,
 }: {
   api: WorkbenchProps["api"];
   titlebar: TitlebarSettings;
   hidden?: boolean;
+  categoryRequest?: { category: Category; token: number };
 }) {
   const locale = useLocale();
   const headingId = useId();
@@ -166,6 +168,11 @@ export function Settings({
   const [query, setQuery] = useState("");
   const [aiOpened, setAiOpened] = useState(false);
   const preferences = useUserPreferences();
+  useEffect(() => {
+    if (!categoryRequest) return;
+    setCategory(categoryRequest.category);
+    setQuery("");
+  }, [categoryRequest]);
 
   function preference<K extends keyof UserPreferences>(
     key: K,

@@ -8,6 +8,24 @@ export type EditorView = {
   cursorLine?: number;
 };
 export type EditorGroup = { id: string; views: EditorView[]; activePath: string | null };
+export type EditorGroupTab = {
+  id: string;
+  label: string;
+  description?: string;
+  icon?: string;
+  dirty?: boolean;
+  selected?: boolean;
+  select: () => void;
+  close: () => boolean | Promise<boolean>;
+};
+
+/** Wait for each editor's normal close workflow; cancellation leaves the rest open. */
+export async function closeEditorsInOrder(tabs: readonly EditorGroupTab[]): Promise<boolean> {
+  for (const tab of tabs) {
+    if (!(await tab.close())) return false;
+  }
+  return true;
+}
 export const primaryEditorGroup = "primary";
 export const secondaryEditorGroup = "secondary";
 export const emptyEditorGroup = (id = primaryEditorGroup): EditorGroup => ({

@@ -2,6 +2,7 @@ import { t, getLocale, useLocale } from "../../../../../src/texsys/assets/studio
 import {
   WorkbenchSurface,
   useCoreWorkspace,
+  type EditorGroupTab,
 } from "../../../../../src/texsys/assets/studio/CoreWorkspace";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { WorkbenchPlugin, WorkbenchProps } from "../../../../../src/texsys/assets/studio/sdk";
@@ -216,6 +217,10 @@ function Workspace({
   const [filePath, setFilePath] = useState("");
   const [history, setHistory] = useState<DocumentHistory<View>>({ entries: ["design"], index: 0 });
   const [documents, setDocuments] = useState<View[]>(["design"]);
+  const documentsRef = useRef(documents);
+  documentsRef.current = documents;
+  const viewRef = useRef(view);
+  viewRef.current = view;
   const [selection, setSelection] = useState<Selection | undefined>(() =>
     entries[0] ? { kind: "instance", id: entries[0][0] } : undefined,
   );
@@ -240,6 +245,8 @@ function Workspace({
   const [saving, setSaving] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [hasDraft, setHasDraft] = useState(false);
+  const hasDraftRef = useRef(hasDraft);
+  hasDraftRef.current = hasDraft;
   const [undo, setUndo] = useState<{ operation: Record<string, unknown>; revision: string }>();
   const [issueScope, setIssueScope] = useState("current");
   const [issueSearch, setIssueSearch] = useState("");
@@ -638,14 +645,40 @@ function Workspace({
     />
   );
   const closeDocument = (target: View) => {
-    const { remaining, next } = closeDocumentFromList(documents, target);
+    const { remaining, next } = closeDocumentFromList(documentsRef.current, target);
+    documentsRef.current = remaining;
     setDocuments(remaining);
-    if (view === target) {
-      if (next) openView(next);
-      else core?.activateCore?.();
+    if (viewRef.current === target) {
+      if (next) {
+        viewRef.current = next;
+        openView(next);
+      } else core?.activateCore?.();
     }
     setPlayback((previous) => ({ ...previous, playing: false }));
   };
+  const editorTabs: EditorGroupTab[] = documents.map((id) => ({
+    id,
+    label:
+      id === "file"
+        ? (filePath.split("/").pop() ?? t("文件预览"))
+        : id === "design"
+          ? source.root
+          : t(info(id).label),
+    icon: info(id).icon,
+    selected: view === id,
+    dirty: hasDraft && ["design", "equipment", "source"].includes(id),
+    select: () => openView(id),
+    close: () => {
+      if (hasDraftRef.current && ["design", "equipment", "source"].includes(id)) {
+        openView(id);
+        changeLayout({ inspectorOpen: true });
+        notify(t("请先保存或放弃参数草稿，再关闭此编辑器。"), true);
+        return false;
+      }
+      closeDocument(id);
+      return true;
+    },
+  }));
   const tabs = documents.length ? (
     <WorkspaceTabStrip
       label={t("打开的文档")}
@@ -833,6 +866,7 @@ function Workspace({
         layout={layout}
         change={changeLayout}
         tabs={tabs}
+        editorTabs={editorTabs}
         tabActions={
           hasDraft || undo || ["design", "equipment", "checks", "outputs", "source"].includes(view)
             ? tabActions

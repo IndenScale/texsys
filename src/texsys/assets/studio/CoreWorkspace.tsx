@@ -16,7 +16,6 @@ import type { FilePreview, StudioLayout, StudioState, WorkbenchProps } from "./s
 import {
   gitPathInProject,
   explorerCreationParent,
-  sourceFileFormat,
   visibleFileTree,
   filePreviewKind,
   fileDocumentSnapshot,
@@ -31,7 +30,7 @@ import {
   type SearchMatch,
 } from "./workspace-model";
 import { visitDocument, stepDocument, type DocumentHistory } from "./navigation";
-import { rememberRecentFile, type FileLocation } from "./search";
+import { rememberRecentFile, type FileLocation, type EditorPickerItem } from "./search";
 import { useUserPreferences, fileEditorDefault, setFileEditorDefault } from "./user-preferences";
 import { useCodeSearch } from "./CodeSearch";
 import { ExplorerTree, type ExplorerCreation } from "./ExplorerTree";
@@ -87,11 +86,14 @@ import {
   resolvedEditorPresentation,
   initializeEditorView,
   editorViewCount,
+  closeEditorsInOrder,
   primaryEditorGroup,
   secondaryEditorGroup,
   type EditorGroup,
   type EditorPresentation,
+  type EditorGroupTab,
 } from "./editor-groups";
+export type { EditorGroupTab } from "./editor-groups";
 
 type Activity = "explorer" | "search" | "scm" | "extensions" | "library" | "instances";
 function isCoreActivity(id: string): id is Activity {
@@ -128,7 +130,7 @@ type Core = {
   select: (id: Activity) => void;
   sidebar: ReactNode;
   editor: ReactNode;
-  editorActions: ReactNode;
+  editorActions: (domainTabs?: EditorGroupTab[]) => ReactNode;
   tabs: ReactNode;
   secondary?: EditorGroupContent;
   focusedGroup: string;
@@ -293,6 +295,7 @@ export function CoreWorkspaceProvider({
   navigationRequest,
   onNavigationState,
   hasDomain,
+  showEditorPicker,
   children,
 }: {
   state: StudioState;
@@ -317,6 +320,7 @@ export function CoreWorkspaceProvider({
     canForward: boolean;
     canClose: boolean;
     canSave: boolean;
+    canSaveAs: boolean;
     canCreateFile: boolean;
     canSaveAll: boolean;
     canRevert: boolean;
@@ -327,6 +331,7 @@ export function CoreWorkspaceProvider({
     canRedo: boolean;
   }) => void;
   hasDomain: boolean;
+  showEditorPicker: (items: EditorPickerItem[]) => void;
   children: ReactNode;
 }) {
   const { autoSave, confirmBeforeUnload, fileAssociations } = useUserPreferences();
@@ -453,6 +458,10 @@ export function CoreWorkspaceProvider({
   domainTabsOpenRef.current = domainTabsOpen;
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [settingsActive, setSettingsActive] = useState(false);
+  const [settingsCategoryRequest, setSettingsCategoryRequest] = useState<{
+    category: "editor";
+    token: number;
+  }>();
   const [searchEditorActive, setSearchEditorActive] = useState(false);
   const [searchDocumentOpen, setSearchDocumentOpen] = useState(false);
   const [history, setHistory] = useState<DocumentHistory>({ entries: [], index: -1 });
@@ -481,6 +490,10 @@ export function CoreWorkspaceProvider({
     if (form && !["rename", "delete", "saveAs"].includes(form.action)) setForm(undefined);
   }, [form]);
   const [closePath, setClosePath] = useState<string>();
+  const pendingClose = useRef<
+    { path: string; groupId: string; resolve: (closed: boolean) => void } | undefined
+  >(undefined);
+  const [closingGroup, setClosingGroup] = useState(false);
   const [revertPath, setRevertPath] = useState<string>();
   const [showShortcuts, setShowShortcuts] = useState(false);
   const [linePrompt, setLinePrompt] = useState<{
@@ -489,7 +502,6 @@ export function CoreWorkspaceProvider({
     invalid?: boolean;
   }>();
   const [closeFocusRequest, setCloseFocusRequest] = useState(0);
-  const [diskComparison, setDiskComparison] = useState<{ path: string; file: FilePreview }>();
   const searchInput = useRef<HTMLInputElement>(null);
   const [sourceFocus, setSourceFocus] = useState<{
     path: string;
@@ -582,12 +594,12 @@ export function CoreWorkspaceProvider({
   }, [notify, sourceModels, terminalFile, focusedGroup]);
   const closeDisabled = !!(
     busy ||
+    closingGroup ||
     form ||
     closePath ||
     revertPath ||
     linePrompt ||
-    showShortcuts ||
-    diskComparison
+    showShortcuts
   );
   const canClose = !!activeTab && !closeDisabled;
   const canReadSource =
@@ -609,8 +621,16 @@ export function CoreWorkspaceProvider({
     !active.reason &&
     !closeDisabled &&
     (!!active.untitled || active.content !== active.saved);
+  const canSaveAs =
+    activeTab === "source" &&
+    !!active &&
+    !active.design &&
+    !active.loading &&
+    !active.error &&
+    !active.reason &&
+    !closeDisabled;
   const canCommentSource = canEditSource && supportsSourceLineComments(active.path);
-  const canRevert = canEditSource && !active.untitled;
+  const canRevert = canSaveAs && !active.untitled;
   const dirty = documents.some((item) => item.content !== item.saved);
   const canSaveAll = dirty && !closeDisabled;
   const select = useCallback(
@@ -619,6 +639,18 @@ export function CoreWorkspaceProvider({
   );
   const hasCoreTabs =
     editorGroups[0].views.length > 0 || searchDocumentOpen || diffActive || settingsOpen;
+  useEffect(() => {
+    if (
+      !closingGroup &&
+      !hasCoreTabs &&
+      !domainTabsOpen &&
+      focusedGroup === primaryEditorGroup &&
+      editorGroups.some((group) => group.id === secondaryEditorGroup)
+    ) {
+      focusGroup(secondaryEditorGroup);
+      setCloseFocusRequest((request) => request + 1);
+    }
+  }, [closingGroup, hasCoreTabs, domainTabsOpen, focusedGroup, editorGroups, focusGroup]);
   const activateCore = useCallback(() => {
     setDocumentActive(true);
   }, []);
@@ -866,6 +898,7 @@ export function CoreWorkspaceProvider({
         history.index < history.entries.length - 1,
       canClose,
       canSave,
+      canSaveAs,
       canCreateFile: !closeDisabled,
       canSaveAll,
       canRevert,
@@ -882,6 +915,7 @@ export function CoreWorkspaceProvider({
     history.entries.length,
     canClose,
     canSave,
+    canSaveAs,
     canSaveAll,
     canRevert,
     closeDisabled,
@@ -942,9 +976,11 @@ export function CoreWorkspaceProvider({
             content: document.content,
             version: document.version,
           });
-          setDocuments((previous) =>
-            previous.map((item) => (item.path === path ? savedFileDocument(item, saved) : item)),
+          const nextDocuments = documentsRef.current.map((item) =>
+            item.path === path ? savedFileDocument(item, saved) : item,
           );
+          documentsRef.current = nextDocuments;
+          setDocuments(nextDocuments);
           failedAutoSaves.current.delete(path);
           count += 1;
         } catch (error) {
@@ -1016,17 +1052,6 @@ export function CoreWorkspaceProvider({
     );
     return () => clearTimeout(timer);
   }, [autoSave, canSaveAll, documents]);
-  const compareDisk = async (path: string) => {
-    const read = fileReads.current.begin(path);
-    try {
-      const file = await api<FilePreview>(`/api/file?path=${encodeURIComponent(path)}`);
-      if (!read.isCurrent()) return;
-      if (!file.previewable) throw new Error(file.reason ?? t("磁盘版本无法作为文本读取。"));
-      setDiskComparison({ path, file });
-    } catch (error) {
-      if (read.isCurrent()) notify(String(error), true);
-    }
-  };
   const rereadFile = async (path: string) => {
     const original = documentsRef.current.find((item) => item.path === path);
     if (!original || original.untitled) return;
@@ -1144,7 +1169,8 @@ export function CoreWorkspaceProvider({
   const removeDocument = (path: string) => {
     const nextGroups = removeEditorDocument(groupsRef.current, path);
     focusSurvivingGroup(nextGroups);
-    setEditorGroups((groups) => removeEditorDocument(groups, path));
+    groupsRef.current = nextGroups;
+    setEditorGroups(nextGroups);
     fileReads.current.invalidate(path);
     failedAutoSaves.current.delete(path);
     if (path.startsWith("\0untitled:")) {
@@ -1154,6 +1180,7 @@ export function CoreWorkspaceProvider({
       }));
     }
     const nextDocuments = documentsRef.current.filter((item) => item.path !== path);
+    documentsRef.current = nextDocuments;
     setDocuments(nextDocuments);
     if (activePath === path && nextDocuments.length === 0) {
       if (settingsOpen) setSettingsActive(true);
@@ -1166,24 +1193,53 @@ export function CoreWorkspaceProvider({
     close();
     setCloseFocusRequest((request) => request + 1);
   };
-  const closeFileTab = (path: string, groupId = focusedGroupRef.current) => {
-    focusGroup(groupId);
-    if (editorViewCount(groupsRef.current, path) > 1) {
-      focusSurvivingGroup(closeEditorView(groupsRef.current, groupId, path));
-      finishClosingTab(() => setEditorGroups((groups) => closeEditorView(groups, groupId, path)));
-      return;
-    }
-    const document = documentsRef.current.find((item) => item.path === path);
-    if (document && document.saved !== document.content) {
-      setClosePath(path);
-      return;
-    }
-    finishClosingTab(() => removeDocument(path));
+  const closeFileView = (path: string, groupId: string) => {
+    const nextGroups = closeEditorView(groupsRef.current, groupId, path);
+    finishClosingTab(() => {
+      if (editorViewCount(nextGroups, path) === 0) removeDocument(path);
+      else {
+        focusSurvivingGroup(nextGroups);
+        groupsRef.current = nextGroups;
+        setEditorGroups(nextGroups);
+      }
+    });
   };
-  const closeSearchTab = () =>
+  const finishPendingClose = (accepted: boolean) => {
+    const pending = pendingClose.current;
+    pendingClose.current = undefined;
+    setClosePath(undefined);
+    if (!pending) return;
+    if (accepted) closeFileView(pending.path, pending.groupId);
+    pending.resolve(accepted);
+  };
+  const closeFileTab = (path: string, groupId = focusedGroupRef.current): Promise<boolean> => {
+    if (
+      !groupsRef.current
+        .find((group) => group.id === groupId)
+        ?.views.some((view) => view.path === path)
+    )
+      return Promise.resolve(true);
+    if (pendingClose.current) return Promise.resolve(false);
+    focusGroup(groupId);
+    const document = documentsRef.current.find((item) => item.path === path);
+    if (
+      editorViewCount(groupsRef.current, path) === 1 &&
+      document &&
+      document.saved !== document.content
+    ) {
+      setClosePath(path);
+      return new Promise((resolve) => {
+        pendingClose.current = { path, groupId, resolve };
+      });
+    }
+    closeFileView(path, groupId);
+    return Promise.resolve(true);
+  };
+  const closeSearchTab = (restore = true) =>
     finishClosingTab(() => {
       setSearchDocumentOpen(false);
       setSearchEditorActive(false);
+      if (!restore) return;
       if (groupsRef.current[0].activePath) {
         focusGroup(primaryEditorGroup);
         setDocumentActive(true);
@@ -1197,9 +1253,10 @@ export function CoreWorkspaceProvider({
         focusGroup(secondaryEditorGroup);
       }
     });
-  const closeDiffTab = () =>
+  const closeDiffTab = (restore = true) =>
     finishClosingTab(() => {
       setDiffActive(false);
+      if (!restore) return;
       if (groupsRef.current[0].activePath) {
         focusGroup(primaryEditorGroup);
         setDocumentActive(true);
@@ -1214,10 +1271,11 @@ export function CoreWorkspaceProvider({
         focusGroup(secondaryEditorGroup);
       }
     });
-  const closeSettingsTab = () =>
+  const closeSettingsTab = (restore = true) =>
     finishClosingTab(() => {
       setSettingsOpen(false);
       setSettingsActive(false);
+      if (!restore) return;
       if (groupsRef.current[0].activePath) {
         focusGroup(primaryEditorGroup);
         setDocumentActive(true);
@@ -1314,9 +1372,9 @@ export function CoreWorkspaceProvider({
         const current = documentsRef.current.find((item) => item.path === source.path);
         const canReplaceTab = current?.content === source.content;
         if (canReplaceTab) {
-          if (form.closeAfter) finishClosingTab(() => removeDocument(source.path));
+          if (form.closeAfter) finishPendingClose(true);
           else moveDocument(source.path, saved.path, saved);
-        }
+        } else if (form.closeAfter) finishPendingClose(false);
         setForm(undefined);
         await reload();
         if (!form.closeAfter || !canReplaceTab) await openFile(saved.path, { focus: true });
@@ -1581,7 +1639,7 @@ export function CoreWorkspaceProvider({
     else if (id === "file.saveAll" && canSaveAll) void saveAll();
     else if (id === "editor.gotoLine" && canReadSource)
       setLinePrompt({ path: active.path, input: "" });
-    else if (id === "file.saveAs" && canEditSource) startSaveAs(active.path);
+    else if (id === "file.saveAs" && canSaveAs) startSaveAs(active.path);
     else if (id === "file.revert" && canRevert) {
       if (active.content === active.saved) void rereadFile(active.path);
       else setRevertPath(active.path);
@@ -2060,7 +2118,14 @@ export function CoreWorkspaceProvider({
               {formError}
             </p>
             <div className="core-dialog-actions">
-              <button type="button" onClick={() => setForm(undefined)} disabled={busy}>
+              <button
+                type="button"
+                onClick={() => {
+                  setForm(undefined);
+                  if (form.closeAfter) finishPendingClose(false);
+                }}
+                disabled={busy}
+              >
                 {t("取消")}
               </button>
               <button
@@ -2091,13 +2156,10 @@ export function CoreWorkspaceProvider({
               {t("有未保存的编辑。")}
             </p>
             <div className="core-dialog-actions">
-              <button disabled={busy} onClick={() => setClosePath(undefined)}>
+              <button disabled={busy} onClick={() => finishPendingClose(false)}>
                 {t("取消")}
               </button>
-              <button
-                disabled={busy}
-                onClick={() => finishClosingTab(() => removeDocument(closePath))}
-              >
+              <button disabled={busy} onClick={() => finishPendingClose(true)}>
                 {t("放弃更改")}
               </button>
               <button
@@ -2109,8 +2171,7 @@ export function CoreWorkspaceProvider({
                     startSaveAs(closePath, true);
                   } else if (await saveFile(closePath)) {
                     const current = documentsRef.current.find((item) => item.path === closePath);
-                    if (current?.content === current?.saved)
-                      finishClosingTab(() => removeDocument(closePath));
+                    if (current?.content === current?.saved) finishPendingClose(true);
                   }
                 }}
               >
@@ -2143,85 +2204,6 @@ export function CoreWorkspaceProvider({
                 }}
               >
                 {t("还原")}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-      {diskComparison && (
-        <div className="core-dialog-backdrop">
-          <div
-            className="core-dialog core-compare-dialog"
-            role="dialog"
-            aria-modal="true"
-            aria-label={t("比较磁盘版本")}
-          >
-            <strong>
-              {t("比较磁盘版本 ·")}
-              {diskComparison.path}
-            </strong>
-            <div className="core-compare-columns">
-              <label>
-                {t("当前编辑")}
-                <textarea
-                  readOnly
-                  aria-label={t("比较当前编辑")}
-                  value={documents.find((item) => item.path === diskComparison.path)?.content ?? ""}
-                />
-              </label>
-              <label>
-                {t("磁盘内容")}
-                <textarea
-                  readOnly
-                  aria-label={t("比较磁盘内容")}
-                  value={diskComparison.file.content ?? ""}
-                />
-              </label>
-            </div>
-            <p>
-              {t(
-                "可以采用磁盘内容，或保留当前编辑并更新保存基准。保留编辑后，仍需点击保存才会写入文件。",
-              )}
-            </p>
-            <div className="core-dialog-actions">
-              <button onClick={() => setDiskComparison(undefined)}>{t("关闭")}</button>
-              <button
-                onClick={() => {
-                  setDocuments((previous) =>
-                    previous.map((item) =>
-                      item.path === diskComparison.path
-                        ? {
-                            ...item,
-                            ...fileDocumentSnapshot(diskComparison.path, diskComparison.file),
-                            location: undefined,
-                          }
-                        : item,
-                    ),
-                  );
-                  setDiskComparison(undefined);
-                }}
-              >
-                {t("采用磁盘内容")}
-              </button>
-              <button
-                className="core-primary"
-                onClick={() => {
-                  setDocuments((previous) =>
-                    previous.map((item) =>
-                      item.path === diskComparison.path
-                        ? {
-                            ...item,
-                            saved: diskComparison.file.content ?? "",
-                            version: diskComparison.file.version!,
-                            location: undefined,
-                          }
-                        : item,
-                    ),
-                  );
-                  setDiskComparison(undefined);
-                }}
-              >
-                {t("保留编辑并更新保存基准")}
               </button>
             </div>
           </div>
@@ -2287,6 +2269,11 @@ export function CoreWorkspaceProvider({
                   document.path,
                   documents.filter((item) => !item.design).map((item) => item.path),
                 ));
+            const preview =
+              resolvedEditorPresentation(
+                filePreviewKind(document),
+                group.views.find((view) => view.path === document.path)?.presentation,
+              ) === "preview";
             return (
               <DocumentTab
                 key={document.path}
@@ -2320,10 +2307,12 @@ export function CoreWorkspaceProvider({
               >
                 {selection ? (
                   <Icon name={module ? "module" : "system"} size={14} />
+                ) : preview ? (
+                  <Icon name="preview" size={14} />
                 ) : (
                   <FileIcon path={document.path} />
                 )}
-                <span>{title}</span>
+                <span>{preview ? t("预览 {0}", { 0: title }) : title}</span>
                 {document.content !== document.saved && (
                   <span className="core-dirty" title={t("未保存")} />
                 )}
@@ -2419,63 +2408,234 @@ export function CoreWorkspaceProvider({
     }
     focusGroup(target);
   };
-  const renderActions = (group: EditorGroup) => {
-    if (group.id === primaryEditorGroup) {
-      if (settingsActive) return null;
-      if (searchEditorActive) return codeSearch.editorActions;
-      if (diffActive)
-        return (
-          diffProjectPath !== undefined && (
-            <EditorActionButton
-              label={t("打开文件")}
-              icon="scm-open-file"
-              onClick={() => void openFile(diffProjectPath, { groupId: group.id })}
-            />
-          )
-        );
+  const groupTabs = (group: EditorGroup, domainTabs: EditorGroupTab[] = []): EditorGroupTab[] => {
+    const primary = group.id === primaryEditorGroup;
+    const tabs: EditorGroupTab[] = documents
+      .filter((document) => group.views.some((view) => view.path === document.path))
+      .map((document) => {
+        const selection = document.design?.selection;
+        const scope = selection && designIndex && resolveDesign(designIndex, selection);
+        const label = selection
+          ? (("occurrence" in selection ? selection.occurrence.at(-1) : undefined) ??
+            scope?.definition?.name ??
+            t("模型"))
+          : (document.untitled ??
+            fileDocumentTitle(
+              document.path,
+              documents.filter((item) => !item.design).map((item) => item.path),
+            ));
+        const preview =
+          resolvedEditorPresentation(
+            filePreviewKind(document),
+            group.views.find((view) => view.path === document.path)?.presentation,
+          ) === "preview";
+        return {
+          id: `file:${document.path}`,
+          label: preview ? t("预览 {0}", { 0: label }) : label,
+          description: document.untitled ?? (selection ? "" : document.path),
+          icon: selection ? "system" : preview ? "preview" : "file",
+          dirty: !!document.untitled || document.content !== document.saved,
+          selected:
+            group.activePath === document.path &&
+            (!primary || (documentActive && !settingsActive && !searchEditorActive && !diffActive)),
+          select: () => {
+            focusGroup(group.id);
+            if (primary) {
+              setSettingsActive(false);
+              setSearchEditorActive(false);
+              setDiffActive(false);
+              setDocumentActive(true);
+            }
+            setActivePath(document.path, group.id);
+            setHistory((previous) => visitDocument(previous, document.path));
+            setCloseFocusRequest((request) => request + 1);
+          },
+          close: () => closeFileTab(document.path, group.id),
+        };
+      });
+    if (!primary) return tabs;
+    if (searchDocumentOpen)
+      tabs.push({
+        id: "search",
+        label: t("搜索结果"),
+        icon: "search",
+        selected: searchEditorActive && !settingsActive,
+        select: () => {
+          focusGroup(primaryEditorGroup);
+          setDocumentActive(true);
+          setSettingsActive(false);
+          setDiffActive(false);
+          setSearchEditorActive(true);
+        },
+        close: () => {
+          closeSearchTab(false);
+          return true;
+        },
+      });
+    if (diffActive)
+      tabs.push({
+        id: "diff",
+        label: `${t("差异 ·")}${diff?.path.split("/").pop() ?? t("读取中")}`,
+        icon: "branch",
+        selected: !settingsActive && !searchEditorActive,
+        select: () => {
+          focusGroup(primaryEditorGroup);
+          setDocumentActive(true);
+          setSettingsActive(false);
+          setSearchEditorActive(false);
+        },
+        close: () => {
+          closeDiffTab(false);
+          return true;
+        },
+      });
+    if (settingsOpen)
+      tabs.push({
+        id: "settings",
+        label: t("设置"),
+        icon: "settings",
+        selected: settingsActive,
+        select: () => {
+          focusGroup(primaryEditorGroup);
+          setSettingsActive(true);
+        },
+        close: () => {
+          closeSettingsTab(false);
+          return true;
+        },
+      });
+    return [
+      ...tabs,
+      ...domainTabs.map((tab) => ({
+        ...tab,
+        id: `domain:${tab.id}`,
+        selected: !documentActive && !settingsActive && tab.selected,
+        select: () => {
+          activateDomain();
+          tab.select();
+        },
+      })),
+    ];
+  };
+  const closeGroupTabs = async (group: EditorGroup, tabs: EditorGroupTab[], savedOnly: boolean) => {
+    if (closeDisabled) return;
+    focusGroup(group.id);
+    setClosingGroup(true);
+    const remaining = new Map(tabs.map((tab) => [tab.id, tab]));
+    try {
+      await closeEditorsInOrder(
+        (savedOnly ? tabs.filter((tab) => !tab.dirty) : tabs).map((tab) => ({
+          ...tab,
+          close: async () => {
+            const closed = await tab.close();
+            if (closed) remaining.delete(tab.id);
+            return closed;
+          },
+        })),
+      );
+    } finally {
+      setClosingGroup(false);
+      if (group.id === primaryEditorGroup && !groupsRef.current[0].views.length) {
+        const survivors = [...remaining.values()];
+        if (survivors.length && survivors.every((tab) => tab.id.startsWith("domain:"))) {
+          (survivors.find((tab) => tab.selected) ?? survivors[0]).select();
+          setCloseFocusRequest((request) => request + 1);
+        } else if (!survivors.length) {
+          setDocumentActive(true);
+          if (groupsRef.current.some((item) => item.id === secondaryEditorGroup)) {
+            focusGroup(secondaryEditorGroup);
+            setCloseFocusRequest((request) => request + 1);
+          }
+        }
+      }
     }
-    const active = documents.find((item) => item.path === group.activePath);
-    if (!active || active.design || active.loading || active.error) return null;
-    const kind = filePreviewKind(active);
-    const view = group.views.find((item) => item.path === active.path);
-    const presentation = resolvedEditorPresentation(kind, view?.presentation);
-    const documentDirty = active.content !== active.saved;
+  };
+  const renderActions = (group: EditorGroup, domainTabs: EditorGroupTab[] = []) => {
+    const tabs = groupTabs(group, domainTabs);
     const items: NavigatorMenuItem[] = [
       {
-        label: t("保存"),
-        icon: "save",
+        label: t("显示打开的编辑器"),
         run:
-          !busy && !active.reason && (documentDirty || active.untitled)
-            ? () => void saveFile(active.path)
+          tabs.length && !closeDisabled
+            ? () =>
+                showEditorPicker(
+                  tabs.map((tab, index) => ({
+                    id: `studio.editor:${group.id}:${index}`,
+                    label: tab.label,
+                    group: [tab.description, tab.dirty ? t("未保存") : ""]
+                      .filter(Boolean)
+                      .join(" · "),
+                    icon: tab.icon,
+                    checked: !!tab.selected,
+                    keywords: tab.description,
+                    run: tab.select,
+                  })),
+                )
             : undefined,
       },
       {
-        label: t("另存为…"),
-        run: !busy && !active.reason ? () => startSaveAs(active.path) : undefined,
+        label: t("全部关闭"),
+        run:
+          tabs.length && !closeDisabled ? () => void closeGroupTabs(group, tabs, false) : undefined,
       },
-      ...(!active.untitled
-        ? [
-            {
-              label: t("重新读取文件"),
-              icon: "refresh",
-              run: !busy && !documentDirty ? () => void rereadFile(active.path) : undefined,
-            },
-          ]
-        : []),
-      ...(!active.untitled && !active.reason
-        ? [
-            {
-              label: t("与磁盘内容比较"),
-              icon: "compare",
-              run: !busy ? () => void compareDisk(active.path) : undefined,
-            },
-          ]
-        : []),
       {
-        label: t("关闭"),
-        run: !closeDisabled ? () => closeFileTab(active.path, group.id) : undefined,
+        label: t("关闭已保存"),
+        run:
+          tabs.some((tab) => !tab.dirty) && !closeDisabled
+            ? () => void closeGroupTabs(group, tabs, true)
+            : undefined,
+      },
+      {
+        label: t("配置编辑器"),
+        separator: true,
+        run: !closeDisabled
+          ? () => {
+              focusGroup(primaryEditorGroup);
+              setSettingsOpen(true);
+              setSettingsActive(true);
+              setSettingsCategoryRequest((previous) => ({
+                category: "editor",
+                token: (previous?.token ?? 0) + 1,
+              }));
+            }
+          : undefined,
       },
     ];
+    const more = (
+      <NavigatorMenu
+        label={t("更多操作")}
+        items={items}
+        triggerClassName="file-editor-more-action"
+      />
+    );
+    if (group.id === primaryEditorGroup) {
+      if (settingsActive || !documentActive) return more;
+      if (searchEditorActive)
+        return (
+          <>
+            {codeSearch.editorActions}
+            {more}
+          </>
+        );
+      if (diffActive)
+        return (
+          <>
+            {diffProjectPath !== undefined && (
+              <EditorActionButton
+                label={t("打开文件")}
+                icon="scm-open-file"
+                onClick={() => void openFile(diffProjectPath, { groupId: group.id })}
+              />
+            )}
+            {more}
+          </>
+        );
+    }
+    const active = documents.find((item) => item.path === group.activePath);
+    if (!active || active.design || active.loading || active.error) return more;
+    const kind = filePreviewKind(active);
+    const view = group.views.find((item) => item.path === active.path);
+    const presentation = resolvedEditorPresentation(kind, view?.presentation);
     return (
       <FileEditorActions
         kind={kind}
@@ -2698,18 +2858,6 @@ export function CoreWorkspaceProvider({
                   updateView(group.id, active.path, { cursorLine });
               }}
             />
-            <div className="core-editor-status">
-              <span className="core-editor-status-details">
-                <span>UTF-8 · {sourceFileFormat(active.path).toUpperCase()}</span>
-                <span>{active.untitled || activeDirty ? t("未保存") : t("已保存")}</span>
-              </span>
-              <span>
-                {t("行 {0} · 共 {1} 行", {
-                  0: view?.cursorLine ?? 1,
-                  1: active.content.split("\n").length,
-                })}
-              </span>
-            </div>
           </>
         )}
       </section>
@@ -2756,11 +2904,16 @@ export function CoreWorkspaceProvider({
           {renderEditorContent(primaryGroup)}
         </div>
         {settingsOpen && (
-          <Settings api={api} titlebar={titlebarSettings} hidden={!settingsActive} />
+          <Settings
+            api={api}
+            titlebar={titlebarSettings}
+            hidden={!settingsActive}
+            categoryRequest={settingsCategoryRequest}
+          />
         )}
       </>
     ),
-    editorActions: renderActions(primaryGroup),
+    editorActions: (domainTabs) => renderActions(primaryGroup, domainTabs),
     tabs: renderTabs(primaryGroup),
     secondary: secondaryGroup
       ? {
@@ -2794,22 +2947,15 @@ export function CoreWorkspaceProvider({
           onDismiss={() => setExplorerMenu(undefined)}
         />
       )}
-      {(form ||
-        closePath ||
-        revertPath ||
-        linePrompt ||
-        showShortcuts ||
-        diskComparison ||
-        libraryDialog) && (
+      {(form || closePath || revertPath || linePrompt || showShortcuts || libraryDialog) && (
         <DialogLayer
           cancel={() => {
             if (!busy) {
               setForm(undefined);
-              setClosePath(undefined);
+              finishPendingClose(false);
               setRevertPath(undefined);
               setLinePrompt(undefined);
               setShowShortcuts(false);
-              setDiskComparison(undefined);
               setLibraryDialog(false);
             }
           }}
@@ -2829,6 +2975,7 @@ export function WorkbenchSurface({
   bottom,
   tabs,
   tabActions,
+  editorTabs = [],
   children,
 }: {
   layout: StudioLayout;
@@ -2837,12 +2984,18 @@ export function WorkbenchSurface({
   bottom?: ReactNode;
   tabs?: ReactNode;
   tabActions?: ReactNode;
+  editorTabs?: EditorGroupTab[];
   children?: ReactNode;
 }) {
   const core = useCoreWorkspace();
   const [splitRatio, setSplitRatio] = useState(50);
   if (!core) throw new Error("WorkbenchSurface requires the Studio host.");
-  const documentActions = core.documentActive ? core.editorActions : tabActions;
+  const documentActions = (
+    <>
+      {!core.documentActive && tabActions}
+      {core.editorActions(editorTabs)}
+    </>
+  );
   const items = coreItems.map(({ id, label, icon, shortcutKey }) => ({
     id,
     label,
@@ -2900,7 +3053,7 @@ export function WorkbenchSurface({
             focus={() => core.focusGroup(primaryEditorGroup)}
             closeFocusRequest={core.closeFocusRequest}
             hasTabs={hasTabs}
-            actions={documentActions}
+            actions={hasTabs ? documentActions : undefined}
             tabs={
               <>
                 {core.tabs}

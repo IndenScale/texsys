@@ -105,7 +105,6 @@ export const studioMenus: MenuGroup[] = [
       { id: "settings.open", label: "设置…", icon: "settings", keywords: "Preferences" },
       { id: "file.revert", label: "还原文件…", separator: true, keywords: "Revert File" },
       closeDocumentCommand,
-      { id: "project.refresh", label: "读取外部修改", icon: "refresh" },
       {
         id: "file.confirmUnload",
         label: "离开前确认",

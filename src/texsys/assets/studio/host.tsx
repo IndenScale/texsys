@@ -29,7 +29,12 @@ import { ToolbarButton } from "./ToolbarButton";
 import { ApplicationMenuBar } from "./ApplicationMenuBar";
 import { NavigatorMenu } from "./NavigatorMenu";
 import { WorkbenchBottomPanel } from "./BottomPanel";
-import { readRecentFiles, type FileLocation, type SearchScope } from "./search";
+import {
+  readRecentFiles,
+  type FileLocation,
+  type SearchScope,
+  type EditorPickerItem,
+} from "./search";
 import { updateUserPreferences, useUserPreferences } from "./user-preferences";
 import {
   closeDocumentCommand,
@@ -286,6 +291,7 @@ function Studio({
   const showLayout = !hiddenTitlebarGroups.includes("layoutControls");
   const [commandOpen, setCommandOpen] = useState(false);
   const [commandScope, setCommandScope] = useState<SearchScope>("all");
+  const [editorPickerItems, setEditorPickerItems] = useState<EditorPickerItem[]>([]);
   const [files, setFiles] = useState<ProjectFile[]>([]);
   const [recentPaths, setRecentPaths] = useState<string[]>([]);
   const [filesLoading, setFilesLoading] = useState(false),
@@ -314,6 +320,7 @@ function Studio({
     canForward: false,
     canClose: false,
     canSave: false,
+    canSaveAs: false,
     canCreateFile: false,
     canSaveAll: false,
     canRevert: false,
@@ -331,6 +338,7 @@ function Studio({
         previous.canForward === next.canForward &&
         previous.canClose === next.canClose &&
         previous.canSave === next.canSave &&
+        previous.canSaveAs === next.canSaveAs &&
         previous.canCreateFile === next.canCreateFile &&
         previous.canSaveAll === next.canSaveAll &&
         previous.canRevert === next.canRevert &&
@@ -505,7 +513,7 @@ function Studio({
   const editorMenuEnabled: Record<EditorMenuCommand, boolean> = {
     "file.new": coreHistory.canCreateFile,
     "file.untitled": coreHistory.canCreateFile,
-    "file.saveAs": coreHistory.canEditSource,
+    "file.saveAs": coreHistory.canSaveAs,
     "file.saveAll": coreHistory.canSaveAll,
     "file.revert": coreHistory.canRevert,
     "editor.undo": coreHistory.canUndo,
@@ -521,6 +529,10 @@ function Studio({
   };
   const invokeCommand = (id: string) => {
     setMenu(null);
+    if (id.startsWith("studio.editor:")) {
+      editorPickerItems.find((item) => item.id === id)?.run();
+      return;
+    }
     if (emptyWorkspace) {
       if (!emptyWorkspaceCommands.has(id)) return;
       if (welcomeEditorCommands.has(id)) {
@@ -592,9 +604,6 @@ function Studio({
         if (!current)
           setActivityRequest((previous) => ({ id: "explorer", token: (previous?.token ?? 0) + 1 }));
         else requestNavigation("overview");
-        break;
-      case "project.refresh":
-        void refresh();
         break;
       case "document.save":
         if (coreHistory.canSave) setSaveRequest((request) => request + 1);
@@ -1114,51 +1123,54 @@ function Studio({
             !!objectIndex?.truncated
           }
           pickerCommands={
-            commandScope === "panel"
-              ? Object.entries(panelPositions).map(([position, label]) => ({
-                  id: "panel." + position,
-                  label: t(label),
-                  group: t("面板位置"),
-                  checked: (layout.panelPosition ?? "bottom") === position,
-                }))
-              : commandScope === "objects" || commandScope === "references"
-                ? (commandScope === "references" ? usageObjects : (objectIndex?.objects ?? [])).map(
-                    (item) => ({
+            commandScope === "editors"
+              ? editorPickerItems
+              : commandScope === "panel"
+                ? Object.entries(panelPositions).map(([position, label]) => ({
+                    id: "panel." + position,
+                    label: t(label),
+                    group: t("面板位置"),
+                    checked: (layout.panelPosition ?? "bottom") === position,
+                  }))
+                : commandScope === "objects" || commandScope === "references"
+                  ? (commandScope === "references"
+                      ? usageObjects
+                      : (objectIndex?.objects ?? [])
+                    ).map((item) => ({
                       ...item,
                       id: "studio.object:" + item.id,
                       group: t(item.kind === "instance" ? "实例" : "定义"),
-                    }),
-                  )
-                : [
-                    ...menuItems
-                      .filter((item) =>
-                        [
-                          "workspace.explorer",
-                          "workspace.search",
-                          "workspace.scm",
-                          "view.problems",
-                          "view.terminal",
-                          "tasks.show",
-                        ].includes(item.id),
-                      )
-                      .map((item) => ({
+                    }))
+                  : [
+                      ...menuItems
+                        .filter((item) =>
+                          [
+                            "workspace.explorer",
+                            "workspace.search",
+                            "workspace.scm",
+                            "view.problems",
+                            "view.terminal",
+                            "tasks.show",
+                          ].includes(item.id),
+                        )
+                        .map((item) => ({
+                          ...item,
+                          id:
+                            item.id === "view.problems"
+                              ? "studio.reveal:problems"
+                              : item.id === "view.terminal"
+                                ? "studio.reveal:terminal"
+                                : item.id,
+                          searchOnly: false,
+                          checked: undefined,
+                        })),
+                      ...(current?.views ?? []).map((item) => ({
                         ...item,
-                        id:
-                          item.id === "view.problems"
-                            ? "studio.reveal:problems"
-                            : item.id === "view.terminal"
-                              ? "studio.reveal:terminal"
-                              : item.id,
-                        searchOnly: false,
-                        checked: undefined,
+                        id: "studio.view:" + item.id,
+                        label: t(item.label),
+                        group: t(current?.manifest.discipline) ?? t("视图"),
                       })),
-                    ...(current?.views ?? []).map((item) => ({
-                      ...item,
-                      id: "studio.view:" + item.id,
-                      label: t(item.label),
-                      group: t(current?.manifest.discipline) ?? t("视图"),
-                    })),
-                  ]
+                    ]
           }
           onOpen={() => openCommands("all")}
           onClose={closeCommands}
@@ -1251,6 +1263,10 @@ function Studio({
             navigationRequest={navigation[active]}
             onNavigationState={reportCoreHistory}
             hasDomain={available.length > 0}
+            showEditorPicker={(items) => {
+              setEditorPickerItems(items);
+              openCommands("editors");
+            }}
           >
             {available.length === 0 ? (
               <WorkbenchSurface
@@ -1369,16 +1385,6 @@ function Studio({
               <button role="menuitem" onClick={() => requestNavigation("overview")}>
                 <Icon name="folder" size={16} />
                 {t("项目概览")}
-              </button>
-              <button
-                role="menuitem"
-                onClick={() => {
-                  void refresh();
-                  setMenu(null);
-                }}
-              >
-                <Icon name="refresh" size={16} />
-                {t("读取外部修改")}
               </button>
               <button role="menuitem" onClick={() => requestNavigation("capabilities")}>
                 <Icon name="info" size={16} />

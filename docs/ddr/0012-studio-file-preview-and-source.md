@@ -6,6 +6,7 @@
 - 被取代：无
 - 关联：[ADR-0028](../adr/0028-file-based-artifact-preview.md)
 - 后继修订：[DDR-0013](0013-studio-editor-actions-and-open-with.md) 将视图切换入口改为打开方式选择器，并补充编辑器操作栏与分栏规则；本文的统一文件组件和仅替换预览实现约束继续有效。
+- 后继交互清理：[DDR-0014](0014-studio-editor-group-actions-and-disk-comparison-removal.md) 规定编辑器组操作、删除专用磁盘比较流程，并在只有一种打开方式时省略选择器；本文的统一文件布局继续有效。
 
 ## 背景
 

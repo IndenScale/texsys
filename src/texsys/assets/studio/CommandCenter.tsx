@@ -71,12 +71,13 @@ export function CommandCenter({
     restore = useRef(false);
   const [query, setQuery] = useState(""),
     [selected, setSelected] = useState(0);
-  const resultScope = query.trimStart().startsWith(">") ? "commands" : scope;
+  const resultScope = scope !== "editors" && query.trimStart().startsWith(">") ? "commands" : scope;
   const pickerScope =
     resultScope === "views" ||
     resultScope === "objects" ||
     resultScope === "references" ||
-    resultScope === "panel";
+    resultScope === "panel" ||
+    resultScope === "editors";
   const fileIndex =
     resultScope === "recent" ? new Map(files.map((file) => [file.path, file])) : undefined;
   const visibleFiles = fileIndex
@@ -91,7 +92,7 @@ export function CommandCenter({
   const matches: Result[] = [
     ...(pickerScope
       ? filterCommands(pickerCommands, query)
-          .slice(0, 100)
+          .slice(0, resultScope === "editors" ? pickerCommands.length : 100)
           .map((command) => ({
             ...command,
             icon: command.icon ?? "arrow",
@@ -143,7 +144,8 @@ export function CommandCenter({
         scope === "views" ||
         scope === "objects" ||
         scope === "references" ||
-        scope === "panel"
+        scope === "panel" ||
+        scope === "editors"
       ) {
         setQuery("");
         setSelected(0);
@@ -240,21 +242,23 @@ export function CommandCenter({
             autoComplete="off"
             spellCheck={false}
             placeholder={
-              scope === "panel"
-                ? t("选择面板位置…")
-                : scope === "objects"
-                  ? t("搜索工程对象…")
-                  : scope === "references"
-                    ? t("搜索使用位置…")
-                    : scope === "views"
-                      ? t("搜索视图…")
-                      : scope === "recent"
-                        ? t("搜索最近打开的文件…")
-                        : scope === "files"
-                          ? t("搜索文件…")
-                          : scope === "commands"
-                            ? t("搜索或运行命令…")
-                            : t("搜索文件或运行命令…")
+              scope === "editors"
+                ? t("搜索打开的编辑器…")
+                : scope === "panel"
+                  ? t("选择面板位置…")
+                  : scope === "objects"
+                    ? t("搜索工程对象…")
+                    : scope === "references"
+                      ? t("搜索使用位置…")
+                      : scope === "views"
+                        ? t("搜索视图…")
+                        : scope === "recent"
+                          ? t("搜索最近打开的文件…")
+                          : scope === "files"
+                            ? t("搜索文件…")
+                            : scope === "commands"
+                              ? t("搜索或运行命令…")
+                              : t("搜索文件或运行命令…")
             }
             value={query}
             onChange={(event) => {
@@ -291,7 +295,9 @@ export function CommandCenter({
         <div className="command-panel" inert={!open} aria-hidden={!open}>
           <span id="command-center-instructions" className="sr-only">
             {t(
-              "上下方向键选择，Enter 执行或打开文件，Esc 关闭。输入 > 查找命令，输入文件名:行号定位。",
+              scope === "editors"
+                ? "上下方向键选择，Enter 打开编辑器，Esc 关闭。"
+                : "上下方向键选择，Enter 执行或打开文件，Esc 关闭。输入 > 查找命令，输入文件名:行号定位。",
             )}
           </span>
           <div
@@ -358,37 +364,39 @@ export function CommandCenter({
               <p className="search-limit">{t("仅索引前 5000 个项目文件。")}</p>
             )}
           </div>
-          <footer className="command-scopes" onPointerDown={(event) => event.preventDefault()}>
-            <InlineTabStrip
-              label={t("搜索范围")}
-              tabs={[
-                { id: "all", label: t("全部"), focused: resultScope === "all" },
-                { id: "commands", label: t("命令"), focused: resultScope === "commands" },
-                { id: "files", label: t("文件"), focused: resultScope === "files" },
-                { id: "recent", label: t("最近"), focused: resultScope === "recent" },
-                ...(scope === "objects" || scope === "references"
-                  ? [
-                      {
-                        id: scope,
-                        label: t(scope === "objects" ? "工程对象" : "使用位置"),
-                        focused: resultScope === scope,
-                      },
-                    ]
-                  : []),
-                ...(scope === "panel"
-                  ? [{ id: "panel", label: t("面板位置"), focused: resultScope === "panel" }]
-                  : []),
-                ...(scope === "views"
-                  ? [{ id: "views", label: t("视图"), focused: resultScope === "views" }]
-                  : []),
-              ]}
-              onSelect={(id) => {
-                if (id !== "commands") setQuery((current) => current.replace(/^\s*>\s*/, ""));
-                setSelected(0);
-                onScopeChange(id as SearchScope);
-              }}
-            />
-          </footer>
+          {scope !== "editors" && (
+            <footer className="command-scopes" onPointerDown={(event) => event.preventDefault()}>
+              <InlineTabStrip
+                label={t("搜索范围")}
+                tabs={[
+                  { id: "all", label: t("全部"), focused: resultScope === "all" },
+                  { id: "commands", label: t("命令"), focused: resultScope === "commands" },
+                  { id: "files", label: t("文件"), focused: resultScope === "files" },
+                  { id: "recent", label: t("最近"), focused: resultScope === "recent" },
+                  ...(scope === "objects" || scope === "references"
+                    ? [
+                        {
+                          id: scope,
+                          label: t(scope === "objects" ? "工程对象" : "使用位置"),
+                          focused: resultScope === scope,
+                        },
+                      ]
+                    : []),
+                  ...(scope === "panel"
+                    ? [{ id: "panel", label: t("面板位置"), focused: resultScope === "panel" }]
+                    : []),
+                  ...(scope === "views"
+                    ? [{ id: "views", label: t("视图"), focused: resultScope === "views" }]
+                    : []),
+                ]}
+                onSelect={(id) => {
+                  if (id !== "commands") setQuery((current) => current.replace(/^\s*>\s*/, ""));
+                  setSelected(0);
+                  onScopeChange(id as SearchScope);
+                }}
+              />
+            </footer>
+          )}
         </div>
       </>
     </div>

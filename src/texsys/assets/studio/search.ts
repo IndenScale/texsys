@@ -1,6 +1,16 @@
 import type { ProjectFile } from "./sdk";
+import type { CommandItem } from "./menus";
 export type SearchScope =
-  "all" | "commands" | "files" | "recent" | "views" | "objects" | "references" | "panel";
+  | "all"
+  | "commands"
+  | "files"
+  | "recent"
+  | "views"
+  | "objects"
+  | "references"
+  | "panel"
+  | "editors";
+export type EditorPickerItem = CommandItem & { run: () => void };
 export type FileLocation = { line: number; column?: number };
 
 const recentFileLimit = 30;
