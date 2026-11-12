@@ -1,4 +1,5 @@
 import React, { useEffect, useId, useState, type FormEvent } from "react";
+import { Select } from "./atomstudio/primitives";
 import type { StudioAiMode, StudioAiSettings } from "./ai-settings";
 import { t } from "./i18n";
 import type { WorkbenchProps } from "./sdk";
@@ -118,7 +119,8 @@ export function AiConnectionSettings({ api }: { api: WorkbenchProps["api"] }) {
       <fieldset className="settings-card settings-connection" disabled={Boolean(busy)}>
         <label className="settings-field">
           <span>{t("连接方式")}</span>
-          <select
+          <Select
+            width="wide"
             value={draft.mode}
             onChange={(event) => {
               const mode = event.target.value as StudioAiMode;
@@ -130,7 +132,7 @@ export function AiConnectionSettings({ api }: { api: WorkbenchProps["api"] }) {
             <option value="disabled">{t("禁用")}</option>
             <option value="byok">{t("BYOK · 自带模型密钥")}</option>
             <option value="byoa">{t("BYOA · 自带 Agent")}</option>
-          </select>
+          </Select>
         </label>
         {enabled ? (
           <>

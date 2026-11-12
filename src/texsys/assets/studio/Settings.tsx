@@ -1,4 +1,5 @@
 import React, { useEffect, useId, useRef, useState, type ReactNode } from "react";
+import { Select } from "./atomstudio/primitives";
 import { AiConnectionSettings } from "./AiConnectionSettings";
 import { defaultLocale, setLocale, t, translate, useLocale } from "./i18n";
 import { titlebarGroups, type TitlebarGroup } from "./layout-preferences";
@@ -62,7 +63,7 @@ const checkbox =
 function choices<T extends string | number>(options: readonly { value: T; label: string }[]) {
   return (value: T, change: (value: T) => void): Control =>
     (props) => (
-      <select
+      <Select
         {...props}
         value={value}
         onChange={(event) => {
@@ -75,7 +76,7 @@ function choices<T extends string | number>(options: readonly { value: T; label:
             {t(label)}
           </option>
         ))}
-      </select>
+      </Select>
     );
 }
 

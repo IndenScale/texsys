@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { Button, Select } from "./atomstudio/primitives";
 import { ScenePreview } from "./ScenePreview";
 import { MarkdownPreview } from "./MarkdownPreview";
 import type { FilePreviewFormat, WorkbenchProps } from "./sdk";
@@ -130,7 +131,7 @@ function DiagramPreview({
     <div className="project-preview-diagram">
       <div className="project-preview-diagram-tools">
         {pages.length > 1 && (
-          <select
+          <Select
             aria-label={t("图纸")}
             value={String(page.id)}
             onChange={(event) => setPageId(event.target.value)}
@@ -140,22 +141,28 @@ function DiagramPreview({
                 {displayValue(item.title ?? item.id)}
               </option>
             ))}
-          </select>
+          </Select>
         )}
-        <span>{t("选择图元可定位源码")}</span>
-        <button
+        <span className="project-preview-diagram-hint">{t("选择图元可定位源码")}</span>
+        <Button
+          appearance="secondary"
+          type="button"
           aria-label={t("缩小")}
           onClick={() => setZoom((value) => Math.max(0.5, value / 1.25))}
         >
           −
-        </button>
-        <button
+        </Button>
+        <Button
+          appearance="secondary"
+          type="button"
           aria-label={t("放大")}
           onClick={() => setZoom((value) => Math.min(4, value * 1.25))}
         >
           +
-        </button>
-        <button onClick={() => setZoom(1)}>{t("适合窗口")}</button>
+        </Button>
+        <Button appearance="secondary" type="button" onClick={() => setZoom(1)}>
+          {t("适合窗口")}
+        </Button>
       </div>
       <div className="project-preview-drawing">
         <svg

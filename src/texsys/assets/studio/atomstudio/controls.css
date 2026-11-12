@@ -1,0 +1,95 @@
+.studio-control-group {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+.studio-control-field {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  max-inline-size: 100%;
+  color: var(--ui-text-muted);
+  font-size: var(--ui-control-text-size);
+}
+.studio-control,
+.navigator-button.studio-control-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  gap: var(--space-1);
+  min-block-size: var(--ui-control-height);
+  padding: 0 var(--space-2);
+  border: 1px solid var(--ui-border);
+  border-radius: var(--ui-control-radius);
+  color: var(--ui-text);
+  background: var(--ui-canvas);
+  font-size: var(--ui-control-text-size);
+  line-height: 1.25;
+  white-space: nowrap;
+  text-decoration: none;
+}
+.studio-control[data-density="compact"] {
+  min-block-size: var(--ui-control-height-compact);
+}
+.studio-control-primary {
+  border-color: transparent;
+  background: var(--ui-proof);
+  color: var(--ui-canvas);
+}
+.studio-control-primary:hover:not(:disabled) {
+  filter: brightness(1.09);
+}
+.studio-control-secondary:hover:not(:disabled, [aria-disabled="true"]),
+.navigator-button.studio-control-icon:is(:hover, [aria-expanded="true"]) {
+  background: var(--ui-control-hover);
+}
+.studio-control[aria-disabled="true"],
+.studio-select-input:disabled {
+  opacity: 0.48;
+}
+.studio-control:focus-visible,
+.navigator-button.studio-control-icon:focus-visible {
+  outline: 2px solid var(--ui-proof);
+  outline-offset: 2px;
+}
+.navigator-button.studio-control-icon {
+  inline-size: var(--ui-control-height);
+  padding: 0;
+}
+.studio-select {
+  position: relative;
+  display: inline-flex;
+  inline-size: var(--ui-select-width-standard);
+  min-inline-size: 0;
+  max-inline-size: 100%;
+}
+.studio-select[data-width="compact"] {
+  inline-size: var(--ui-select-width-compact);
+}
+.studio-select[data-width="wide"] {
+  inline-size: var(--ui-select-width-wide);
+}
+.studio-select .studio-select-input {
+  display: block;
+  appearance: none;
+  inline-size: 100%;
+  block-size: var(--ui-control-height);
+  padding-inline-end: var(--space-6);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: pointer;
+  font-variant-numeric: tabular-nums;
+}
+.studio-select .studio-select-input:disabled {
+  cursor: not-allowed;
+}
+.studio-select > svg {
+  position: absolute;
+  inset-inline-end: var(--space-2);
+  inset-block-start: 50%;
+  transform: translateY(-50%);
+  color: var(--ui-text-muted);
+  pointer-events: none;
+}

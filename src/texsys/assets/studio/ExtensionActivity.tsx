@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { t } from "./i18n";
 import { Icon } from "./ui";
+import { ActionLink, Button, Select } from "./atomstudio/primitives";
 import { MarkdownPreview } from "./MarkdownPreview";
 import {
   ExtensionCache,
@@ -712,14 +713,15 @@ export function useExtensionActivity({
               {local && (
                 <div className="extension-row-actions">
                   {update && (
-                    <button
+                    <Button
                       type="button"
-                      className="extension-primary"
+                      appearance="primary"
+                      density="compact"
                       disabled={pending}
                       onClick={() => void perform(() => install(update, update.version))}
                     >
                       {t("更新")}
-                    </button>
+                    </Button>
                   )}
                   <NavigatorButton
                     label={t("管理 {name}", { name: entry.name })}
@@ -1212,64 +1214,78 @@ function ExtensionDetails({
                 {ratingFormat.format(entry.rating)}
               </span>
             )}
-            <span>
-              {t("版本")} {detail?.version ?? (/^\d/.test(version) ? version : entry.version)}
-            </span>
+            {entry.builtin && (
+              <span>
+                {t("版本")} {entry.version}
+              </span>
+            )}
           </p>
           {entry.description && <p>{entry.description}</p>}
-          <div className="extension-detail-actions">
+          <div className="studio-control-group">
             {!entry.builtin && (
               <>
-                <label className="extension-version">
-                  {t("扩展版本")}
-                  <select
-                    ref={versionField}
+                <label className="studio-control-field">
+                  <span>{t("版本")}</span>
+                  <Select
+                    controlRef={versionField}
+                    width="compact"
                     aria-label={t("扩展版本")}
+                    title={detail?.version ?? (/^\d/.test(version) ? version : undefined)}
                     value={version}
                     onChange={(event) => changeVersion(event.target.value)}
                   >
                     <option value="latest">{t("最新版本")}</option>
-                    {currentDetail?.hasPreRelease && (
+                    {(version === "pre-release" || currentDetail?.hasPreRelease) && (
                       <option value="pre-release">{t("预发布版本")}</option>
                     )}
                     {[
                       ...new Set([
                         entry.version,
+                        ...(/^\d/.test(version) ? [version] : []),
                         ...(currentDetail?.versions ?? []),
-                        ...(currentDetail ? [currentDetail.version] : []),
+                        ...(detail ? [detail.version] : []),
                       ]),
                     ].map((option) => (
                       <option value={option} key={option}>
                         {option}
                       </option>
                     ))}
-                  </select>
+                  </Select>
                 </label>
-                {detail && result === "snippets" && detail.version !== installed?.version && (
-                  <button
-                    className="extension-primary"
-                    type="button"
-                    disabled={pending}
-                    onClick={() => install(detail)}
-                  >
-                    {t(installed ? "安装此版本" : "安装")}
-                  </button>
-                )}
-                {download && (
-                  <a href={download} rel="noreferrer" target="_blank">
-                    {t("下载 VSIX")}
-                  </a>
-                )}
-                <a href={itemUrl(entry)} rel="noreferrer" target="_blank">
-                  {t("在 Open VSX 中查看")}
-                </a>
+                <ActionLink
+                  icon="download"
+                  href={download ?? undefined}
+                  rel="noreferrer"
+                  target="_blank"
+                >
+                  {t("下载 VSIX")}
+                </ActionLink>
+                <ActionLink
+                  href={itemUrl(entry)}
+                  aria-label={t("在 Open VSX 中查看")}
+                  rel="noreferrer"
+                  target="_blank"
+                >
+                  Open VSX
+                </ActionLink>
               </>
             )}
             <NavigatorMenu
               label={t("管理 {name}", { name: entry.name })}
               items={manage}
+              triggerClassName="studio-control-icon"
               triggerIcon="settings"
             />
+            {detail && result === "snippets" && detail.version !== installed?.version && (
+              <Button
+                appearance="primary"
+                type="button"
+                disabled={pending}
+                onClick={() => install(detail)}
+              >
+                {t(installed ? "安装此版本" : "安装")}
+              </Button>
+            )}
           </div>
           {entry.builtin ? (
             <p>{t("随宿主加载的 Tex Studio 专业插件")}</p>

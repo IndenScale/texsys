@@ -90,6 +90,13 @@ button svg {
   --ui-proof: #15796e;
   --ui-surface-active: #dfede9;
   --ui-attention: #be7d26;
+  --ui-control-height: 28px;
+  --ui-control-height-compact: 22px;
+  --ui-control-radius: 4px;
+  --ui-control-text-size: 12px;
+  --ui-select-width-compact: 112px;
+  --ui-select-width-standard: 188px;
+  --ui-select-width-wide: 240px;
   --editor-tab-height: 36px;
   --space-1: 4px;
   --space-2: 8px;

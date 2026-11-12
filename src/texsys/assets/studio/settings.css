@@ -193,7 +193,6 @@
   overflow-wrap: anywhere;
 }
 
-.settings-card select,
 .settings-field input {
   max-width: 100%;
   min-height: 26px;
@@ -202,14 +201,6 @@
   line-height: 18px;
   border-color: var(--ui-border);
   border-radius: 4px;
-}
-
-.settings-card select {
-  width: 240px;
-}
-
-.settings-row-actions > select {
-  width: 188px;
 }
 
 .settings-card input[type="checkbox"] {
