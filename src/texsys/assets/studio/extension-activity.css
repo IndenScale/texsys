@@ -157,7 +157,7 @@
   width: 14px;
   height: 14px;
   background: var(--ui-proof);
-  color: #fff;
+  color: var(--ui-canvas);
 }
 .extension-summary {
   display: grid;
@@ -248,29 +248,11 @@
     height: 28px;
   }
 }
-.extension-details,
-.core-document-tabs:has(.core-file-tab[data-extension].active) {
-  color-scheme: dark;
-  --ui-canvas: #1f1f1f;
-  --ui-text: #ccc;
-  --ui-text-muted: #a6a6a6;
-  --ui-border: #454545;
-  --ui-chrome-divider: #333;
-  --ui-workspace-chrome: #282828;
-  --ui-control-hover: #313131;
-  --ui-proof: #4daafc;
-  --ui-attention: #e8ba00;
-  --ui-control-height-compact: 22px;
-  color: var(--ui-text);
-}
-.core-document-tabs:has(.core-file-tab[data-extension].active) {
-  --tab-surface: var(--ui-canvas);
-  background: var(--ui-workspace-chrome);
-}
 .core-file-tab[data-extension] > button[role="tab"] {
   font-style: italic;
 }
 .extension-details {
+  color: var(--ui-text);
   flex: 1;
   min-height: 0;
   overflow: auto;
@@ -338,7 +320,7 @@
   color: var(--ui-text-muted);
 }
 .extension-rating-stars > span[data-filled] {
-  color: #ff8e00;
+  color: var(--ui-attention);
 }
 .extension-rating-stars > span[data-filled] svg {
   fill: currentColor;
@@ -362,15 +344,9 @@
 }
 .extension-actions .studio-control-primary {
   min-height: 24px;
-  color: #fff;
-  background: #007acc;
-  border-color: #3b8ccd;
 }
 .extension-actions .studio-control {
   padding-inline: 5px;
-}
-.extension-actions .studio-control-checkbox input {
-  accent-color: #3c3c3c;
 }
 .extension-details button:focus-visible,
 .extension-details input:focus-visible {
@@ -433,7 +409,7 @@
 }
 .extension-detail-navigation button[aria-pressed="true"] {
   color: var(--ui-text);
-  border-bottom-color: #007acc;
+  border-bottom-color: var(--ui-proof);
 }
 .extension-detail-body {
   display: grid;
