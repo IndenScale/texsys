@@ -1,5 +1,6 @@
 """Open VSX discovery and installation of declarative editor snippets."""
 
+from functools import lru_cache
 from hashlib import sha256
 from http.client import HTTPException
 from io import BytesIO
@@ -120,9 +121,16 @@ def _compatibility(manifest):
   return "snippets"
 
 
+@lru_cache(maxsize=64)
+def _version_manifest(url, version):
+  # Versioned manifests are immutable on Open VSX. Search, version aliases and
+  # package downloads remain live, and installs still validate the ZIP manifest.
+  return _get_json(url, optional=True)
+
+
 def _manifest(data):
   url = data.get("files", {}).get("manifest")
-  return _get_json(url, optional=True) if url else None
+  return _version_manifest(url, data["version"]) if url else None
 
 
 def search(query, offset=0, sort="relevance"):

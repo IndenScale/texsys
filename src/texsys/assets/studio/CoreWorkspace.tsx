@@ -75,7 +75,11 @@ import {
   NavigatorToolbar,
 } from "./NavigatorPanel";
 import "./workspace.css";
-import { recommendationPath, useExtensionActivity } from "./ExtensionActivity";
+import {
+  recommendationPath,
+  useExtensionActivity,
+  type ExtensionDocument,
+} from "./ExtensionActivity";
 import { SourceControl } from "./SourceControl";
 import {
   goToSourcePosition,
@@ -130,6 +134,7 @@ type Document = {
   loading?: boolean;
   error?: string;
   location?: SearchMatch;
+  extension?: ExtensionDocument;
   design?: { selection: DesignSelection; view: DesignView };
   untitled?: string;
   generated?: boolean;
@@ -609,6 +614,7 @@ export function CoreWorkspaceProvider({
   const terminalFile =
     activeTab === "source" &&
     !active?.design &&
+    !active?.extension &&
     !active?.untitled &&
     !active?.loading &&
     !active?.error
@@ -663,6 +669,7 @@ export function CoreWorkspaceProvider({
     activeTab === "source" &&
     !!active &&
     !active.design &&
+    !active.extension &&
     !active.loading &&
     !active.error &&
     !active.reason &&
@@ -671,6 +678,7 @@ export function CoreWorkspaceProvider({
   const sourceStatusPath =
     activeTab === "source" &&
     !active?.design &&
+    !active?.extension &&
     !active?.loading &&
     !active?.error &&
     !active?.reason &&
@@ -716,6 +724,7 @@ export function CoreWorkspaceProvider({
     activeTab === "source" &&
     !!active &&
     !active.design &&
+    !active.extension &&
     !active.loading &&
     !active.error &&
     !active.reason &&
@@ -725,6 +734,7 @@ export function CoreWorkspaceProvider({
     activeTab === "source" &&
     !!active &&
     !active.design &&
+    !active.extension &&
     !active.loading &&
     !active.error &&
     !active.reason &&
@@ -876,7 +886,7 @@ export function CoreWorkspaceProvider({
     } = {},
   ) => {
     focusGroup(groupId);
-    if (path.startsWith("\0untitled:")) {
+    if (path.startsWith("\0untitled:") || path.startsWith("\0extension:")) {
       if (!documentsRef.current.some((item) => item.path === path)) return;
       if (groupId === primaryEditorGroup) {
         setSettingsActive(false);
@@ -1169,7 +1179,7 @@ export function CoreWorkspaceProvider({
   }, [autoSave, canSaveAll, documents]);
   const rereadFile = async (path: string) => {
     const original = documentsRef.current.find((item) => item.path === path);
-    if (!original || original.untitled) return;
+    if (!original || original.untitled || original.extension) return;
     const read = fileReads.current.begin(path);
     try {
       const file = await api<FilePreview>(`/api/file?path=${encodeURIComponent(path)}`);
@@ -1287,7 +1297,7 @@ export function CoreWorkspaceProvider({
     setEditorGroups(nextGroups);
     fileReads.current.invalidate(path);
     failedAutoSaves.current.delete(path);
-    if (path.startsWith("\0untitled:")) {
+    if (path.startsWith("\0untitled:") || path.startsWith("\0extension:")) {
       setHistory(({ entries, index }) => ({
         entries: entries.filter((entry) => entry !== path),
         index: entries.slice(0, index + 1).filter((entry) => entry !== path).length - 1,
@@ -1888,6 +1898,22 @@ export function CoreWorkspaceProvider({
     changeLayout,
     notify,
     plugins: state.plugins,
+    activeDocument: activeTab === "source" ? active?.extension : undefined,
+    openDocument: (extension) => {
+      const path = `\0extension:${extension.entry.id.toLowerCase()}`;
+      setDocuments((previous) =>
+        previous.some((item) => item.path === path)
+          ? previous.map((item) => (item.path === path ? { ...item, extension } : item))
+          : [...previous, { path, extension, saved: "", content: "", version: "" }],
+      );
+      focusGroup(primaryEditorGroup);
+      setSettingsActive(false);
+      setSearchEditorActive(false);
+      setDiffActive(false);
+      setActivePath(path, primaryEditorGroup);
+      setDocumentActive(true);
+      setHistory((previous) => visitDocument(previous, path));
+    },
     recommendInWorkspace: async (id) => {
       if (
         documentsRef.current.some(
@@ -2485,15 +2511,19 @@ export function CoreWorkspaceProvider({
             const module = designIndex?.library.some(
               (item) => item.kind === "modules" && item.definition === scope?.key,
             );
-            const title = selection
-              ? (("occurrence" in selection ? selection.occurrence.at(-1) : undefined) ??
-                scope?.definition?.name ??
-                t("模型"))
-              : (document.untitled ??
-                fileDocumentTitle(
-                  document.path,
-                  documents.filter((item) => !item.design).map((item) => item.path),
-                ));
+            const title =
+              document.extension?.entry.name ??
+              (selection
+                ? (("occurrence" in selection ? selection.occurrence.at(-1) : undefined) ??
+                  scope?.definition?.name ??
+                  t("模型"))
+                : (document.untitled ??
+                  fileDocumentTitle(
+                    document.path,
+                    documents
+                      .filter((item) => !item.design && !item.extension)
+                      .map((item) => item.path),
+                  )));
             const preview =
               resolvedEditorPresentation(
                 filePreviewKind(document),
@@ -2504,9 +2534,12 @@ export function CoreWorkspaceProvider({
                 key={document.path}
                 selected={activeTab === "source" && activePath === document.path}
                 tabStop={tabStop === "source" && activePath === document.path}
-                title={selection || document.untitled ? title : document.path}
+                title={selection || document.untitled || document.extension ? title : document.path}
                 closeLabel={t("关闭 {0}", {
-                  "0": selection ? (title ?? "") : (document.untitled ?? document.path),
+                  "0":
+                    selection || document.extension
+                      ? (title ?? "")
+                      : (document.untitled ?? document.path),
                 })}
                 closeDisabled={closeDisabled}
                 closeShortcut={closeShortcut}
@@ -2516,6 +2549,7 @@ export function CoreWorkspaceProvider({
                   if (
                     !document.untitled &&
                     !document.design &&
+                    !document.extension &&
                     !document.loading &&
                     !document.error
                   )
@@ -2530,7 +2564,9 @@ export function CoreWorkspaceProvider({
                   setActivePath(document.path, group.id);
                 }}
               >
-                {selection ? (
+                {document.extension ? (
+                  <Icon name="extensions" size={14} />
+                ) : selection ? (
                   <Icon name={module ? "module" : "system"} size={14} />
                 ) : preview ? (
                   <Icon name="preview" size={14} />
@@ -2638,15 +2674,19 @@ export function CoreWorkspaceProvider({
       .map((document) => {
         const selection = document.design?.selection;
         const scope = selection && designIndex && resolveDesign(designIndex, selection);
-        const label = selection
-          ? (("occurrence" in selection ? selection.occurrence.at(-1) : undefined) ??
-            scope?.definition?.name ??
-            t("模型"))
-          : (document.untitled ??
-            fileDocumentTitle(
-              document.path,
-              documents.filter((item) => !item.design).map((item) => item.path),
-            ));
+        const label =
+          document.extension?.entry.name ??
+          (selection
+            ? (("occurrence" in selection ? selection.occurrence.at(-1) : undefined) ??
+              scope?.definition?.name ??
+              t("模型"))
+            : (document.untitled ??
+              fileDocumentTitle(
+                document.path,
+                documents
+                  .filter((item) => !item.design && !item.extension)
+                  .map((item) => item.path),
+              )));
         const preview =
           resolvedEditorPresentation(
             filePreviewKind(document),
@@ -2655,8 +2695,15 @@ export function CoreWorkspaceProvider({
         return {
           id: `file:${document.path}`,
           label: preview ? t("预览 {0}", { 0: label }) : label,
-          description: document.untitled ?? (selection ? "" : document.path),
-          icon: selection ? "system" : preview ? "preview" : "file",
+          description:
+            document.extension?.entry.id ?? document.untitled ?? (selection ? "" : document.path),
+          icon: document.extension
+            ? "extensions"
+            : selection
+              ? "system"
+              : preview
+                ? "preview"
+                : "file",
           dirty: !!document.untitled || isDocumentDirty(document),
           selected:
             group.activePath === document.path &&
@@ -2890,7 +2937,7 @@ export function CoreWorkspaceProvider({
         );
     }
     const active = documents.find((item) => item.path === group.activePath);
-    if (!active || active.design || active.loading || active.error) return more;
+    if (!active || active.design || active.extension || active.loading || active.error) return more;
     const kind = filePreviewKind(active);
     const view = group.views.find((item) => item.path === active.path);
     const presentation = resolvedEditorPresentation(kind, view?.presentation);
@@ -2977,6 +3024,16 @@ export function CoreWorkspaceProvider({
           </div>
         </div>
       </div>
+    ) : active.extension ? (
+      extensions.renderDocument(active.extension, (version) =>
+        setDocuments((previous) =>
+          previous.map((item) =>
+            item.path === active.path && item.extension
+              ? { ...item, extension: { ...item.extension, version } }
+              : item,
+          ),
+        ),
+      )
     ) : active.design ? (
       designIndex ? (
         <DesignDocument
@@ -3118,7 +3175,7 @@ export function CoreWorkspaceProvider({
       <div className="core-heading">
         <strong>{t("文件属性")}</strong>
       </div>
-      {active && !active.design && !diffActive && !searchEditorActive ? (
+      {active && !active.design && !active.extension && !diffActive && !searchEditorActive ? (
         <dl>
           <dt>{t("路径")}</dt>
           <dd>{active.untitled ?? active.path}</dd>

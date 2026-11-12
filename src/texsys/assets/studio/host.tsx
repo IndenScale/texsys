@@ -59,8 +59,9 @@ import "./studio.css";
 
 const token =
   document.querySelector<HTMLMetaElement>('meta[name="tex-studio-token"]')?.content ?? "";
-async function api<T>(path: string, body?: unknown): Promise<T> {
+async function api<T>(path: string, body?: unknown, signal?: AbortSignal): Promise<T> {
   const response = await fetch(path, {
+    signal,
     method: body === undefined ? "GET" : "POST",
     headers: {
       "X-Tex-Studio-Token": token,

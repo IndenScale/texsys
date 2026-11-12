@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { t } from "./i18n";
 import { Icon } from "./ui";
 import { NavigatorButton, NavigatorPage } from "./NavigatorPanel";
@@ -27,6 +27,11 @@ type Detail = Entry & {
   hasPreRelease: boolean;
   compatibility:
     "snippets" | "runtime" | "dependencies" | "contributions" | "manifest" | "unavailable";
+};
+export type ExtensionDocument = {
+  entry: Entry;
+  version: string;
+  intent?: "install" | "download";
 };
 type Installed = Entry & {
   enabled: boolean;
@@ -63,6 +68,24 @@ const compatibility = {
   manifest: "Open VSX 未提供此版本的扩展清单",
   unavailable: "当前版本没有可下载的 VSIX",
 };
+const downloadsFormat = new Intl.NumberFormat(undefined, {
+  notation: "compact",
+  maximumFractionDigits: 0,
+});
+const ratingFormat = new Intl.NumberFormat(undefined, { maximumFractionDigits: 1 });
+const toolsKey = "texsys.studio.extensions.hiddenSearchTools";
+type SearchTool = "clear" | "filter";
+function readHiddenTools(): SearchTool[] {
+  try {
+    const value = JSON.parse(localStorage.getItem(toolsKey) ?? "[]");
+    return (["clear", "filter"] as const).filter(
+      (tool) => Array.isArray(value) && value.includes(tool),
+    );
+  } catch {
+    return [];
+  }
+}
+const searchTools = { clear: "清除扩展搜索", filter: "筛选扩展" } as const;
 const initialInventory: Inventory = { installed: [], autoUpdate: false, ignored: [] };
 const sectionKeys = Object.keys(views) as View[];
 const isView = (value: string): value is View => sectionKeys.includes(value as View);
@@ -101,17 +124,21 @@ export function useExtensionActivity({
   notify,
   plugins,
   recommendInWorkspace,
+  openDocument,
+  activeDocument,
 }: Pick<WorkbenchProps, "api" | "changeLayout" | "layout" | "notify"> & {
   active: boolean;
   plugins: WorkbenchProps["state"]["plugins"];
   recommendInWorkspace: (id: string) => Promise<Recommendations>;
+  openDocument: (document: ExtensionDocument) => void;
+  activeDocument?: ExtensionDocument;
 }) {
   const [inventory, setInventory] = useState(initialInventory);
   const [inventoryError, setInventoryError] = useState("");
   const [query, setQuery] = useState("");
   const [sort, setSort] = useState<keyof typeof sorts>("relevance");
   const [shown, setShown] = useState<View[]>(["installed", "recommended"]);
-  const [expanded, setExpanded] = useState<View[]>([]);
+  const [expanded, setExpanded] = useState<View[]>(["installed", "recommended"]);
   const [revision, refresh] = useState(0);
   const [recommendations, setRecommendations] = useState<Entry[]>([]);
   const [workspaceIds, setWorkspaceIds] = useState<string[]>([]);
@@ -119,10 +146,12 @@ export function useExtensionActivity({
   const [loadingRecommendations, setLoadingRecommendations] = useState(false);
   const [search, setSearch] = useState<SearchResult>();
   const [searchError, setSearchError] = useState("");
+  const [completedSearch, setCompletedSearch] = useState("");
   const [paging, setPaging] = useState(false);
-  const [selected, setSelected] = useState<{ entry: Entry; version: string }>();
-  const [detail, setDetail] = useState<Detail>();
-  const [detailError, setDetailError] = useState("");
+  const [hiddenTools, setHiddenTools] = useState(readHiddenTools);
+  const searchCache = useRef(new Map<string, { result: SearchResult; expires: number }>());
+  const detailCache = useRef(new Map<string, { result: Promise<Detail>; expires: number }>());
+  const recommendationRevision = useRef(-1);
   const [pending, setPending] = useState(false);
   const [updates, setUpdates] = useState<Record<string, Detail>>({});
   const [context, setContext] = useState<{
@@ -131,13 +160,22 @@ export function useExtensionActivity({
     anchor: HTMLElement;
     view?: View;
     entry?: Entry;
+    target?: SearchTool | "input" | "search";
   }>();
   const operation = useRef(false);
   const lastAutoCheck = useRef(0);
   const searchSequence = useRef(0);
   const searchInput = useRef<HTMLInputElement>(null);
-  const refreshAll = () => refresh((value) => value + 1);
-  const installed = new Map(inventory.installed.map((entry) => [key(entry), entry]));
+  const searchDraftTimer = useRef<number | undefined>(undefined);
+  const refreshAll = () => {
+    searchCache.current.clear();
+    detailCache.current.clear();
+    refresh((value) => value + 1);
+  };
+  const installed = useMemo(
+    () => new Map(inventory.installed.map((entry) => [key(entry), entry])),
+    [inventory.installed],
+  );
   const builtins = plugins.map((plugin): Entry => ({
     id: plugin.id,
     name: plugin.name,
@@ -153,7 +191,10 @@ export function useExtensionActivity({
   const filteredView = filterView && isView(filterView) ? filterView : undefined;
   const marketplace = Boolean(term && !filteredView);
   const showRecommendations =
-    active && (filteredView === "recommended" || shown.includes("recommended"));
+    active &&
+    !marketplace &&
+    (filteredView === "recommended" ||
+      (!filteredView && shown.includes("recommended") && expanded.includes("recommended")));
 
   useExtensionSnippets(inventory.installed);
 
@@ -172,17 +213,43 @@ export function useExtensionActivity({
     return () => {
       current = false;
     };
-  }, [api, active, revision]);
+  }, [api, revision]);
 
-  const searchPage = (value: string, offset: number) =>
-    api<SearchResult>(
-      `${endpoint}/search?${new URLSearchParams({ q: value === "@marketplace" ? "" : value, sort, offset: String(offset) })}`,
-    );
-  const getDetail = (entry: Entry, version = "latest") =>
-    api<Detail>(`${endpoint}/detail?${new URLSearchParams({ id: entry.id, version })}`);
+  async function searchPage(value: string, offset: number, signal?: AbortSignal) {
+    const params = new URLSearchParams({
+      q: value === "@marketplace" ? "" : value,
+      sort,
+      offset: String(offset),
+    });
+    const id = params.toString();
+    const cached = searchCache.current.get(id);
+    if (cached && cached.expires > Date.now()) return cached.result;
+    const result = await api<SearchResult>(`${endpoint}/search?${id}`, undefined, signal);
+    if (searchCache.current.size >= 40)
+      searchCache.current.delete(searchCache.current.keys().next().value!);
+    searchCache.current.set(id, { result, expires: Date.now() + 60_000 });
+    return result;
+  }
+
+  const getDetail = useCallback(
+    (entry: Entry, version = "latest") => {
+      const id = new URLSearchParams({ id: entry.id, version }).toString();
+      const cached = detailCache.current.get(id);
+      if (cached && cached.expires > Date.now()) return cached.result;
+      const result = api<Detail>(`${endpoint}/detail?${id}`);
+      if (detailCache.current.size >= 40)
+        detailCache.current.delete(detailCache.current.keys().next().value!);
+      detailCache.current.set(id, { result, expires: Date.now() + 60_000 });
+      void result.catch(() => {
+        if (detailCache.current.get(id)?.result === result) detailCache.current.delete(id);
+      });
+      return result;
+    },
+    [api],
+  );
 
   useEffect(() => {
-    if (!showRecommendations) return;
+    if (!showRecommendations || recommendationRevision.current === revision) return;
     let current = true;
     setLoadingRecommendations(true);
     setRecommendationError("");
@@ -192,6 +259,7 @@ export function useExtensionActivity({
           result.ids.map((id) => searchPage(`@id:${id}`, 0)),
         );
         if (!current) return;
+        recommendationRevision.current = revision;
         setWorkspaceIds(result.workspace.map((id) => id.toLowerCase()));
         setRecommendations(
           requests.flatMap((request) =>
@@ -215,47 +283,32 @@ export function useExtensionActivity({
 
   useEffect(() => {
     const sequence = ++searchSequence.current;
-    setSearch(undefined);
+    const searchKey = `${sort}:${term}`;
     setSearchError("");
     setPaging(false);
     if (!active || !marketplace) return;
     if (term.toLowerCase() === "@id:") {
       setSearch({ items: [], total: 0 });
+      setCompletedSearch(searchKey);
       return;
     }
-    const timer = window.setTimeout(() => {
-      void searchPage(term, 0).then(
-        (result) => {
-          if (sequence === searchSequence.current) setSearch(result);
-        },
-        (error) => {
-          if (sequence === searchSequence.current) setSearchError(message(error));
-        },
-      );
-    }, 240);
-    return () => {
-      window.clearTimeout(timer);
-      searchSequence.current += 1;
-    };
-  }, [api, active, marketplace, term, sort, revision]);
-
-  useEffect(() => {
-    setDetail(undefined);
-    setDetailError("");
-    if (!selected || selected.entry.builtin) return;
-    let current = true;
-    void getDetail(selected.entry, selected.version).then(
+    const controller = new AbortController();
+    void searchPage(term, 0, controller.signal).then(
       (result) => {
-        if (current) setDetail(result);
+        if (sequence === searchSequence.current) {
+          setSearch(result);
+          setCompletedSearch(searchKey);
+        }
       },
       (error) => {
-        if (current) setDetailError(message(error));
+        if (sequence === searchSequence.current) setSearchError(message(error));
       },
     );
     return () => {
-      current = false;
+      controller.abort();
+      searchSequence.current += 1;
     };
-  }, [api, selected, revision]);
+  }, [api, active, marketplace, term, sort, revision]);
 
   function loadMore() {
     if (!search || paging) return;
@@ -354,9 +407,13 @@ export function useExtensionActivity({
     if (!active) setContext(undefined);
   }, [active]);
 
+  useEffect(() => () => window.clearTimeout(searchDraftTimer.current), []);
+
   function setSearchText(value: string) {
+    window.clearTimeout(searchDraftTimer.current);
+    const input = searchInput.current;
+    if (input && input.value !== value) input.value = value;
     setQuery(value);
-    setSelected(undefined);
   }
 
   function toggleView(view: View) {
@@ -365,8 +422,8 @@ export function useExtensionActivity({
     );
   }
 
-  function openEntry(entry: Entry, version = "latest") {
-    setSelected({ entry, version });
+  function openEntry(entry: Entry, version = "latest", intent?: ExtensionDocument["intent"]) {
+    openDocument({ entry, version, intent });
   }
 
   function copy(value: string) {
@@ -379,15 +436,18 @@ export function useExtensionActivity({
     event: React.MouseEvent<HTMLElement> | React.KeyboardEvent<HTMLElement>,
     view?: View,
     entry?: Entry,
+    target?: SearchTool | "input" | "search",
   ) {
     if ("key" in event && event.key !== "ContextMenu" && !(event.shiftKey && event.key === "F10"))
       return;
     event.preventDefault();
     event.stopPropagation();
-    const anchor = event.currentTarget;
+    const anchor =
+      event.currentTarget.querySelector<HTMLElement>(":scope > .extension-entry") ??
+      event.currentTarget;
     const rect = anchor.getBoundingClientRect();
     const [x, y] = "key" in event ? [rect.left, rect.bottom] : [event.clientX, event.clientY];
-    setContext({ x, y, anchor, view, entry });
+    setContext({ x, y, anchor, view, entry, target });
   }
 
   const layoutItems = [
@@ -458,7 +518,7 @@ export function useExtensionActivity({
       void perform(async () => {
         await change({ action: "enable", id: entry.id, scope, enabled });
       });
-    return [
+    const actions: NavigatorMenuItem[] = [
       ...(local
         ? [
             {
@@ -494,21 +554,16 @@ export function useExtensionActivity({
             {
               label: t("安装特定版本…"),
               separator: !!local,
-              run: () => openEntry(entry, local?.version ?? entry.version),
-            },
-            {
-              label: t("下载 VSIX"),
-              run: entry.vsix
-                ? () => window.open(entry.vsix, "_blank", "noopener,noreferrer")
-                : undefined,
-            },
-            {
-              label: t("下载特定版本的 VSIX…"),
-              run: () => openEntry(entry, local?.version ?? entry.version),
+              run: () => openEntry(entry, local?.version ?? entry.version, "install"),
             },
           ]
         : []),
-      { label: t("复制扩展 ID"), separator: !entry.builtin, run: () => copy(entry.id) },
+      {
+        label: t("复制"),
+        separator: !entry.builtin,
+        run: () => copy(`${entry.name} (${entry.id})`),
+      },
+      { label: t("复制扩展 ID"), run: () => copy(entry.id) },
       ...(!entry.builtin
         ? [
             { label: t("复制链接"), run: () => copy(itemUrl(entry)) },
@@ -526,6 +581,7 @@ export function useExtensionActivity({
               : []),
             {
               label: t("添加到工作区建议"),
+              separator: !recommended,
               run: workspaceIds.includes(key(entry))
                 ? undefined
                 : () =>
@@ -537,65 +593,24 @@ export function useExtensionActivity({
             },
           ]
         : []),
+      ...(!entry.builtin
+        ? [
+            {
+              label: t("下载 VSIX"),
+              separator: true,
+              run: entry.vsix
+                ? () => window.open(entry.vsix, "_blank", "noopener,noreferrer")
+                : undefined,
+            },
+            {
+              label: t("下载特定版本的 VSIX…"),
+              run: () => openEntry(entry, local?.version ?? entry.version, "download"),
+            },
+          ]
+        : []),
     ];
-  }
-
-  function renderDetail(entry: Entry) {
-    if (!selected || key(selected.entry) !== key(entry)) return null;
-    if (entry.builtin)
-      return <p className="extension-message">{t("随宿主加载的 Tex Studio 专业插件")}</p>;
-    const local = installed.get(key(entry));
-    return (
-      <div className="extension-details">
-        <p className="extension-id">{entry.id}</p>
-        {entry.description && <p>{entry.description}</p>}
-        {detailError ? (
-          <p className="core-error" role="alert">
-            {detailError}
-          </p>
-        ) : detail ? (
-          <>
-            <p role="status">{t(compatibility[detail.compatibility])}</p>
-            <label className="extension-version">
-              {t("版本")}
-              <select
-                aria-label={t("扩展版本")}
-                value={selected.version}
-                onChange={(event) => openEntry(entry, event.target.value)}
-              >
-                <option value="latest">{t("最新版本")}</option>
-                {detail.hasPreRelease && <option value="pre-release">{t("预发布版本")}</option>}
-                {[...new Set([detail.version, ...detail.versions])].map((version) => (
-                  <option key={version} value={version}>
-                    {version}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <div className="extension-detail-actions">
-              {detail.compatibility === "snippets" && detail.version !== local?.version && (
-                <button
-                  className="extension-primary"
-                  disabled={pending}
-                  onClick={() => void perform(() => install(detail, detail.version))}
-                >
-                  {t(local ? "安装此版本" : "安装")}
-                </button>
-              )}
-              {detail.vsix && (
-                <a href={detail.vsix} rel="noreferrer" target="_blank">
-                  {t("下载 VSIX")}
-                </a>
-              )}
-              <a href={itemUrl(entry)} rel="noreferrer" target="_blank">
-                {t("在 Open VSX 中查看")}
-              </a>
-            </div>
-          </>
-        ) : (
-          <p role="status">{t("正在读取扩展详情…")}</p>
-        )}
-      </div>
+    return actions.flatMap(({ separator, ...item }) =>
+      separator ? [{ label: "", separator: true }, item] : [item],
     );
   }
 
@@ -605,86 +620,97 @@ export function useExtensionActivity({
         {entries.map((entry) => {
           const local = installed.get(key(entry));
           const update = updates[key(entry)];
-          const open = selected && key(selected.entry) === key(entry);
+          const selected = activeDocument && key(activeDocument.entry) === key(entry);
           return (
-            <li key={key(entry)}>
-              <div className="extension-row" data-disabled={local?.enabled === false || undefined}>
-                <button
-                  type="button"
-                  className="extension-entry"
-                  aria-label={entry.name}
-                  aria-expanded={!!open}
-                  onClick={() =>
-                    open ? setSelected(undefined) : openEntry(entry, local?.version ?? "latest")
-                  }
-                  onContextMenu={(event) => openContext(event, undefined, entry)}
-                  onKeyDown={(event) => openContext(event, undefined, entry)}
-                >
-                  {recommended && (
-                    <span className="extension-recommendation-mark" title={t("推荐")}>
-                      <Icon name="star" size={11} />
-                    </span>
-                  )}
-                  <ExtensionIcon key={entry.icon ?? entry.id} entry={entry} />
-                  <span className="extension-summary">
+            <li
+              key={key(entry)}
+              className="extension-row"
+              data-selected={selected || undefined}
+              data-context={context?.entry === entry || undefined}
+              data-disabled={local?.enabled === false || undefined}
+              onContextMenu={(event) => openContext(event, undefined, entry)}
+              onKeyDown={(event) => openContext(event, undefined, entry)}
+            >
+              <button
+                type="button"
+                className="extension-entry"
+                aria-label={entry.name}
+                aria-current={selected || undefined}
+                onClick={() => openEntry(entry, local?.version ?? entry.version)}
+              >
+                {recommended && (
+                  <span className="extension-recommendation-mark" title={t("推荐")}>
+                    <Icon name="star" size={11} />
+                  </span>
+                )}
+                <ExtensionIcon key={entry.icon ?? entry.id} entry={entry} />
+                <span className="extension-summary">
+                  <span className="extension-title-line">
                     <span className="extension-title" title={entry.name}>
                       {entry.name}
                     </span>
-                    <span className="extension-description" title={entry.description}>
-                      {entry.description}
-                    </span>
-                    <span className="extension-publisher">
-                      {entry.verified && <Icon name="tick" size={12} />}
-                      {entry.publisher}
-                      {(local || entry.builtin) && (
-                        <span className="extension-release">{local?.version ?? entry.version}</span>
-                      )}
-                    </span>
-                  </span>
-                </button>
-                {!entry.builtin && (
-                  <div className="extension-row-tools">
                     {!!entry.downloads && !local && (
                       <span className="extension-stats" title={t("下载次数")}>
                         <Icon name="download" size={12} />
-                        {new Intl.NumberFormat(undefined, { notation: "compact" }).format(
-                          entry.downloads,
-                        )}
-                        {entry.rating !== undefined && entry.rating !== null && (
-                          <>
+                        {downloadsFormat.format(entry.downloads)}
+                        {entry.rating != null && (
+                          <span className="extension-rating" title={t("评分")}>
                             <Icon name="star" size={12} />
-                            {entry.rating}
-                          </>
+                            {ratingFormat.format(entry.rating)}
+                          </span>
                         )}
                       </span>
                     )}
-                    <div className="extension-row-buttons">
-                      {(!local || update) && (
-                        <button
-                          className="extension-primary"
-                          disabled={pending}
-                          onClick={() =>
-                            void perform(async () => {
-                              const candidate = update ?? (await getDetail(entry, entry.version));
-                              if (candidate.compatibility === "snippets")
-                                await install(candidate, candidate.version);
-                              else openEntry(entry, candidate.version);
-                            })
-                          }
-                        >
-                          {t(local ? "更新" : "安装")}
-                        </button>
-                      )}
-                      <NavigatorMenu
-                        label={t("管理 {name}", { name: entry.name })}
-                        triggerIcon={local ? "settings" : "more"}
-                        items={entryActions(entry)}
-                      />
-                    </div>
-                  </div>
-                )}
-              </div>
-              {open && renderDetail(entry)}
+                  </span>
+                  <span className="extension-description" title={entry.description}>
+                    {entry.description}
+                  </span>
+                  <span className="extension-publisher">
+                    {entry.verified && <Icon name="tick" size={12} />}
+                    <span title={entry.publisher}>{entry.publisher}</span>
+                    {(local || entry.builtin) && (
+                      <span className="extension-release">{local?.version ?? entry.version}</span>
+                    )}
+                  </span>
+                </span>
+              </button>
+              {!entry.builtin && (
+                <div className="extension-row-actions">
+                  {(!local || update) && (
+                    <button
+                      type="button"
+                      className="extension-primary"
+                      disabled={pending}
+                      onClick={() => {
+                        if (update) void perform(() => install(update, update.version));
+                        else {
+                          openEntry(entry, entry.version);
+                          void perform(async () => {
+                            const candidate = await getDetail(entry, entry.version);
+                            if (candidate.compatibility === "snippets")
+                              await install(candidate, candidate.version);
+                          });
+                        }
+                      }}
+                    >
+                      {t(local ? "更新" : "安装")}
+                    </button>
+                  )}
+                  {local && (
+                    <NavigatorButton
+                      label={t("管理 {name}", { name: entry.name })}
+                      icon="settings"
+                      aria-haspopup="menu"
+                      aria-expanded={context?.entry === entry}
+                      onClick={(event) => {
+                        const anchor = event.currentTarget;
+                        const { left, bottom } = anchor.getBoundingClientRect();
+                        setContext({ x: left, y: bottom, anchor, entry });
+                      }}
+                    />
+                  )}
+                </div>
+              )}
             </li>
           );
         })}
@@ -704,7 +730,116 @@ export function useExtensionActivity({
     ? [filteredView]
     : sectionKeys.filter((view) => shown.includes(view));
 
+  function toggleSearchTool(tool: SearchTool) {
+    const next = hiddenTools.includes(tool)
+      ? hiddenTools.filter((item) => item !== tool)
+      : [...hiddenTools, tool];
+    setHiddenTools(next);
+    try {
+      localStorage.setItem(toolsKey, JSON.stringify(next));
+    } catch {
+      /* Optional preference storage. */
+    }
+  }
+
+  const searchToolItems: NavigatorMenuItem[] = (["clear", "filter"] as const).map((tool) => ({
+    label: t(searchTools[tool]),
+    checked: !hiddenTools.includes(tool),
+    checkbox: true,
+    run: () => toggleSearchTool(tool),
+  }));
+  const searchPending = completedSearch !== `${sort}:${term}` && !searchError;
+  const clearSearch = () => {
+    setSearchText("");
+    searchInput.current?.focus();
+  };
+  function editSearch(command: "undo" | "redo" | "cut" | "copy" | "paste" | "selectAll") {
+    const input = searchInput.current;
+    if (!input) return;
+    input.focus({ preventScroll: true });
+    if (command === "selectAll") input.select();
+    else if (command === "paste")
+      void perform(async () => {
+        const text = await navigator.clipboard.readText();
+        if (document.activeElement !== input) return;
+        document.execCommand("insertText", false, text.replace(/[\r\n]+/g, " "));
+      });
+    else document.execCommand(command);
+  }
+  function searchEditItems(): NavigatorMenuItem[] {
+    const input = searchInput.current;
+    const hasSelection = input?.selectionStart !== input?.selectionEnd;
+    const mac = /Mac|iPhone|iPad/.test(navigator.platform);
+    const modifier = mac ? "⌘" : "Ctrl";
+    return [
+      { label: t("撤销"), shortcut: [modifier, "Z"], run: () => editSearch("undo") },
+      {
+        label: t("重做"),
+        shortcut: mac ? ["⇧", modifier, "Z"] : [modifier, "Y"],
+        run: () => editSearch("redo"),
+      },
+      {
+        label: t("剪切"),
+        separator: true,
+        shortcut: [modifier, "X"],
+        run: hasSelection ? () => editSearch("cut") : undefined,
+      },
+      {
+        label: t("复制"),
+        shortcut: [modifier, "C"],
+        run: hasSelection ? () => editSearch("copy") : undefined,
+      },
+      { label: t("粘贴"), shortcut: [modifier, "V"], run: () => editSearch("paste") },
+      {
+        label: t("选择全部"),
+        separator: true,
+        shortcut: [modifier, "A"],
+        run: () => editSearch("selectAll"),
+      },
+    ];
+  }
+  function contextItems(): NavigatorMenuItem[] {
+    if (!context) return [];
+    if (context.entry) return entryActions(context.entry);
+    if (context.target === "input") return searchEditItems();
+    if (context.target === "search") return searchToolItems;
+    if (context.target) {
+      const tool = context.target;
+      return [
+        {
+          label: t("隐藏“{view}”", { view: t(searchTools[tool]) }),
+          run: () => toggleSearchTool(tool),
+        },
+        ...searchToolItems.map((item, index) => (index ? item : { ...item, separator: true })),
+      ];
+    }
+    if (!context.view) return [...viewItems, ...layoutItems];
+    const view = context.view;
+    return [
+      {
+        label: t("隐藏“{view}”", { view: t(views[view]) }),
+        run: () => {
+          toggleView(view);
+          if (filteredView) setSearchText("");
+        },
+      },
+      ...viewItems.map((item, index) => (index ? item : { ...item, separator: true })),
+    ];
+  }
+
   return {
+    renderDocument: (request: ExtensionDocument, changeVersion: (version: string) => void) => (
+      <ExtensionDetails
+        request={request}
+        load={getDetail}
+        changeVersion={changeVersion}
+        installed={installed.get(key(request.entry))}
+        pending={pending}
+        revision={revision}
+        manage={entryActions(request.entry)}
+        install={(entry) => void perform(() => install(entry, entry.version))}
+      />
+    ),
     actions: (
       <>
         <NavigatorButton
@@ -721,86 +856,104 @@ export function useExtensionActivity({
       onContextMenu: (event: React.MouseEvent<HTMLElement>) => openContext(event),
       onKeyDown: (event: React.KeyboardEvent<HTMLElement>) => openContext(event),
     },
-    page: (
+    page: active ? (
       <NavigatorPage
         className="extension-activity"
         aria-label={t("扩展")}
-        hidden={!active}
-        onContextMenu={(event) => {
-          if (
-            event.target === event.currentTarget ||
-            (event.target as HTMLElement).classList.contains("extension-results")
-          )
-            openContext(event);
-        }}
+        onContextMenu={(event) => openContext(event)}
       >
-        <div className="extension-search">
+        <div
+          className="extension-search"
+          onContextMenu={(event) => openContext(event, undefined, undefined, "search")}
+        >
           <input
             ref={searchInput}
             aria-label={t("在 Open VSX 中搜索扩展")}
             placeholder={t("在 Open VSX 中搜索扩展")}
-            value={query}
-            onChange={(event) => setSearchText(event.target.value)}
+            defaultValue={query}
+            onContextMenu={(event) => openContext(event, undefined, undefined, "input")}
+            onChange={(event) => {
+              const value = event.currentTarget.value;
+              window.clearTimeout(searchDraftTimer.current);
+              searchDraftTimer.current = window.setTimeout(() => setQuery(value), 200);
+            }}
             onKeyDown={(event) => {
-              if (event.key === "Escape" && query) {
+              openContext(event, undefined, undefined, "input");
+              if (event.key === "Escape" && event.currentTarget.value) {
                 event.stopPropagation();
                 setSearchText("");
               }
             }}
           />
-          <NavigatorButton
-            icon="clear-search"
-            label={t("清除扩展搜索")}
-            disabled={!query}
-            onClick={() => {
-              setSearchText("");
-              searchInput.current?.focus();
-            }}
-          />
-          <NavigatorMenu
-            label={t("筛选扩展")}
-            triggerIcon="filter"
-            items={[
-              { label: "Open VSX", run: () => setSearchText("@marketplace") },
-              ...sectionKeys.map((view) => ({
-                label: t(views[view]),
-                run: () => setSearchText(`@${view}`),
-              })),
-              {
-                label: t("按扩展 ID 搜索"),
-                separator: true,
-                run: () => {
-                  setSearchText("@id:");
-                  searchInput.current?.focus();
-                },
-              },
-              {
-                label: t("排序方式"),
-                submenu: (Object.keys(sorts) as (keyof typeof sorts)[]).map((order) => ({
-                  label: t(sorts[order]),
-                  checked: sort === order,
-                  run: () => {
-                    setSort(order);
-                    if (!marketplace) setSearchText("@marketplace");
-                  },
-                })),
-              },
-              ...(inventory.ignored.length
-                ? [
-                    {
-                      label: t("恢复已忽略的建议"),
-                      run: () =>
-                        void perform(async () => {
-                          for (const id of inventory.ignored)
-                            await change({ action: "ignore", id, enabled: false });
-                        }),
+          {!hiddenTools.includes("clear") && (
+            <span
+              className="extension-search-tool"
+              onContextMenu={(event) => openContext(event, undefined, undefined, "clear")}
+              onKeyDown={(event) => openContext(event, undefined, undefined, "clear")}
+            >
+              <NavigatorButton
+                className="extension-clear-search"
+                icon="clear-search"
+                label={t(searchTools.clear)}
+                onClick={clearSearch}
+              />
+            </span>
+          )}
+          {!hiddenTools.includes("filter") && (
+            <span
+              className="extension-search-tool"
+              onContextMenu={(event) => openContext(event, undefined, undefined, "filter")}
+              onKeyDown={(event) => openContext(event, undefined, undefined, "filter")}
+            >
+              <NavigatorMenu
+                label={t(searchTools.filter)}
+                triggerIcon="filter"
+                items={[
+                  { label: "Open VSX", run: () => setSearchText("@marketplace") },
+                  ...sectionKeys.map((view) => ({
+                    label: t(views[view]),
+                    run: () => setSearchText(`@${view}`),
+                  })),
+                  {
+                    label: t("按扩展 ID 搜索"),
+                    separator: true,
+                    run: () => {
+                      setSearchText("@id:");
+                      searchInput.current?.focus();
                     },
-                  ]
-                : []),
-            ]}
-          />
+                  },
+                  {
+                    label: t("排序方式"),
+                    submenu: (Object.keys(sorts) as (keyof typeof sorts)[]).map((order) => ({
+                      label: t(sorts[order]),
+                      checked: sort === order,
+                      run: () => {
+                        setSort(order);
+                        if (!marketplace) setSearchText("@marketplace");
+                      },
+                    })),
+                  },
+                  ...(inventory.ignored.length
+                    ? [
+                        {
+                          label: t("恢复已忽略的建议"),
+                          run: () =>
+                            void perform(async () => {
+                              for (const id of inventory.ignored)
+                                await change({ action: "ignore", id, enabled: false });
+                            }),
+                        },
+                      ]
+                    : []),
+                ]}
+              />
+            </span>
+          )}
         </div>
-        <div className="extension-results">
+        <div className="extension-results" aria-busy={marketplace && searchPending}>
+          {marketplace && searchPending && (
+            <span className="extension-progress" aria-hidden="true" />
+          )}
           {inventoryError && (
             <p className="core-error" role="alert">
               {inventoryError}
@@ -813,7 +966,7 @@ export function useExtensionActivity({
                   {searchError}
                 </p>
               )}
-              {!search && !searchError && (
+              {!search?.items.length && searchPending && (
                 <p className="extension-message" role="status">
                   {t("正在搜索 Open VSX…")}
                 </p>
@@ -822,8 +975,12 @@ export function useExtensionActivity({
                 ? renderEntries([
                     ...new Map(search.items.map((entry) => [key(entry), entry])).values(),
                   ])
-                : search && <p className="extension-message">{t("Open VSX 中没有匹配的扩展。")}</p>}
-              {search && search.items.length < Math.min(search.total, 5000) && (
+                : search &&
+                  !searchPending &&
+                  !searchError && (
+                    <p className="extension-message">{t("Open VSX 中没有匹配的扩展。")}</p>
+                  )}
+              {search && !searchPending && search.items.length < Math.min(search.total, 5000) && (
                 <button
                   type="button"
                   className="extension-more"
@@ -892,24 +1049,7 @@ export function useExtensionActivity({
           <NavigatorMenu
             label={t("扩展操作")}
             point={context}
-            items={
-              context.entry
-                ? entryActions(context.entry)
-                : context.view
-                  ? [
-                      {
-                        label: t("隐藏“{view}”", { view: t(views[context.view]) }),
-                        run: () => {
-                          toggleView(context.view!);
-                          if (filteredView) setSearchText("");
-                        },
-                      },
-                      ...viewItems.map((item, i) =>
-                        i === 0 ? { ...item, separator: true } : item,
-                      ),
-                    ]
-                  : [...viewItems, ...layoutItems]
-            }
+            items={contextItems()}
             onDismiss={() => {
               setContext(undefined);
               if (document.activeElement === document.body) {
@@ -921,8 +1061,152 @@ export function useExtensionActivity({
           />
         )}
       </NavigatorPage>
-    ),
+    ) : null,
   };
+}
+
+function ExtensionDetails({
+  request,
+  load,
+  changeVersion,
+  installed,
+  pending,
+  revision,
+  manage,
+  install,
+}: {
+  request: ExtensionDocument;
+  load: (entry: Entry, version: string) => Promise<Detail>;
+  changeVersion: (version: string) => void;
+  installed?: Installed;
+  pending: boolean;
+  revision: number;
+  manage: NavigatorMenuItem[];
+  install: (entry: Detail) => void;
+}) {
+  const { entry, version, intent } = request;
+  const [detail, setDetail] = useState<Detail>();
+  const [settled, setSettled] = useState<{
+    id: string;
+    version: string;
+    revision: number;
+    error?: string;
+  }>();
+  const versionField = useRef<HTMLSelectElement>(null);
+  const sameExtension = detail && key(detail) === key(entry) ? detail : undefined;
+  const current =
+    settled?.id === key(entry) && settled.version === version && settled.revision === revision;
+  const currentDetail = current && !settled.error ? sameExtension : undefined;
+
+  useEffect(() => {
+    if (entry.builtin) return;
+    let current = true;
+    const selection = { id: key(entry), version, revision };
+    void load(entry, version).then(
+      (result) => {
+        if (!current) return;
+        setDetail(result);
+        setSettled(selection);
+      },
+      (error) => {
+        if (current) setSettled({ ...selection, error: message(error) });
+      },
+    );
+    return () => {
+      current = false;
+    };
+  }, [entry, version, revision, load]);
+
+  useEffect(() => {
+    if (intent) versionField.current?.focus({ preventScroll: true });
+  }, [intent, entry.id]);
+
+  const directDownload = version === entry.version ? entry.vsix : undefined;
+  const download = currentDetail?.vsix ?? directDownload;
+  return (
+    <section className="extension-details" aria-label={entry.name}>
+      <header className="extension-detail-heading">
+        <ExtensionIcon key={entry.icon ?? entry.id} entry={entry} />
+        <div>
+          <h1>{entry.name}</h1>
+          <p className="extension-detail-meta">
+            <span>{entry.publisher}</span>
+            <span>{entry.id}</span>
+            <span>
+              {t("版本")} {installed?.version ?? entry.version}
+            </span>
+          </p>
+          {entry.description && <p>{entry.description}</p>}
+          <div className="extension-detail-actions">
+            {!entry.builtin && (
+              <>
+                <label className="extension-version">
+                  {t("扩展版本")}
+                  <select
+                    ref={versionField}
+                    aria-label={t("扩展版本")}
+                    value={version}
+                    onChange={(event) => changeVersion(event.target.value)}
+                  >
+                    <option value="latest">{t("最新版本")}</option>
+                    {sameExtension?.hasPreRelease && (
+                      <option value="pre-release">{t("预发布版本")}</option>
+                    )}
+                    {[
+                      ...new Set([
+                        entry.version,
+                        ...(sameExtension?.versions ?? []),
+                        ...(sameExtension ? [sameExtension.version] : []),
+                      ]),
+                    ].map((option) => (
+                      <option value={option} key={option}>
+                        {option}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                {currentDetail?.compatibility === "snippets" &&
+                  currentDetail.version !== installed?.version && (
+                    <button
+                      className="extension-primary"
+                      type="button"
+                      disabled={pending}
+                      onClick={() => install(currentDetail)}
+                    >
+                      {t(installed ? "安装此版本" : "安装")}
+                    </button>
+                  )}
+                {download && (
+                  <a href={download} rel="noreferrer" target="_blank">
+                    {t("下载 VSIX")}
+                  </a>
+                )}
+                <a href={itemUrl(entry)} rel="noreferrer" target="_blank">
+                  {t("在 Open VSX 中查看")}
+                </a>
+              </>
+            )}
+            <NavigatorMenu
+              label={t("管理 {name}", { name: entry.name })}
+              items={manage}
+              triggerIcon="settings"
+            />
+          </div>
+        </div>
+      </header>
+      {entry.builtin ? (
+        <p>{t("随宿主加载的 Tex Studio 专业插件")}</p>
+      ) : current && settled.error ? (
+        <p className="core-error" role="alert">
+          {settled.error}
+        </p>
+      ) : (
+        <p role="status" className="extension-detail-status">
+          {t(currentDetail ? compatibility[currentDetail.compatibility] : "正在检查扩展兼容性…")}
+        </p>
+      )}
+    </section>
+  );
 }
 
 export { recommendationPath };

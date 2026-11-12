@@ -110,7 +110,7 @@ export type WorkbenchProps = {
   state: StudioState;
   data: unknown;
   refresh: () => Promise<void>;
-  api: <T>(path: string, body?: unknown) => Promise<T>;
+  api: <T>(path: string, body?: unknown, signal?: AbortSignal) => Promise<T>;
   notify: (message: string, error?: boolean) => void;
   showTasks: (jobId?: string) => void;
   taskResult?: { job: StudioJob; token: number };

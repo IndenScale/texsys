@@ -28,8 +28,11 @@ def test_vsix_update_validates_before_replacing_and_preserves_workspace_state(tm
       }''')
     return output.getvalue()
 
+  manifest_reads = []
+
   def serve(url, maximum=extensions.MIB, *, optional=False):
     if url.endswith("package.json"):
+      manifest_reads.append(manifest["version"])
       return json.dumps(manifest).encode()
     if url.endswith(".vsix"):
       return archive()
@@ -42,6 +45,7 @@ def test_vsix_update_validates_before_replacing_and_preserves_workspace_state(tm
     }).encode()
 
   monkeypatch.setattr(extensions, "_get", serve)
+  extensions._version_manifest.cache_clear()
   digest = None
   store = extensions.StudioExtensions(tmp_path / "data" / "extensions.json")
   workspace = tmp_path / "project"
@@ -65,6 +69,8 @@ def test_vsix_update_validates_before_replacing_and_preserves_workspace_state(tm
   with pytest.raises(Conflict):
     store.change(workspace, update)
   assert store.change(workspace, {"id": identity, "action": "uninstall"})["installed"] == []
+  assert manifest_reads == ["1.0.0", "1.1.0"]
+  extensions._version_manifest.cache_clear()
 
 
 def test_recommendation_edits_keep_jsonc_comments_and_other_fields(tmp_path):

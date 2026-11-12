@@ -53,7 +53,7 @@ export const englishMessages: Record<string, string> = {
   安装: "Install",
   更新: "Update",
   "在 Open VSX 中查看": "View on Open VSX",
-  "正在读取扩展详情…": "Loading extension details…",
+  "正在检查扩展兼容性…": "Checking extension compatibility…",
   "管理 {name}": "Manage {name}",
   刷新扩展: "Refresh Extensions",
   扩展更多操作: "More Extensions Actions",
