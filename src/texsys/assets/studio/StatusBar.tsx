@@ -198,8 +198,6 @@ export function StatusBar({
     setPoint({ x, y: bar.current!.getBoundingClientRect().top });
   };
   const show = (id: ItemId) => !preferences.hidden.includes(id);
-  const connectionLabel =
-    connection === "offline" ? t("连接中断") : connection === "online" ? t("本地") : t("读取中");
   const problemLabel = t("问题：{0} 个错误，{1} 个警告", {
     "0": editorProblems.errors,
     "1": editorProblems.warnings,
@@ -239,17 +237,11 @@ export function StatusBar({
         {show("connection") && (
           <NavigatorMenu
             label={t("远程主机")}
-            title={connectionLabel}
+            title={connection === "offline" ? t("连接中断") : undefined}
             placement="start"
             direction="up"
-            triggerClassName={`statusbar-item statusbar-connection ${connection}`}
-            triggerIcon={
-              <>
-                <Icon name="remote" size={14} />
-                <span className="statusbar-label">{connectionLabel}</span>
-              </>
-            }
-            detail={<span>{t("Tex Studio 运行在本机。")}</span>}
+            triggerClassName={`statusbar-item statusbar-connection${connection === "offline" ? " offline" : ""}`}
+            triggerIcon={<Icon name="remote" size={14} />}
             items={[
               ...(connection === "offline" ? [{ label: t("重试连接"), run: onReconnect }] : []),
               { label: t("新建窗口"), run: onNewWindow },

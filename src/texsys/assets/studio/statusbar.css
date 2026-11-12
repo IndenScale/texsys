@@ -83,10 +83,6 @@
   color: var(--ui-text-muted);
 }
 
-.studio-statusbar .statusbar-connection.online {
-  color: var(--accent);
-}
-
 .studio-statusbar .statusbar-connection.offline {
   color: #9a412e;
 }
@@ -170,7 +166,6 @@
 }
 
 @media (max-width: 740px) {
-  .statusbar-connection:not(.offline) .statusbar-label,
   .statusbar-discipline .statusbar-label,
   .statusbar-discipline > svg:last-child,
   .statusbar-selected {
