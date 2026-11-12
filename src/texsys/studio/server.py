@@ -14,6 +14,7 @@ from urllib.parse import parse_qs, urlparse
 
 from texsys.project import ProjectError
 from .ai import AiSettings, draft_commit_message, is_ai_config_path, test_connection
+from .extensions import StudioExtensions, detail as extension_detail, recommend, search as extension_search
 from .runtime import Conflict, StudioRuntime
 from .scene import ScenePreview
 from .preview import ProjectPreview
@@ -113,6 +114,7 @@ def create_server(runtime: StudioRuntime, port=8710, frontend=None, token=None, 
   frontend = compile_frontend(runtime) if frontend is None else frontend
   token = token or secrets.token_urlsafe(32)
   ai_settings = AiSettings()
+  extensions = StudioExtensions()
   terminals = TerminalService()
   scene = ScenePreview(runtime.root, runtime.project.build)
   previews = ProjectPreview(runtime.root, runtime.project.build)
@@ -192,6 +194,18 @@ def create_server(runtime: StudioRuntime, port=8710, frontend=None, token=None, 
       try:
         if parsed.path == "/api/state":
           self._send(200, runtime.state())
+        elif parsed.path == "/api/extensions":
+          self._send(200, extensions.state(runtime.root))
+        elif parsed.path == "/api/extensions/recommendations":
+          with runtime.lock:
+            self._send(200, extensions.recommendations(runtime.root, runtime.project.build))
+        elif parsed.path == "/api/extensions/search":
+          query = parse_qs(parsed.query)
+          self._send(200, extension_search(query.get("q", [""])[0], int(query.get("offset", ["0"])[0]),
+                                          query.get("sort", ["relevance"])[0]))
+        elif parsed.path == "/api/extensions/detail":
+          query = parse_qs(parsed.query)
+          self._send(200, extension_detail(query.get("id", [""])[0], query.get("version", ["latest"])[0]))
         elif parsed.path == "/api/design-index":
           from .library_sources import library_index
 
@@ -273,7 +287,13 @@ def create_server(runtime: StudioRuntime, port=8710, frontend=None, token=None, 
         body = json.loads(self.rfile.read(length))
         if not isinstance(body, dict):
           raise ProjectError("Request must be an object.")
-        if self.path == "/api/library":
+        if self.path == "/api/extensions":
+          result = extensions.change(runtime.root, body)
+        elif self.path == "/api/extensions/recommendations":
+          with runtime.lock:
+            recommend(runtime.root, runtime.project.build, body.get("id"))
+            result = extensions.recommendations(runtime.root, runtime.project.build)
+        elif self.path == "/api/library":
           from .library_sources import library_index, reference_library_entry
 
           if body.get("action") == "reference":

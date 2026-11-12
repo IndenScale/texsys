@@ -75,6 +75,7 @@ import {
   NavigatorToolbar,
 } from "./NavigatorPanel";
 import "./workspace.css";
+import { recommendationPath, useExtensionActivity } from "./ExtensionActivity";
 import { SourceControl } from "./SourceControl";
 import {
   goToSourcePosition,
@@ -181,7 +182,7 @@ const coreItems: { id: Activity; label: string; icon: string; shortcutKey?: stri
   { id: "explorer", label: "文件资源管理器", icon: "files", shortcutKey: "E" },
   { id: "search", label: "搜索", icon: "search", shortcutKey: "F" },
   { id: "scm", label: "源代码管理", icon: "branch", shortcutKey: "G" },
-  { id: "extensions", label: "扩展", icon: "extensions" },
+  { id: "extensions", label: "扩展", icon: "extensions", shortcutKey: "X" },
   { id: "library", label: "部件库", icon: "library" },
   { id: "instances", label: "项目实例", icon: "system" },
 ];
@@ -1880,6 +1881,32 @@ export function CoreWorkspaceProvider({
     setGitScope(scope);
     setDiffActive(false);
   };
+  const extensions = useExtensionActivity({
+    active: activity === "extensions" && layout.sidebarOpen,
+    api,
+    layout,
+    changeLayout,
+    notify,
+    plugins: state.plugins,
+    recommendInWorkspace: async (id) => {
+      if (
+        documentsRef.current.some(
+          (item) => item.path === recommendationPath && (item.loading || isDocumentDirty(item)),
+        )
+      ) {
+        throw new Error(t("请先保存工作区推荐文件的修改。"));
+      }
+      const result = await api<{ ids: string[]; workspace: string[] }>(
+        "/api/extensions/recommendations",
+        { id },
+      );
+      const recommendation = documentsRef.current.find((item) => item.path === recommendationPath);
+      if (recommendation && !isDocumentDirty(recommendation)) void rereadFile(recommendationPath);
+      void readFiles();
+      void readGit();
+      return result;
+    },
+  });
   const sidebarActions =
     activity === "search" ? (
       codeSearch.actions
@@ -1915,6 +1942,8 @@ export function CoreWorkspaceProvider({
             : [{ label: t("刷新源代码管理"), run: busy ? undefined : refreshScm }]),
         ]}
       />
+    ) : activity === "extensions" ? (
+      extensions.actions
     ) : activity === "library" ? (
       <>
         <Tool label={t("添加库目录…")} icon="new-folder" onClick={() => setLibraryDialog(true)} />
@@ -1932,7 +1961,11 @@ export function CoreWorkspaceProvider({
       title={t(coreSidebarTitles[activity])}
       actions={sidebarActions}
       headingProps={
-        activity === "explorer" ? { ...explorerHeadingEvents("panel"), tabIndex: -1 } : undefined
+        activity === "explorer"
+          ? { ...explorerHeadingEvents("panel"), tabIndex: -1 }
+          : activity === "extensions"
+            ? extensions.headingProps
+            : undefined
       }
     >
       <NavigatorPage
@@ -2136,25 +2169,7 @@ export function CoreWorkspaceProvider({
           </>
         )}
       </NavigatorPage>
-      <NavigatorPage hidden={activity !== "extensions"} aria-label={t("已加载的扩展")}>
-        {state.plugins.length ? (
-          <ul className="core-activity-list">
-            {state.plugins.map((plugin) => (
-              <li className="core-activity-row" key={plugin.id}>
-                <Icon name="extensions" />
-                <span className="core-activity-name">
-                  <strong>{plugin.name}</strong>
-                  <small>
-                    {t(plugin.discipline)} · {plugin.version}
-                  </small>
-                </span>
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p className="core-hint">{t("暂无已加载的扩展。")}</p>
-        )}
-      </NavigatorPage>
+      {extensions.page}
       {(["library", "instances"] as const).map((mode) => (
         <NavigatorPage key={mode} hidden={activity !== mode}>
           {designError ? (

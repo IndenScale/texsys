@@ -1,0 +1,235 @@
+.extension-activity:not([hidden]) {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.extension-search {
+  display: flex;
+  flex: none;
+  align-items: center;
+  margin: 3px var(--navigator-end) 8px var(--navigator-gutter);
+  padding: 0 1px;
+  min-height: 28px;
+  border: 1px solid var(--ui-border);
+  border-radius: 4px;
+  background: var(--ui-canvas);
+}
+.extension-search:focus-within {
+  border-color: var(--ui-proof);
+}
+.extension-search input {
+  width: 0;
+  min-width: 0;
+  flex: 1;
+  padding: 3px 6px;
+  border: 0;
+  background: transparent;
+  color: var(--ui-text);
+  font: inherit;
+  font-size: 13px;
+}
+.extension-search input:focus-visible {
+  outline: none;
+}
+.extension-search input::placeholder {
+  color: var(--ui-text-muted);
+}
+.extension-results {
+  flex: 1;
+  overflow: auto;
+  scrollbar-gutter: stable;
+  padding-inline: var(--navigator-gutter) var(--navigator-end);
+}
+.extension-section + .extension-section {
+  border-top: 1px solid var(--ui-chrome-divider);
+}
+.extension-section-toggle {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  width: 100%;
+  min-height: 28px;
+  padding: 2px 3px;
+  text-align: left;
+  font-size: 13px;
+}
+.extension-section-toggle:hover,
+.extension-row:hover,
+.extension-row:focus-within {
+  background: var(--ui-control-hover);
+}
+.extension-count {
+  margin-inline-start: auto;
+  border-radius: 999px;
+  min-inline-size: 19px;
+  padding: 1px 5px;
+  text-align: center;
+  background: var(--ui-control-hover);
+  color: var(--ui-text);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+.extension-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.extension-row {
+  position: relative;
+  display: flex;
+  align-items: stretch;
+  gap: 2px;
+  border-radius: 4px;
+  min-height: 65px;
+}
+.extension-entry {
+  display: flex;
+  align-items: center;
+  text-align: left;
+  flex: 1;
+  min-width: 0;
+  gap: 9px;
+  padding: 5px 3px 5px 9px;
+  border-radius: inherit;
+}
+.extension-entry:focus-visible,
+.extension-section-toggle:focus-visible {
+  outline-offset: -1px;
+}
+.extension-entry > img,
+.extension-icon-fallback {
+  width: 36px;
+  height: 36px;
+  flex: 0 0 36px;
+  object-fit: contain;
+}
+.extension-icon-fallback {
+  display: grid;
+  place-items: center;
+  border-radius: 5px;
+  color: var(--ui-proof);
+  background: var(--ui-canvas);
+  border: 1px solid var(--ui-chrome-divider);
+}
+.extension-recommendation-mark {
+  position: absolute;
+  top: 1px;
+  inset-inline-start: 1px;
+  display: grid;
+  place-items: center;
+  border-radius: 3px;
+  width: 14px;
+  height: 14px;
+  background: var(--ui-proof);
+  color: #fff;
+}
+.extension-summary {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+  line-height: 1.25;
+}
+.extension-title,
+.extension-description {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.extension-title {
+  font-size: 13px;
+  font-weight: 500;
+}
+.extension-description,
+.extension-publisher,
+.extension-stats,
+.extension-release {
+  color: var(--ui-text-muted);
+  font-size: 11px;
+}
+.extension-publisher {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  white-space: nowrap;
+  overflow: hidden;
+}
+.extension-release {
+  margin-inline-start: 4px;
+}
+.extension-row[data-disabled] .extension-title {
+  color: var(--ui-text-muted);
+}
+.extension-row-tools {
+  display: flex;
+  flex: none;
+  align-items: flex-end;
+  justify-content: space-between;
+  flex-direction: column;
+  padding: 6px 1px 3px 0;
+}
+.extension-stats,
+.extension-row-buttons,
+.extension-detail-actions,
+.extension-version {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.extension-stats {
+  white-space: nowrap;
+}
+.extension-row-buttons {
+  margin-block-start: auto;
+}
+.extension-primary {
+  padding: 2px 6px;
+  border-radius: 3px;
+  background: var(--ui-proof);
+  color: white;
+  font-size: 11px;
+}
+.extension-primary:hover:not(:disabled) {
+  filter: brightness(1.12);
+}
+.extension-details {
+  padding: 6px 8px 8px;
+  border: 1px solid var(--ui-chrome-divider);
+  border-radius: 4px;
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+.extension-details p {
+  margin: 2px 0 6px;
+}
+.extension-id,
+.extension-message {
+  color: var(--ui-text-muted);
+}
+.extension-message {
+  font-size: 12px;
+  margin: 7px 5px 10px;
+}
+.extension-version {
+  margin-block-end: 6px;
+}
+.extension-version select {
+  max-width: 75%;
+  font: inherit;
+  color: var(--ui-text);
+  background: var(--ui-canvas);
+  border: 1px solid var(--ui-border);
+  border-radius: 3px;
+}
+.extension-detail-actions {
+  flex-wrap: wrap;
+  gap: 7px;
+}
+.extension-detail-actions a,
+.extension-more {
+  color: var(--ui-proof);
+  font-size: 11px;
+}
+.extension-more {
+  width: 100%;
+  padding-block: 7px;
+}

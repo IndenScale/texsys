@@ -11,11 +11,15 @@ import "monaco-editor/editor/contrib/multicursor/browser/multicursor.js";
 import "monaco-editor/editor/contrib/contextmenu/browser/contextmenu.js";
 import "monaco-editor/editor/contrib/find/browser/findController.js";
 import "monaco-editor/editor/contrib/folding/browser/folding.js";
+import "monaco-editor/editor/contrib/suggest/browser/suggestController.js";
+import "monaco-editor/features/snippet/register.js";
 import "monaco-editor/editor/contrib/toggleTabFocusMode/browser/toggleTabFocusMode.js";
 import "monaco-editor/editor/contrib/tokenization/browser/tokenization.js";
 import "monaco-editor/language/json/monaco.contribution.js";
 import "monaco-editor/languages/definitions/ini/register.js";
 import "monaco-editor/languages/definitions/markdown/register.js";
+import "monaco-editor/languages/definitions/javascript/register.js";
+import "monaco-editor/languages/definitions/typescript/register.js";
 import "monaco-editor/languages/definitions/python/register.js";
 import "monaco-editor/languages/definitions/shell/register.js";
 import "monaco-editor/languages/definitions/yaml/register.js";
@@ -31,6 +35,12 @@ globalThis.MonacoEnvironment = {
 };
 
 const languageByExtension: Record<string, string> = {
+  js: "javascript",
+  jsx: "javascript",
+  mjs: "javascript",
+  cjs: "javascript",
+  ts: "typescript",
+  tsx: "typescript",
   json: "json",
   jsonc: "json",
   md: "markdown",

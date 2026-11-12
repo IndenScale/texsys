@@ -2,6 +2,8 @@ import React from "react";
 
 const paths: Record<string, React.ReactNode> = {
   extensions: <path d="M3 3h7v7H3zm0 11h7v7H3zm11 0h7v7h-7zM16.5 2l5.5 5.5-5.5 5.5L11 7.5z" />,
+  filter: <path d="M3 4h18v3l-7 7v5l-4 2v-7L3 7z" />,
+  star: <path d="m12 3 2.8 5.6 6.2.9-4.5 4.4 1.1 6.1-5.6-2.9L6.4 20l1.1-6.1L3 9.5l6.2-.9z" />,
   settings: (
     <>
       <path d="m10 3-.6 2.4-2 .9-2.2-.7-2 3.4 1.7 1.7v2.6l-1.7 1.7 2 3.4 2.3-.7 2 .9L10 21h4l.6-2.4 2-.9 2.2.7 2-3.4-1.7-1.7v-2.6l1.7-1.7-2-3.4-2.3.7-2-.9L14 3Z" />
