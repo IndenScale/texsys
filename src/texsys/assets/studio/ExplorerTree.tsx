@@ -1,5 +1,5 @@
 import { t } from "./i18n";
-import React, { useLayoutEffect, useRef, type CSSProperties } from "react";
+import React, { useLayoutEffect, useRef, type CSSProperties, type Ref } from "react";
 import { FileIcon } from "./FileIcon";
 import { Icon } from "./ui";
 import { explorerCreationIndex, type TreeEntry } from "./workspace-model";
@@ -15,6 +15,7 @@ export type ExplorerCreation = {
 /** Flat visible rows share fixed twistie/icon slots; depth only changes the indent. */
 export function ExplorerTree({
   entries,
+  root,
   expanded,
   selected,
   dirtyPaths,
@@ -35,6 +36,7 @@ export function ExplorerTree({
   focusParent,
 }: {
   entries: TreeEntry[];
+  root?: { name: string; expanded: boolean; toggle: () => void; ref?: Ref<HTMLButtonElement> };
   expanded: Set<string>;
   selected: string;
   dirtyPaths?: Set<string>;
@@ -62,7 +64,7 @@ export function ExplorerTree({
       inputRef.current?.focus();
       inputRef.current?.scrollIntoView({ block: "nearest" });
     }
-  }, [creation?.focus]);
+  }, [creation?.focus, root?.expanded]);
   useLayoutEffect(() => {
     if (!focusRequest || focusedRequest.current === focusRequest.token) return;
     const row = Array.from(
@@ -74,37 +76,53 @@ export function ExplorerTree({
       focusedRequest.current = focusRequest.token;
       focusHandled?.();
     }
-  }, [entries, focusRequest]);
-  const selectedEntry = entries.find((entry) => entry.path === selected);
+  }, [entries, focusRequest, root?.expanded]);
+  const visibleEntries: TreeEntry[] = root
+    ? [
+        { path: "", name: root.name, directory: true, depth: 0 },
+        ...(root.expanded ? entries.map((entry) => ({ ...entry, depth: entry.depth + 1 })) : []),
+      ]
+    : entries;
+  const isExpanded = (entry: TreeEntry) =>
+    root && entry.path === "" ? root.expanded : expanded.has(entry.path);
+  const toggleEntry = (entry: TreeEntry) =>
+    root && entry.path === "" ? root.toggle() : toggle(entry.path);
+  const selectedEntry = visibleEntries.find((entry) => entry.path === selected);
   const activeBranch = selectedEntry
-    ? selectedEntry.directory && expanded.has(selected)
+    ? selectedEntry.directory && isExpanded(selectedEntry)
       ? selected
       : selected.split("/").slice(0, -1).join("/")
     : undefined;
-  const tabStop = selectedEntry?.path ?? entries[0]?.path;
+  const tabStop = selectedEntry?.path ?? visibleEntries[0]?.path;
   const renderEntry = (entry: TreeEntry) => {
+    const isRoot = Boolean(root && entry.path === "");
     const parts = entry.path.split("/");
     const ancestors = [
       "",
       ...parts.slice(0, -1).map((_, index) => parts.slice(0, index + 1).join("/")),
     ];
     const split = entry.directory && entry.opensDocument;
-    const isExpanded = expanded.has(entry.path);
+    const entryExpanded = isExpanded(entry);
     const indent = { "--tree-depth": entry.depth + 1 } as CSSProperties;
     const row = (
       <button
         key={entry.path}
+        ref={isRoot ? root?.ref : undefined}
         data-tree-path={entry.path}
         tabIndex={entry.path === tabStop ? 0 : -1}
         role="treeitem"
         aria-level={entry.depth + 1}
         aria-description={entry.detail}
         aria-selected={selected === entry.path}
-        aria-expanded={entry.directory ? isExpanded : undefined}
-        className={`core-tree-row ${selected === entry.path ? "selected" : ""}`}
+        aria-expanded={entry.directory ? entryExpanded : undefined}
+        className={`core-tree-row${isRoot ? " core-project-root" : ""}${selected === entry.path ? " selected" : ""}`}
         style={indent}
         title={
-          entry.detail ? `${entry.name} · ${entry.detail}` : entry.virtual ? entry.name : entry.path
+          entry.detail
+            ? `${entry.name} · ${entry.detail}`
+            : entry.virtual || isRoot
+              ? entry.name
+              : entry.path
         }
         onFocus={() => select(entry.path)}
         onContextMenu={(event) => {
@@ -115,29 +133,32 @@ export function ExplorerTree({
         }}
         onClick={(event) => {
           select(entry.path);
-          if (entry.directory && !split) toggle(entry.path);
+          if (entry.directory && !split) toggleEntry(entry);
           else open(entry.path, event.detail === 0);
         }}
       >
         <span className="core-tree-guides" aria-hidden="true">
-          {ancestors.map((path, depth) => (
-            <span
-              key={path}
-              className={`core-tree-guide ${path === activeBranch ? "active" : ""}`}
-              style={{ "--guide-depth": depth } as CSSProperties}
-            />
-          ))}
+          {!isRoot &&
+            ancestors.map((path, depth) => (
+              <span
+                key={path}
+                className={`core-tree-guide ${path === activeBranch ? "active" : ""}`}
+                style={{ "--guide-depth": depth + (root ? 1 : 0) } as CSSProperties}
+              />
+            ))}
         </span>
         <span className="core-tree-twistie" aria-hidden="true">
-          {entry.directory && !split && <Icon name="chevron" size={12} expanded={isExpanded} />}
+          {entry.directory && !split && <Icon name="chevron" size={12} expanded={entryExpanded} />}
         </span>
-        <span className="core-tree-icon" aria-hidden="true">
-          {entry.icon || entry.directory ? (
-            <Icon name={entry.icon ?? "folder"} size={16} />
-          ) : (
-            <FileIcon path={entry.path} />
-          )}
-        </span>
+        {!isRoot && (
+          <span className="core-tree-icon" aria-hidden="true">
+            {entry.icon || entry.directory ? (
+              <Icon name={entry.icon ?? "folder"} size={16} />
+            ) : (
+              <FileIcon path={entry.path} />
+            )}
+          </span>
+        )}
         <span className="core-entry-name">{entry.name}</span>
         {entry.detail && (
           <small className="core-tree-detail" aria-hidden="true">
@@ -160,31 +181,32 @@ export function ExplorerTree({
           type="button"
           className="core-tree-document-toggle"
           tabIndex={-1}
-          aria-label={t(isExpanded ? "折叠 {0}" : "展开 {0}", { 0: entry.name })}
-          aria-expanded={isExpanded}
+          aria-label={t(entryExpanded ? "折叠 {0}" : "展开 {0}", { 0: entry.name })}
+          aria-expanded={entryExpanded}
           onClick={(event) => {
             (event.currentTarget.previousElementSibling as HTMLButtonElement).focus();
             toggle(entry.path);
           }}
         >
-          <Icon name="chevron" size={12} expanded={isExpanded} />
+          <Icon name="chevron" size={12} expanded={entryExpanded} />
         </button>
       </div>
     );
   };
-  const rows = entries.map(renderEntry);
-  if (creation) {
+  const rows = visibleEntries.map(renderEntry);
+  if (creation && (!root || root.expanded)) {
     const index = explorerCreationIndex(entries, creation.parent, creation.action === "mkdir");
     if (index >= 0 && (!creation.parent || expanded.has(creation.parent)))
       rows.splice(
-        index,
+        index + (root ? 1 : 0),
         0,
         <div
           key="creation"
           className="core-tree-creation"
           style={
             {
-              "--tree-depth": creation.parent ? creation.parent.split("/").length + 1 : 1,
+              "--tree-depth":
+                (creation.parent ? creation.parent.split("/").length + 1 : 1) + (root ? 1 : 0),
             } as CSSProperties
           }
         >
@@ -238,12 +260,24 @@ export function ExplorerTree({
       role="tree"
       aria-label={label}
       onKeyDown={(event) => {
-        if (event.key === "F2" && selectedEntry && !selectedEntry.virtual && rename) {
+        if (
+          event.key === "F2" &&
+          selectedEntry &&
+          !(root && selectedEntry.path === "") &&
+          !selectedEntry.virtual &&
+          rename
+        ) {
           event.preventDefault();
           rename();
           return;
         }
-        if (event.key === "Delete" && selectedEntry && !selectedEntry.virtual && remove) {
+        if (
+          event.key === "Delete" &&
+          selectedEntry &&
+          !(root && selectedEntry.path === "") &&
+          !selectedEntry.virtual &&
+          remove
+        ) {
           event.preventDefault();
           remove();
           return;
@@ -254,25 +288,30 @@ export function ExplorerTree({
           event.currentTarget.querySelectorAll<HTMLButtonElement>('[role="treeitem"]'),
         );
         const index = buttons.indexOf(event.target as HTMLButtonElement);
-        const entry = entries[index];
+        const entry = visibleEntries[index];
         if (!entry) return;
         event.preventDefault();
-        if (focusParent && (event.key === "Home" || (event.key === "ArrowUp" && index === 0))) {
+        if (
+          !root &&
+          focusParent &&
+          (event.key === "Home" || (event.key === "ArrowUp" && index === 0))
+        ) {
           focusParent();
           return;
         }
         if (event.key === "ArrowRight") {
           if (!entry.directory) return;
-          if (!expanded.has(entry.path)) toggle(entry.path);
-          else if (entries[index + 1]?.depth === entry.depth + 1) buttons[index + 1]?.focus();
+          if (!isExpanded(entry)) toggleEntry(entry);
+          else if (visibleEntries[index + 1]?.depth === entry.depth + 1)
+            buttons[index + 1]?.focus();
           return;
         }
         if (event.key === "ArrowLeft") {
-          if (entry.directory && expanded.has(entry.path)) toggle(entry.path);
+          if (entry.directory && isExpanded(entry)) toggleEntry(entry);
           else {
             const parent = entry.path.split("/").slice(0, -1).join("/");
-            if (!parent) focusParent?.();
-            else buttons[entries.findIndex((item) => item.path === parent)]?.focus();
+            if (!parent && !root) focusParent?.();
+            else buttons[visibleEntries.findIndex((item) => item.path === parent)]?.focus();
           }
           return;
         }

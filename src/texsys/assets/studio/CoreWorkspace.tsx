@@ -400,6 +400,9 @@ export function CoreWorkspaceProvider({
   }, [api, libraryFolders, libraryRevision, state.project.revision, state.project.path]);
   const [expanded, setExpanded] = useState(new Set<string>(["src", "assets"]));
   const [explorerMenu, setExplorerMenu] = useState<{ x: number; y: number; path: string }>();
+  const [workspaceOpen, setWorkspaceOpen] = useState(true);
+  const workspaceTreeId = React.useId();
+  const workspaceToggleRef = useRef<HTMLButtonElement>(null);
   const [rootOpen, setRootOpen] = useState(true),
     [selected, setSelected] = useState("");
   const projectRootRef = useRef<HTMLButtonElement>(null);
@@ -801,6 +804,7 @@ export function CoreWorkspaceProvider({
     if (groupId === primaryEditorGroup) setSettingsActive(false);
     if (recordHistory) setHistory((previous) => visitDocument(previous, path));
     if (groupId === primaryEditorGroup) setSearchEditorActive(false);
+    setWorkspaceOpen(true);
     setRootOpen(true);
     setSelected(path);
     setActivePath(path, groupId);
@@ -1517,10 +1521,11 @@ export function CoreWorkspaceProvider({
   }, [activityRequest?.token]);
   const focusTreePath = (path: string) => {
     setSelected(path);
-    if (!path) projectRootRef.current?.focus();
+    if (!path) (workspaceOpen ? projectRootRef : workspaceToggleRef).current?.focus();
     else setTreeFocusRequest({ path, token: ++explorerFocusSequence.current });
   };
   const revealDirectory = (path: string) => {
+    setWorkspaceOpen(true);
     setRootOpen(true);
     setExpanded((previous) => {
       const next = new Set(previous);
@@ -1769,45 +1774,22 @@ export function CoreWorkspaceProvider({
           }
         }}
       >
-        <div ref={explorerRef}>
-          <div className="core-project-row" data-expanded={rootOpen}>
-            <button
-              ref={projectRootRef}
-              aria-label={t("项目 {0}", { "0": state.project.name })}
-              className={`core-project-root${selected === "" ? " selected" : ""}`}
-              title={state.project.name}
-              onFocus={() => setSelected("")}
-              onClick={() => {
-                setSelected("");
-                setRootOpen(!rootOpen);
-              }}
-              onContextMenu={(event) => {
-                event.preventDefault();
-                setSelected("");
-                setExplorerMenu({ path: "", x: event.clientX, y: event.clientY });
-              }}
-              onKeyDown={(event) => {
-                if (event.key === "ArrowLeft") {
-                  event.preventDefault();
-                  setRootOpen(false);
-                } else if (event.key === "ArrowRight" || event.key === "ArrowDown") {
-                  event.preventDefault();
-                  if (!rootOpen) setRootOpen(true);
-                  else
-                    explorerRef.current
-                      ?.querySelector<HTMLButtonElement>("[data-tree-path]")
-                      ?.focus();
-                }
-              }}
-              aria-expanded={rootOpen}
-            >
-              <span className="core-tree-twistie" aria-hidden="true">
-                <Icon name="chevron" size={12} expanded={rootOpen} />
-              </span>
-              <strong>{state.project.name}</strong>
-            </button>
+        <div className="core-workspace-heading">
+          <button
+            ref={workspaceToggleRef}
+            className="core-workspace-toggle"
+            aria-expanded={workspaceOpen}
+            aria-controls={workspaceTreeId}
+            onClick={() => setWorkspaceOpen(!workspaceOpen)}
+          >
+            <span className="core-tree-twistie" aria-hidden="true">
+              <Icon name="chevron" size={12} expanded={workspaceOpen} />
+            </span>
+            <span>{t("工作区")}</span>
+          </button>
+          {workspaceOpen && (
             <NavigatorToolbar
-              className="core-project-tools"
+              className="core-workspace-tools"
               role="toolbar"
               aria-label={t("项目文件操作")}
             >
@@ -1836,7 +1818,9 @@ export function CoreWorkspaceProvider({
                 disabled={busy}
               />
             </NavigatorToolbar>
-          </div>
+          )}
+        </div>
+        <div id={workspaceTreeId} ref={explorerRef} hidden={!workspaceOpen}>
           {listingError && (
             <p className="core-error" role="alert">
               {listingError}
@@ -1845,47 +1829,50 @@ export function CoreWorkspaceProvider({
           {loadingFiles && !listing.files.length && (
             <p className="core-hint">{t("正在读取文件…")}</p>
           )}
-          {rootOpen && (
-            <ExplorerTree
-              entries={tree}
-              expanded={expanded}
-              selected={selected}
-              dirtyPaths={
-                new Set(
-                  documents
-                    .filter((document) => document.content !== document.saved)
-                    .map((document) => document.path),
-                )
-              }
-              select={setSelected}
-              toggle={(path) =>
-                setExpanded((previous) => {
-                  const next = new Set(previous);
-                  if (next.has(path)) next.delete(path);
-                  else next.add(path);
-                  return next;
-                })
-              }
-              open={(path, keyboard) => {
-                const definition = moduleDirectories.get(path);
-                if (definition) openDesign({ definition }, "model");
-                else void openFile(path, { focus: keyboard });
-              }}
-              contextMenu={(path, x, y) => setExplorerMenu({ path, x, y })}
-              rename={() => startForm("rename")}
-              remove={() => startForm("delete")}
-              creation={creation}
-              creating={creating}
-              changeCreation={(value) =>
-                setCreation((previous) => previous && { ...previous, value, error: undefined })
-              }
-              submitCreation={() => void submitCreation()}
-              cancelCreation={cancelCreation}
-              focusRequest={treeFocusRequest}
-              focusHandled={() => setTreeFocusRequest(undefined)}
-              focusParent={() => focusTreePath("")}
-            />
-          )}
+          <ExplorerTree
+            entries={tree}
+            root={{
+              name: state.project.name,
+              expanded: rootOpen,
+              toggle: () => setRootOpen(!rootOpen),
+              ref: projectRootRef,
+            }}
+            expanded={expanded}
+            selected={selected}
+            dirtyPaths={
+              new Set(
+                documents
+                  .filter((document) => document.content !== document.saved)
+                  .map((document) => document.path),
+              )
+            }
+            select={setSelected}
+            toggle={(path) =>
+              setExpanded((previous) => {
+                const next = new Set(previous);
+                if (next.has(path)) next.delete(path);
+                else next.add(path);
+                return next;
+              })
+            }
+            open={(path, keyboard) => {
+              const definition = moduleDirectories.get(path);
+              if (definition) openDesign({ definition }, "model");
+              else void openFile(path, { focus: keyboard });
+            }}
+            contextMenu={(path, x, y) => setExplorerMenu({ path, x, y })}
+            rename={() => startForm("rename")}
+            remove={() => startForm("delete")}
+            creation={creation}
+            creating={creating}
+            changeCreation={(value) =>
+              setCreation((previous) => previous && { ...previous, value, error: undefined })
+            }
+            submitCreation={() => void submitCreation()}
+            cancelCreation={cancelCreation}
+            focusRequest={treeFocusRequest}
+            focusHandled={() => setTreeFocusRequest(undefined)}
+          />
           {listing.truncated && (
             <p className="core-hint">{t("文件列表达到上限，部分文件未显示。")}</p>
           )}
@@ -2769,17 +2756,8 @@ export function CoreWorkspaceProvider({
                   <button
                     onClick={() => {
                       const path = parts.slice(0, index + 1).join("/");
-                      setRootOpen(true);
-                      setSelected(path);
-                      setExpanded(
-                        (previous) =>
-                          new Set([
-                            ...previous,
-                            ...parts
-                              .slice(0, index + 1)
-                              .map((_, end) => parts.slice(0, end + 1).join("/")),
-                          ]),
-                      );
+                      revealDirectory(path);
+                      focusTreePath(path);
                       select("explorer");
                     }}
                   >

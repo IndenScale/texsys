@@ -5,6 +5,7 @@
 - 取代：无
 - 被取代：无
 - 后继修订：[DDR-0014](0014-studio-editor-group-actions-and-disk-comparison-removal.md) 删除本文的专用磁盘比较与人工采用流程；普通保存版本校验及 Git diff 继续有效。
+- Explorer 层级修订：[DDR-0015](0015-studio-explorer-workspace-section-and-project-root.md) 将工作区分区标题与项目根树条目分离，四个工具按钮归工作区标题行，分别规定分区收起、根收起与全部折叠的行为。
 
 Tex Studio 以项目 Editor 为主体。文件资源管理器、全文搜索、源代码管理和文本文件文档由宿主提供；专业插件通过共享文档与布局插槽提供模型浏览、图纸、BOM、工况和结果等专业能力。没有专业插件时，通用模块仍可使用。
 

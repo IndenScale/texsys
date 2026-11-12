@@ -371,6 +371,7 @@ export const englishMessages: Record<string, string> = {
   取消暂存: "Unstage",
   暂存: "Stage",
   暂存区状态: "Index status",
+  工作区: "Workspace",
   工作区状态: "Working tree status",
   "当前范围内工作区干净，没有待提交的更改。": "No pending changes in this scope.",
   "变更过多，列表已截断；请在终端处理部分变更。":

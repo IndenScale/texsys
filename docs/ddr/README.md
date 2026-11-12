@@ -47,3 +47,4 @@ ddr/NNNN-short-title.md
 | [0012](0012-studio-file-preview-and-source.md)                          | 统一文件组件与「预览 / 源代码」，专业能力只替换预览实现                | 已接受 |
 | [0013](0013-studio-editor-actions-and-open-with.md)                     | 统一打开方式与文件类型默认值，提供 Markdown 编辑、预览、分栏和共享文档 | 已接受 |
 | [0014](0014-studio-editor-group-actions-and-disk-comparison-removal.md) | 编辑器更多菜单管理当前组，删除磁盘比较流程和单一打开方式选择器         | 已接受 |
+| [0015](0015-studio-explorer-workspace-section-and-project-root.md)      | 区分资源管理器面板、工作区分区与项目根，明确工具栏归属和折叠职责       | 已接受 |
