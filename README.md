@@ -99,7 +99,7 @@ uv run --locked texsys engineering run datacenter:fws-change -p examples/datacen
 
 ## 交付物构建与检查
 
-生成暖通系统图与原理图需要本机安装 Node.js。
+生成暖通系统图与原理图需要执行环境提供 Node.js，常驻开发容器已包含。
 
 ```bash
 uv run tools/sync_node_tools.py

@@ -4,11 +4,11 @@
 
 > 本地实现与执行证据，不代表已发布产品或真实工程接受。当前范围见 [范围契约](scope.md)，完整目标与新增闭环验收见 [工程 POC 台账](engineering-poc.md)。历史验证保留原日期，不自动覆盖后续版本。
 
-## 当前基线与推进方向（2026-11-11）
+## 工程变更早期基线与验证（2026-11-11）
 
 提交 `220b186` 保存此前的模块库、多专业数据中心算例和 Studio 工作区成果。该基线的 `uv run --locked pytest` 为 **315 passed，127.94 秒**；`node tools/test_studio_ui.mjs` 为 **45 项通过**；提交钩子的 Markdown、文档语言、Ruff、ESLint 和字重检查通过。这些验证不包含本轮随后新增的工程变更功能，也不代表实际 Chrome 交互或真实设备模型验收。
 
-| 能力 | 当前证据与边界 |
+| 能力 | 当时的证据与边界 |
 | --- | --- |
 | SDL 与模块库 | 显式网络、私有定义、递归实例、锁定引入及带端口绑定的模块资产已有实现和回归；完整需求／约束／决定模型未统一 |
 | 数据中心研究 | [混合冷却单元](../examples/datacenter-hybrid-unit/README.md)形成供电、冷却、热响应、控制、结构、建筑、消防等有限模型链；40 MW 为参数化概念规模 |
@@ -48,7 +48,9 @@ TexSys 已具备一条同源冷站链路：SDL 中的实例、端口、连接、
 
 ## 暖通可重跑入口
 
-Tex Studio 的标准启动入口为 `uv run texsys studio -p examples/hvac-dynamic-station --hmr`。先按 [AGENTS.md](../AGENTS.md#tex-studio-开发与验证)检查并复用唯一的 `8710` 实例；确需启动时先取得锁。浏览器使用现有 Google Chrome。宿主与 HVAC 插件采用 [工作台契约 v1](../spec/studio/01-workbench.md)和 [ADR-0021](adr/0021-tex-studio-plugin-based-disciplinary-workbenches.md)。
+macOS 上的标准暖通工作台由常驻 Podman 容器运行。使用现有 Google Chrome 访问唯一的 `127.0.0.1:8710` 实例，首次安装及维护见[常驻开发容器](development-container.md)。宿主与 HVAC 插件采用[工作台契约 v1](../spec/studio/01-workbench.md)和 [ADR-0021](adr/0021-tex-studio-plugin-based-disciplinary-workbenches.md)。
+
+下列命令用于单独运行 CLI 构建和回归测试。
 
 ```bash
 uv sync --locked
