@@ -365,8 +365,10 @@ def serve(root: Path, port=8710, open_browser=False):
     runtime.close()
 
 
-def serve_hmr(root: Path, port=8710, open_browser=False):
+def serve_hmr(root: Path, port=8710, open_browser=False, *, host="127.0.0.1"):
   """Run the Studio API and a Vite React development server with HMR."""
+  if host not in {"127.0.0.1", "0.0.0.0"}:
+    raise ProjectError("HMR host must be 127.0.0.1 or 0.0.0.0.")
   node = shutil.which("node")
   if not node:
     raise ProjectError("Node.js is required to start Tex Studio.")
@@ -402,7 +404,7 @@ def serve_hmr(root: Path, port=8710, open_browser=False):
 import react from {json.dumps(str(root_dir / "node_modules/@vitejs/plugin-react/dist/index.js"))};
 export default defineConfig({{
   plugins: [react(), {{ name: "tex-studio-token", transformIndexHtml(html) {{ return html; }} }}],
-  server: {{ host: "127.0.0.1", port: {port}, strictPort: true, fs: {{ allow: {json.dumps(allowed)} }},
+  server: {{ host: {json.dumps(host)}, port: {port}, strictPort: true, fs: {{ allow: {json.dumps(allowed)} }},
     proxy: {{ "^/api/terminal/ws$": {{ target: "ws://127.0.0.1:{api.server_port}", changeOrigin: true, ws: true }},
       "/api": {{ target: "http://127.0.0.1:{api.server_port}", changeOrigin: true,
       headers: {{ Origin: "http://127.0.0.1:{api.server_port}" }} }} }} }}
@@ -410,16 +412,17 @@ export default defineConfig({{
 ''')
   # Vite serves the entry directory and resolves its absolute host/plugin imports.
   command = [node, str(root_dir / "node_modules/vite/bin/vite.js"), str(frontend),
-             "--config", str(config), "--host", "127.0.0.1"]
+             "--config", str(config)]
   process = subprocess.Popen(command, cwd=root_dir, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
                              text=True, env={**__import__("os").environ, "TEX_STUDIO_TOKEN": token})
   try:
     line = process.stdout.readline()
-    if process.poll() is not None and not line:
-      raise ProjectError("Vite failed to start; install frontend dependencies and retry.")
     while line and "http://" not in line:
+      print(line, end="", flush=True)
       line = process.stdout.readline()
-    url = line.strip().split()[-1] if line else f"http://127.0.0.1:{port}"
+    if not line:
+      raise ProjectError("Vite failed to start; see the development server output above.")
+    url = line.strip().split()[-1]
     print(f"Tex Studio HMR: {url}\nProject: {runtime.project.name}\nPress Ctrl+C to stop.", flush=True)
     if open_browser:
       import webbrowser
@@ -428,7 +431,8 @@ export default defineConfig({{
       for output in process.stdout:
         print(output, end="", flush=True)
     threading.Thread(target=forward_output, daemon=True).start()
-    process.wait()
+    if process.wait():
+      raise ProjectError("Vite exited unexpectedly; see the development server output above.")
   except KeyboardInterrupt:
     pass
   finally:

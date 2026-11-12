@@ -1,0 +1,31 @@
+FROM docker.io/library/node:24-bookworm-slim AS node
+FROM ghcr.io/astral-sh/uv:0.12.19 AS uv
+FROM docker.io/library/python:3.12-slim-bookworm
+
+COPY --from=node /usr/local/bin/node /usr/local/bin/node
+COPY --from=node /usr/local/lib/node_modules/npm /usr/local/lib/node_modules/npm
+COPY --from=uv /uv /uvx /usr/local/bin/
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends git less openssh-client procps ripgrep \
+    && rm -rf /var/lib/apt/lists/* \
+    && ln -s ../lib/node_modules/npm/bin/npm-cli.js /usr/local/bin/npm \
+    && ln -s ../lib/node_modules/npm/bin/npx-cli.js /usr/local/bin/npx
+
+ARG DEV_UID
+ARG DEV_GID
+RUN (getent group "$DEV_GID" >/dev/null || groupadd -g "$DEV_GID" texsys) \
+    && useradd -m -s /bin/bash -u "$DEV_UID" -g "$DEV_GID" texsys \
+    && install -d -o "$DEV_UID" -g "$DEV_GID" /var/texsys /workspace/texsys/node_modules
+
+COPY entrypoint.sh /usr/local/bin/texsys-dev
+ENV HOME=/home/texsys \
+    SHELL=/bin/bash \
+    LANG=C.UTF-8 \
+    UV_PROJECT_ENVIRONMENT=/var/texsys/venv \
+    UV_LINK_MODE=copy \
+    CHOKIDAR_USEPOLLING=true \
+    CHOKIDAR_INTERVAL=500 \
+    PATH="/var/texsys/venv/bin:${PATH}"
+USER texsys
+WORKDIR /workspace/texsys
+CMD ["/bin/sh", "/usr/local/bin/texsys-dev"]

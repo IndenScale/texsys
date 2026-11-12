@@ -590,11 +590,17 @@ def studio_command(
   port: Annotated[int, typer.Option("--port", min=0, max=65535, help="Local Studio HTTP port.")] = 8710,
   open_browser: Annotated[bool, typer.Option("--open", help="Open Studio in the default browser.")] = False,
   hmr: Annotated[bool, typer.Option("--hmr", help="Run the Studio frontend with Vite hot module replacement.")] = False,
+  host: Annotated[str, typer.Option("--host", help="HMR bind address (127.0.0.1 or 0.0.0.0).")] = "127.0.0.1",
 ) -> None:
   """Open the plugin-based Tex Studio workbench for a local project."""
   from texsys.studio.server import serve, serve_hmr
   try:
-    (serve_hmr if hmr else serve)(path, port, open_browser)
+    if hmr:
+      serve_hmr(path, port, open_browser, host=host)
+    elif host != "127.0.0.1":
+      raise ProjectError("--host can only change the bind address in HMR mode.")
+    else:
+      serve(path, port, open_browser)
   except (ProjectError, OSError) as error:
     _print_error(ProjectError(str(error)), code=2)
 

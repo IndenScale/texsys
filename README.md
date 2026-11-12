@@ -67,18 +67,15 @@ uv run pytest
 
 ## Tex Studio 与暖通工作台
 
-开发与验证统一复用 `http://127.0.0.1:8710` 上的单个实例。启动前检查进程、监听端口和锁；若已有实例，联系所属会话加载所需改动。独占锁及会话归属的完整规则见 [AGENTS.md](AGENTS.md#tex-studio-开发与验证)。
-
-确认没有运行实例并取得独占锁后，从仓库根目录以 Vite 热更新模式启动标准暖通示例：
+macOS 开发与验证复用 [Tex Studio](http://127.0.0.1:8710/) 的唯一实例。Podman 开发容器运行标准暖通示例，提供 Vite 热更新；macOS 登录后由系统自动启动。从仓库根目录执行：
 
 ```bash
-uv sync --locked
-bun install --frozen-lockfile
-uv run tools/sync_node_tools.py
-uv run texsys studio -p examples/hvac-dynamic-station --hmr
+/usr/bin/python3 tools/dev_container.py install
+/usr/bin/python3 tools/dev_container.py status
+/usr/bin/python3 tools/dev_container.py shell
 ```
 
-该模式需要 Node.js 与 Bun，由 Vite 提供 React 组件快速刷新，本地接口仍由 Python 服务提供。使用现有 Google Chrome 和工作台标签页访问该地址；不使用自动打开浏览器选项，不另起端口或隔离浏览器实例。
+首次安装会构建镜像并同步锁定依赖。日常直接复用现有 Google Chrome 标签页与容器；重启、重建、查看日志和暂停服务见 [常驻开发容器](docs/development-container.md)。端口、独占锁及旧实例交接规则见 [AGENTS.md](AGENTS.md#tex-studio-开发与验证)。
 
 第一次进入暖通工作台后点击“生成图纸”，或到“仿真分析”启动工况求解。工作台提供系统图／原理图、设备表、器件图元、参数与依据、检查报告及模型源视图。参数保存形成实例覆盖，可恢复继承或撤销；后台计算在输入副本中执行，保留日志、诊断与固定版本结果。
 
