@@ -1,7 +1,7 @@
 # 文件资源管理器层级与右键设计对照
 
 - 日期：2026-11-12
-- 状态：上下文菜单分析与实施建议；原分析遗漏的面板、工作区分区与项目根层级由 [DDR-0015](ddr/0015-studio-explorer-workspace-section-and-project-root.md) 单独修正，其余菜单建议不据此视为已实施
+- 状态：上下文菜单分析与实施建议；面板、工作区分区与项目根层级由 [DDR-0015](ddr/0015-studio-explorer-workspace-section-and-project-root.md) 修正，标题视图菜单与活动栏菜单由 [DDR-0016](ddr/0016-studio-explorer-and-activity-context-menus.md) 定义。下文记录当时观察与其他尚待实施的建议。
 - 初次对照基线：`f79b4c2`，该轮开始时工作区干净
 - 方式：既有 Google Chrome 中的 VS Code Web 与唯一 Tex Studio `8710` 实例实测，辅以当前代码审阅
 

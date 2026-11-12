@@ -5,7 +5,7 @@ import { t } from "../i18n";
  */
 import React, { type ReactNode } from "react";
 import { HeightResizeHandle, WidthResizeHandle } from "./ResizeHandle";
-import { NavigatorMenu } from "../NavigatorMenu";
+import { NavigatorMenu, type NavigatorMenuItem } from "../NavigatorMenu";
 import {
   DEFAULT_SIDEBAR_WIDTH,
   MIN_BOTTOM_HEIGHT,
@@ -15,6 +15,59 @@ import {
 import type { StudioLayout } from "../sdk";
 import "./editor-shell.css";
 import "./layout.css";
+
+type ChangeLayout = (patch: Partial<StudioLayout>) => void;
+
+export function sidebarLayoutMenuItems(
+  layout: Pick<StudioLayout, "sidebarOpen" | "sidebarPosition">,
+  change: ChangeLayout,
+): NavigatorMenuItem[] {
+  const onRight = layout.sidebarPosition === "right";
+  const macKeys = /Mac|iPhone|iPad/.test(navigator.platform);
+  return [
+    {
+      label: t(onRight ? "向左移动主侧栏" : "向右移动主侧栏"),
+      run: () => change({ sidebarPosition: onRight ? "left" : "right" }),
+    },
+    {
+      label: t(layout.sidebarOpen ? "隐藏主侧栏" : "显示主侧栏"),
+      shortcut: [macKeys ? "⌘" : "Ctrl", "\\"],
+      run: () => change({ sidebarOpen: !layout.sidebarOpen }),
+    },
+  ];
+}
+
+const activityBarPositions = [
+  { id: "side", label: "侧边" },
+  { id: "top", label: "顶部" },
+  { id: "bottom", label: "底部" },
+] as const;
+
+export function activityBarPositionMenuItem(
+  layout: Pick<StudioLayout, "activityBarPosition">,
+  change: ChangeLayout,
+): NavigatorMenuItem {
+  return {
+    label: t("活动栏位置"),
+    submenu: activityBarPositions.map(({ id, label }) => ({
+      label: t(label),
+      checked: id === (layout.activityBarPosition ?? "side"),
+      run: () =>
+        change(
+          id === "side"
+            ? { activityBarPosition: id }
+            : { activityBarPosition: id, sidebarOpen: true },
+        ),
+    })),
+  };
+}
+
+function horizontalActivityBar(layout: StudioLayout) {
+  return (
+    layout.sidebarOpen &&
+    (layout.activityBarPosition === "top" || layout.activityBarPosition === "bottom")
+  );
+}
 
 export function WorkbenchLayout({
   layout,
@@ -26,7 +79,7 @@ export function WorkbenchLayout({
   children,
 }: {
   layout: StudioLayout;
-  change: (patch: Partial<StudioLayout>) => void;
+  change: ChangeLayout;
   activity: ReactNode;
   sidebar: ReactNode;
   inspector: ReactNode;
@@ -60,9 +113,22 @@ export function WorkbenchLayout({
   const sidebarMax = Math.max(MIN_SIDEBAR_WIDTH, width <= 760 ? width : Math.floor(width * 0.4));
   const inspectorMax = Math.max(MIN_INSPECTOR_WIDTH, Math.floor(width * 0.45));
   const bottomMax = Math.max(MIN_BOTTOM_HEIGHT, Math.floor(height * 0.6));
+  const sidebarOnRight = layout.sidebarPosition === "right";
+  const classes = [
+    "workbench-layout",
+    `dock-panel-${panelPosition}`,
+    !layout.sidebarOpen && "is-sidebar-collapsed",
+    !layout.inspectorOpen && "is-inspector-hidden",
+    layout.bottomOpen && "is-bottom-open",
+    layout.bottomOpen && layout.bottomMaximized && "is-bottom-maximized",
+    sidebarOnRight && "sidebar-on-right",
+    horizontalActivityBar(layout) &&
+      `has-horizontal-activity activity-bar-${layout.activityBarPosition}`,
+    layout.activityBarSize === "compact" && "activity-bar-compact",
+  ];
   return (
     <div
-      className={`workbench-layout dock-panel-${panelPosition} ${layout.sidebarOpen ? "" : "is-sidebar-collapsed"} ${layout.inspectorOpen ? "" : "is-inspector-hidden"} ${layout.bottomOpen ? "is-bottom-open" : ""} ${layout.bottomOpen && layout.bottomMaximized ? "is-bottom-maximized" : ""}`}
+      className={classes.filter(Boolean).join(" ")}
       style={
         {
           "--sidebar-width": `${layout.sidebarWidth}px`,
@@ -99,7 +165,7 @@ export function WorkbenchLayout({
         min={MIN_SIDEBAR_WIDTH}
         max={sidebarMax}
         defaultValue={DEFAULT_SIDEBAR_WIDTH}
-        grows="right"
+        grows={sidebarOnRight ? "left" : "right"}
         mode="collapse"
         open={layout.sidebarOpen}
         onClose={() => change({ sidebarOpen: false })}
@@ -159,7 +225,7 @@ export function WorkbenchLayout({
         min={MIN_INSPECTOR_WIDTH}
         max={inspectorMax}
         defaultValue={320}
-        grows="left"
+        grows={sidebarOnRight ? "right" : "left"}
         mode="hide"
         open={layout.inspectorOpen}
         onClose={() => change({ inspectorOpen: false })}
@@ -181,42 +247,130 @@ export function ActivityBar<Id extends string>({
   active,
   items,
   select,
-  hidden,
-  setHidden,
+  layout,
+  change,
 }: {
   active: Id;
   items: { id: Id; label: string; icon: ReactNode; count?: number; shortcut?: string[] }[];
   select: (id: Id) => void;
-  hidden: string[];
-  setHidden: (ids: string[]) => void;
+  layout: StudioLayout;
+  change: ChangeLayout;
 }) {
   const ref = React.useRef<HTMLDivElement>(null);
-  const [point, setPoint] = React.useState<{ x: number; y: number }>();
+  const [context, setContext] = React.useState<{
+    point: { x: number; y: number };
+    trigger?: HTMLButtonElement;
+  }>();
+  const hidden = layout.hiddenActivities ?? [];
+  const hiddenBadges = layout.hiddenActivityBadges ?? [];
   const visible = items.filter(({ id }) => !hidden.includes(id));
   const focusable = visible.find(({ id }) => id === active)?.id ?? visible[0]?.id;
+  const horizontal = horizontalActivityBar(layout);
   const label = t("配置活动栏");
+  const target = items.find(({ id }) => id === context?.trigger?.dataset.activityId);
+  const setHidden = (hiddenActivities: string[]) => {
+    if (hiddenActivities.includes(active) && !hidden.includes(active)) {
+      const fallback = items.find(({ id }) => !hiddenActivities.includes(id));
+      change({
+        hiddenActivities,
+        sidebarActivity: fallback?.id ?? active,
+        sidebarOpen: Boolean(fallback && layout.sidebarOpen),
+      });
+    } else {
+      change({ hiddenActivities });
+    }
+  };
+  const toggleActivity = (id: Id) =>
+    setHidden(hidden.includes(id) ? hidden.filter((item) => item !== id) : [...hidden, id]);
+  const menuItems: NavigatorMenuItem[] = [];
+  if (target) {
+    menuItems.push({
+      label: t("隐藏“{name}”", { name: t(target.label) }),
+      run: hidden.includes(target.id) ? undefined : () => toggleActivity(target.id),
+    });
+    if (target.count !== undefined) {
+      const badgeHidden = hiddenBadges.includes(target.id);
+      menuItems.push({
+        label: t(badgeHidden ? "显示徽标" : "隐藏徽标"),
+        run: () =>
+          change({
+            hiddenActivityBadges: badgeHidden
+              ? hiddenBadges.filter((id) => id !== target.id)
+              : [...hiddenBadges, target.id],
+          }),
+      });
+    }
+  }
+  menuItems.push(
+    ...items.map(({ id, label, shortcut }, index) => ({
+      label: t(label),
+      checked: !hidden.includes(id),
+      checkbox: true,
+      separator: index === 0 && Boolean(target),
+      shortcut,
+      run: () => toggleActivity(id),
+    })),
+  );
+  if (visible.length < items.length) {
+    menuItems.push({
+      label: t("恢复默认入口"),
+      run: () => setHidden([]),
+    });
+  }
+  menuItems.push(
+    { ...activityBarPositionMenuItem(layout, change), separator: true },
+    {
+      label: t("活动栏大小"),
+      submenu: [
+        {
+          label: t("默认"),
+          checked: (layout.activityBarSize ?? "default") === "default",
+          run: () => change({ activityBarSize: "default" }),
+        },
+        {
+          label: t("紧凑"),
+          checked: layout.activityBarSize === "compact",
+          run: () => change({ activityBarSize: "compact" }),
+        },
+      ],
+    },
+    ...sidebarLayoutMenuItems(layout, change),
+  );
   return (
     <>
       <div
         ref={ref}
         className="activity-bar"
         role={visible.length ? "tablist" : "group"}
-        aria-orientation={visible.length ? "vertical" : undefined}
+        aria-orientation={visible.length ? (horizontal ? "horizontal" : "vertical") : undefined}
         aria-label={visible.length ? t("资源入口") : label}
         tabIndex={visible.length ? undefined : 0}
         title={label}
         onContextMenu={(event) => {
           event.preventDefault();
-          setPoint({ x: event.clientX, y: event.clientY });
+          event.stopPropagation();
+          const trigger =
+            event.target instanceof Element
+              ? (event.target.closest<HTMLButtonElement>("[data-activity-id]") ?? undefined)
+              : undefined;
+          trigger?.focus({ preventScroll: true });
+          setContext({ point: { x: event.clientX, y: event.clientY }, trigger });
         }}
         onKeyDown={(event) => {
           if (event.key === "ContextMenu" || (event.shiftKey && event.key === "F10")) {
             event.preventDefault();
-            const { right, top } = (event.target as HTMLElement).getBoundingClientRect();
-            setPoint({ x: right, y: top });
+            event.stopPropagation();
+            const invoker = event.target as HTMLElement;
+            const { left, right, top, bottom } = invoker.getBoundingClientRect();
+            setContext({
+              point: horizontal ? { x: left, y: bottom } : { x: right, y: top },
+              trigger: invoker instanceof HTMLButtonElement ? invoker : undefined,
+            });
             return;
           }
-          if (!["ArrowUp", "ArrowDown", "Home", "End"].includes(event.key)) return;
+          const previousKey = horizontal ? "ArrowLeft" : "ArrowUp";
+          const nextKey = horizontal ? "ArrowRight" : "ArrowDown";
+          if (![previousKey, nextKey, "Home", "End"].includes(event.key)) return;
           const tabs = Array.from(
             ref.current?.querySelectorAll<HTMLButtonElement>('[role="tab"]') ?? [],
           );
@@ -227,7 +381,7 @@ export function ActivityBar<Id extends string>({
               ? 0
               : event.key === "End"
                 ? tabs.length - 1
-                : (index + (event.key === "ArrowDown" ? 1 : tabs.length - 1)) % tabs.length;
+                : (index + (event.key === nextKey ? 1 : tabs.length - 1)) % tabs.length;
           event.preventDefault();
           tabs[next]?.focus();
           tabs[next]?.click();
@@ -246,39 +400,26 @@ export function ActivityBar<Id extends string>({
             onClick={() => select(item.id)}
           >
             {item.icon}
-            {item.count ? <span className="activity-badge">{item.count}</span> : null}
+            {item.count && !hiddenBadges.includes(item.id) ? (
+              <span className="activity-badge">{item.count}</span>
+            ) : null}
           </button>
         ))}
       </div>
-      {point && (
+      {context && (
         <NavigatorMenu
           label={label}
-          point={point}
+          point={context.point}
           onDismiss={() => {
-            setPoint(undefined);
+            setContext(undefined);
             if (document.activeElement !== document.body) return;
             (
-              ref.current?.querySelector<HTMLElement>('[role="tab"][tabindex="0"]') ?? ref.current
+              (context.trigger?.isConnected ? context.trigger : undefined) ??
+              ref.current?.querySelector<HTMLElement>('[role="tab"][tabindex="0"]') ??
+              ref.current
             )?.focus();
           }}
-          items={[
-            ...items.map(({ id, label, shortcut }) => {
-              const checked = !hidden.includes(id);
-              return {
-                label: t(label),
-                checked,
-                checkbox: true,
-                shortcut,
-                run: () =>
-                  setHidden(checked ? [...hidden, id] : hidden.filter((item) => item !== id)),
-              };
-            }),
-            {
-              label: t("恢复默认入口"),
-              separator: true,
-              run: visible.length < items.length ? () => setHidden([]) : undefined,
-            },
-          ]}
+          items={menuItems}
         />
       )}
     </>

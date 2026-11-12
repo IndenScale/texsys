@@ -22,12 +22,18 @@
   color: var(--ui-text);
   white-space: nowrap;
 }
-.core-workspace-heading {
+.core-sidebar[data-activity="explorer"] > .navigator-heading,
+.core-workspace-heading,
+.core-open-editors-heading {
+  user-select: none;
+}
+.core-workspace-heading,
+.core-open-editors-heading {
   display: flex;
   align-items: center;
   min-height: 28px;
 }
-.core-workspace-toggle {
+:is(.core-workspace-toggle, .core-open-editors-toggle) {
   flex: 1;
   min-width: 0;
   display: flex;
@@ -38,10 +44,41 @@
   font-size: 13px;
   font-weight: 500;
 }
-.core-workspace-toggle > span:last-child {
+:is(.core-workspace-toggle, .core-open-editors-toggle) > span:last-child,
+.core-open-editor-label {
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+.core-open-editors {
+  max-height: min(30vh, 240px);
+  overflow: auto;
+}
+.core-open-editor-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.core-open-editor-list + .core-open-editor-list {
+  border-top: 1px solid var(--ui-chrome-divider);
+}
+.core-open-editor-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  height: 24px;
+  padding: 0 var(--navigator-end) 0 calc(var(--tree-base) + var(--tree-twistie-size));
+  text-align: left;
+  font-size: 13px;
+}
+.core-open-editor-row > svg {
+  flex: none;
+  color: var(--ui-icon-muted);
+}
+.core-open-editor-row:hover:not(:disabled) {
+  background: var(--ui-control-hover);
 }
 .core-workspace-tools {
   margin-right: var(--navigator-end);
@@ -331,7 +368,8 @@
 .core-change-row:hover {
   background: var(--ui-control-hover);
 }
-.core-tree-row.selected {
+.core-tree-row.selected,
+.core-open-editor-row[aria-current="true"] {
   background: #e1ecee;
   color: #185f66;
 }
@@ -852,7 +890,9 @@
 .core-library-folders button {
   flex-shrink: 0;
 }
-.core-workspace-toggle[aria-expanded="false"] > .core-tree-twistie > svg,
+:is(.core-workspace-toggle, .core-open-editors-toggle)[aria-expanded="false"]
+  > .core-tree-twistie
+  > svg,
 .core-tree-row[aria-expanded="false"] > .core-tree-twistie > svg {
   transform: rotate(-90deg);
 }

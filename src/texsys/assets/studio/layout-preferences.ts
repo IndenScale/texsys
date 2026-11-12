@@ -101,10 +101,29 @@ export function readLayoutPreferences(project: string, defaults: StudioLayout): 
                       : typeof layout.sidebarActivity === "string"
                         ? layout.sidebarActivity
                         : undefined,
+                  ...(layout.sidebarPosition === "left" || layout.sidebarPosition === "right"
+                    ? { sidebarPosition: layout.sidebarPosition }
+                    : {}),
+                  ...(typeof layout.explorerOpenEditors === "boolean" && {
+                    explorerOpenEditors: layout.explorerOpenEditors,
+                  }),
+                  ...(layout.activityBarPosition === "side" ||
+                  layout.activityBarPosition === "top" ||
+                  layout.activityBarPosition === "bottom"
+                    ? { activityBarPosition: layout.activityBarPosition }
+                    : {}),
+                  ...(layout.activityBarSize === "default" || layout.activityBarSize === "compact"
+                    ? { activityBarSize: layout.activityBarSize }
+                    : {}),
                   ...(Array.isArray(layout.hiddenActivities) && {
                     hiddenActivities: layout.hiddenActivities.filter(
                       (id): id is string =>
                         typeof id === "string" && id !== "packages" && id !== "engineering",
+                    ),
+                  }),
+                  ...(Array.isArray(layout.hiddenActivityBadges) && {
+                    hiddenActivityBadges: layout.hiddenActivityBadges.filter(
+                      (id): id is string => typeof id === "string",
                     ),
                   }),
                   ...(Array.isArray(layout.hiddenBottomTabs) && {

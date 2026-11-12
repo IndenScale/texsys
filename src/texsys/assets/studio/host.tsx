@@ -1085,7 +1085,11 @@ function Studio({
                     aria-pressed={layout.sidebarOpen}
                     onClick={() => updateLayout(active, { sidebarOpen: !layout.sidebarOpen })}
                   >
-                    <Icon name="sidebar" size={18} expanded={layout.sidebarOpen} />
+                    <Icon
+                      name={layout.sidebarPosition === "right" ? "inspector" : "sidebar"}
+                      size={18}
+                      expanded={layout.sidebarOpen}
+                    />
                   </ToolbarButton>
                   <ToolbarButton
                     aria-label={t("切换底部面板")}
@@ -1103,7 +1107,11 @@ function Studio({
                     aria-pressed={layout.inspectorOpen}
                     onClick={() => updateLayout(active, { inspectorOpen: !layout.inspectorOpen })}
                   >
-                    <Icon name="inspector" size={18} expanded={layout.inspectorOpen} />
+                    <Icon
+                      name={layout.sidebarPosition === "right" ? "sidebar" : "inspector"}
+                      size={18}
+                      expanded={layout.inspectorOpen}
+                    />
                   </ToolbarButton>
                 </div>
               )}
@@ -1246,7 +1254,7 @@ function Studio({
             refresh={refresh}
             notify={notify}
             changeLayout={(patch) => updateLayout(active, patch)}
-            sidebarActivity={layout.sidebarActivity}
+            layout={layout}
             fileRequest={fileRequest}
             activityRequest={activityRequest}
             settingsRequest={settingsRequest}

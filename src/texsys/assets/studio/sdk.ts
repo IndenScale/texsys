@@ -11,7 +11,12 @@ export type StudioChrome = {
 export type StudioLayout = {
   sidebarOpen: boolean;
   sidebarActivity?: string;
+  sidebarPosition?: "left" | "right";
+  explorerOpenEditors?: boolean;
+  activityBarPosition?: "side" | "top" | "bottom";
+  activityBarSize?: "default" | "compact";
   hiddenActivities?: string[];
+  hiddenActivityBadges?: string[];
   inspectorOpen: boolean;
   bottomOpen: boolean;
   bottomMaximized?: boolean;

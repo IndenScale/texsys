@@ -8,6 +8,7 @@ export function NavigatorPanel({
   count,
   className = "",
   children,
+  headingProps,
   ...props
 }: HTMLAttributes<HTMLDivElement> & {
   title?: string;
@@ -15,10 +16,11 @@ export function NavigatorPanel({
   count?: number;
   className?: string;
   children: ReactNode;
+  headingProps?: HTMLAttributes<HTMLElement>;
 }) {
   return (
     <div {...props} className={`navigator-panel ${className}`}>
-      <header className="navigator-heading">
+      <header {...headingProps} className="navigator-heading">
         <strong title={title}>{title}</strong>
         {count !== undefined && <span>{count}</span>}
         {actions && <NavigatorToolbar>{actions}</NavigatorToolbar>}

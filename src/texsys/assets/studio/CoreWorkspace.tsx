@@ -10,7 +10,12 @@ import React, {
   useState,
   type ReactNode,
 } from "react";
-import { ActivityBar, WorkbenchLayout } from "./atomstudio/Layout";
+import {
+  ActivityBar,
+  activityBarPositionMenuItem,
+  sidebarLayoutMenuItems,
+  WorkbenchLayout,
+} from "./atomstudio/Layout";
 import { Empty, Icon } from "./ui";
 import type { FilePreview, StudioLayout, StudioState, WorkbenchProps } from "./sdk";
 import {
@@ -125,10 +130,17 @@ type EditorGroupContent = {
   editorActions: ReactNode;
   editor: ReactNode;
 };
+type ExplorerHeading = "panel" | "workspace" | "editors";
+type ExplorerHeadingMenu = {
+  heading: ExplorerHeading;
+  x: number;
+  y: number;
+  anchor: HTMLElement;
+};
 type Core = {
   activity: Activity;
   select: (id: Activity) => void;
-  sidebar: ReactNode;
+  sidebar: (domainTabs: EditorGroupTab[]) => ReactNode;
   editor: ReactNode;
   editorActions: (domainTabs?: EditorGroupTab[]) => ReactNode;
   tabs: ReactNode;
@@ -282,7 +294,7 @@ export function CoreWorkspaceProvider({
   refresh,
   notify,
   changeLayout,
-  sidebarActivity = "explorer",
+  layout,
   fileRequest,
   activityRequest,
   settingsRequest,
@@ -303,7 +315,7 @@ export function CoreWorkspaceProvider({
   refresh: WorkbenchProps["refresh"];
   notify: WorkbenchProps["notify"];
   changeLayout: WorkbenchProps["changeLayout"];
-  sidebarActivity?: string;
+  layout: StudioLayout;
   fileRequest?: FileRequest;
   activityRequest?: { id: Activity; token: number; replace?: boolean };
   settingsRequest?: number;
@@ -335,6 +347,7 @@ export function CoreWorkspaceProvider({
   children: ReactNode;
 }) {
   const { autoSave, confirmBeforeUnload, fileAssociations } = useUserPreferences();
+  const sidebarActivity = layout.sidebarActivity ?? "explorer";
   const activity = isCoreActivity(sidebarActivity) ? sidebarActivity : "explorer";
   const [listing, setListing] = useState<FileListing>(emptyListing),
     [listingError, setListingError] = useState("");
@@ -400,8 +413,11 @@ export function CoreWorkspaceProvider({
   }, [api, libraryFolders, libraryRevision, state.project.revision, state.project.path]);
   const [expanded, setExpanded] = useState(new Set<string>(["src", "assets"]));
   const [explorerMenu, setExplorerMenu] = useState<{ x: number; y: number; path: string }>();
+  const [headingMenu, setHeadingMenu] = useState<ExplorerHeadingMenu>();
   const [workspaceOpen, setWorkspaceOpen] = useState(true);
+  const [openEditorsExpanded, setOpenEditorsExpanded] = useState(true);
   const workspaceTreeId = React.useId();
+  const openEditorsId = React.useId();
   const workspaceToggleRef = useRef<HTMLButtonElement>(null);
   const [rootOpen, setRootOpen] = useState(true),
     [selected, setSelected] = useState("");
@@ -1689,7 +1705,74 @@ export function CoreWorkspaceProvider({
   ];
   useEffect(() => {
     setExplorerMenu(undefined);
-  }, [activity]);
+    setHeadingMenu(undefined);
+  }, [activity, layout.sidebarOpen]);
+  const openExplorerHeadingMenu = (
+    heading: ExplorerHeading,
+    event: React.MouseEvent<HTMLElement> | React.KeyboardEvent<HTMLElement>,
+  ) => {
+    const keyboard = "key" in event;
+    if (keyboard && event.key !== "ContextMenu" && !(event.shiftKey && event.key === "F10")) return;
+    event.preventDefault();
+    event.stopPropagation();
+    const button =
+      event.target instanceof Element ? event.target.closest<HTMLButtonElement>("button") : null;
+    const anchor =
+      button && !button.disabled
+        ? button
+        : heading === "panel"
+          ? event.currentTarget
+          : (event.currentTarget.querySelector("button") ?? event.currentTarget);
+    anchor.focus({ preventScroll: true });
+    const { left, bottom } = anchor.getBoundingClientRect();
+    setHeadingMenu({
+      heading,
+      x: keyboard ? left : event.clientX,
+      y: keyboard ? bottom : event.clientY,
+      anchor,
+    });
+  };
+  const explorerHeadingEvents = (heading: ExplorerHeading): React.HTMLAttributes<HTMLElement> => ({
+    onContextMenu: (event) => openExplorerHeadingMenu(heading, event),
+    onKeyDown: (event) => openExplorerHeadingMenu(heading, event),
+  });
+  const requiredFolders = t("文件夹是必需的视图。");
+  const toggleOpenEditors = () =>
+    changeLayout({ explorerOpenEditors: !layout.explorerOpenEditors });
+  const explorerViewActions: NavigatorMenuItem[] = [
+    {
+      label: t("打开的编辑器"),
+      checkbox: true,
+      checked: !!layout.explorerOpenEditors,
+      run: toggleOpenEditors,
+    },
+    { label: t("文件夹"), checkbox: true, checked: true, reason: requiredFolders },
+  ];
+  const changeExplorerLayout = (patch: Partial<StudioLayout>) => {
+    if (patch.sidebarOpen === false) {
+      const sidebar = workspaceToggleRef.current?.closest(".workbench-navigator");
+      if (document.activeElement === document.body || sidebar?.contains(document.activeElement)) {
+        sidebar
+          ?.closest(".workbench-side")
+          ?.querySelector<HTMLElement>('.activity-bar[tabindex="0"], .activity-bar [tabindex="0"]')
+          ?.focus({ preventScroll: true });
+      }
+    }
+    changeLayout(patch);
+  };
+  const explorerTitleActions: NavigatorMenuItem[] = [
+    ...explorerViewActions,
+    { ...activityBarPositionMenuItem(layout, changeLayout), separator: true },
+    ...sidebarLayoutMenuItems(layout, changeExplorerLayout),
+  ];
+  const explorerSectionActions = (heading: "workspace" | "editors"): NavigatorMenuItem[] => [
+    heading === "workspace"
+      ? { label: t("隐藏“文件夹”"), reason: requiredFolders }
+      : { label: t("隐藏“打开的编辑器”"), run: toggleOpenEditors },
+    ...explorerViewActions.map((item, index) =>
+      index === 0 ? { ...item, separator: true } : item,
+    ),
+  ];
   const refreshScm = () => {
     void readGit();
     setGitRefreshGeneration((value) => value + 1);
@@ -1706,11 +1789,7 @@ export function CoreWorkspaceProvider({
     activity === "search" ? (
       codeSearch.actions
     ) : activity === "explorer" ? (
-      <NavigatorMenu
-        key="explorer"
-        label={t("资源管理器更多操作")}
-        items={explorerActions(selected)}
-      />
+      <NavigatorMenu key="explorer" label={t("资源管理器更多操作")} items={explorerTitleActions} />
     ) : activity === "scm" ? (
       <NavigatorMenu
         key="scm"
@@ -1751,12 +1830,15 @@ export function CoreWorkspaceProvider({
         />
       </>
     ) : null;
-  const sidebar = (
+  const sidebar = (domainTabs: EditorGroupTab[]) => (
     <NavigatorPanel
       className="core-sidebar"
       data-activity={activity}
       title={t(coreSidebarTitles[activity])}
       actions={sidebarActions}
+      headingProps={
+        activity === "explorer" ? { ...explorerHeadingEvents("panel"), tabIndex: -1 } : undefined
+      }
     >
       <NavigatorPage
         hidden={activity !== "explorer"}
@@ -1774,7 +1856,28 @@ export function CoreWorkspaceProvider({
           }
         }}
       >
-        <div className="core-workspace-heading">
+        {layout.explorerOpenEditors && (
+          <>
+            <div className="core-open-editors-heading" {...explorerHeadingEvents("editors")}>
+              <button
+                type="button"
+                className="core-open-editors-toggle"
+                aria-expanded={openEditorsExpanded}
+                aria-controls={openEditorsId}
+                onClick={() => setOpenEditorsExpanded(!openEditorsExpanded)}
+              >
+                <span className="core-tree-twistie" aria-hidden="true">
+                  <Icon name="chevron" size={12} expanded={openEditorsExpanded} />
+                </span>
+                <span>{t("打开的编辑器")}</span>
+              </button>
+            </div>
+            <div id={openEditorsId} className="core-open-editors" hidden={!openEditorsExpanded}>
+              {renderOpenedEditors(domainTabs)}
+            </div>
+          </>
+        )}
+        <div className="core-workspace-heading" {...explorerHeadingEvents("workspace")}>
           <button
             ref={workspaceToggleRef}
             className="core-workspace-toggle"
@@ -1975,6 +2078,31 @@ export function CoreWorkspaceProvider({
           )}
         </NavigatorPage>
       ))}
+      {headingMenu && activity === "explorer" && layout.sidebarOpen && (
+        <NavigatorMenu
+          label={t(
+            headingMenu.heading === "panel"
+              ? "资源管理器更多操作"
+              : headingMenu.heading === "workspace"
+                ? "工作区视图操作"
+                : "打开的编辑器视图操作",
+          )}
+          point={headingMenu}
+          items={
+            headingMenu.heading === "panel"
+              ? explorerTitleActions
+              : explorerSectionActions(headingMenu.heading)
+          }
+          onDismiss={() => {
+            setHeadingMenu(undefined);
+            if (document.activeElement !== document.body) return;
+            const anchor = headingMenu.anchor.isConnected
+              ? headingMenu.anchor
+              : workspaceToggleRef.current;
+            if (!anchor?.closest("[hidden], [inert]")) anchor?.focus({ preventScroll: true });
+          }}
+        />
+      )}
     </NavigatorPanel>
   );
   const fileDialogTitle =
@@ -2504,6 +2632,41 @@ export function CoreWorkspaceProvider({
       })),
     ];
   };
+  const renderOpenedEditors = (domainTabs: EditorGroupTab[]) => {
+    const groups = editorGroups.map((group) => ({
+      id: group.id,
+      tabs: groupTabs(group, domainTabs),
+    }));
+    if (groups.every(({ tabs }) => !tabs.length)) {
+      return <p className="core-hint">{t("没有打开的编辑器。")}</p>;
+    }
+    return groups.map(({ id, tabs }, index) =>
+      tabs.length ? (
+        <ul
+          className="core-open-editor-list"
+          key={id}
+          aria-label={groups.length > 1 ? t("组 {0}", { 0: index + 1 }) : t("打开的编辑器")}
+        >
+          {tabs.map((tab) => (
+            <li key={tab.id}>
+              <button
+                type="button"
+                className="core-open-editor-row"
+                title={tab.description || tab.label}
+                aria-current={tab.selected ? "true" : undefined}
+                disabled={closeDisabled}
+                onClick={tab.select}
+              >
+                <Icon name={tab.icon ?? "file"} size={14} />
+                <span className="core-open-editor-label">{tab.label}</span>
+                {tab.dirty && <span className="core-dirty" role="img" aria-label={t("未保存")} />}
+              </button>
+            </li>
+          ))}
+        </ul>
+      ) : null,
+    );
+  };
   const closeGroupTabs = async (group: EditorGroup, tabs: EditorGroupTab[], savedOnly: boolean) => {
     if (closeDisabled) return;
     focusGroup(group.id);
@@ -2917,7 +3080,7 @@ export function CoreWorkspaceProvider({
     <CoreContext.Provider value={value}>
       {children}
       {codeSearch.dialog}
-      {explorerMenu && (
+      {explorerMenu && activity === "explorer" && layout.sidebarOpen && (
         <NavigatorMenu
           label={t("资源管理器操作")}
           point={explorerMenu}
@@ -2997,11 +3160,11 @@ export function WorkbenchSurface({
           active={core.activity}
           items={items}
           select={core.select}
-          hidden={layout.hiddenActivities ?? []}
-          setHidden={(hiddenActivities) => change({ hiddenActivities })}
+          layout={layout}
+          change={change}
         />
       }
-      sidebar={core.sidebar}
+      sidebar={core.sidebar(editorTabs)}
       inspector={
         <>
           <div className="core-inspector-slot" hidden={!core.documentActive}>
