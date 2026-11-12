@@ -145,7 +145,26 @@ def search(query, offset=0, sort="relevance"):
         raise
       return {"items": [], "total": 0}
     return {"items": [entry], "total": 1}
+  category = None
+  if query.lower().startswith("@category:"):
+    value = query[len("@category:"):].lstrip()
+    if value.startswith('"'):
+      try:
+        category, end = json.JSONDecoder().raw_decode(value)
+      except json.JSONDecodeError as error:
+        raise ProjectError("扩展类别筛选格式无效。") from error
+      if value[end:] and not value[end].isspace():
+        raise ProjectError("扩展类别筛选格式无效。")
+      query = value[end:].strip()
+    else:
+      words = value.split(maxsplit=1)
+      category = words[0] if words else ""
+      query = words[1] if len(words) > 1 else ""
+    if not category.strip():
+      raise ProjectError("请输入扩展类别。")
   params = {"query": query, "offset": offset, "size": 24}
+  if category:
+    params["category"] = category
   if sort != "relevance":
     params.update(sortBy=sort, sortOrder="desc")
   data = _get_json(f"{REGISTRY}/api/-/search?{urlencode(params)}")

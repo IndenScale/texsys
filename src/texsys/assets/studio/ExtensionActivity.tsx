@@ -112,12 +112,13 @@ const isView = (value: string): value is View => sectionKeys.includes(value as V
 const key = (entry: Entry) => entry.id.toLowerCase();
 const versionKey = (entry: Entry, version: string) =>
   new URLSearchParams({ id: key(entry), version }).toString();
-const resourceNames = {
-  repository: "仓库",
-  issues: "报告问题",
-  homepage: "主页",
-  license: "许可证",
-} as const;
+const categoryQuery = (category: string) => `@category:${JSON.stringify(category)}`;
+const resourceLinks = [
+  { kind: "repository", label: "仓库", icon: "repository" },
+  { kind: "issues", label: "问题", icon: "issue" },
+  { kind: "license", label: "许可证", icon: "external-link" },
+  { kind: "homepage", label: "主页", icon: "external-link" },
+] as const;
 const message = (error: unknown) => (error instanceof Error ? error.message : String(error));
 const itemUrl = (entry: Entry) => `https://open-vsx.org/extension/${entry.id.replace(".", "/")}`;
 const newer = (version: string, current: string) => {
@@ -875,6 +876,12 @@ export function useExtensionActivity({
         loadDetail={loadDetail}
         loadCompatibility={loadCompatibility}
         changeVersion={changeVersion}
+        activeCategoryQuery={term}
+        searchCategory={(category) => {
+          changeLayout({ sidebarOpen: true, sidebarActivity: "extensions" });
+          setSearchText(categoryQuery(category));
+          requestAnimationFrame(() => searchInput.current?.focus({ preventScroll: true }));
+        }}
         installed={installed.get(key(request.entry))}
         pending={pending}
         revision={revision}
@@ -1174,6 +1181,8 @@ function ExtensionDetails({
   loadDetail,
   loadCompatibility,
   changeVersion,
+  activeCategoryQuery,
+  searchCategory,
   installed,
   pending,
   revision,
@@ -1191,6 +1200,8 @@ function ExtensionDetails({
   loadDetail: (params: string) => Promise<Detail>;
   loadCompatibility: (params: string) => Promise<Compatibility>;
   changeVersion: (version: string) => void;
+  activeCategoryQuery: string;
+  searchCategory: (category: string) => void;
   installed?: Installed;
   pending: boolean;
   revision: number;
@@ -1277,6 +1288,15 @@ function ExtensionDetails({
   const installable = detail && result === "snippets" && detail.version !== installed?.version;
   const rating = detail?.rating ?? entry.rating;
   const reviews = detail?.reviews ?? entry.reviews;
+  const publisherHomepage = detail?.resources.homepage;
+  const compatibilityNotice = (
+    <p className="extension-detail-status" role="status">
+      {status && status !== "snippets" && <Icon name="warning" size={15} />}
+      <span>
+        {metadata.error || check.error || t(status ? compatibility[status] : "正在检查扩展兼容性…")}
+      </span>
+    </p>
+  );
   return (
     <section className="extension-details" aria-label={entry.name}>
       <header className="extension-detail-heading">
@@ -1293,6 +1313,11 @@ function ExtensionDetails({
                 <span className="extension-verified" title={t("已验证的发布者")}>
                   <Icon name="tick" size={11} />
                 </span>
+              )}
+              {publisherHomepage && URL.canParse(publisherHomepage) && (
+                <a href={publisherHomepage} rel="noreferrer" target="_blank">
+                  {new URL(publisherHomepage).hostname}
+                </a>
               )}
             </span>
             {!!entry.downloads && (
@@ -1316,15 +1341,27 @@ function ExtensionDetails({
           </p>
           {entry.description && <p className="extension-detail-description">{entry.description}</p>}
           <div className="studio-control-group extension-actions">
-            {installable && (
+            {!entry.builtin && !installed && (
+              <NavigatorSplitButton
+                label={t("安装")}
+                menuLabel={t("安装与版本")}
+                appearance="primary"
+                disabled={pending || !installable}
+                onClick={() => {
+                  if (installable) install(detail, initialAutoUpdate);
+                }}
+                items={[versionMenu]}
+              />
+            )}
+            {installed && installable && (
               <Button
                 appearance="primary"
                 density="compact"
                 type="button"
                 disabled={pending}
-                onClick={() => install(detail, installed ? undefined : initialAutoUpdate)}
+                onClick={() => install(detail)}
               >
-                {t(installed ? "安装此版本" : "安装")}
+                {t("安装此版本")}
               </Button>
             )}
             {installed && (
@@ -1368,12 +1405,12 @@ function ExtensionDetails({
                 />
               </>
             )}
-            {(installed || installable) && (
+            {!entry.builtin && (
               <label className="studio-control-checkbox">
                 <input
                   type="checkbox"
                   checked={installed?.autoUpdate ?? initialAutoUpdate}
-                  disabled={pending}
+                  disabled={pending || (!installed && !installable)}
                   onChange={(event) => {
                     if (installed) void toggleAutoUpdate(installed);
                     else setInitialAutoUpdate(event.target.checked);
@@ -1394,16 +1431,12 @@ function ExtensionDetails({
               triggerIcon="settings"
               menuClassName="navigator-menu-compact extension-gear-menu"
             />
+            {!entry.builtin && !installed && !installable && compatibilityNotice}
           </div>
           {entry.builtin ? (
             <p>{t("随宿主加载的 Tex Studio 专业插件")}</p>
           ) : (
-            <p className="extension-detail-status" role="status">
-              {status && status !== "snippets" && <Icon name="warning" size={15} />}
-              {metadata.error ||
-                check.error ||
-                t(status ? compatibility[status] : "正在检查扩展兼容性…")}
-            </p>
+            (installed || installable) && compatibilityNotice
           )}
         </div>
       </header>
@@ -1524,29 +1557,50 @@ function ExtensionDetails({
                 {!!detail.categories.length && (
                   <section>
                     <h2>{t("类别")}</h2>
-                    <ul>
-                      {detail.categories.map((category) => (
-                        <li key={category}>{category}</li>
-                      ))}
+                    <ul className="extension-category-list">
+                      {detail.categories.map((category) => {
+                        const selected = activeCategoryQuery === categoryQuery(category);
+                        return (
+                          <li key={category}>
+                            <Button
+                              type="button"
+                              density="compact"
+                              appearance={selected ? "primary" : "secondary"}
+                              aria-pressed={selected}
+                              onClick={() => searchCategory(category)}
+                            >
+                              {category}
+                            </Button>
+                          </li>
+                        );
+                      })}
                     </ul>
                   </section>
                 )}
                 <section>
                   <h2>{t("资源")}</h2>
-                  <ul>
-                    {Object.entries(detail.resources).map(
-                      ([kind, url]) =>
+                  <ul className="extension-resource-list">
+                    {resourceLinks.map(({ kind, icon, label }) => {
+                      const url = detail.resources[kind];
+                      return (
                         url && (
                           <li key={kind}>
                             <a href={url} rel="noreferrer" target="_blank">
-                              {t(resourceNames[kind as keyof typeof resourceNames])}
+                              <Icon name={icon} size={16} />
+                              <span>
+                                {kind === "homepage"
+                                  ? detail.publisherName || entry.publisher
+                                  : t(label)}
+                              </span>
                             </a>
                           </li>
-                        ),
-                    )}
+                        )
+                      );
+                    })}
                     <li>
                       <a href={itemUrl(entry)} rel="noreferrer" target="_blank">
-                        Open VSX
+                        <Icon name="external-link" size={16} />
+                        <span>Open VSX</span>
                       </a>
                     </li>
                   </ul>

@@ -115,3 +115,23 @@
   height: 16px;
   accent-color: var(--ui-proof);
 }
+
+.studio-split-button[data-appearance="primary"] {
+  background: var(--ui-proof);
+  border-color: var(--ui-proof);
+  color: var(--ui-canvas);
+}
+.studio-split-button[data-appearance="primary"][data-disabled] {
+  opacity: 0.48;
+}
+.studio-split-button[data-appearance="primary"] > button:disabled {
+  opacity: 1;
+}
+.studio-split-button[data-appearance="primary"] > .studio-split-trigger::before {
+  border-color: currentColor;
+  opacity: 0.5;
+}
+.studio-split-button[data-appearance="primary"]
+  > .studio-split-trigger:is(:hover:not(:disabled), [aria-expanded="true"]) {
+  background: color-mix(in srgb, var(--ui-proof) 88%, var(--ui-canvas));
+}

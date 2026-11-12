@@ -472,18 +472,24 @@ export function NavigatorSplitButton({
   items,
   onClick,
   disabled,
+  appearance = "secondary",
 }: {
   label: string;
   menuLabel: string;
   items: NavigatorMenuItem[];
   onClick: () => void;
   disabled?: boolean;
+  appearance?: "primary" | "secondary";
 }) {
   return (
-    <div className="studio-split-button">
+    <div
+      className="studio-split-button"
+      data-appearance={appearance}
+      data-disabled={disabled || undefined}
+    >
       <Button
         type="button"
-        appearance="secondary"
+        appearance={appearance}
         density="compact"
         disabled={disabled}
         onClick={onClick}

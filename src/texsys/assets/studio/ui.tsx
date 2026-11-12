@@ -2,6 +2,16 @@ import React from "react";
 
 const paths: Record<string, React.ReactNode> = {
   extensions: <path d="M3 3h7v7H3zm0 11h7v7H3zm11 0h7v7h-7zM16.5 2l5.5 5.5-5.5 5.5L11 7.5z" />,
+  repository: <path d="M5 19V5a2 2 0 0 1 2-2h12v15H7a2 2 0 0 0 0 4h12M9 7h6M9 10h6" />,
+  issue: (
+    <>
+      <circle cx="12" cy="12" r="9" />
+      <circle cx="12" cy="12" r="1" />
+    </>
+  ),
+  "external-link": (
+    <path d="M13 4h7v7m0-7-9 9m7 0v6a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h6" />
+  ),
   filter: <path d="M3 4h18v3l-7 7v5l-4 2v-7L3 7z" />,
   star: <path d="m12 3 2.8 5.6 6.2.9-4.5 4.4 1.1 6.1-5.6-2.9L6.4 20l1.1-6.1L3 9.5l6.2-.9z" />,
   settings: (

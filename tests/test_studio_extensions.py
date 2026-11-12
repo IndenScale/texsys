@@ -129,3 +129,22 @@ def test_detail_does_not_wait_for_a_manifest_and_compatibility_reuses_metadata(m
     assert extensions.detail("test.partial", "1.0.0") == result
   finally:
     extensions._detail_metadata.cache_clear()
+
+
+def test_category_search_combines_category_with_text_sort_and_offset(monkeypatch):
+  from urllib.parse import parse_qs, urlsplit
+
+  def get(url):
+    assert urlsplit(url).path == "/api/-/search"
+    assert parse_qs(urlsplit(url).query) == {
+      "category": ["Extension Packs"], "query": ["rust"], "offset": ["24"],
+      "size": ["24"], "sortBy": ["downloadCount"], "sortOrder": ["desc"],
+    }
+    return {"extensions": [], "totalSize": 0}
+
+  monkeypatch.setattr(extensions, "_get_json", get)
+  assert extensions.search('@category:"Extension Packs" rust', 24, "downloadCount") == {
+    "items": [], "total": 0,
+  }
+  with pytest.raises(ProjectError, match="类别筛选格式无效"):
+    extensions.search('@category:"Extension Packs')

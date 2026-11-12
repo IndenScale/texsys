@@ -6,6 +6,7 @@ export const englishMessages: Record<string, string> = {
   更多应用菜单: "More application menus",
   场景预览: "Scene Preview",
   扩展: "Extensions",
+  安装与版本: "Install and Versions",
   切换为发布版本: "Switch to Release Version",
   切换到预发布版本: "Switch to Pre-Release Version",
   "此发布频道没有可安装的版本。": "This channel has no installable version.",
