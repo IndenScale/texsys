@@ -55,9 +55,25 @@
   top: 0;
   height: 2px;
   margin-bottom: -2px;
-  background: var(--ui-proof);
-  opacity: 0.55;
+  overflow: hidden;
   z-index: 1;
+  background: var(--ui-chrome-divider);
+}
+.extension-progress::after {
+  display: block;
+  content: "";
+  width: 35%;
+  height: 100%;
+  background: var(--ui-proof);
+  animation: extension-progress 1.25s ease-in-out infinite;
+}
+@keyframes extension-progress {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(286%);
+  }
 }
 .extension-section + .extension-section {
   margin-top: 6px;
@@ -250,23 +266,24 @@
   background: var(--ui-canvas);
   font-size: 13px;
   overflow-wrap: anywhere;
+  container-type: inline-size;
 }
 .extension-detail-heading {
   display: grid;
-  grid-template-columns: 64px minmax(0, 1fr);
+  grid-template-columns: clamp(64px, 12cqi, 112px) minmax(0, 1fr);
   align-items: start;
   gap: 16px;
   padding-bottom: 16px;
-  border-bottom: 1px solid var(--ui-chrome-divider);
 }
 .extension-detail-heading > :is(img, .extension-icon-fallback) {
-  width: 64px;
-  height: 64px;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 1;
   object-fit: contain;
 }
 .extension-detail-heading h1 {
   margin: 0;
-  font-size: 22px;
+  font-size: clamp(22px, 3.3cqi, 30px);
   font-weight: 500;
 }
 .extension-detail-heading p {
@@ -322,8 +339,134 @@
 .extension-detail-heading .extension-detail-status {
   margin: 10px 0 0;
 }
-.extension-details > .markdown-preview {
-  max-inline-size: 85ch;
-  padding: 18px 0 0;
+.extension-detail-meta > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.extension-detail-navigation {
+  display: flex;
+  gap: 14px;
+  border-bottom: 1px solid var(--ui-chrome-divider);
+}
+.extension-detail-navigation button {
+  padding: 8px 4px;
+  color: var(--ui-text-muted);
+  border-bottom: 2px solid transparent;
+}
+.extension-detail-navigation button[aria-pressed="true"] {
+  color: var(--ui-text);
+  border-bottom-color: var(--ui-proof);
+}
+.extension-detail-body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(132px, 19%);
+  gap: clamp(16px, 4cqi, 42px);
+}
+.extension-detail-document {
+  min-width: 0;
+  padding-block: 16px;
+}
+.extension-detail-document > .markdown-preview {
+  max-inline-size: 92ch;
+  padding: 0;
   overflow: visible;
+}
+.extension-detail-resources {
+  padding-block: 16px;
+  font-size: 12px;
+}
+.extension-detail-resources h2 {
+  margin: 0 0 8px;
+  font-size: 13px;
+  font-weight: 500;
+}
+.extension-detail-resources section + section {
+  border-top: 1px solid var(--ui-chrome-divider);
+  margin-top: 12px;
+  padding-top: 12px;
+}
+.extension-detail-resources ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.extension-detail-resources li + li {
+  margin-top: 5px;
+}
+.extension-detail-resources a,
+.extension-document-limit a {
+  color: var(--ui-proof);
+}
+@container (max-width: 580px) {
+  .extension-detail-body {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0;
+  }
+  .extension-detail-resources {
+    border-top: 1px solid var(--ui-chrome-divider);
+  }
+}
+.extension-skeleton {
+  --skeleton-color: var(--ui-control-hover);
+}
+.extension-skeleton-row {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr);
+  align-content: center;
+  gap: 6px 10px;
+  min-height: 68px;
+  padding-inline: 10px;
+}
+.extension-skeleton-row::before,
+.extension-skeleton-row span {
+  content: "";
+  display: block;
+  border-radius: 4px;
+  background: var(--skeleton-color);
+  animation: extension-skeleton-pulse 1.35s 160ms ease-in-out infinite alternate;
+}
+.extension-skeleton-row::before {
+  grid-row: span 2;
+  height: 34px;
+}
+.extension-skeleton-row span {
+  width: 70%;
+  height: 10px;
+}
+.extension-skeleton-row span:last-child {
+  width: 45%;
+}
+.extension-skeleton-document .extension-skeleton-row {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  gap: 9px;
+  padding: 0;
+  margin-block: 8px 16px;
+}
+.extension-skeleton-document .extension-skeleton-row::before {
+  display: none;
+}
+.extension-skeleton-document .extension-skeleton-row span {
+  height: 12px;
+}
+.extension-skeleton-document .extension-skeleton-row:first-child span:first-child {
+  width: 35%;
+  height: 22px;
+}
+@keyframes extension-skeleton-pulse {
+  from {
+    opacity: 0.52;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .extension-progress::after,
+  .extension-skeleton-row::before,
+  .extension-skeleton-row span {
+    animation: none;
+  }
 }

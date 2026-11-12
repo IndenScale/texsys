@@ -2,6 +2,12 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { t } from "./i18n";
 import { Icon } from "./ui";
 import { MarkdownPreview } from "./MarkdownPreview";
+import {
+  ExtensionCache,
+  loadExtensionMarkdown,
+  useExtensionResource,
+  type ExtensionMarkdown,
+} from "./extension-loading";
 import { NavigatorButton, NavigatorPage } from "./NavigatorPanel";
 import { NavigatorMenu, type NavigatorMenuItem } from "./NavigatorMenu";
 import { activityBarPositionMenuItem, sidebarLayoutMenuItems } from "./atomstudio/Layout";
@@ -27,6 +33,12 @@ type Detail = Entry & {
   versions: string[];
   hasPreRelease: boolean;
   readme?: string | null;
+  changelog?: string | null;
+  categories: string[];
+  resources: Partial<Record<"repository" | "issues" | "homepage" | "license", string | null>>;
+};
+type Compatibility = {
+  version: string;
   compatibility:
     "snippets" | "runtime" | "dependencies" | "contributions" | "manifest" | "unavailable";
 };
@@ -92,6 +104,14 @@ const initialInventory: Inventory = { installed: [], autoUpdate: false, ignored:
 const sectionKeys = Object.keys(views) as View[];
 const isView = (value: string): value is View => sectionKeys.includes(value as View);
 const key = (entry: Entry) => entry.id.toLowerCase();
+const versionKey = (entry: Entry, version: string) =>
+  new URLSearchParams({ id: key(entry), version }).toString();
+const resourceNames = {
+  repository: "仓库",
+  issues: "报告问题",
+  homepage: "主页",
+  license: "许可证",
+} as const;
 const message = (error: unknown) => (error instanceof Error ? error.message : String(error));
 const itemUrl = (entry: Entry) => `https://open-vsx.org/extension/${entry.id.replace(".", "/")}`;
 const newer = (version: string, current: string) => {
@@ -137,6 +157,7 @@ export function useExtensionActivity({
 }) {
   const [inventory, setInventory] = useState(initialInventory);
   const [inventoryError, setInventoryError] = useState("");
+  const [inventoryReady, setInventoryReady] = useState(false);
   const [query, setQuery] = useState("");
   const [sort, setSort] = useState<keyof typeof sorts>("relevance");
   const [shown, setShown] = useState<View[]>(["installed", "recommended"]);
@@ -152,7 +173,9 @@ export function useExtensionActivity({
   const [paging, setPaging] = useState(false);
   const [hiddenTools, setHiddenTools] = useState(readHiddenTools);
   const searchCache = useRef(new Map<string, { result: SearchResult; expires: number }>());
-  const detailCache = useRef(new Map<string, { result: Promise<Detail>; expires: number }>());
+  const [detailCache] = useState(() => new ExtensionCache<Detail>(48, 60_000));
+  const [compatibilityCache] = useState(() => new ExtensionCache<Compatibility>(64, 60_000));
+  const [markdownCache] = useState(() => new ExtensionCache<ExtensionMarkdown>(24, 10 * 60_000));
   const recommendationRevision = useRef(-1);
   const [pending, setPending] = useState(false);
   const [updates, setUpdates] = useState<Record<string, Detail>>({});
@@ -171,7 +194,9 @@ export function useExtensionActivity({
   const searchDraftTimer = useRef<number | undefined>(undefined);
   const refreshAll = () => {
     searchCache.current.clear();
-    detailCache.current.clear();
+    detailCache.clear();
+    compatibilityCache.clear();
+    markdownCache.clear();
     refresh((value) => value + 1);
   };
   const installed = useMemo(
@@ -206,10 +231,14 @@ export function useExtensionActivity({
       (result) => {
         if (!current || operation.current) return;
         setInventory(result);
+        setInventoryReady(true);
         setInventoryError("");
       },
       (error) => {
-        if (current) setInventoryError(message(error));
+        if (current) {
+          setInventoryReady(true);
+          setInventoryError(message(error));
+        }
       },
     );
     return () => {
@@ -233,59 +262,60 @@ export function useExtensionActivity({
     return result;
   }
 
-  const getDetail = useCallback(
-    (entry: Entry, version = "latest") => {
-      const id = new URLSearchParams({ id: entry.id, version }).toString();
-      const cached = detailCache.current.get(id);
-      if (cached && cached.expires > Date.now()) return cached.result;
-      const result = api<Detail>(`${endpoint}/detail?${id}`);
-      if (detailCache.current.size >= 40)
-        detailCache.current.delete(detailCache.current.keys().next().value!);
-      detailCache.current.set(id, { result, expires: Date.now() + 60_000 });
-      void result.catch(() => {
-        if (detailCache.current.get(id)?.result === result) detailCache.current.delete(id);
-      });
-      return result;
-    },
+  const loadDetail = useCallback(
+    (params: string) => api<Detail>(`${endpoint}/detail?${params}`),
+    [api],
+  );
+  const loadCompatibility = useCallback(
+    (params: string) => api<Compatibility>(`${endpoint}/compatibility?${params}`),
     [api],
   );
 
   useEffect(() => {
     if (!showRecommendations || recommendationRevision.current === revision) return;
-    let current = true;
+    const controller = new AbortController();
+    const { signal } = controller;
     setLoadingRecommendations(true);
     setRecommendationError("");
-    void api<Recommendations>(`${endpoint}/recommendations`)
+    void api<Recommendations>(`${endpoint}/recommendations`, undefined, signal)
       .then(async (result) => {
-        const requests = await Promise.allSettled(
-          result.ids.map((id) => searchPage(`@id:${id}`, 0)),
-        );
-        if (!current) return;
-        recommendationRevision.current = revision;
+        if (signal.aborted) return;
         setWorkspaceIds(result.workspace.map((id) => id.toLowerCase()));
-        setRecommendations(
-          requests.flatMap((request) =>
-            request.status === "fulfilled" ? request.value.items : [],
-          ),
-        );
-        if (requests.some((request) => request.status === "rejected")) {
-          setRecommendationError(t("部分推荐未能从 Open VSX 加载。"));
+        const loaded: (Entry | undefined)[] = [];
+        let next = 0;
+        let failed = false;
+        async function load() {
+          while (!signal.aborted && next < result.ids.length) {
+            const index = next++;
+            try {
+              const page = await searchPage(`@id:${result.ids[index]}`, 0, signal);
+              if (signal.aborted) return;
+              loaded[index] = page.items[0];
+              if (page.items.length)
+                setRecommendations(loaded.filter((entry): entry is Entry => !!entry));
+            } catch {
+              failed = true;
+            }
+          }
         }
+        await Promise.all(Array.from({ length: Math.min(result.ids.length, 4) }, load));
+        if (signal.aborted) return;
+        recommendationRevision.current = revision;
+        setRecommendations(loaded.filter((entry): entry is Entry => !!entry));
+        if (failed) setRecommendationError(t("部分推荐未能从 Open VSX 加载。"));
       })
       .catch((error) => {
-        if (current) setRecommendationError(message(error));
+        if (!signal.aborted) setRecommendationError(message(error));
       })
       .finally(() => {
-        if (current) setLoadingRecommendations(false);
+        if (!signal.aborted) setLoadingRecommendations(false);
       });
-    return () => {
-      current = false;
-    };
+    return () => controller.abort();
   }, [api, showRecommendations, revision]);
 
   useEffect(() => {
     const sequence = ++searchSequence.current;
-    const searchKey = `${sort}:${term}`;
+    const searchKey = `${revision}:${sort}:${term}`;
     setSearchError("");
     setPaging(false);
     if (!active || !marketplace) return;
@@ -372,9 +402,12 @@ export function useExtensionActivity({
     return perform(async () => {
       const results = await Promise.allSettled(
         inventory.installed.map(async (entry) => {
-          const latest = await getDetail(entry, entry.preRelease ? "pre-release" : "latest");
-          if (latest.compatibility === "snippets" && newer(latest.version, entry.version))
-            return latest;
+          const params = versionKey(entry, entry.preRelease ? "pre-release" : "latest");
+          const latest = await detailCache.load(params, () => loadDetail(params));
+          if (!newer(latest.version, entry.version)) return;
+          const concrete = versionKey(latest, latest.version);
+          const check = await compatibilityCache.load(concrete, () => loadCompatibility(concrete));
+          if (check.version === latest.version && check.compatibility === "snippets") return latest;
         }),
       );
       const available = results.flatMap((result) =>
@@ -738,7 +771,8 @@ export function useExtensionActivity({
     checkbox: true,
     run: () => toggleSearchTool(tool),
   }));
-  const searchPending = completedSearch !== `${sort}:${term}` && !searchError;
+  const searchCurrent = completedSearch === `${revision}:${sort}:${term}`;
+  const searchPending = !searchCurrent && !searchError;
   const clearSearch = () => {
     setSearchText("");
     searchInput.current?.focus();
@@ -820,8 +854,13 @@ export function useExtensionActivity({
   return {
     renderDocument: (request: ExtensionDocument, changeVersion: (version: string) => void) => (
       <ExtensionDetails
+        key={key(request.entry)}
         request={request}
-        load={getDetail}
+        detailCache={detailCache}
+        compatibilityCache={compatibilityCache}
+        markdownCache={markdownCache}
+        loadDetail={loadDetail}
+        loadCompatibility={loadCompatibility}
         changeVersion={changeVersion}
         installed={installed.get(key(request.entry))}
         pending={pending}
@@ -940,8 +979,8 @@ export function useExtensionActivity({
             </span>
           )}
         </div>
-        <div className="extension-results" aria-busy={marketplace && searchPending}>
-          {marketplace && searchPending && (
+        <div className="extension-results" aria-busy={marketplace && (searchPending || paging)}>
+          {marketplace && (searchPending || paging) && (
             <span className="extension-progress" aria-hidden="true" />
           )}
           {inventoryError && (
@@ -957,9 +996,7 @@ export function useExtensionActivity({
                 </p>
               )}
               {!search?.items.length && searchPending && (
-                <p className="extension-message" role="status">
-                  {t("正在搜索 Open VSX…")}
-                </p>
+                <ExtensionSkeleton label={t("正在搜索 Open VSX…")} rows={4} />
               )}
               {search?.items.length
                 ? renderEntries([
@@ -970,7 +1007,7 @@ export function useExtensionActivity({
                   !searchError && (
                     <p className="extension-message">{t("Open VSX 中没有匹配的扩展。")}</p>
                   )}
-              {search && !searchPending && search.items.length < Math.min(search.total, 5000) && (
+              {search && searchCurrent && search.items.length < Math.min(search.total, 5000) && (
                 <button
                   type="button"
                   className="extension-more"
@@ -990,6 +1027,13 @@ export function useExtensionActivity({
                   `${entry.id} ${entry.name} ${entry.description}`.toLowerCase().includes(text),
               );
               const open = !!filteredView || expanded.includes(view);
+              const waiting =
+                view === "recommended"
+                  ? loadingRecommendations ||
+                    (showRecommendations &&
+                      recommendationRevision.current !== revision &&
+                      !recommendationError)
+                  : !inventoryReady;
               return (
                 <section className="extension-section" key={view}>
                   <button
@@ -1008,7 +1052,9 @@ export function useExtensionActivity({
                   >
                     <Icon name={open ? "chevron-down" : "chevron-right"} size={14} />
                     <strong>{t(views[view])}</strong>
-                    <span className="extension-count">{matching.length}</span>
+                    {matching.length || !waiting ? (
+                      <span className="extension-count">{matching.length}</span>
+                    ) : null}
                   </button>
                   {open && (
                     <>
@@ -1017,17 +1063,20 @@ export function useExtensionActivity({
                           {recommendationError}
                         </p>
                       )}
-                      {matching.length ? (
-                        renderEntries(matching, view === "recommended")
-                      ) : (
-                        <p className="extension-message">
-                          {t(
-                            view === "recommended" && loadingRecommendations
-                              ? "正在读取推荐扩展…"
-                              : "此视图中没有扩展。",
+                      {matching.length > 0 && renderEntries(matching, view === "recommended")}
+                      {waiting && (
+                        <ExtensionSkeleton
+                          label={t(
+                            view === "recommended" ? "正在读取推荐扩展…" : "正在读取已安装扩展…",
                           )}
-                        </p>
+                          rows={matching.length ? 1 : 2}
+                        />
                       )}
+                      {!waiting &&
+                        !matching.length &&
+                        !(view === "recommended" ? recommendationError : inventoryError) && (
+                          <p className="extension-message">{t("此视图中没有扩展。")}</p>
+                        )}
                     </>
                   )}
                 </section>
@@ -1055,9 +1104,38 @@ export function useExtensionActivity({
   };
 }
 
+function ExtensionSkeleton({
+  label,
+  rows,
+  document = false,
+}: {
+  label: string;
+  rows: number;
+  document?: boolean;
+}) {
+  return (
+    <div
+      className={`extension-skeleton ${document ? "extension-skeleton-document" : ""}`}
+      role="status"
+      aria-label={label}
+    >
+      {Array.from({ length: rows }, (_, index) => (
+        <div key={index} className="extension-skeleton-row" aria-hidden="true">
+          <span />
+          <span />
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function ExtensionDetails({
   request,
-  load,
+  detailCache,
+  compatibilityCache,
+  markdownCache,
+  loadDetail,
+  loadCompatibility,
   changeVersion,
   installed,
   pending,
@@ -1066,7 +1144,11 @@ function ExtensionDetails({
   install,
 }: {
   request: ExtensionDocument;
-  load: (entry: Entry, version: string) => Promise<Detail>;
+  detailCache: ExtensionCache<Detail>;
+  compatibilityCache: ExtensionCache<Compatibility>;
+  markdownCache: ExtensionCache<ExtensionMarkdown>;
+  loadDetail: (params: string) => Promise<Detail>;
+  loadCompatibility: (params: string) => Promise<Compatibility>;
   changeVersion: (version: string) => void;
   installed?: Installed;
   pending: boolean;
@@ -1075,44 +1157,38 @@ function ExtensionDetails({
   install: (entry: Detail) => void;
 }) {
   const { entry, version, intent } = request;
-  const [detail, setDetail] = useState<Detail>();
-  const [settled, setSettled] = useState<{
-    id: string;
-    version: string;
-    revision: number;
-    error?: string;
-  }>();
+  const [panel, setPanel] = useState<"readme" | "changelog">("readme");
+  const metadata = useExtensionResource(
+    entry.builtin ? undefined : versionKey(entry, version),
+    revision,
+    detailCache,
+    loadDetail,
+  );
+  const detail = metadata.data;
+  const check = useExtensionResource(
+    detail?.vsix ? versionKey(detail, detail.version) : undefined,
+    revision,
+    compatibilityCache,
+    loadCompatibility,
+  );
+  const result = check.data?.version === detail?.version ? check.data?.compatibility : undefined;
+  const documentType = panel === "changelog" && detail?.changelog ? "changelog" : "readme";
+  const documentUrl = detail?.[documentType] ?? undefined;
+  const markdown = useExtensionResource(
+    documentUrl,
+    revision,
+    markdownCache,
+    loadExtensionMarkdown,
+  );
+  const currentDetail = detail ?? detailCache.read(versionKey(entry, entry.version));
   const versionField = useRef<HTMLSelectElement>(null);
-  const sameExtension = detail && key(detail) === key(entry) ? detail : undefined;
-  const current =
-    settled?.id === key(entry) && settled.version === version && settled.revision === revision;
-  const currentDetail = current && !settled.error ? sameExtension : undefined;
-
-  useEffect(() => {
-    if (entry.builtin) return;
-    let current = true;
-    const selection = { id: key(entry), version, revision };
-    void load(entry, version).then(
-      (result) => {
-        if (!current) return;
-        setDetail(result);
-        setSettled(selection);
-      },
-      (error) => {
-        if (current) setSettled({ ...selection, error: message(error) });
-      },
-    );
-    return () => {
-      current = false;
-    };
-  }, [entry, version, revision, load]);
-
   useEffect(() => {
     if (intent) versionField.current?.focus({ preventScroll: true });
   }, [intent, entry.id]);
 
   const directDownload = version === entry.version ? entry.vsix : undefined;
-  const download = currentDetail?.vsix ?? directDownload;
+  const download = detail ? detail.vsix : directDownload;
+  const status = detail && !detail.vsix ? "unavailable" : result;
   return (
     <section className="extension-details" aria-label={entry.name}>
       <header className="extension-detail-heading">
@@ -1120,11 +1196,24 @@ function ExtensionDetails({
         <div>
           <h1>{entry.name}</h1>
           <p className="extension-detail-meta">
-            <span>{entry.publisher}</span>
-            <span>{entry.id}</span>
             <span>
-              {t("版本")}{" "}
-              {currentDetail?.version ?? (/^\d/.test(version) ? version : entry.version)}
+              {entry.verified && <Icon name="tick" size={12} />}
+              {entry.publisher}
+            </span>
+            {!!entry.downloads && (
+              <span>
+                <Icon name="download" size={13} />
+                {entry.downloads.toLocaleString()}
+              </span>
+            )}
+            {entry.rating != null && (
+              <span>
+                <Icon name="star" size={13} />
+                {ratingFormat.format(entry.rating)}
+              </span>
+            )}
+            <span>
+              {t("版本")} {detail?.version ?? (/^\d/.test(version) ? version : entry.version)}
             </span>
           </p>
           {entry.description && <p>{entry.description}</p>}
@@ -1140,14 +1229,14 @@ function ExtensionDetails({
                     onChange={(event) => changeVersion(event.target.value)}
                   >
                     <option value="latest">{t("最新版本")}</option>
-                    {sameExtension?.hasPreRelease && (
+                    {currentDetail?.hasPreRelease && (
                       <option value="pre-release">{t("预发布版本")}</option>
                     )}
                     {[
                       ...new Set([
                         entry.version,
-                        ...(sameExtension?.versions ?? []),
-                        ...(sameExtension ? [sameExtension.version] : []),
+                        ...(currentDetail?.versions ?? []),
+                        ...(currentDetail ? [currentDetail.version] : []),
                       ]),
                     ].map((option) => (
                       <option value={option} key={option}>
@@ -1156,17 +1245,16 @@ function ExtensionDetails({
                     ))}
                   </select>
                 </label>
-                {currentDetail?.compatibility === "snippets" &&
-                  currentDetail.version !== installed?.version && (
-                    <button
-                      className="extension-primary"
-                      type="button"
-                      disabled={pending}
-                      onClick={() => install(currentDetail)}
-                    >
-                      {t(installed ? "安装此版本" : "安装")}
-                    </button>
-                  )}
+                {detail && result === "snippets" && detail.version !== installed?.version && (
+                  <button
+                    className="extension-primary"
+                    type="button"
+                    disabled={pending}
+                    onClick={() => install(detail)}
+                  >
+                    {t(installed ? "安装此版本" : "安装")}
+                  </button>
+                )}
                 {download && (
                   <a href={download} rel="noreferrer" target="_blank">
                     {t("下载 VSIX")}
@@ -1185,78 +1273,110 @@ function ExtensionDetails({
           </div>
           {entry.builtin ? (
             <p>{t("随宿主加载的 Tex Studio 专业插件")}</p>
-          ) : current && settled.error ? (
-            <p className="core-error" role="alert">
-              {settled.error}
-            </p>
           ) : (
-            <p role="status" className="extension-detail-status">
-              {t(
-                currentDetail ? compatibility[currentDetail.compatibility] : "正在检查扩展兼容性…",
-              )}
+            <p className="extension-detail-status" role="status">
+              {metadata.error ||
+                check.error ||
+                t(status ? compatibility[status] : "正在检查扩展兼容性…")}
             </p>
           )}
         </div>
       </header>
-      {currentDetail && <ExtensionReadme url={currentDetail.readme} />}
-    </section>
-  );
-}
-
-function ExtensionReadme({ url }: { url?: string | null }) {
-  const [result, setResult] = useState<{ url: string; content?: string }>();
-  useEffect(() => {
-    if (!url) return;
-    const controller = new AbortController();
-    async function load(source: string) {
-      const response = await fetch(source, {
-        signal: controller.signal,
-        credentials: "omit",
-        referrerPolicy: "no-referrer",
-      });
-      const stream = response.body;
-      if (!response.ok || !stream) throw new Error();
-      const reader = stream.getReader();
-      const decoder = new TextDecoder();
-      let bytes = 0;
-      let content = "";
-      while (true) {
-        const chunk = await reader.read();
-        if (chunk.done) return content + decoder.decode();
-        bytes += chunk.value.byteLength;
-        if (bytes > 256 * 1024) {
-          await reader.cancel();
-          throw new Error();
-        }
-        content += decoder.decode(chunk.value, { stream: true });
-      }
-    }
-    void load(url).then(
-      (content) => {
-        if (!controller.signal.aborted) setResult({ url, content });
-      },
-      () => {
-        if (!controller.signal.aborted) setResult({ url });
-      },
-    );
-    return () => controller.abort();
-  }, [url]);
-  if (url && result?.url !== url)
-    return (
-      <p className="extension-detail-status" role="status">
-        {t("正在读取扩展说明…")}
-      </p>
-    );
-  if (url && result?.content?.trim())
-    return <MarkdownPreview content={result.content} remoteBaseUrl={url} />;
-  return (
-    <p className="extension-detail-status">
-      {t(
-        url && result?.content === undefined
-          ? "无法读取扩展说明。请在 Open VSX 中查看。"
-          : "发布者未提供扩展说明。",
+      {!entry.builtin && (
+        <>
+          <div className="extension-detail-navigation">
+            <button
+              type="button"
+              aria-pressed={documentType === "readme"}
+              onClick={() => setPanel("readme")}
+            >
+              {t("详细信息")}
+            </button>
+            {detail?.changelog && (
+              <button
+                type="button"
+                aria-pressed={documentType === "changelog"}
+                onClick={() => setPanel("changelog")}
+              >
+                {t("更改日志")}
+              </button>
+            )}
+          </div>
+          <div className="extension-detail-body">
+            <div className="extension-detail-document">
+              {metadata.error ? (
+                <p className="core-error" role="alert">
+                  {metadata.error}
+                </p>
+              ) : !detail ||
+                (documentUrl && markdown.data === undefined && markdown.error === undefined) ? (
+                <ExtensionSkeleton
+                  label={t(documentType === "readme" ? "正在读取扩展说明…" : "正在读取更改日志…")}
+                  document
+                  rows={5}
+                />
+              ) : markdown.error !== undefined ? (
+                <p className="extension-detail-status" role="status">
+                  {t("无法读取扩展说明。请在 Open VSX 中查看。")}
+                </p>
+              ) : markdown.data?.content.trim() ? (
+                <>
+                  {markdown.data.truncated && (
+                    <p className="extension-detail-status extension-document-limit">
+                      {t("仅预览文件开头。")}{" "}
+                      <a href={documentUrl} target="_blank" rel="noreferrer">
+                        {t("查看完整文件")}
+                      </a>
+                    </p>
+                  )}
+                  <MarkdownPreview content={markdown.data.content} remoteBaseUrl={documentUrl} />
+                </>
+              ) : (
+                <p className="extension-detail-status">{t("发布者未提供扩展说明。")}</p>
+              )}
+            </div>
+            {detail && (
+              <aside className="extension-detail-resources">
+                {!!detail.categories.length && (
+                  <section>
+                    <h2>{t("类别")}</h2>
+                    <ul>
+                      {detail.categories.map((category) => (
+                        <li key={category}>{category}</li>
+                      ))}
+                    </ul>
+                  </section>
+                )}
+                <section>
+                  <h2>{t("资源")}</h2>
+                  <ul>
+                    {Object.entries(detail.resources).map(
+                      ([kind, url]) =>
+                        url && (
+                          <li key={kind}>
+                            <a href={url} rel="noreferrer" target="_blank">
+                              {t(resourceNames[kind as keyof typeof resourceNames])}
+                            </a>
+                          </li>
+                        ),
+                    )}
+                    <li>
+                      <a href={itemUrl(entry)} rel="noreferrer" target="_blank">
+                        Open VSX
+                      </a>
+                    </li>
+                  </ul>
+                </section>
+                <section>
+                  <h2>{t("扩展 ID")}</h2>
+                  <span>{entry.id}</span>
+                </section>
+              </aside>
+            )}
+          </div>
+        </>
       )}
-    </p>
+    </section>
   );
 }
 

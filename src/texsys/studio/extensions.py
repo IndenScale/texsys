@@ -9,6 +9,7 @@ import os
 from pathlib import Path, PurePosixPath
 import re
 from threading import RLock
+from time import monotonic
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode, urlsplit
 from urllib.request import HTTPRedirectHandler, build_opener
@@ -151,16 +152,44 @@ def search(query, offset=0, sort="relevance"):
   return {"items": [_entry(item) for item in data["extensions"]], "total": data["totalSize"]}
 
 
+@lru_cache(maxsize=128)
+def _detail_metadata(identity, version, window):
+  return _metadata(identity, version)
+
+
+def _web_link(url):
+  if isinstance(url, str):
+    parsed = urlsplit(url)
+    if parsed.scheme in {"https", "http"} and parsed.hostname and not parsed.username:
+      return url
+  return None
+
+
 def detail(identity, version):
-  data, entry = _metadata(identity, version)
+  data, entry = _detail_metadata(identity, version, int(monotonic() // 60))
   versions = data.get("allVersions", {})
-  manifest = _manifest(data) if entry["vsix"] else None
+  files = data.get("files", {})
   return {
     **entry, "versions": [v for v in versions if VERSION.fullmatch(v)],
-    "readme": _asset(data.get("files", {}).get("readme")),
+    "readme": _asset(files.get("readme")),
+    "changelog": _asset(files.get("changelog")),
     "hasPreRelease": "pre-release" in versions,
-    "compatibility": (_compatibility(manifest) if manifest else "manifest" if entry["vsix"] else "unavailable"),
+    "categories": [item for item in data.get("categories", []) if isinstance(item, str)],
+    "resources": {
+      "repository": _web_link(data.get("repository")),
+      "issues": _web_link(data.get("bugs")),
+      "homepage": _web_link(data.get("homepage")),
+      "license": _asset(files.get("license")),
+    },
   }
+
+
+def check_compatibility(identity, version):
+  data, entry = _detail_metadata(identity, version, int(monotonic() // 60))
+  if not entry["vsix"]:
+    return {"version": entry["version"], "compatibility": "unavailable"}
+  manifest = _manifest(data)
+  return {"version": entry["version"], "compatibility": _compatibility(manifest) if manifest else "manifest"}
 
 
 def _read_member(archive, path):

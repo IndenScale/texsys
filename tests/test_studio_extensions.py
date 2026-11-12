@@ -91,3 +91,37 @@ def test_recommendation_edits_keep_jsonc_comments_and_other_fields(tmp_path):
   assert '    // Keep this note and the existing entry.\n    "Old.Extension",' in text
   result = extensions.StudioExtensions(tmp_path / "unused.json").recommendations(tmp_path, "build")
   assert result["workspace"] == ["new.extension", "Old.Extension"]
+
+
+def test_detail_does_not_wait_for_a_manifest_and_compatibility_reuses_metadata(monkeypatch):
+  reads = []
+
+  def get(url, maximum=extensions.MIB, *, optional=False):
+    reads.append(url)
+    if url.endswith("package.json"):
+      raise ProjectError("清单暂不可用")
+    return json.dumps({
+      "namespace": "Test", "name": "Partial", "version": "1.0.0",
+      "categories": ["Snippets"],
+      "files": {
+        "manifest": url + "/file/package.json",
+        "readme": url + "/file/README.md",
+        "changelog": url + "/file/CHANGELOG.md",
+        "download": url + "/file/test.vsix",
+      },
+    }).encode()
+
+  monkeypatch.setattr(extensions, "_get", get)
+  monkeypatch.setattr(extensions, "monotonic", lambda: 123)
+  try:
+    result = extensions.detail("test.partial", "1.0.0")
+    assert result["readme"].endswith("/README.md")
+    assert result["changelog"].endswith("/CHANGELOG.md")
+    assert result["categories"] == ["Snippets"]
+    assert len(reads) == 1
+    with pytest.raises(ProjectError, match="清单暂不可用"):
+      extensions.check_compatibility("test.partial", "1.0.0")
+    assert reads == [reads[0], reads[0] + "/file/package.json"]
+    assert extensions.detail("test.partial", "1.0.0") == result
+  finally:
+    extensions._detail_metadata.cache_clear()

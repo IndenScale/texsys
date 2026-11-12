@@ -14,7 +14,8 @@ from urllib.parse import parse_qs, urlparse
 
 from texsys.project import ProjectError
 from .ai import AiSettings, draft_commit_message, is_ai_config_path, test_connection
-from .extensions import StudioExtensions, detail as extension_detail, recommend, search as extension_search
+from .extensions import (StudioExtensions, check_compatibility as extension_compatibility,
+                         detail as extension_detail, recommend, search as extension_search)
 from .runtime import Conflict, StudioRuntime
 from .scene import ScenePreview
 from .preview import ProjectPreview
@@ -206,6 +207,9 @@ def create_server(runtime: StudioRuntime, port=8710, frontend=None, token=None, 
         elif parsed.path == "/api/extensions/detail":
           query = parse_qs(parsed.query)
           self._send(200, extension_detail(query.get("id", [""])[0], query.get("version", ["latest"])[0]))
+        elif parsed.path == "/api/extensions/compatibility":
+          query = parse_qs(parsed.query)
+          self._send(200, extension_compatibility(query.get("id", [""])[0], query.get("version", [""])[0]))
         elif parsed.path == "/api/design-index":
           from .library_sources import library_index
 
