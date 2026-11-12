@@ -7,7 +7,7 @@ import { Icon } from "./ui";
 import "./statusbar.css";
 
 const standardItems = [
-  { id: "connection", label: "远程主机" },
+  { id: "connection", label: "连接状态" },
   { id: "branch", label: "当前分支" },
   { id: "problems", label: "问题" },
   { id: "screenReader", label: "屏幕阅读器模式" },
@@ -113,7 +113,7 @@ export function StatusBar({
   branch,
   discipline,
   disciplineActions,
-  connection,
+  disconnected,
   editorProblems,
   screenReader,
   onToggleScreenReader,
@@ -124,7 +124,6 @@ export function StatusBar({
   aiMode,
   onOpenAi,
   onShortcuts,
-  onNewWindow,
   onReconnect,
   onSourceAction,
   jobs,
@@ -142,7 +141,7 @@ export function StatusBar({
   branch?: { label: string; description: string; canOpen: boolean };
   discipline?: string;
   disciplineActions: NavigatorMenuItem[];
-  connection: "loading" | "online" | "offline";
+  disconnected: boolean;
   editorProblems: { errors: number; warnings: number };
   screenReader: boolean;
   onToggleScreenReader: () => void;
@@ -153,7 +152,6 @@ export function StatusBar({
   aiMode?: StudioAiSettings["mode"];
   onOpenAi: () => void;
   onShortcuts: () => void;
-  onNewWindow: () => void;
   onReconnect: () => void;
   onSourceAction: (action: SourceStatusAction) => void;
   jobs: number;
@@ -234,19 +232,16 @@ export function StatusBar({
       }}
     >
       <div className="statusbar-group statusbar-workspace">
-        {show("connection") && (
-          <NavigatorMenu
-            label={t("远程主机")}
-            title={connection === "offline" ? t("连接中断") : undefined}
-            placement="start"
-            direction="up"
-            triggerClassName={`statusbar-item statusbar-connection${connection === "offline" ? " offline" : ""}`}
-            triggerIcon={<Icon name="remote" size={14} />}
-            items={[
-              ...(connection === "offline" ? [{ label: t("重试连接"), run: onReconnect }] : []),
-              { label: t("新建窗口"), run: onNewWindow },
-            ]}
-          />
+        {show("connection") && disconnected && (
+          <button
+            type="button"
+            className="statusbar-item statusbar-connection"
+            title={t("连接中断，点击重试")}
+            aria-label={t("重试连接")}
+            onClick={onReconnect}
+          >
+            <Icon name="remote" size={14} />
+          </button>
         )}
         {show("branch") &&
           branch &&
@@ -255,7 +250,8 @@ export function StatusBar({
               type="button"
               className="statusbar-item statusbar-branch"
               title={branch.description}
-              aria-label={t("打开源代码管理：{0}", { "0": branch.label })}
+              aria-label={t("切换 Git 分支，当前：{0}", { "0": branch.label })}
+              aria-haspopup="listbox"
               onClick={onBranch}
             >
               {branchContent}

@@ -9,6 +9,7 @@ export type SearchScope =
   | "objects"
   | "references"
   | "panel"
+  | "branches"
   | "editors";
 export type EditorPickerItem = CommandItem & { run: () => void };
 export type FileLocation = { line: number; column?: number };

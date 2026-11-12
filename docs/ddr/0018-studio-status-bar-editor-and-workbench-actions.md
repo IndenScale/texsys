@@ -1,6 +1,6 @@
 # DDR-0018：先提供通用 IDE 状态，再增加工程入口
 
-状态：已接受
+状态：已接受；分支与宿主入口由 [DDR-0019](0019-studio-status-bar-branch-picker-and-connection.md) 修订。
 
 修订 [DDR-0017](0017-studio-status-bar.md) 的状态项范围。采用用户提供的 VS Code Web 和桌面版截图对标。
 

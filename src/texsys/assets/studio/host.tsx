@@ -24,6 +24,7 @@ import {
   type TitlebarGroup,
 } from "./layout-preferences";
 import { CommandCenter } from "./CommandCenter";
+import { isGitPickerCommand, useGitPicker } from "./git-picker";
 import { AnimatedPresence } from "./AnimatedPresence";
 import { ToolbarButton } from "./ToolbarButton";
 import { ApplicationMenuBar } from "./ApplicationMenuBar";
@@ -356,6 +357,7 @@ function Studio({
     canSaveAs: false,
     canCreateFile: false,
     canSaveAll: false,
+    hasUnsavedFiles: false,
     canRevert: false,
     canEditSource: false,
     canReadSource: false,
@@ -374,6 +376,7 @@ function Studio({
         previous.canSaveAs === next.canSaveAs &&
         previous.canCreateFile === next.canCreateFile &&
         previous.canSaveAll === next.canSaveAll &&
+        previous.hasUnsavedFiles === next.hasUnsavedFiles &&
         previous.canRevert === next.canRevert &&
         previous.canEditSource === next.canEditSource &&
         previous.canReadSource === next.canReadSource &&
@@ -563,7 +566,19 @@ function Studio({
     "editor.allMatches": coreHistory.canReadSource,
     "help.shortcuts": coreHistory.canCreateFile,
   };
+  const gitPicker = useGitPicker({
+    api,
+    open: commandOpen && commandScope === "branches",
+    focus: () => openCommands("branches"),
+    dirty: coreHistory.hasUnsavedFiles,
+    notify,
+    refresh,
+  });
   const invokeCommand = (id: string) => {
+    if (isGitPickerCommand(id)) {
+      gitPicker.invoke(id);
+      return;
+    }
     if (id.startsWith("studio.editor:")) {
       editorPickerItems.find((item) => item.id === id)?.run();
       return;
@@ -1063,6 +1078,7 @@ function Studio({
         : branch?.kind === "unversioned"
           ? t("无版本库")
           : t("分支不可用");
+  const dedicatedPickerItems = commandScope === "branches" ? gitPicker.items : editorPickerItems;
   const showStatusBar = !emptyWorkspace && statusBar.visible;
   return (
     <div className={`studio-app${showStatusBar ? " has-statusbar" : ""}`}>
@@ -1178,8 +1194,8 @@ function Studio({
             !!objectIndex?.truncated
           }
           pickerCommands={
-            commandScope === "editors"
-              ? editorPickerItems
+            commandScope === "branches" || commandScope === "editors"
+              ? dedicatedPickerItems
               : commandScope === "panel"
                 ? Object.entries(panelPositions).map(([position, label]) => ({
                     id: "panel." + position,
@@ -1227,6 +1243,8 @@ function Studio({
                       })),
                     ]
           }
+          pickerStatus={commandScope === "branches" ? gitPicker.status : undefined}
+          pickerInput={commandScope === "branches" ? gitPicker.input : undefined}
           onOpen={() => openCommands("all")}
           onClose={closeCommands}
           invoke={invokeCommand}
@@ -1456,7 +1474,7 @@ function Studio({
             checked: manifest.id === active,
             run: () => setActive(manifest.id),
           }))}
-          connection={error ? "offline" : state ? "online" : "loading"}
+          disconnected={!!error}
           editorProblems={editorProblems}
           screenReader={editorScreenReader}
           onToggleScreenReader={() => invokeCommand("view.screenReader")}
@@ -1470,13 +1488,12 @@ function Studio({
           aiMode={aiMode}
           onOpenAi={() => setOpenAiSettingsRequest((request) => request + 1)}
           onShortcuts={() => invokeCommand("help.shortcuts")}
-          onNewWindow={() => invokeCommand("file.newWindow")}
           onReconnect={() => void refresh()}
           onSourceAction={(action) => setSourceStatusRequest({ action })}
           jobs={state?.jobs.length ?? 0}
           running={running}
           sourceStore={sourceStatus}
-          onBranch={() => invokeCommand("workspace.scm")}
+          onBranch={gitPicker.start}
           onProblems={() => revealPanel("problems")}
           onTasks={() => showTasks()}
           onGoToLine={() => invokeCommand("editor.gotoLine")}

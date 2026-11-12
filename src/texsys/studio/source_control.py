@@ -8,7 +8,7 @@ from pathlib import Path
 import subprocess
 import tempfile
 
-from texsys.project import ProjectError
+from texsys.project import MANIFEST_NAME, Project, ProjectError, parse_project_manifest
 from .files import MAX_PREVIEW_BYTES, workspace_path
 from .runtime import Conflict
 
@@ -45,6 +45,139 @@ def repository(root: Path) -> Path | None:
       return None
     raise
   return Path(os.fsdecode(result).strip()).resolve()
+
+
+def _remote_repositories(root: Path) -> dict[str, str]:
+  remotes = {}
+  for line in git(root, "remote", "-v").decode("utf-8", "replace").splitlines():
+    name, _, value = line.partition("\t")
+    url, _, operation = value.rpartition(" ")
+    if not name or operation != "(fetch)":
+      continue
+    match = re.fullmatch(r"(?:https://github\.com/|git@github\.com:|ssh://git@github\.com/)"
+                         r"([A-Za-z0-9_-]+)/([A-Za-z0-9_.-]+)", url.removesuffix(".git"), re.IGNORECASE)
+    remotes[name] = "/".join(match.groups()) if match and match[2] not in {".", ".."} else ""
+  return remotes
+
+
+def source_branches(root: Path) -> dict:
+  if repository(root) is None:
+    raise ProjectError("当前项目没有 Git 仓库。")
+  branch = git(root, "symbolic-ref", "--quiet", "HEAD", accepted=(0, 1)).decode("utf-8", "replace").strip()
+  commit = git(root, "rev-parse", "--verify", "HEAD", accepted=(0, 128)).decode().strip()
+  fields = ("refname", "symref", "upstream", "objecttype", "objectname", "authorname", "subject",
+            "committerdate:unix", "*objecttype", "*objectname", "*authorname", "*subject", "*committerdate:unix")
+  raw = git(root, "for-each-ref", "--format=" + "%00".join(f"%({field})" for field in fields),
+            "refs/heads/", "refs/remotes/", "refs/tags/")
+  kinds = {"heads": "local", "remotes": "remote", "tags": "tag"}
+  remotes = _remote_repositories(root)
+  remote_names = sorted(remotes, key=len, reverse=True)
+  default_remote = "origin" if "origin" in remotes else next(iter(remotes), "")
+  refs = []
+  for line in raw.split(b"\n"):
+    if not line:
+      continue
+    full, symbolic, upstream, *objects = line.split(b"\0")
+    if symbolic:
+      continue
+    try:
+      ref = full.decode("utf-8")
+    except UnicodeDecodeError:
+      continue
+    _, namespace, name = ref.split("/", 2)
+    if name.startswith("-"):
+      continue
+    kind, oid, author, subject, date = objects[5:] if objects[0] == b"tag" else objects[:5]
+    if kind != b"commit":
+      continue
+    tracked = upstream.decode("utf-8", "replace")
+    remote_ref = name if namespace == "remotes" else tracked.partition("refs/remotes/")[2]
+    remote = next((candidate for candidate in remote_names if remote_ref.startswith(candidate + "/")), "")
+    remote_branch = remote_ref.removeprefix(remote + "/") if remote else remote_ref.partition("/")[2]
+    github = remotes.get(remote or default_remote, "") if namespace != "remotes" or remote else ""
+    refs.append({"ref": ref, "kind": kinds[namespace], "name": name, "commit": oid.decode("ascii"),
+                 "author": author.decode("utf-8", "replace"), "subject": subject.decode("utf-8", "replace"),
+                 "time": int(date) if date else None, "upstream": tracked, "current": ref == branch,
+                 "remote_branch": remote_branch if namespace == "remotes" else "",
+                 "github": {"repository": github, "ref": remote_branch or name} if github else None})
+  return {"head": {"ref": branch, "commit": commit}, "refs": refs}
+
+
+def _checkout_project(project: Project, repo: Path, commit: str) -> None:
+  if not commit:
+    return
+  manifest = (project.root / MANIFEST_NAME).relative_to(repo).as_posix()
+  entry = git(repo, "ls-tree", commit, "--", manifest)
+  if not entry.startswith((b"100644 blob ", b"100755 blob ")):
+    raise ProjectError("目标提交缺少当前项目的清单，请在终端切换。")
+  target_project = parse_project_manifest(project.root, git(repo, "show", f"{commit}:{manifest}"))
+  if target_project != project:
+    raise ProjectError("目标提交改变了项目名称或目录布局，请在终端切换后重新打开项目。")
+
+
+def _new_branch_name(repo: Path, name: object) -> str:
+  if not isinstance(name, str) or not name or name.startswith("-") or "\0" in name:
+    raise ProjectError("请输入有效的 Git 分支名称。")
+  try:
+    checked = git(repo, "check-ref-format", "--branch", name).decode().rstrip("\n")
+  except ProjectError:
+    raise ProjectError("请输入有效的 Git 分支名称。") from None
+  if checked != name:
+    raise ProjectError("请输入有效的 Git 分支名称。")
+  return name
+
+
+def switch_source_branch(project: Project, request: dict) -> dict:
+  repo = repository(project.root)
+  if repo is None:
+    raise ProjectError("当前项目没有 Git 仓库。")
+  listing = source_branches(repo)
+  head = listing["head"]
+  if request.get("head") != head:
+    raise Conflict("当前 Git 分支或提交已更新，请重新选择。")
+  action = request.get("action")
+  ref = request.get("ref")
+  revision = request.get("revision")
+  target = None
+  commit = head["commit"]
+  if ref is not None:
+    target = next((item for item in listing["refs"] if item["ref"] == ref), None)
+    if target is None or request.get("commit") != target["commit"]:
+      raise Conflict("目标引用已更新，请重新选择。")
+    commit = target["commit"]
+  elif revision is not None:
+    if not isinstance(revision, str) or not re.fullmatch(r"[0-9a-fA-F]{4,64}", revision):
+      raise ProjectError("请输入有效的提交哈希。")
+    commit = git(repo, "rev-parse", "--verify", "--end-of-options", f"{revision}^{{commit}}").decode().strip()
+
+  if action == "create":
+    name = _new_branch_name(repo, request.get("name"))
+    arguments = ["--no-track", "-c", name, *(["--", commit] if commit else [])]
+  elif action == "detach" or (action == "checkout" and target and target["kind"] == "tag"):
+    if not commit:
+      raise ProjectError("当前仓库尚无可签出的提交。")
+    arguments = ["--detach", "--", commit]
+  elif action == "track" and target and target["kind"] == "remote":
+    name = _new_branch_name(repo, request.get("name"))
+    arguments = ["--track", "-c", name, "--", target["ref"]]
+  elif action == "checkout" and target and target["kind"] == "remote":
+    local = next((item for item in listing["refs"] if item["upstream"] == target["ref"]), None)
+    if local:
+      commit = local["commit"]
+      arguments = ["--", local["name"]]
+    else:
+      arguments = ["--track", "--", target["ref"]]
+  elif action == "checkout" and target and target["kind"] == "local":
+    arguments = ["--", target["name"]]
+  else:
+    raise ProjectError("请选择有效的 Git 签出操作。")
+
+  if commit != head["commit"]:
+    _checkout_project(project, repo, commit)
+  git(repo, "switch", "--no-guess", "--no-overwrite-ignore", "--no-recurse-submodules",
+      "--no-merge", "--no-discard-changes", *arguments)
+  branch = git(repo, "symbolic-ref", "--quiet", "--short", "HEAD", accepted=(0, 1)).decode().strip()
+  return {"name": branch, "commit": commit}
 
 
 def _records(root: Path) -> list[dict]:
@@ -109,8 +242,8 @@ def _source_status(root: Path, build: str) -> tuple[dict, str, str]:
   # Index content belongs to the snapshot even if a file's two status letters stay the same.
   index = _read_index(root)
   index_digest = hashlib.sha256(index).hexdigest() if index is not None else ""
-  snapshot = hashlib.sha256(json.dumps([head, index_digest, signature], ensure_ascii=True).encode()).hexdigest()
   branch = git(root, "symbolic-ref", "--quiet", "--short", "HEAD", accepted=(0, 1)).decode().strip()
+  snapshot = hashlib.sha256(json.dumps([head, branch, index_digest, signature], ensure_ascii=True).encode()).hexdigest()
   return {"available": True, "repository": str(repo), "scope": root.relative_to(repo).as_posix(),
           "branch": branch or head[:8], "detached": not bool(branch),
           "entries": entries[:MAX_CHANGES], "truncated": len(entries) > MAX_CHANGES, "snapshot": snapshot}, head, index_digest

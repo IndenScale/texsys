@@ -4,12 +4,13 @@ import subprocess
 
 import pytest
 
-from texsys.project import ProjectError
+from texsys.project import ProjectError, initialize_project, inspect_project
 from texsys.studio.files import (file_operation, project_file, project_files, search_project,
                                  MAX_PREVIEW_BYTES)
 from texsys.studio.runtime import Conflict
 from texsys.studio.server import run_terminal_command
-from texsys.studio.source_control import source_diff, source_operation, source_status
+from texsys.studio.source_control import (source_branches, source_diff, source_operation, source_status,
+                                         switch_source_branch)
 
 
 def git(root, *args):
@@ -233,7 +234,6 @@ def test_common_apis_work_without_professional_plugins_and_require_authorization
   import threading
   from urllib.error import HTTPError
   from urllib.request import Request, urlopen
-  from texsys.project import initialize_project
   from texsys.studio.runtime import StudioRuntime
   from texsys.studio.server import create_server
   initialize_project(tmp_path)
@@ -355,6 +355,119 @@ def test_history_topology_refs_limit_and_scoped_commit_diff(repo):
     source_history(repo, 999999)
 
 
+def branch_choice(root, name):
+  listing = source_branches(root)
+  target = next(item for item in listing["refs"] if item["name"] == name)
+  return {"action": "checkout", "ref": target["ref"], "commit": target["commit"], "head": listing["head"]}
+
+
+def test_switch_local_branch_in_parent_repo_preserves_git_changes(repo):
+  root = repo / "nested project"
+  initialize_project(root)
+  git(repo, "add", "nested project")
+  git(repo, "commit", "-m", "add project")
+  project = inspect_project(root)
+  git(repo, "switch", "-c", "feature")
+  (repo / "model.txt").write_text("branch content\n")
+  git(repo, "commit", "-am", "change outside the project")
+  git(repo, "switch", "main")
+  git(repo, "branch", "same-commit")
+  assert [item["name"] for item in source_branches(root)["refs"] if item["current"]] == ["main"]
+
+  choice = branch_choice(root, "feature")
+  old_snapshot = source_status(root, project.build)["snapshot"]
+  switch_source_branch(project, branch_choice(root, "same-commit"))
+  assert source_status(root, project.build)["snapshot"] != old_snapshot
+  with pytest.raises(Conflict, match="当前 Git 分支"):
+    switch_source_branch(project, choice)
+
+  choice = branch_choice(root, "feature")
+  (repo / "model.txt").write_text("uncommitted content\n")
+  with pytest.raises(ProjectError, match="would be overwritten"):
+    switch_source_branch(project, choice)
+  assert (repo / "model.txt").read_text() == "uncommitted content\n"
+  assert git(repo, "branch", "--show-current").strip() == b"same-commit"
+
+  git(repo, "restore", "model.txt")
+  switch_source_branch(project, choice)
+  assert (repo / "model.txt").read_text() == "branch content\n"
+  assert git(repo, "branch", "--show-current").strip() == b"feature"
+
+
+def test_switch_local_branch_validates_target_and_project_manifest(repo):
+  git(repo, "branch", "without-project")
+  initialize_project(repo)
+  git(repo, "add", "texsys.toml")
+  git(repo, "commit", "-m", "add project")
+  project = inspect_project(repo)
+  with pytest.raises(ProjectError, match="缺少当前项目的清单"):
+    switch_source_branch(project, branch_choice(repo, "without-project"))
+
+  git(repo, "switch", "-c", "other-layout")
+  manifest = repo / "texsys.toml"
+  manifest.write_text(manifest.read_text().replace('build = "build"', 'build = "output"'))
+  git(repo, "commit", "-am", "move build directory")
+  git(repo, "switch", "main")
+  with pytest.raises(ProjectError, match="目录布局"):
+    switch_source_branch(project, branch_choice(repo, "other-layout"))
+
+  git(repo, "branch", "moving-target")
+  choice = branch_choice(repo, "moving-target")
+  git(repo, "branch", "-f", "moving-target", "other-layout")
+  with pytest.raises(Conflict, match="目标引用"):
+    switch_source_branch(project, choice)
+  assert git(repo, "branch", "--show-current").strip() == b"main"
+
+
+def test_checkout_picker_creates_branches_tracks_remotes_and_detaches_at_refs(repo):
+  initialize_project(repo)
+  git(repo, "add", "texsys.toml")
+  git(repo, "commit", "-m", "add project")
+  project = inspect_project(repo)
+  base = git(repo, "rev-parse", "HEAD").decode().strip()
+  git(repo, "tag", "-a", "v1", "-m", "release")
+  (repo / "model.txt").write_text("current commit\n")
+  git(repo, "commit", "-am", "current design")
+  head = git(repo, "rev-parse", "HEAD").decode().strip()
+  git(repo, "remote", "add", "origin", str(repo))
+  git(repo, "update-ref", "refs/remotes/origin/feature", base)
+  git(repo, "update-ref", "refs/remotes/origin/main", head)
+  git(repo, "symbolic-ref", "refs/remotes/origin/HEAD", "refs/remotes/origin/feature")
+
+  listing = source_branches(repo)
+  refs = {item["name"]: item for item in listing["refs"]}
+  assert "origin/HEAD" not in refs
+  assert refs["v1"]["kind"] == "tag"
+  assert (refs["v1"]["commit"], refs["v1"]["author"], refs["v1"]["subject"]) == (base, "Studio Test", "add project")
+  assert refs["v1"]["time"] > 0 and refs["origin/feature"]["kind"] == "remote"
+  assert refs["origin/feature"]["github"] is None
+  git(repo, "remote", "set-url", "origin", "git@github.com:Example/design.git")
+  refs = {item["name"]: item for item in source_branches(repo)["refs"]}
+  assert refs["origin/feature"]["github"] == {"repository": "Example/design", "ref": "feature"}
+  assert refs["v1"]["github"] == {"repository": "Example/design", "ref": "v1"}
+
+  create = {"action": "create", "head": listing["head"]}
+  with pytest.raises(ProjectError, match="分支名称"):
+    switch_source_branch(project, {**create, "name": "--force"})
+  assert switch_source_branch(project, {**create, "name": "design/current"}) == {
+    "name": "design/current", "commit": head}
+  from_tag = {**branch_choice(repo, "v1"), "action": "create", "name": "design/from-tag"}
+  assert switch_source_branch(project, from_tag) == {"name": "design/from-tag", "commit": base}
+
+  assert switch_source_branch(project, branch_choice(repo, "origin/feature")) == {"name": "feature", "commit": base}
+  assert git(repo, "rev-parse", "--symbolic-full-name", "@{upstream}").strip() == b"refs/remotes/origin/feature"
+  git(repo, "switch", "main")
+  assert switch_source_branch(project, branch_choice(repo, "origin/feature"))["name"] == "feature"
+  collision = {**branch_choice(repo, "origin/main"), "action": "track", "name": "tracked-main"}
+  assert switch_source_branch(project, collision) == {"name": "tracked-main", "commit": head}
+  assert git(repo, "rev-parse", "--symbolic-full-name", "@{upstream}").strip() == b"refs/remotes/origin/main"
+
+  assert switch_source_branch(project, branch_choice(repo, "v1")) == {"name": "", "commit": base}
+  detach = {"action": "detach", "head": source_branches(repo)["head"], "revision": head[:12]}
+  assert switch_source_branch(project, detach) == {"name": "", "commit": head}
+  assert git(repo, "rev-parse", "HEAD").decode().strip() == head
+
+
 def test_empty_history_and_unborn_bulk_unstage(tmp_path):
   from texsys.studio.source_control import source_history
   operation(tmp_path, "init")
@@ -371,12 +484,14 @@ def test_scm_api_repository_scope_is_explicit_and_cannot_choose_arbitrary_root(r
   import threading
   from urllib.error import HTTPError
   from urllib.request import Request, urlopen
-  from texsys.project import initialize_project
   from texsys.studio.runtime import StudioRuntime
   from texsys.studio.server import create_server
   project = repo / "project"
   project.mkdir()
   initialize_project(project)
+  git(repo, "add", "project")
+  git(repo, "commit", "-m", "add project")
+  git(repo, "branch", "feature")
   (repo / "model.txt").write_text("outside")
   runtime = StudioRuntime(project, plugins={})
   server = create_server(runtime, port=0, frontend=project / "build/frontend")
@@ -398,8 +513,15 @@ def test_scm_api_repository_scope_is_explicit_and_cannot_choose_arbitrary_root(r
     staged = request("/api/scm", {"action": "stage", "scope": "repository", "path": "model.txt", "snapshot": whole["snapshot"]})
     assert next(entry for entry in staged["entries"] if entry["path"] == "model.txt")["index"] == "M"
     assert "+outside" in request("/api/scm/diff?scope=repository&path=model.txt&staged=true")["content"]
-    assert request("/api/scm/history")["commits"][0]["subject"] == "baseline"
-    for path in ("/api/scm/history", "/api/scm/commit?id=" + git(repo, "rev-parse", "HEAD").decode().strip()):
+    assert request("/api/scm/history")["commits"][0]["subject"] == "add project"
+    listing = request("/api/scm/branches")
+    feature = next(item for item in listing["refs"] if item["name"] == "feature")
+    selected = {"action": "checkout", "ref": feature["ref"], "commit": feature["commit"], "head": listing["head"]}
+    assert request("/api/scm/branches", selected)["name"] == "feature"
+    assert request("/api/state")["project"]["branch"] == {"kind": "branch", "name": "feature"}
+    assert git(repo, "show", ":model.txt") == b"outside"
+    for path in ("/api/scm/branches", "/api/scm/history",
+                 "/api/scm/commit?id=" + git(repo, "rev-parse", "HEAD").decode().strip()):
       with pytest.raises(HTTPError) as error:
         urlopen(url + path)
       assert error.value.code == 403

@@ -83,10 +83,6 @@
 
 .studio-statusbar .statusbar-connection {
   flex: 0 0 auto;
-  color: var(--ui-text-muted);
-}
-
-.studio-statusbar .statusbar-connection.offline {
   color: #9a412e;
 }
 

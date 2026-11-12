@@ -80,19 +80,12 @@ def _validate_layout(root: Path, paths: dict[str, str]) -> None:
         raise ProjectError("Layout paths for source, assets and build must not overlap.")
 
 
-def _read_project(root: Path) -> Project | None:
-  manifest = root / MANIFEST_NAME
-  if not manifest.exists():
-    return None
-  if not manifest.is_file():
-    raise ProjectError(f"Manifest is not a file: {manifest}")
-
+def parse_project_manifest(root: Path, content: bytes) -> Project:
+  """Validate the workspace identity and layout declared by a manifest."""
   try:
-    with manifest.open("rb") as stream:
-      data = tomllib.load(stream)
-  except (OSError, tomllib.TOMLDecodeError) as error:
-    raise ProjectError(f"Cannot read {manifest}: {error}") from error
-
+    data = tomllib.loads(content.decode("utf-8"))
+  except (UnicodeDecodeError, tomllib.TOMLDecodeError) as error:
+    raise ProjectError(f"Cannot read {root / MANIFEST_NAME}: {error}") from error
   schema_version = data.get("schema_version")
   if type(schema_version) is not int or schema_version != SCHEMA_VERSION:
     raise ProjectError(
@@ -115,6 +108,19 @@ def _read_project(root: Path) -> Project | None:
   }
   _validate_layout(root, paths)
   return Project(root=root, name=name, **paths)
+
+
+def _read_project(root: Path) -> Project | None:
+  manifest = root / MANIFEST_NAME
+  if not manifest.exists():
+    return None
+  if not manifest.is_file():
+    raise ProjectError(f"Manifest is not a file: {manifest}")
+  try:
+    content = manifest.read_bytes()
+  except OSError as error:
+    raise ProjectError(f"Cannot read {manifest}: {error}") from error
+  return parse_project_manifest(root, content)
 
 
 def inspect_project(path: Path) -> Project | None:

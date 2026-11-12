@@ -21,8 +21,9 @@ from .scene import ScenePreview
 from .preview import ProjectPreview
 from .files import file_operation, project_file, project_files, search_project
 from .search import replacement
-from .source_control import (repository, source_commit_diff, source_diff, source_history, source_operation,
-                             source_status, staged_commit_diff, verify_source_snapshot)
+from .source_control import (repository, source_branches, source_commit_diff, source_diff, source_history,
+                             source_operation, source_status, staged_commit_diff, switch_source_branch,
+                             verify_source_snapshot)
 from .terminal import TerminalService
 
 ASSETS = Path(__file__).parents[1] / "assets" / "studio"
@@ -246,6 +247,9 @@ def create_server(runtime: StudioRuntime, port=8710, frontend=None, token=None, 
             result = source_status(root, runtime.project.build if root == runtime.root else "build")
             result["project_prefix"] = runtime.root.relative_to(root).as_posix() if root != runtime.root else ""
             self._send(200, result)
+        elif parsed.path == "/api/scm/branches":
+          with runtime.lock:
+            self._send(200, source_branches(runtime.root))
         elif parsed.path == "/api/scm/history":
           query = parse_qs(parsed.query)
           try:
@@ -317,6 +321,9 @@ def create_server(runtime: StudioRuntime, port=8710, frontend=None, token=None, 
         elif self.path == "/api/file":
           with runtime.lock:
             result = file_operation(runtime.root, runtime.project.build, body)
+        elif self.path == "/api/scm/branches":
+          with runtime.lock:
+            result = switch_source_branch(runtime.project, body)
         elif self.path == "/api/scm":
           with runtime.lock:
             root = scm_root(body.get("scope", "project"))

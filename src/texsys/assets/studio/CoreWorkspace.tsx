@@ -365,6 +365,7 @@ export function CoreWorkspaceProvider({
     canSaveAs: boolean;
     canCreateFile: boolean;
     canSaveAll: boolean;
+    hasUnsavedFiles: boolean;
     canRevert: boolean;
     canEditSource: boolean;
     canReadSource: boolean;
@@ -808,10 +809,10 @@ export function CoreWorkspaceProvider({
     await Promise.all([readFiles(), readGit(), refresh()]);
     setSearchGeneration((value) => value + 1);
   };
+  const checkout = state.project.branch?.name;
   useEffect(() => {
-    void readFiles();
     void readGit();
-  }, [readFiles, readGit]);
+  }, [checkout, readGit]);
   useEffect(() => {
     const focus = () => {
       void readFiles();
@@ -834,7 +835,7 @@ export function CoreWorkspaceProvider({
   }, [readFiles, readGit, activity, busy]);
   useEffect(() => {
     void readFiles();
-  }, [state.project.revision, readFiles]);
+  }, [checkout, state.project.revision, readFiles]);
   useEffect(() => {
     if (!dirty || !confirmBeforeUnload) return;
     const handler = (event: BeforeUnloadEvent) => {
@@ -1015,6 +1016,7 @@ export function CoreWorkspaceProvider({
       canSaveAs,
       canCreateFile: !closeDisabled,
       canSaveAll,
+      hasUnsavedFiles: dirty,
       canRevert,
       canEditSource,
       canReadSource,
@@ -1031,6 +1033,7 @@ export function CoreWorkspaceProvider({
     canSave,
     canSaveAs,
     canSaveAll,
+    dirty,
     canRevert,
     closeDisabled,
     canEditSource,

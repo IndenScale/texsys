@@ -14,6 +14,10 @@ type Result = {
   icon: string;
   disabled?: boolean;
   checked?: boolean;
+  detail?: string;
+  secondaryLabel?: string;
+  keepOpen?: boolean;
+  links?: CommandItem["links"];
   keys?: string[];
   file?: ProjectFile;
 };
@@ -26,6 +30,8 @@ export function CommandCenter({
   returnFocus,
   commands,
   pickerCommands,
+  pickerStatus,
+  pickerInput,
   pickerTruncated,
   onOpen,
   onClose,
@@ -48,6 +54,14 @@ export function CommandCenter({
   returnFocus: RefObject<HTMLElement | null>;
   commands: CommandItem[];
   pickerCommands: CommandItem[];
+  pickerStatus?: { message: string; error?: boolean };
+  pickerInput?: {
+    placeholder: string;
+    label: string;
+    actionLabel: string;
+    canSubmit: (value: string) => boolean;
+    submit: (value: string) => Promise<boolean>;
+  };
   pickerTruncated: boolean;
   onOpen: () => void;
   onClose: () => void;
@@ -69,15 +83,17 @@ export function CommandCenter({
     list = useRef<HTMLDivElement>(null);
   const wasOpen = useRef(false),
     restore = useRef(false);
+  const activeRequest = useRef(-1);
   const [query, setQuery] = useState(""),
     [selected, setSelected] = useState(0);
-  const resultScope = scope !== "editors" && query.trimStart().startsWith(">") ? "commands" : scope;
+  const dedicatedPicker = scope === "editors" || scope === "branches";
+  const resultScope = !dedicatedPicker && query.trimStart().startsWith(">") ? "commands" : scope;
   const pickerScope =
     resultScope === "views" ||
     resultScope === "objects" ||
     resultScope === "references" ||
     resultScope === "panel" ||
-    resultScope === "editors";
+    dedicatedPicker;
   const fileIndex =
     resultScope === "recent" ? new Map(files.map((file) => [file.path, file])) : undefined;
   const visibleFiles = fileIndex
@@ -92,7 +108,7 @@ export function CommandCenter({
   const matches: Result[] = [
     ...(pickerScope
       ? filterCommands(pickerCommands, query)
-          .slice(0, resultScope === "editors" ? pickerCommands.length : 100)
+          .slice(0, dedicatedPicker ? pickerCommands.length : 100)
           .map((command) => ({
             ...command,
             icon: command.icon ?? "arrow",
@@ -121,6 +137,7 @@ export function CommandCenter({
     .filter((index) => index >= 0);
   const index = matches[selected] && !matches[selected].disabled ? selected : (enabled[0] ?? -1);
   const close = (focus: boolean) => {
+    activeRequest.current = -1;
     restore.current = focus;
     onClose();
   };
@@ -138,6 +155,7 @@ export function CommandCenter({
     return () => observer.disconnect();
   }, [project]);
   useLayoutEffect(() => {
+    activeRequest.current = open ? focusRequest : -1;
     if (open) {
       if (
         scope === "recent" ||
@@ -145,7 +163,7 @@ export function CommandCenter({
         scope === "objects" ||
         scope === "references" ||
         scope === "panel" ||
-        scope === "editors"
+        dedicatedPicker
       ) {
         setQuery("");
         setSelected(0);
@@ -188,10 +206,17 @@ export function CommandCenter({
   const activate = (position: number) => {
     const result = matches[position];
     if (result && !result.disabled) {
-      close(true);
+      if (!result.keepOpen) close(true);
       if (result.file) onFile(result.file, location);
       else invoke(result.id);
     }
+  };
+  const canSubmitValue = !matches.length && pickerInput?.canSubmit(query.trim());
+  const submitValue = () => {
+    if (!canSubmitValue || !pickerInput) return;
+    void pickerInput.submit(query.trim()).then((completed) => {
+      if (completed && activeRequest.current === focusRequest) close(true);
+    });
   };
   const hasControls = showTrigger || open;
   return (
@@ -200,6 +225,12 @@ export function CommandCenter({
       className={`command-center${open ? " is-open" : ""}`}
       role={hasControls ? "group" : undefined}
       aria-label={hasControls ? t("命令中心") : undefined}
+      onKeyDown={(event) => {
+        if (open && event.key === "Escape") {
+          event.preventDefault();
+          close(true);
+        }
+      }}
       onBlur={(event) => {
         if (open && event.relatedTarget && !root.current?.contains(event.relatedTarget as Node))
           close(false);
@@ -233,32 +264,43 @@ export function CommandCenter({
           <input
             ref={input}
             role="combobox"
-            aria-label={t("搜索文件或命令")}
+            aria-label={
+              pickerInput?.label ?? t(scope === "branches" ? "搜索 Git 引用" : "搜索文件或命令")
+            }
             aria-expanded={open}
             aria-autocomplete="list"
             aria-describedby="command-center-instructions"
             aria-controls="studio-command-list"
-            aria-activedescendant={index >= 0 ? `studio-result-${index}` : undefined}
+            aria-activedescendant={
+              index >= 0
+                ? `studio-result-${index}`
+                : canSubmitValue
+                  ? "studio-picker-submit"
+                  : undefined
+            }
             autoComplete="off"
             spellCheck={false}
             placeholder={
-              scope === "editors"
-                ? t("搜索打开的编辑器…")
-                : scope === "panel"
-                  ? t("选择面板位置…")
-                  : scope === "objects"
-                    ? t("搜索工程对象…")
-                    : scope === "references"
-                      ? t("搜索使用位置…")
-                      : scope === "views"
-                        ? t("搜索视图…")
-                        : scope === "recent"
-                          ? t("搜索最近打开的文件…")
-                          : scope === "files"
-                            ? t("搜索文件…")
-                            : scope === "commands"
-                              ? t("搜索或运行命令…")
-                              : t("搜索文件或运行命令…")
+              pickerInput?.placeholder ??
+              (scope === "branches"
+                ? t("选择要签出的分支或标签…")
+                : scope === "editors"
+                  ? t("搜索打开的编辑器…")
+                  : scope === "panel"
+                    ? t("选择面板位置…")
+                    : scope === "objects"
+                      ? t("搜索工程对象…")
+                      : scope === "references"
+                        ? t("搜索使用位置…")
+                        : scope === "views"
+                          ? t("搜索视图…")
+                          : scope === "recent"
+                            ? t("搜索最近打开的文件…")
+                            : scope === "files"
+                              ? t("搜索文件…")
+                              : scope === "commands"
+                                ? t("搜索或运行命令…")
+                                : t("搜索文件或运行命令…"))
             }
             value={query}
             onChange={(event) => {
@@ -284,7 +326,8 @@ export function CommandCenter({
               }
               if (event.key === "Enter") {
                 event.preventDefault();
-                activate(index);
+                if (index >= 0) activate(index);
+                else submitValue();
               }
             }}
           />
@@ -295,9 +338,11 @@ export function CommandCenter({
         <div className="command-panel" inert={!open} aria-hidden={!open}>
           <span id="command-center-instructions" className="sr-only">
             {t(
-              scope === "editors"
-                ? "上下方向键选择，Enter 打开编辑器，Esc 关闭。"
-                : "上下方向键选择，Enter 执行或打开文件，Esc 关闭。输入 > 查找命令，输入文件名:行号定位。",
+              scope === "branches"
+                ? "上下方向键选择，Enter 确认，Esc 关闭。"
+                : scope === "editors"
+                  ? "上下方向键选择，Enter 打开编辑器，Esc 关闭。"
+                  : "上下方向键选择，Enter 执行或打开文件，Esc 关闭。输入 > 查找命令，输入文件名:行号定位。",
             )}
           </span>
           <div
@@ -307,56 +352,107 @@ export function CommandCenter({
             role="listbox"
             aria-label={t("搜索结果")}
           >
-            {matches.map((item, position) => (
+            {matches.map((item, position) => {
+              const row = (
+                <button
+                  key={item.id}
+                  id={`studio-result-${position}`}
+                  data-result-index={position}
+                  className={`command-row${item.detail ? " command-row-ref" : ""}`}
+                  role="option"
+                  tabIndex={-1}
+                  aria-selected={position === index}
+                  aria-disabled={!!item.disabled}
+                  aria-checked={item.checked}
+                  title={item.file?.path}
+                  onPointerDown={(event) => event.preventDefault()}
+                  onClick={() => activate(position)}
+                >
+                  <span className="command-row-icon">
+                    <Icon name={item.icon} size={16} expanded={item.checked} />
+                  </span>
+                  {item.file ? (
+                    <span className="command-label file-result-label">
+                      <span className="file-result-name">
+                        {item.file.name}
+                        {location &&
+                          `:${location.line}${location.column ? `:${location.column}` : ""}`}
+                      </span>
+                      {item.file.parent && (
+                        <span className="file-result-parent">{item.file.parent}</span>
+                      )}
+                    </span>
+                  ) : item.detail ? (
+                    <span className="command-label">
+                      <span className="command-label-primary">
+                        <span>{item.label}</span>
+                        {item.secondaryLabel && <small>{item.secondaryLabel}</small>}
+                      </span>
+                      <span className="command-label-detail">{item.detail}</span>
+                    </span>
+                  ) : (
+                    <span className="command-label">{item.label}</span>
+                  )}
+                  <span className="command-row-meta">
+                    <span className="command-kind">{item.group}</span>
+                    <span className="command-row-shortcut">
+                      <Keycaps keys={item.keys ?? []} />
+                    </span>
+                    <span className="command-toggle-mark">
+                      {item.checked && <Icon name="tick" size={13} />}
+                    </span>
+                  </span>
+                </button>
+              );
+              return item.links?.length ? (
+                <div key={item.id} className="command-row-with-links">
+                  {row}
+                  <div className="command-row-links">
+                    {item.links.map((link) => (
+                      <a
+                        key={link.href}
+                        href={link.href}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        aria-label={link.label}
+                        title={link.label}
+                      >
+                        <Icon name={link.icon} size={15} />
+                      </a>
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                row
+              );
+            })}
+            {canSubmitValue && (
               <button
-                key={item.id}
-                id={`studio-result-${position}`}
-                data-result-index={position}
+                id="studio-picker-submit"
+                type="button"
                 className="command-row"
                 role="option"
                 tabIndex={-1}
-                aria-selected={position === index}
-                aria-disabled={!!item.disabled}
-                aria-checked={item.checked}
-                title={item.file?.path}
+                aria-selected="true"
                 onPointerDown={(event) => event.preventDefault()}
-                onClick={() => activate(position)}
+                onClick={submitValue}
               >
-                <span className="command-row-icon">
-                  <Icon name={item.icon} size={16} expanded={item.checked} />
-                </span>
-                {item.file ? (
-                  <span className="command-label file-result-label">
-                    <span className="file-result-name">
-                      {item.file.name}
-                      {location &&
-                        `:${location.line}${location.column ? `:${location.column}` : ""}`}
-                    </span>
-                    {item.file.parent && (
-                      <span className="file-result-parent">{item.file.parent}</span>
-                    )}
-                  </span>
-                ) : (
-                  <span className="command-label">{item.label}</span>
-                )}
-                <span className="command-row-meta">
-                  <span className="command-kind">{item.group}</span>
-                  <span className="command-row-shortcut">
-                    <Keycaps keys={item.keys ?? []} />
-                  </span>
-                  <span className="command-toggle-mark">
-                    {item.checked && <Icon name="tick" size={13} />}
-                  </span>
-                </span>
+                {pickerInput?.actionLabel}
               </button>
-            ))}
+            )}
             {fileQuery && filesLoading && <p role="status">{t("正在读取项目文件…")}</p>}
             {fileQuery && filesError && <p role="alert">{filesError}</p>}
-            {!matches.length && (!fileQuery || (!filesLoading && !filesError)) && (
-              <p role="status">
-                {t(resultScope === "recent" && !query ? "没有最近打开的文件" : "没有匹配的结果")}
-              </p>
+            {pickerStatus && (
+              <p role={pickerStatus.error ? "alert" : "status"}>{pickerStatus.message}</p>
             )}
+            {!matches.length &&
+              !pickerStatus &&
+              !canSubmitValue &&
+              (!fileQuery || (!filesLoading && !filesError)) && (
+                <p role="status">
+                  {t(resultScope === "recent" && !query ? "没有最近打开的文件" : "没有匹配的结果")}
+                </p>
+              )}
             {pickerScope && pickerTruncated && (
               <p className="search-limit">{t("仅索引前 5000 个工程实例。")}</p>
             )}
@@ -364,7 +460,7 @@ export function CommandCenter({
               <p className="search-limit">{t("仅索引前 5000 个项目文件。")}</p>
             )}
           </div>
-          {scope !== "editors" && (
+          {!dedicatedPicker && (
             <footer className="command-scopes" onPointerDown={(event) => event.preventDefault()}>
               <InlineTabStrip
                 label={t("搜索范围")}

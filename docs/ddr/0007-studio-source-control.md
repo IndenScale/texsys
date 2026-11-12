@@ -36,4 +36,4 @@
 
 Google Chrome 中使用临时仓库验证了批量暂存、快捷键提交、历史自动更新和历史差异浏览。验收提交仅创建在临时仓库中。
 
-远程推送/拉取、分支创建/切换留待后续。AI 提交说明的配置、数据范围和确认流程见 [工作台契约](../../spec/studio/01-workbench.md#本机设置与-ai-提交说明)。
+远程推送/拉取、分支创建/切换在本决策中留待后续。分支创建和签出见后继 [DDR-0019](0019-studio-status-bar-branch-picker-and-connection.md)。AI 提交说明的配置、数据范围和确认流程见 [工作台契约](../../spec/studio/01-workbench.md#本机设置与-ai-提交说明)。

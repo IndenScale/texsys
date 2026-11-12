@@ -274,7 +274,15 @@ export const studioMenus: MenuGroup[] = [
     ],
   },
 ];
-export type CommandItem = MenuItem & { group: string; disabled?: boolean; checked?: boolean };
+export type CommandItem = MenuItem & {
+  group: string;
+  disabled?: boolean;
+  checked?: boolean;
+  detail?: string;
+  secondaryLabel?: string;
+  keepOpen?: boolean;
+  links?: { label: string; href: string; icon: string }[];
+};
 export function filterCommands(commands: CommandItem[], query: string): CommandItem[] {
   const terms = query
     .replace(/^\s*>\s*/, "")
@@ -286,7 +294,7 @@ export function filterCommands(commands: CommandItem[], query: string): CommandI
     (command) =>
       (!command.searchOnly || terms.length > 0) &&
       terms.every((term) =>
-        `${command.group} ${command.label} ${command.keywords ?? ""}`
+        `${command.group} ${command.label} ${command.keywords ?? ""} ${command.detail ?? ""}`
           .toLocaleLowerCase()
           .includes(term),
       ),

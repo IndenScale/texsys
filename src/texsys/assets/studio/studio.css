@@ -961,6 +961,65 @@ button svg {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+.command-label-primary {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+.command-label-primary > span,
+.command-label-detail {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.command-label-primary small,
+.command-label-detail {
+  color: var(--command-muted);
+  font-size: 11px;
+}
+.command-label-detail {
+  display: block;
+  line-height: 16px;
+}
+.command-row-with-links {
+  position: relative;
+}
+.command-row-with-links .command-row {
+  padding-inline-end: 62px;
+}
+.command-row-links {
+  position: absolute;
+  inset-inline-end: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+}
+.command-row-links a {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 4px;
+  color: var(--command-muted);
+}
+.command-row-links a:hover,
+.command-row-links a:focus-visible {
+  background: var(--command-hover);
+  color: var(--command-text);
+}
+.command-row-ref .command-row-meta {
+  display: flex;
+  flex: 0 0 auto;
+  width: auto;
+}
+.command-row-ref .command-kind {
+  width: auto;
+}
+.command-row-ref .command-row-shortcut {
+  display: none;
+}
+.command-row-ref[aria-checked="true"] {
+  opacity: 1;
+}
 .command-row-meta {
   display: grid;
   grid-template-columns: 44px 88px 14px;
