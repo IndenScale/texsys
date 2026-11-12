@@ -1,7 +1,8 @@
 """Versioned target contracts and deterministic build-target resolution."""
 
 from dataclasses import dataclass, field
-from pathlib import Path
+from pathlib import Path, PurePosixPath
+import re
 from typing import Any, Callable, Mapping
 
 from texsys.project import ProjectError
@@ -18,12 +19,15 @@ class Artifact:
   kind: str = "authoritative"
   complete: bool = True
   preview: Mapping[str, Any] | None = None
+  publish_partial: bool = False
 
   def __post_init__(self) -> None:
     if not self.id or not self.path:
       raise ValueError("Artifact id and path must be non-empty.")
     if type(self.complete) is not bool:
       raise ValueError("Artifact completeness must be a boolean.")
+    if type(self.publish_partial) is not bool:
+      raise ValueError("Artifact partial publication must be a boolean.")
     if self.preview is not None and not isinstance(self.preview, Mapping):
       raise ValueError("Artifact preview must be a mapping.")
 
@@ -37,6 +41,8 @@ class BuildContext:
   build_path: Path
   scratch_path: Path
   inputs: tuple[dict[str, str], ...] = ()
+  instance_id: str | None = None
+  output: str | None = None
 
 
 @dataclass(frozen=True)
@@ -68,6 +74,7 @@ class TargetDefinition:
   input_patterns: tuple[str, ...] | Callable[[BuildContext], tuple[str, ...] | None] | None = None
   cache: bool | Callable[[BuildContext], bool] = True
   cache_environment: tuple[str, ...] = ()
+  named_output: bool = False
 
   def __post_init__(self) -> None:
     if not self.id:
@@ -91,12 +98,23 @@ class ResolvedTarget:
   profile: str | None
   scope: Mapping[str, Any]
   resolution_source: str
+  instance_id: str | None = None
+  output: str | None = None
+
+  @property
+  def id(self) -> str:
+    return self.instance_id or self.definition.id
+
+  @property
+  def dependencies(self) -> tuple[str, ...]:
+    return self.definition.dependencies
 
 
 @dataclass(frozen=True)
 class TargetSelection:
   requested: tuple[str, ...]
   resolved: tuple[ResolvedTarget, ...]
+  named_outputs: Mapping[str, str] = field(default_factory=dict)
 
 
 def _string_list(value: Any, label: str) -> tuple[str, ...]:
@@ -149,6 +167,44 @@ def _definitions(packages: tuple[Any, ...]) -> dict[str, TargetDefinition]:
   return result
 
 
+def _named_targets(manifest, build, definitions):
+  entries = build.get("targets", {})
+  if not isinstance(entries, dict):
+    raise ProjectError("build.targets must be a TOML table.")
+  layout = manifest.get("layout", {})
+  directory = PurePosixPath(layout.get("build", "build"))
+  result = {}
+  outputs: dict[PurePosixPath, str] = {}
+  for identifier, entry in entries.items():
+    label = f"build.targets.{identifier}"
+    if identifier in definitions or not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_-]*", identifier):
+      raise ProjectError(f"{label} must have a unique project target name using letters, digits, hyphens or underscores.")
+    if not isinstance(entry, dict) or entry.keys() - {"using", "profile", "scope", "output"}:
+      raise ProjectError(f"{label} must be a table with using, output and optional profile and scope.")
+    generator = entry.get("using")
+    if not isinstance(generator, str) or generator not in definitions:
+      raise ProjectError(f"{label}.using must name a registered build target.")
+    if not definitions[generator].named_output:
+      raise ProjectError(f"{label}.using names a target without named output support: {generator}.")
+    value = entry.get("output")
+    if not isinstance(value, str) or not value or "\\" in value or "\0" in value:
+      raise ProjectError(f"{label}.output must be a project-relative path inside the public build directory.")
+    path = PurePosixPath(value)
+    if path.is_absolute() or ".." in path.parts or path.as_posix() != value or not path.is_relative_to(directory):
+      raise ProjectError(f"{label}.output must be a project-relative path inside the public build directory.")
+    output = path.relative_to(directory)
+    if (not output.parts or output.parts[0].casefold() in {"runs", "dependencies", "studio", "build.json"}
+        or any(part.startswith(".") for part in output.parts)):
+      raise ProjectError(f"{label}.output must identify a public build file.")
+    normalized = PurePosixPath(output.as_posix().casefold())
+    for existing, owner in outputs.items():
+      if normalized.is_relative_to(existing) or existing.is_relative_to(normalized):
+        raise ProjectError(f"{label}.output overlaps the declared output of {owner}.")
+    outputs[normalized] = identifier
+    result[identifier] = (definitions[generator], entry, output.as_posix())
+  return result
+
+
 def resolve_targets(
   packages: tuple[Any, ...],
   manifest: Mapping[str, Any],
@@ -162,6 +218,9 @@ def resolve_targets(
   requested_items, source = _requested_targets(manifest, requested)
   requested_items = tuple(dict.fromkeys(requested_items))
   build = manifest.get("build", {})
+  if not isinstance(build, dict):
+    raise ProjectError("build must be a TOML table.")
+  named = _named_targets(manifest, build, definitions)
   profiles = build.get("profiles", {})
   scopes = build.get("scopes", {})
   if not isinstance(profiles, dict) or not isinstance(scopes, dict):
@@ -177,7 +236,8 @@ def resolve_targets(
     if identifier in visiting:
       cycle = " -> ".join((*visiting, identifier))
       raise ProjectError(f"Target dependency cycle: {cycle}")
-    definition = definitions.get(identifier)
+    instance = named.get(identifier)
+    definition, config, output = instance if instance else (definitions.get(identifier), {}, None)
     if definition is None:
       raise ProjectError(f"Unknown build target: {identifier}")
     visiting.append(identifier)
@@ -185,7 +245,7 @@ def resolve_targets(
       visit(dependency, f"dependency of {identifier}")
     visiting.pop()
 
-    configured_profile = profiles.get(identifier)
+    configured_profile = config.get("profile", profiles.get(identifier))
     if configured_profile is not None and not isinstance(configured_profile, str):
       raise ProjectError(f"Profile for target {identifier} must be a string.")
     selected_profile = profile or configured_profile or definition.default_profile
@@ -195,13 +255,15 @@ def resolve_targets(
       supported = ", ".join(definition.profiles)
       raise ProjectError(f"Target {identifier} does not support profile {selected_profile}; expected: {supported}")
 
-    configured_scope = scopes.get(identifier, definition.default_scope)
+    configured_scope = config.get("scope", scopes.get(identifier, definition.default_scope))
     if not isinstance(configured_scope, dict):
       raise ProjectError(f"Scope for target {identifier} must be a TOML table.")
     selected_scope = dict(scope if scope is not None else configured_scope)
-    resolved.append(ResolvedTarget(definition, selected_profile, selected_scope, target_source))
+    resolved.append(ResolvedTarget(definition, selected_profile, selected_scope, target_source,
+                                   instance_id=identifier if instance else None, output=output))
     visited.add(identifier)
 
   for item in requested_items:
     visit(item, source)
-  return TargetSelection(requested_items, tuple(resolved))
+  return TargetSelection(requested_items, tuple(resolved),
+                         named_outputs={output: identifier for identifier, (_, _, output) in named.items()})

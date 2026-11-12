@@ -263,6 +263,11 @@ export const studioMenus: MenuGroup[] = [
         label: "在终端运行 texsys build",
         keywords: "Run Build Task",
       },
+      {
+        id: "tasks.watchBuild",
+        label: "监听源文件并构建",
+        keywords: "Watch Build Task texsys build --watch",
+      },
     ],
   },
   {

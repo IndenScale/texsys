@@ -194,6 +194,7 @@ export class FileReadRequests {
 export function filePreviewKind(file?: Pick<FilePreview, "path" | "preview" | "content">) {
   if (!file) return;
   if (/\.(md|markdown)$/i.test(file.path)) return "markdown";
+  if (/\.svg$/i.test(file.path)) return "svg";
   if (file.preview?.kind === "scene" || /\.usd[ac]?$/i.test(file.path)) return "scene";
   if (["diagram", "schematic", "topology"].includes(file.preview?.kind ?? "")) return "diagram";
   if (/\.json$/i.test(file.path) && file.content) {

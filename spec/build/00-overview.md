@@ -34,6 +34,32 @@ default_targets = ["hvac:equipment-bom"]
 
 CLI 的 profile 和 scope 覆盖清单值。target 声明自己的 profile 集合、默认 profile、默认 scope 和直接依赖。解析器按依赖拓扑顺序执行，同一 target 每次构建只执行一次，未知 target、缺失 profile、非法 profile 和依赖环均显式失败。当前尚未执行 ADR-0012 的跨专业 `interface_bindings`，不得把直接 target 依赖当作跨专业接口契约。
 
+## 清单中的命名目标
+
+支持命名输出的包生成器可以在同一个项目中配置多次。清单中的目标名可用于 `default_targets`、`stage_targets` 或 CLI `--target`。每个命名目标使用独立的执行与缓存身份，并记录实际生成器及其配置。
+
+```toml
+[build]
+default_targets = ["plan-level-01"]
+
+[build.targets.plan-level-01]
+using = "datacenter:floor-plan"
+scope = { level = "L01" }
+output = "build/plans/level-01.svg"
+```
+
+`output` 是项目相对路径，位于项目配置的公开构建目录内。每个输出路径只由一个目标拥有。命名目标可以配置 `profile`，目标范围及输出格式由生成器校验。
+
+包通过 `TargetDefinition.named_output` 声明支持命名目标。`BuildContext.target` 保留生成器 ID，`instance_id` 是项目目标名，`output` 是相对于 `BuildContext.build_path` 的主输出路径。生成器在暂存目录内写出主文件与配套文件。计算对项目资产的相对链接时，使用项目配置的公开构建路径作为最终位置。数据中心示例按房间、楼层和标段出图，标段的房间成员来自建筑研究源文件，跨楼层标段在同一 SVG 内按楼层分图。
+
+## 监听落盘修改
+
+```bash
+uv run texsys build -p examples/hvac-dynamic-station --watch
+```
+
+`--watch` 在首次启动及后续输入变更后执行选定构建。监听范围为项目清单、锁文件、源目录和资产目录。默认静默期为 2 秒，可用 `--debounce` 调整。JSON 或 TOML 语法无效时在终端报告并等待下一次保存。构建输出不会触发新构建。手动构建占用项目构建锁时，监听任务等待同一项目的锁，使用当前已稳定的输入继续。按 Ctrl+C 退出，返回最近一次构建或输入诊断对应的退出码。
+
 ## TargetResult 与产物
 
 领域包通过 `TargetDefinition` 注册 target，builder 返回 `TargetResult`：
@@ -70,6 +96,8 @@ CLI 的 profile 和 scope 覆盖清单值。target 声明自己的 profile 集�
 每次构建在 `build/runs/<run_id>/` 保存独立运行清单与输入、产物快照，`build/build.json` 是最新运行入口。运行身份与缓存命中情况允许不同；相同输入和工具下的产物内容应保持可重复。构建 `pass` 只表示所选 target 及 profile、scope 闭环，不表示整个项目、采购、现场验收或现实运维已经完成。
 
 `build/` 可以从空目录或缺失状态重建。构建前后核对清单、锁文件、源文件、资产及锁定依赖的内容。若执行期间检测到输入变化，构建报告 `E_INPUT_CHANGED`，本次结果不作为当前输入的成功缓存。CLI 构建读取工作目录，需保持输入稳定。后台 Studio 任务使用固定输入副本。
+
+公开产物由暂存内容发布，文件替换使用原子操作。执行错误或输入漂移保留相应原路径上的上次发布内容。生成器正常返回的可读草稿可以首次发布，也可替换仍与历史摘要一致的已发布草稿。目标通过且生成器设置 `Artifact.publish_partial` 时，可用降级产物替换与历史摘要一致的完整产物，例如原理图因缺少行为数据降级为可审阅的系统图。产物仍标为不完整。`published` 记录当前运行的内容是否发布到公开路径，工程判定单独记录。详见 [ADR-0029](../../docs/adr/0029-named-build-targets-and-file-refresh.md)。
 
 ## 文件预览
 

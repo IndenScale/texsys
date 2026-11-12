@@ -48,6 +48,18 @@ test("same document keeps independent opening modes and navigation in both group
   assert.equal(editorViewCount(groups, "README.md"), 2);
 });
 
+test("a file preview keeps a different viewport in each group when switching tabs", () => {
+  const path = "build/floor.svg";
+  const room = { kind: "drawing", x: 50, y: 75, scale: 2 };
+  const level = { kind: "drawing", x: 125, y: 200, scale: 0.6 };
+  let groups = openEditorView([emptyEditorGroup()], "primary", path, { viewport: room });
+  groups = openEditorView(groups, "secondary", path, { viewport: level });
+  groups = openEditorView(groups, "primary", "texsys.toml");
+  groups = openEditorView(groups, "primary", path);
+  assert.deepEqual(groups[0].views.find((view) => view.path === path).viewport, room);
+  assert.deepEqual(groups[1].views.find((view) => view.path === path).viewport, level);
+});
+
 test("closing one shared file view keeps the document reference and other group tab", () => {
   let groups = splitDocument();
   groups = closeEditorView(groups, "secondary", "README.md");

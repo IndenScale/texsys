@@ -9,6 +9,7 @@ import signal
 import subprocess
 from typing import Any, Iterable
 
+from texsys.build_records import artifact_path
 from texsys.evidence import file_digest, write_json
 from texsys.project import ProjectError
 from texsys.targets import Artifact, BuildContext
@@ -199,10 +200,17 @@ def run_hook(
   context: BuildContext,
   artifacts: list[dict[str, Any]],
   authority_paths: Iterable[Path],
+  *,
+  public_build: Path,
 ) -> HookRun:
   """Execute one trusted project hook; this is reproducibility control, not a sandbox."""
 
   root = context.root
+
+  def staged_path(name):
+    public = artifact_path(root, public_build, name)
+    return context.build_path / public.relative_to(public_build)
+
   try:
     available_artifacts = {item["id"]: item for item in artifacts}
     available_inputs = {item["path"]: item for item in context.inputs}
@@ -216,7 +224,7 @@ def run_hook(
         record = available_artifacts[artifact_id]
         path = record["path"]
         context_inputs.append(
-          {"id": artifact_id, "kind": "artifact", "path": str(root / path), "digest": record["digest"]}
+          {"id": artifact_id, "kind": "artifact", "path": str(staged_path(path)), "digest": record["digest"]}
         )
       elif identifier.startswith("input:"):
         path = identifier.removeprefix("input:")
@@ -231,16 +239,26 @@ def run_hook(
       resolved_inputs.append({"id": identifier, "path": path, "digest": record["digest"]})
 
     artifact_paths = {item["path"] for item in artifacts}
+    staged_outputs = []
     for name in declaration.outputs:
       output = Path(name)
       if output.is_absolute() or ".." in output.parts:
         raise HookProtocolError(f"Hook output must be a project-relative safe path: {name}")
-      resolved = (root / output).resolve()
-      resolved.relative_to(context.build_path)
       if declaration.phase == "pre":
-        resolved.relative_to(context.scratch_path)
+        destination = root / output
+        destination.relative_to(context.scratch_path)
+      else:
+        destination = staged_path(name)
+      if destination.resolve() != destination:
+        raise HookProtocolError(f"Hook output cannot use symlinks: {name}")
       if name in artifact_paths:
         raise HookProtocolError(f"Hook output cannot overwrite a target artifact: {name}")
+      if destination.exists():
+        if declaration.phase == "post":
+          raise HookProtocolError(f"Hook output cannot overwrite a staged file: {name}")
+        destination.unlink()
+      destination.parent.mkdir(parents=True, exist_ok=True)
+      staged_outputs.append(destination)
 
     scratch = context.scratch_path / "hooks" / declaration.id.replace(":", "-").replace("/", "-")
     if scratch.exists():
@@ -267,13 +285,13 @@ def run_hook(
         "artifacts": [
           {
             "id": item["id"],
-            "path": str(root / item["path"]),
+            "path": str(staged_path(item["path"])),
             "digest": item["digest"],
             "kind": item["kind"],
           }
           for item in artifacts
         ],
-        "outputs": [str(root / name) for name in declaration.outputs],
+        "outputs": [str(path) for path in staged_outputs],
         "scratch": str(scratch),
       },
     )
@@ -318,7 +336,7 @@ def run_hook(
     if _authority_snapshot(authority_paths) != before_authority:
       raise HookProtocolError("Hook modified authoritative project inputs or dependency locks.")
     for item in artifacts:
-      path = root / item["path"]
+      path = staged_path(item["path"])
       if not path.is_file() or file_digest(path) != before_artifacts[item["path"]]:
         raise HookProtocolError("Post hook modified a declared target artifact.")
     if stdout_path.stat().st_size > declaration.max_output_bytes or stderr_path.stat().st_size > declaration.max_output_bytes:
@@ -327,13 +345,13 @@ def run_hook(
       raise HookProtocolError("Hook exceeded its declared timeout.")
 
     result = _read_result(result_path)
-    if tuple(result["outputs"]) != declaration.outputs:
+    staged_names = tuple(path.relative_to(root).as_posix() for path in staged_outputs)
+    if tuple(result["outputs"]) not in (declaration.outputs, staged_names):
       raise HookProtocolError("Hook result outputs must exactly match declared outputs in declaration order.")
     output_evidence = []
     output_artifacts = []
-    for index, name in enumerate(declaration.outputs):
-      path = (root / name).resolve()
-      if not path.is_file():
+    for index, (name, path) in enumerate(zip(declaration.outputs, staged_outputs)):
+      if path.resolve() != path or not path.is_file():
         raise HookProtocolError(f"Hook did not create declared output: {name}")
       digest = file_digest(path)
       output_evidence.append({"path": name, "digest": digest})

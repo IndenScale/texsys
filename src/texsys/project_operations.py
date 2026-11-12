@@ -7,10 +7,13 @@ from pathlib import Path
 import subprocess
 import sys
 
+from texsys.build_records import BuildBusy
 from texsys.project import ProjectError, inspect_project
 
 
-def run_project_operation(root: Path, action: str, options: dict | None = None) -> dict:
+def run_project_operation(
+  root: Path, action: str, options: dict | None = None, *, timeout: float | None = 180,
+) -> dict:
   """Invoke one project operation without importing its packages into the caller.
 
   The subprocess inherits the caller's process group so Studio cancellation also
@@ -25,10 +28,10 @@ def run_project_operation(root: Path, action: str, options: dict | None = None) 
     completed = subprocess.run(
       [sys.executable, "-B", "-m", "texsys.project_operations"],
       input=json.dumps(request), capture_output=True, text=True, check=False,
-      env={**os.environ, "PYTHONDONTWRITEBYTECODE": "1"}, timeout=180,
+      env={**os.environ, "PYTHONDONTWRITEBYTECODE": "1"}, timeout=timeout,
     )
   except subprocess.TimeoutExpired as error:
-    raise ProjectError("Project operation exceeded the 180 second limit.") from error
+    raise ProjectError(f"Project operation exceeded the {timeout:g} second limit.") from error
   if completed.stderr:
     print(completed.stderr, end="", file=sys.stderr)
   try:
@@ -36,7 +39,8 @@ def run_project_operation(root: Path, action: str, options: dict | None = None) 
   except ValueError as error:
     raise ProjectError("Project worker returned an invalid response; inspect its log.") from error
   if completed.returncode:
-    raise ProjectError(response.get("message", "Project operation failed."))
+    error_type = BuildBusy if response.get("code") == "build_busy" else ProjectError
+    raise error_type(response.get("message", "Project operation failed."))
   return response
 
 
@@ -99,6 +103,9 @@ def main() -> int:
       response = _execute(root, request["action"], request["options"])
     print(json.dumps(response, ensure_ascii=False))
     return 0
+  except BuildBusy as error:
+    print(json.dumps({"status": "error", "code": "build_busy", "message": str(error)}))
+    return 1
   except Exception as error:
     print(json.dumps({"status": "error", "message": str(error)}, ensure_ascii=False))
     return 1

@@ -11,5 +11,9 @@ build = "build"
 [build]
 default_targets = ["hvac:system-schematic"]
 
+[build.targets.system-schematic]
+using = "hvac:system-schematic"
+output = "build/diagrams/system.json"
+
 [dependencies]
 hvac-diagram = { path = "../../packages/hvac-diagram", version = "0.1.0" }

@@ -24,21 +24,25 @@ from texsys.evidence import canonical_digest, file_digest, write_json
 from texsys.project import ProjectError, inspect_project
 
 
-def input_records(root, source, assets):
-  records = []
+def build_input_paths(root, source, assets):
+  """Enumerate authoritative input files in the order used by build records."""
   for name in ("texsys.toml", "texsys.lock"):
     path = root / name
     if path.is_file():
       if path.resolve() != path:
         raise ProjectError(f"Build inputs cannot use symlinks: {name}")
-      records.append({"path": name, "digest": file_digest(path)})
+      yield path
   for directory in (source, assets):
     for path in sorted((root / directory).rglob("*")):
       if path.is_file() and path.name != ".gitkeep":
         if path.resolve() != path:
           raise ProjectError(f"Build inputs cannot use symlinks: {path.relative_to(root)}")
-        records.append({"path": path.relative_to(root).as_posix(), "digest": file_digest(path)})
-  return records
+        yield path
+
+
+def input_records(root, source, assets):
+  return [{"path": path.relative_to(root).as_posix(), "digest": file_digest(path)}
+          for path in build_input_paths(root, source, assets)]
 
 
 def _safe(root, relative):
@@ -56,13 +60,17 @@ def build_lock(root, build):
   try:
     lock.mkdir()
   except FileExistsError as error:
-    raise ProjectError("Another build holds this project's build lock. Retry after it finishes.") from error
+    raise BuildBusy("Another build holds this project's build lock. Retry after it finishes.") from error
   try:
     (lock / "owner.json").write_text(json.dumps({"pid": os.getpid(), "started_at": timestamp()}))
     yield directory
   finally:
     (lock / "owner.json").unlink(missing_ok=True)
     lock.rmdir()
+
+
+class BuildBusy(ProjectError):
+  """A concurrent build already owns the project's publication lock."""
 
 
 def timestamp():
@@ -169,7 +177,8 @@ def cache_environment(definitions):
 
 def target_cache_key(resolved, records, tools_digest, dependencies, patterns=None):
   definition = resolved.definition
-  return canonical_digest({"schema_version": 1, "target": definition.id,
+  return canonical_digest({"schema_version": 2, "target": resolved.id, "using": definition.id,
+                           "output": resolved.output,
                            "package": [definition.package_name, definition.package_version],
                            "builder": builder_identity(definition.builder), "toolchain": tools_digest,
                            "profile": resolved.profile, "scope": dict(resolved.scope),
@@ -184,20 +193,44 @@ def target_cache_key(resolved, records, tools_digest, dependencies, patterns=Non
                            "dependencies": dependencies})
 
 
-def previous_run_id(root, build_root):
-  """Read only a verified latest record; malformed history never becomes a link."""
+def _verified_report(root, path):
   try:
-    path = _safe(root, (build_root / "build.json").relative_to(root))
-    report = json.loads(path.read_text())
+    report = json.loads(_safe(root, path).read_text())
     identifier = report.get("run_id")
     if (isinstance(identifier, str) and len(identifier) == 32
         and all(character in "0123456789abcdef" for character in identifier)
         and report.get("record_digest") == canonical_digest(
           {key: value for key, value in report.items() if key != "record_digest"}
         )):
-      return identifier
-  except (OSError, ValueError, TypeError, ProjectError):
+      return report
+  except (AttributeError, OSError, ValueError, TypeError, ProjectError):
     pass
+  return None
+
+
+def previous_run_id(root, build_root):
+  """Read only a verified latest record; malformed history never becomes a link."""
+  report = _verified_report(root, build_root / "build.json")
+  return report["run_id"] if report else None
+
+
+def _prior_publication(root, build_root, run_id, path, digest):
+  seen = set()
+  while isinstance(run_id, str) and run_id not in seen and len(seen) < 100:
+    seen.add(run_id)
+    if len(run_id) != 32 or any(char not in "0123456789abcdef" for char in run_id):
+      break
+    report = _verified_report(root, build_root / "runs" / run_id / "build.json")
+    if report is None or report["run_id"] != run_id:
+      break
+    records = report.get("artifacts", [])
+    if not isinstance(records, list):
+      break
+    for record in records:
+      if (isinstance(record, dict) and record.get("path") == path
+          and record.get("published") is not False and record.get("digest") == digest):
+        return record
+    run_id = report.get("previous_run_id")
   return None
 
 
@@ -214,10 +247,11 @@ def _copy_verified(source, destination, digest):
     stream.write(data)
 
 
-def snapshot(root, run_root, records):
+def snapshot(root, run_root, records, source_paths=None):
   result = []
   for record in records:
-    source = _safe(root, record["path"])
+    source_path = source_paths[record["path"]] if source_paths is not None else record["path"]
+    source = _safe(root, source_path)
     destination = _safe(root, (run_root / "files" / record["path"]).relative_to(root))
     _copy_verified(source, destination, record["digest"])
     result.append({**record, "stored_path": destination.relative_to(root).as_posix()})
@@ -228,7 +262,7 @@ def _cache_directory(root, build_root, key):
   return _safe(root, (build_root / ".cache" / "targets" / key.removeprefix("sha256:")).relative_to(root))
 
 
-def restore_cache(root, build_root, key):
+def restore_cache(root, build_root, stage, key):
   directory = _cache_directory(root, build_root, key)
   try:
     manifest_path = _safe(root, (directory / "entry.json").relative_to(root))
@@ -241,28 +275,80 @@ def restore_cache(root, build_root, key):
       return None
     sources = []
     for record in entry["artifacts"]:
-      destination = _safe(root, record["path"])
-      if not destination.is_relative_to(build_root) or not record["complete"]:
+      destination = artifact_path(root, build_root, record["path"])
+      if not record["complete"]:
         return None
       source = _safe(root, (directory / "files" / record["path"]).relative_to(root))
       if file_digest(source) != record["digest"]:
         return None
-      sources.append((source, destination, record["digest"]))
+      sources.append((source, stage / destination.relative_to(build_root), record["digest"]))
     for source, destination, digest in sources:
-      if not destination.is_file() or file_digest(destination) != digest:
-        destination.parent.mkdir(parents=True, exist_ok=True)
-        fd, temporary = tempfile.mkstemp(prefix=".cached-", dir=destination.parent)
-        try:
-          with os.fdopen(fd, "wb") as stream:
-            stream.write(source.read_bytes())
-          if file_digest(Path(temporary)) != digest:
-            return None
-          os.replace(temporary, destination)
-        finally:
-          Path(temporary).unlink(missing_ok=True)
+      _copy_verified(source, destination, digest)
     return entry
   except (OSError, ValueError, KeyError, TypeError, ProjectError):
+    if stage.is_dir():
+      shutil.rmtree(stage)
     return None
+
+
+def artifact_path(root, build_root, relative):
+  """Resolve a published artifact without allowing writes into private build storage."""
+  path = _safe(root, relative)
+  if path == build_root or not path.is_relative_to(build_root):
+    raise ProjectError(f"Artifact is outside the build directory: {relative}")
+  parts = path.relative_to(build_root).parts
+  if parts[0].casefold() in {"runs", "dependencies", "studio", "build.json"} or any(part.startswith(".") for part in parts):
+    raise ProjectError(f"Artifact overlaps private build storage: {relative}")
+  return path
+
+
+def seed_stage(root, build_root, stage, artifacts):
+  """Give a builder a private copy of its declared dependency outputs."""
+  for record in artifacts:
+    relative = artifact_path(root, build_root, record["path"]).relative_to(build_root)
+    source = _safe(root, record["stored_path"])
+    _copy_verified(source, stage / relative, record["digest"])
+
+
+def publish_artifacts(root, build_root, stage, artifacts, previous_run):
+  """Install one target's files with atomic replacement and restore on an I/O failure."""
+  prepared = []
+  installed = []
+  published = set()
+  try:
+    for index, record in enumerate(artifacts):
+      destination = artifact_path(root, build_root, record["path"])
+      if destination.exists():
+        if not destination.is_file():
+          raise ProjectError(f"Artifact destination is not a regular file: {record['path']}")
+        digest = file_digest(destination)
+        if not record["complete"]:
+          previous = _prior_publication(root, build_root, previous_run, record["path"], digest)
+          if previous is None or (previous.get("complete") is not False and not record.get("publish_partial")):
+            continue
+        if digest == record["digest"]:
+          published.add(record["path"])
+          continue
+      source = _safe(root, record["stored_path"])
+      destination.parent.mkdir(parents=True, exist_ok=True)
+      candidate = stage / str(index) / "new"
+      _copy_verified(source, candidate, record["digest"])
+      backup = candidate.with_name("old") if destination.exists() else None
+      if backup is not None:
+        shutil.copyfile(destination, backup)
+      prepared.append((candidate, destination, backup))
+      published.add(record["path"])
+    for candidate, destination, backup in prepared:
+      os.replace(candidate, destination)
+      installed.append((destination, backup))
+  except BaseException:
+    for destination, backup in reversed(installed):
+      if backup is None:
+        destination.unlink()
+      else:
+        os.replace(backup, destination)
+    raise
+  return published
 
 
 def store_cache(root, build_root, key, target, artifacts, run_id):
@@ -274,7 +360,7 @@ def store_cache(root, build_root, key, target, artifacts, run_id):
     for record in artifacts:
       source = _safe(root, record["stored_path"])
       _copy_verified(source, temporary / "files" / record["path"], record["digest"])
-      records.append({key: value for key, value in record.items() if key != "stored_path"})
+      records.append({key: value for key, value in record.items() if key not in {"stored_path", "published"}})
     entry = {"schema_version": 1, "cache_key": key, "run_id": run_id,
              "target": target, "artifacts": records}
     entry["entry_digest"] = canonical_digest(entry)

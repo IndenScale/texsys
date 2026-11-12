@@ -17,6 +17,7 @@ from .drainage import evaluate_drainage
 from .egress import evaluate_building_egress, write_egress_usd
 from .fire import evaluate_fire, write_fire_usd
 from .floor import evaluate_floor, write_floor_assembly
+from .floor_plan import build_floor_plan
 from .foundation import evaluate_foundations, write_foundations_usd
 from .foundation_ties import evaluate_foundation_ties
 from .frame import evaluate_main_frame, write_frame_usd
@@ -51,7 +52,9 @@ class DatacenterPackage(TexsysPackage):
                        dependencies=("datacenter:unit-study",)),
       TargetDefinition("datacenter:building-study", self.name, self.version, self.build_building,
                        profiles=("concept", "evaluation"), default_profile="concept",
-                       dependencies=("datacenter:unit-study", "datacenter:floor-study")),
+                       dependencies=("datacenter:unit-study", "datacenter:floor-study"), named_output=True),
+      TargetDefinition("datacenter:floor-plan", self.name, self.version, build_floor_plan,
+                       dependencies=("datacenter:building-study",), named_output=True),
       TargetDefinition("datacenter:air-environment", self.name, self.version, self.build_air_environment,
                        profiles=("concept",), default_profile="concept",
                        dependencies=("datacenter:air-distribution",)),
@@ -175,8 +178,10 @@ class DatacenterPackage(TexsysPackage):
       raise ValueError(f"Malformed building study input: {error}.") from error
     mismatches = [name for name, case in report["scenarios"].items() if case["status"] != case["expected"]]
     report["status"] = "fail" if mismatches else "pass"
-    path = directory / "building-study.json"
-    usd = directory / "building-layout.usda"
+    usd = context.build_path / context.output if context.output else directory / "building-layout.usda"
+    if usd.suffix != ".usda":
+      raise ValueError("A building scene output must use the .usda extension.")
+    path = usd.with_suffix(".json") if context.output else directory / "building-study.json"
     write_json(path, report)
     write_building_usd(report, usd)
     return TargetResult("pass" if context.profile == "evaluation" else report["status"], (

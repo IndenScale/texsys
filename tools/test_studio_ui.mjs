@@ -13,6 +13,7 @@ function load(source) {
     platform: "node",
     format: "cjs",
     packages: "external",
+    loader: { ".css": "empty" },
   });
   const module = new Module(filename);
   module.paths = Module._nodeModulePaths(process.cwd());
@@ -662,6 +663,7 @@ test("menu separates viewing task history, controlling jobs and using the shell"
   assert.equal(owner("tasks.show"), "view");
   assert.equal(owner("tasks.terminate"), "run");
   assert.equal(owner("tasks.build"), "terminal");
+  assert.equal(owner("tasks.watchBuild"), "terminal");
   assert.equal(owner("terminal.runActiveFile"), "terminal");
   assert.equal(owner("tasks.run"), undefined);
   assert.equal(owner("terminal.newWindow"), undefined);
@@ -1306,10 +1308,11 @@ test("same-named file tabs use their shortest distinct parent path", () => {
   assert.equal(fileDocumentTitle(paths[1], paths), "system.json · topology");
   assert.equal(fileDocumentTitle(paths[2], paths), "ordinary.json");
 });
-test("only Markdown, USD and explicit diagram formats select a preview renderer", () => {
+test("Markdown, USD, SVG and explicit diagram formats select a preview renderer", () => {
   assert.equal(filePreviewKind({ path: "build/hvac/bom.md" }), "markdown");
   assert.equal(filePreviewKind({ path: "notes.markdown" }), "markdown");
   assert.equal(filePreviewKind({ path: "new.usda" }), "scene");
+  assert.equal(filePreviewKind({ path: "build/plans/room.SVG" }), "svg");
   for (const name of ["bom.json", "system-check.json", "build.json", "ordinary.json"])
     assert.equal(
       filePreviewKind({
@@ -1389,4 +1392,183 @@ test("save completion retains typing during the request and invalidates an earli
   const clean = savedFileDocument(submitted, { path, content: "submitted", version: "v2" });
   assert.equal(clean.content, clean.saved);
   assert.equal(refreshedFileDocument(clean, { path, content: "old", version: "v1" }, "v1"), clean);
+});
+
+test("mounted artifact previews preserve their viewport when file geometry changes", async (t) => {
+  const { JSDOM } = await import("jsdom");
+  const { createElement, useState, act } = await import("react");
+  const { createRoot } = await import("react-dom/client");
+  const { FilePreviewContent } = load("src/texsys/assets/studio/ProjectPreview.tsx");
+  t.mock.timers.enable({ apis: ["setTimeout"] });
+  const dom = new JSDOM("<main></main>");
+  const { window } = dom;
+  const globals = {
+    window,
+    document: window.document,
+    DOMParser: window.DOMParser,
+    ResizeObserver: class {
+      observe() {}
+      disconnect() {}
+    },
+    IS_REACT_ACT_ENVIRONMENT: true,
+  };
+  const previous = Object.fromEntries(Object.keys(globals).map((key) => [key, globalThis[key]]));
+  Object.assign(globalThis, globals);
+  t.after(() => {
+    Object.assign(globalThis, previous);
+    window.close();
+  });
+  for (const type of [window.SVGSVGElement, window.HTMLCanvasElement]) {
+    Object.defineProperties(type.prototype, {
+      clientWidth: { value: 400 },
+      clientHeight: { value: 300 },
+    });
+  }
+  const faces = [];
+  let polygon;
+  window.HTMLCanvasElement.prototype.getContext = () => ({
+    scale() {},
+    beginPath() {
+      polygon = [];
+    },
+    moveTo(x, y) {
+      polygon.push([x, y]);
+    },
+    lineTo(x, y) {
+      polygon.push([x, y]);
+    },
+    closePath() {},
+    fill() {
+      faces.push(polygon);
+    },
+    stroke() {},
+  });
+  const room = {
+    id: "room",
+    semantic_ref: "room",
+    name: "Room",
+    points: [
+      [0, 0, 0],
+      [3, 0, 0],
+      [0, 3, 0],
+    ],
+    faces: [[0, 1, 2]],
+  };
+  const extension = {
+    ...room,
+    id: "extension",
+    semantic_ref: "extension",
+    name: "Extension",
+    points: [
+      [100, 0, 0],
+      [103, 0, 0],
+      [100, 3, 0],
+    ],
+  };
+  let composition = "layer-v1";
+  const requests = [];
+  const api = async (url) => {
+    const request = new URL(url, "http://studio.local");
+    requests.push(request);
+    const version = request.searchParams.get("version");
+    return {
+      status: "ready",
+      path: request.searchParams.get("path"),
+      version,
+      revision: composition,
+      objects:
+        version === "v1"
+          ? [room]
+          : [
+              room,
+              { ...extension, name: composition === "layer-v1" ? "Extension" : "Changed layer" },
+            ],
+    };
+  };
+  function Harness({ kind, version, content = "", visible = true }) {
+    const [viewport, onViewportChange] = useState();
+    return (
+      visible &&
+      createElement(FilePreviewContent, {
+        api,
+        kind,
+        version,
+        content,
+        path: {
+          scene: "build/site.usda",
+          svg: "build/floor.svg",
+          diagram: "build/system.json",
+        }[kind],
+        dirty: false,
+        viewport,
+        onViewportChange,
+      })
+    );
+  }
+  const container = window.document.querySelector("main");
+  const root = createRoot(container);
+  const render = (props) =>
+    act(async () => root.render(createElement(Harness, { key: props.kind, ...props })));
+  const zoom = () => act(() => container.querySelector('[aria-label="放大"]').click());
+  const firstPlan =
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect width="50" height="50"/></svg>';
+  const nextPlan = firstPlan.replace("100 100", "500 500");
+  await render({ kind: "svg", version: "v1", content: firstPlan });
+  await zoom();
+  const box = container.querySelector("svg").getAttribute("viewBox");
+  const image = container.querySelector("image").getAttribute("href");
+  await render({ kind: "svg", version: "v2", content: nextPlan });
+  assert.equal(container.querySelector("svg").getAttribute("viewBox"), box);
+  assert.notEqual(container.querySelector("image").getAttribute("href"), image);
+  await render({ kind: "svg", version: "v2", content: nextPlan, visible: false });
+  await render({ kind: "svg", version: "v2", content: nextPlan });
+  assert.equal(container.querySelector("svg").getAttribute("viewBox"), box);
+
+  const diagram = {
+    pages: [{ id: "first" }, { id: "second" }],
+    nodes: [{ id: "pump", page: "second", x: 100, y: 100 }],
+  };
+  await render({ kind: "diagram", version: "v1", content: JSON.stringify(diagram) });
+  await act(() => {
+    const pages = container.querySelector("select");
+    pages.value = "second";
+    pages.dispatchEvent(new window.Event("change", { bubbles: true }));
+  });
+  await zoom();
+  await act(() => {
+    const drawing = container.querySelector(".project-preview-drawing > svg");
+    drawing.dispatchEvent(
+      new window.KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true }),
+    );
+  });
+  const drawing = container.querySelector(".project-preview-drawing > svg").getAttribute("viewBox");
+  diagram.pages[1].width = 1600;
+  diagram.nodes[0].x = 300;
+  await render({ kind: "diagram", version: "v2", content: JSON.stringify(diagram) });
+  assert.equal(container.querySelector("select").value, "second");
+  assert.equal(
+    container.querySelector(".project-preview-drawing > svg").getAttribute("viewBox"),
+    drawing,
+  );
+  assert.equal(
+    container.querySelector(".project-preview-node").getAttribute("transform"),
+    "translate(300,100)",
+  );
+
+  await render({ kind: "scene", version: "v1" });
+  await zoom();
+  const oldRoom = faces.at(-1);
+  assert.equal(oldRoom.length, 3);
+  faces.length = 0;
+  await render({ kind: "scene", version: "v2" });
+  assert.equal(container.querySelectorAll(".scene-preview-objects button").length, 2);
+  assert.ok(faces.some((face) => JSON.stringify(face) === JSON.stringify(oldRoom)));
+  composition = "layer-v2";
+  faces.length = 0;
+  await act(async () => t.mock.timers.tick(2000));
+  assert.equal(requests.at(-1).searchParams.get("version"), "v2");
+  assert.equal(requests.at(-1).searchParams.get("revision"), "layer-v1");
+  assert.match(container.querySelector(".scene-preview-objects").textContent, /Changed layer/);
+  assert.ok(faces.some((face) => JSON.stringify(face) === JSON.stringify(oldRoom)));
+  await act(() => root.unmount());
 });

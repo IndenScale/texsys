@@ -191,6 +191,9 @@ export const englishMessages: Record<string, string> = {
   此场景没有可预览的几何: "This scene has no previewable geometry",
   "尚无 USD 场景": "No USD scene yet",
   正在读取场景: "Loading scene",
+  "SVG 预览": "SVG preview",
+  "SVG 文档无效": "Invalid SVG document",
+  "拖动旋转，按住 Shift 拖动平移": "Drag to orbit, Shift-drag to pan",
   "预览支持 USD 网格、立方体和 BRep 包络。": "Preview supports USD meshes, cubes, and BRep bounds.",
   "在 {0} 生成 USD 场景后，这里会自动加载。":
     "Generate a USD scene in {0} to preview it here automatically.",
@@ -1374,6 +1377,7 @@ export const englishMessages: Record<string, string> = {
   "运行任务…": "Run Task...",
   "运行生成任务…": "Run Build Task...",
   "在终端运行 texsys build": "Run texsys build in Terminal",
+  监听源文件并构建: "Watch Sources and Build",
   运行活动文件: "Run Active File",
   运行选定文本: "Run Selected Text",
   "显示正在运行的任务…": "Show Running Tasks...",

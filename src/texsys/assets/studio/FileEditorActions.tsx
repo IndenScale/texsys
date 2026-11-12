@@ -13,6 +13,7 @@ const previewLabels: Record<FilePreviewKind, string> = {
   markdown: "Markdown 预览",
   diagram: "原理图预览",
   scene: "场景预览",
+  svg: "SVG 预览",
 };
 
 export function FileOpenWith({

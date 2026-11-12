@@ -35,7 +35,7 @@ Runner 为每次执行创建独立 scratch，删除旧结果后写入 `context.j
 - `TEXSYS_HOOK_RESULT`：结构化结果路径；
 - `TMPDIR`：本次 hook 的临时目录。
 
-上下文包含 protocol_version、项目根、target、profile、scope、hook ID／phase、已解析输入及摘要、可消费 artifact、声明输出和 scratch。绝对路径只用于本次进程通信，不进入要求确定的权威证据。
+上下文包含 protocol_version、项目根、target、profile、scope、hook ID／phase、已解析输入及摘要、可消费 artifact、声明输出和 scratch。后置钩子按上下文中的暂存路径读取产物并写入声明输出，构建执行器负责发布。绝对路径只用于本次进程通信，运行证据使用项目相对的公开路径。
 
 ## 结果
 
@@ -50,7 +50,7 @@ Hook 必须写出 JSON result：
 }
 ```
 
-`outputs` 必须与声明路径及顺序完全一致，每个文件必须实际存在。stdout 和 stderr 分别保存在 scratch 日志中，不替代结构化诊断。命令无法启动、超时、日志超限、结果缺失、协议无效、越界或缺失输出均为 `error`。非零退出没有有效 result 时也为 error；存在有效 result 时按其领域状态处理。
+`outputs` 按声明顺序报告路径，可以使用清单中的路径，也可以使用上下文暂存路径的项目相对形式。每个文件必须实际存在于上下文指定的位置。stdout 和 stderr 分别保存在 scratch 日志中，不替代结构化诊断。命令无法启动、超时、日志超限、结果缺失、协议无效、越界或缺失输出均为 `error`。非零退出没有有效 result 时也为 error；存在有效 result 时按其领域状态处理。
 
 ## 权威性与修改边界
 

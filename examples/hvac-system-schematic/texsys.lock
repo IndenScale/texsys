@@ -24,7 +24,7 @@ name = "hvac-diagram"
 version = "0.1.0"
 source = "path"
 path = "../../packages/hvac-diagram"
-digest = "sha256:31b783bee7eae64fc6924344a682ae3dbc5d66c7216ae904077649a8457dc76d"
+digest = "sha256:f7f546a1f23f02386858d2d77057402d44b8cd1a007ec078cd032c8d2a523f20"
 direct = true
 dependencies = ["diagram", "diagram-elk", "hvac-dynamics", "hvac-graphics"]
 

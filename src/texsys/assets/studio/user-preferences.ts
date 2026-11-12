@@ -2,7 +2,7 @@ import { useSyncExternalStore } from "react";
 
 type WordWrap = "bounded" | "on" | "off";
 export type FileEditorMode = "source" | "preview" | "markdown-editor";
-type FileEditorKind = "markdown" | "diagram" | "scene" | undefined;
+type FileEditorKind = "markdown" | "diagram" | "scene" | "svg" | undefined;
 export type FileEditorAssociations = Record<string, FileEditorMode>;
 
 export type UserPreferences = {

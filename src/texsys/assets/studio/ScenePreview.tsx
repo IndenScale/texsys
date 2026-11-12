@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { t } from "./i18n";
 import type { WorkbenchProps } from "./sdk";
 import { Empty, Icon } from "./ui";
@@ -8,15 +8,23 @@ import {
   sourceReference,
   type PreviewSource,
 } from "./project-preview-model";
+import {
+  fitSceneViewport,
+  panSceneViewport,
+  sceneBounds,
+  sceneProjection,
+  type Point3,
+  type SceneViewport,
+} from "./preview-viewport";
+import { usePreviewSize } from "./use-preview-size";
 import "./scene-preview.css";
 
-type Point = [number, number, number];
 type SceneObject = {
   id: string;
   prim_path: string;
   semantic_ref: string;
   name: string;
-  points: Point[];
+  points: Point3[];
   faces: number[][];
   envelope: boolean;
 };
@@ -29,7 +37,6 @@ type Scene = {
   source_map?: Record<string, PreviewSource>;
 };
 type Response = Scene | { status: "empty"; directory: string } | { status: "unchanged" };
-const initialView = { yaw: -0.78, pitch: 0.62, zoom: 1 };
 const clamp = (value: number, low: number, high: number) => Math.min(high, Math.max(low, value));
 const palette = [
   [82, 124, 146],
@@ -41,7 +48,8 @@ const palette = [
 function drawScene(
   canvas: HTMLCanvasElement,
   scene: Scene,
-  view: typeof initialView,
+  view: SceneViewport,
+  bounds: NonNullable<ReturnType<typeof sceneBounds>>,
   selected: string,
 ) {
   const width = canvas.clientWidth,
@@ -53,39 +61,9 @@ function drawScene(
   const context = canvas.getContext("2d");
   if (!context) return;
   context.scale(ratio, ratio);
-  const low: Point = [Infinity, Infinity, Infinity],
-    high: Point = [-Infinity, -Infinity, -Infinity];
-  for (const { points } of scene.objects) {
-    for (const point of points) {
-      for (let axis = 0; axis < 3; axis++) {
-        low[axis] = Math.min(low[axis], point[axis]);
-        high[axis] = Math.max(high[axis], point[axis]);
-      }
-    }
-  }
-  const center = low.map((value, axis) => (value + high[axis]) / 2);
-  const radius = Math.max(
-    0.000001,
-    Math.hypot(...high.map((value, axis) => value - low[axis])) / 2,
-  );
-  const scale = (Math.min(width, height) * 0.4 * view.zoom) / radius;
-  const cos = Math.cos(view.yaw),
-    sin = Math.sin(view.yaw);
-  const vertical = Math.cos(view.pitch),
-    tilt = Math.sin(view.pitch);
-  const project = ([x, y, z]: Point): Point => {
-    const dx = x - center[0],
-      dy = y - center[1],
-      dz = z - center[2];
-    const depth = sin * dx + cos * dy;
-    return [
-      width / 2 + scale * (cos * dx - sin * dy),
-      height / 2 - scale * (vertical * dz - tilt * depth),
-      vertical * depth + tilt * dz,
-    ];
-  };
-  const extent = radius * 1.14;
-  const line = (a: Point, b: Point) => {
+  const project = sceneProjection(view, { width, height });
+  const extent = bounds.radius * 1.14;
+  const line = (a: Point3, b: Point3) => {
     const [ax, ay] = project(a),
       [bx, by] = project(b);
     context.moveTo(ax, ay);
@@ -94,9 +72,9 @@ function drawScene(
   context.strokeStyle = "#cbd8e0";
   context.beginPath();
   for (let i = -5; i <= 5; i++) {
-    const [x, y] = center,
+    const [x, y] = bounds.center,
       step = (extent * i) / 5,
-      z = low[2];
+      z = bounds.floor;
     line([x + step, y - extent, z], [x + step, y + extent, z]);
     line([x - extent, y + step, z], [x + extent, y + step, z]);
   }
@@ -149,6 +127,8 @@ export function ScenePreview({
   content,
   dirty,
   openSource,
+  viewport,
+  onViewportChange,
 }: {
   api: WorkbenchProps["api"];
   active: boolean;
@@ -157,6 +137,8 @@ export function ScenePreview({
   content: string;
   dirty: boolean;
   openSource?: (source: PreviewSource) => void;
+  viewport?: SceneViewport;
+  onViewportChange: (viewport: SceneViewport) => void;
 }) {
   const [selected, select] = useState("");
   const [result, setResult] = useState<{
@@ -164,10 +146,11 @@ export function ScenePreview({
     value: Exclude<Response, { status: "unchanged" }>;
   }>();
   const [failure, setFailure] = useState<{ key: string; message: string }>();
-  const [view, setView] = useState(initialView);
-  const canvas = useRef<HTMLCanvasElement>(null);
+  const { element: canvas, setElement: setCanvas, size } = usePreviewSize<HTMLCanvasElement>();
   const hits = useRef<NonNullable<ReturnType<typeof drawScene>>>([]);
-  const drag = useRef<{ id: number; x: number; y: number; distance: number } | null>(null);
+  const drag = useRef<{ id: number; x: number; y: number; distance: number; pan: boolean } | null>(
+    null,
+  );
   const request = useMemo(
     () => sceneFileRequest(path, version, content, dirty),
     [path, version, content, dirty],
@@ -180,48 +163,67 @@ export function ScenePreview({
   const error = failure?.key === request.key ? failure.message : "";
   useEffect(() => {
     if (!active) return;
-    let closed = false;
-    setResult(undefined);
-    setFailure(undefined);
-    void api<Response>(request.url, request.body).then(
-      (response) => {
-        if (closed || response.status === "unchanged") return;
-        if (
-          response.status === "ready" &&
-          (response.path !== path || response.version !== version)
-        ) {
-          setFailure({ key: request.key, message: t("场景响应与当前文件不匹配") });
-          return;
+    const controller = new AbortController();
+    let timer: ReturnType<typeof setTimeout>;
+    let revision = "";
+    const read = async () => {
+      try {
+        const url =
+          revision && !dirty
+            ? `${request.url}&revision=${encodeURIComponent(revision)}`
+            : request.url;
+        const response = await api<Response>(url, request.body, controller.signal);
+        if (controller.signal.aborted) return;
+        if (response.status === "ready" && (response.path !== path || response.version !== version))
+          throw new Error(t("场景响应与当前文件不匹配"));
+        setFailure(undefined);
+        if (response.status !== "unchanged") {
+          revision = response.status === "ready" ? response.revision : "";
+          setResult({ key: request.key, value: response });
         }
-        setResult({ key: request.key, value: response });
-      },
-      (error) => {
-        if (!closed) setFailure({ key: request.key, message: String(error) });
-      },
-    );
+      } catch (error) {
+        if (controller.signal.aborted) return;
+        revision = "";
+        setResult(undefined);
+        setFailure({ key: request.key, message: String(error) });
+      } finally {
+        // A clean USD root can keep its bytes while its composition layers change.
+        if (!controller.signal.aborted && !dirty) timer = setTimeout(() => void read(), 2000);
+      }
+    };
+    void read();
     return () => {
-      closed = true;
+      controller.abort();
+      clearTimeout(timer);
     };
-  }, [api, active, request, path, version]);
-  useEffect(() => {
-    const surface = canvas.current;
-    if (!surface || !scene || !active) return;
-    const paint = () => {
-      hits.current = drawScene(surface, scene, view, selected) ?? [];
-    };
-    const resize = new ResizeObserver(paint);
-    resize.observe(surface);
-    paint();
-    return () => resize.disconnect();
-  }, [active, scene, view, selected]);
-  const orbit = (x: number, y: number) =>
-    setView((previous) => ({
-      ...previous,
-      yaw: previous.yaw + x * 0.012,
-      pitch: clamp(previous.pitch + y * 0.01, -1.45, 1.45),
-    }));
-  const zoom = (factor: number) =>
-    setView((previous) => ({ ...previous, zoom: clamp(previous.zoom * factor, 0.2, 12) }));
+  }, [active, api, request, path, version, dirty]);
+  const bounds = useMemo(() => scene && sceneBounds(scene.objects), [scene]);
+  const fitted = useMemo(
+    () => (bounds && size.width && size.height ? fitSceneViewport(bounds, size) : undefined),
+    [bounds, size],
+  );
+  const view = viewport ?? fitted;
+  useLayoutEffect(() => {
+    if (!viewport && fitted) onViewportChange(fitted);
+  }, [viewport, fitted, onViewportChange]);
+  useLayoutEffect(() => {
+    if (!active || !canvas || !scene || !view || !bounds) return;
+    hits.current = drawScene(canvas, scene, view, bounds, selected) ?? [];
+  }, [active, canvas, scene, view, bounds, selected, size]);
+  const orbit = (x: number, y: number) => {
+    if (view)
+      onViewportChange({
+        ...view,
+        yaw: view.yaw + x * 0.012,
+        pitch: clamp(view.pitch + y * 0.01, -1.45, 1.45),
+      });
+  };
+  const zoom = (factor: number) => {
+    if (view) onViewportChange({ ...view, scale: clamp(view.scale * factor, 1e-9, 1e9) });
+  };
+  const fit = () => {
+    if (fitted) onViewportChange(fitted);
+  };
   const visible = !!scene?.objects.length;
   const selectedObject = scene?.objects.find(
     (object) => object.semantic_ref === selected || object.id === selected,
@@ -238,7 +240,7 @@ export function ScenePreview({
         <button disabled={!visible} onClick={() => zoom(1.25)} aria-label={t("放大")}>
           +
         </button>
-        <button disabled={!visible} onClick={() => setView(initialView)}>
+        <button disabled={!visible} onClick={fit}>
           {t("重置视角")}
         </button>
       </div>
@@ -250,7 +252,7 @@ export function ScenePreview({
       {visible ? (
         <div className="scene-preview-body">
           <canvas
-            ref={canvas}
+            ref={setCanvas}
             className="scene-preview-canvas"
             aria-label={t("三维场景；点击对象选择，拖动旋转")}
             tabIndex={0}
@@ -262,6 +264,7 @@ export function ScenePreview({
                 x: event.clientX,
                 y: event.clientY,
                 distance: 0,
+                pan: event.shiftKey,
               };
             }}
             onPointerMove={(event) => {
@@ -270,8 +273,11 @@ export function ScenePreview({
               const x = event.clientX - previous.x,
                 y = event.clientY - previous.y;
               const distance = previous.distance + Math.hypot(x, y);
-              if (distance > 3) orbit(x, y);
-              drag.current = { id: event.pointerId, x: event.clientX, y: event.clientY, distance };
+              if (distance > 3 && view) {
+                if (previous.pan) onViewportChange(panSceneViewport(view, x, y));
+                else orbit(x, y);
+              }
+              drag.current = { ...previous, x: event.clientX, y: event.clientY, distance };
             }}
             onPointerUp={(event) => {
               if (drag.current?.id !== event.pointerId) return;
@@ -312,7 +318,7 @@ export function ScenePreview({
                   zoom(1 / 1.25);
                   break;
                 case "Home":
-                  setView(initialView);
+                  fit();
                   break;
                 case "Escape":
                   select("");
@@ -362,7 +368,7 @@ export function ScenePreview({
         <footer className="scene-preview-footer">
           <span>{t("{0} 个对象", { "0": scene.objects.length })}</span>
           {scene.objects.some((object) => object.envelope) && <span>{t("含包络几何")}</span>}
-          <span>{t("点击选择，拖动或方向键旋转")}</span>
+          <span>{t("拖动旋转，按住 Shift 拖动平移")}</span>
         </footer>
       )}
     </section>

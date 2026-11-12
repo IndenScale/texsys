@@ -132,11 +132,11 @@ class HvacDiagramPackage(TexsysPackage):
     return (TargetDefinition("hvac:system-schematic", self.name, self.version, self.build_schematic,
                              profiles=("review", "engineering"), default_profile="review",
                              default_scope={"view": "schematic"}, input_patterns=physical_projection_inputs,
-                             cache=projection_cacheable),
+                             cache=projection_cacheable, named_output=True),
             TargetDefinition("hvac:system-topology", self.name, self.version, self.build_schematic,
                              profiles=("review", "engineering"), default_profile="review",
                              default_scope={"view": "system"}, input_patterns=physical_projection_inputs,
-                             cache=projection_cacheable))
+                             cache=projection_cacheable, named_output=True))
 
   def build_schematic(self, context: BuildContext) -> TargetResult:
     info = inspect_project(context.root)
@@ -198,7 +198,7 @@ class HvacDiagramPackage(TexsysPackage):
       return type(value) in {int, float} and math.isfinite(value)
 
     for relative in result_paths:
-      result_path = _asset(context.root, relative, (context.build_path,))
+      result_path = _asset(context.root, relative, (context.root / info.build,))
       result = json.loads(result_path.read_text(encoding="utf-8"))
       if physical_digest is None or result.get("model_digest") != physical_digest:
         raise ValueError(f"Scenario result belongs to a different or unresolved design snapshot: {relative}")
@@ -239,23 +239,32 @@ class HvacDiagramPackage(TexsysPackage):
              "closure": "review-draft" if not strict else "engineering-diagram",
              "limits": ["No physical layout or construction acceptance.", "Behavior references/bindings are checked; model equations are not solved by this target.", "One page, flat root leaf instances; no folding or cross-page projection.", "Host font glyphs and draw.io editing require visual review."]}
     output = context.build_path / "hvac" / ("topology" if context.target == "hvac:system-topology" else view)
-    output.mkdir(parents=True, exist_ok=True)
-    write_json(output / "system.json", document)
-    write_json(output / "system-check.json", check)
+    primary = context.build_path / context.output if context.output else output / "system.json"
+    if primary.suffix != ".json":
+      raise ValueError("A schematic output must use the .json extension.")
+    paths = {
+      "system-data": primary,
+      "system-svg": primary.with_suffix(".svg"),
+      "system-viewer": primary.with_suffix(".html"),
+      "system-drawio": primary.with_suffix(".drawio"),
+      "system-check": primary.with_name(f"{primary.stem}-check.json"),
+    }
+    write_json(primary, document)
+    write_json(paths["system-check"], check)
     rendered = render(document, results)
-    (output / "system.svg").write_text(rendered["svg"], encoding="utf-8")
-    (output / "system.html").write_text(rendered["html"], encoding="utf-8")
-    (output / "system.drawio").write_text(render_drawio(document), encoding="utf-8")
+    paths["system-svg"].write_text(rendered["svg"], encoding="utf-8")
+    paths["system-viewer"].write_text(rendered["html"], encoding="utf-8")
+    paths["system-drawio"].write_text(render_drawio(document), encoding="utf-8")
     metadata = {"kind": "topology" if view == "system" else "schematic", "title": document["title"],
                 "root": sdl["root"], "source_map": document["source_map"]}
     complete = not (view == "schematic" and document["missing_behavior"])
-    return TargetResult(status, tuple(Artifact(identifier, (output / filename).relative_to(context.root).as_posix(), kind,
+    return TargetResult(status, tuple(Artifact(identifier, path.relative_to(context.root).as_posix(),
+                                      "diagnostic" if identifier in {"system-viewer", "system-check"} else "authoritative",
                                       complete=complete if identifier != "system-check" else True,
+                                      publish_partial=not complete and not strict and identifier != "system-check",
                                       preview=metadata if identifier == "system-data" else
                                       {**metadata, "kind": "report", "title": document["title"] + " · 检查"} if identifier == "system-check" else None)
-                                     for identifier, filename, kind in (("system-data", "system.json", "authoritative"),
-                                       ("system-svg", "system.svg", "authoritative"), ("system-viewer", "system.html", "diagnostic"), ("system-drawio", "system.drawio", "authoritative"),
-                                       ("system-check", "system-check.json", "diagnostic"))),
+                                     for identifier, path in paths.items()),
                         tuple(diagnostics), tuple(open_items), {"deliverable": document["deliverable"], "behavior_state": document["behavior_state"],
                         "spatial_state": document["spatial_state"], "backend": document["backend"], "review_digest": review_digest,
                         "diagram_contract": "1", "visual_review": visual_review["status"]})

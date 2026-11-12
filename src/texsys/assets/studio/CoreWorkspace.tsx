@@ -3122,12 +3122,15 @@ export function CoreWorkspaceProvider({
           <FilePreviewContent
             key={active.path}
             api={api}
+            active={!primary || (documentActive && !settingsActive)}
             path={active.path}
             kind={previewKind}
             content={active.content}
             version={active.version}
             preview={active.preview}
             dirty={activeDirty}
+            viewport={view?.viewport}
+            onViewportChange={(viewport) => updateView(group.id, active.path, { viewport })}
             openFile={(path) => void openFile(path, { groupId: group.id })}
             openSource={(source) =>
               void openFile(source.file, {

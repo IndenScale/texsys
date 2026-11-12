@@ -9,7 +9,26 @@ assets = "assets"
 build = "build"
 
 [build]
-default_targets = ["datacenter:drainage-study", "datacenter:seismic-envelope", "datacenter:protection-study", "datacenter:grounding-study", "datacenter:ride-through-study", "datacenter:water-study", "datacenter:air-environment", "datacenter:controls-study", "datacenter:architecture-study"]
+default_targets = ["datacenter:drainage-study", "datacenter:seismic-envelope", "datacenter:protection-study", "datacenter:grounding-study", "datacenter:ride-through-study", "datacenter:water-study", "datacenter:air-environment", "datacenter:controls-study", "datacenter:architecture-study", "plan-room-cooling", "plan-level-01", "plan-lot-mep-01", "building-scene"]
+
+[build.targets.plan-room-cooling]
+using = "datacenter:floor-plan"
+scope = { room = "L01/Cooling" }
+output = "build/plans/room-l01-cooling.svg"
+
+[build.targets.plan-level-01]
+using = "datacenter:floor-plan"
+scope = { level = "L01" }
+output = "build/plans/level-01.svg"
+
+[build.targets.plan-lot-mep-01]
+using = "datacenter:floor-plan"
+scope = { work_package = "MEP-01" }
+output = "build/plans/lot-mep-01.svg"
+
+[build.targets.building-scene]
+using = "datacenter:building-study"
+output = "build/scenes/building.usda"
 
 [dependencies]
 datacenter = { path = "../../packages/datacenter", version = "0.1.0" }

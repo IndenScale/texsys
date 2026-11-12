@@ -344,6 +344,7 @@ test("Explorer headings manage views while the project tree keeps its own contex
       watchSourceProblems: () => () => {},
     },
     "./MarkdownEditor": {},
+    "./extension-snippets": { useExtensionSnippets: () => {} },
   });
   const defaults = {
     sidebarOpen: true,
@@ -362,6 +363,8 @@ test("Explorer headings manage views while the project tree keeps its own contex
     diagnostics: [],
   };
   const responses = {
+    "/api/extensions": { installed: [], autoUpdate: false, ignored: [] },
+    "/api/extensions/recommendations": { ids: [], workspace: [] },
     "/api/files": {
       files: [{ path: "README.md" }, { path: "texsys.toml" }],
       directories: [],

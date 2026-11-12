@@ -29,7 +29,7 @@ class HvacFormatterPackage(TexsysPackage):
     )
 
   def build_projection(self, context: BuildContext) -> TargetResult:
-    paths = self.build(context.root)
+    paths = self.build(context.root, context.build_path)
     if not paths:
       return TargetResult(
         "indeterminate",
@@ -60,7 +60,7 @@ class HvacFormatterPackage(TexsysPackage):
       path.write_text(formatted, encoding="utf-8")
     return FormatResult(("src/hvac.json",), (), difference)
 
-  def build(self, root: Path) -> tuple[str, ...]:
+  def build(self, root: Path, build_path: Path | None = None) -> tuple[str, ...]:
     system = load_system(root)
     if system is None:
       return ()
@@ -78,12 +78,13 @@ class HvacFormatterPackage(TexsysPackage):
         f"| {item.identity} | {item.family} | {item.model} | "
         f"{item.capacity_kw:g} | {item.heat_rejection_kw:g} |"
       )
-    table = root / project.build / "hvac" / "equipment.md"
+    output = build_path if build_path is not None else root / project.build
+    table = output / "hvac" / "equipment.md"
     table.parent.mkdir(parents=True, exist_ok=True)
     table.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
     sdl = json.loads((root / "src" / "system.sdl.json").read_text(encoding="utf-8"))
-    topology = root / project.build / "hvac" / "topology.json"
+    topology = output / "hvac" / "topology.json"
     write_json(
       topology,
       {

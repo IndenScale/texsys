@@ -775,10 +775,13 @@ function Studio({
         showTasks();
         break;
       case "tasks.build":
+      case "tasks.watchBuild":
         updateLayout(active, { bottomOpen: true, bottomTab: "terminal" });
         window.dispatchEvent(
           new CustomEvent("texsys:terminal:runCommand", {
-            detail: { command: "texsys build" },
+            detail: {
+              command: id === "tasks.watchBuild" ? "texsys build --watch" : "texsys build",
+            },
           }),
         );
         break;

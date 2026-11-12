@@ -142,6 +142,8 @@ Open VSX 提供扩展身份、版本、图标与 VSIX 下载地址。Tex Studio 
 
 工程变更直接修改源文件，使用现有 Source Control／Git diff 查看差异，在终端运行声明的构建和工程检查。不提供工程变更 activity、专用页面、预览／确认／接受表单，也不提供 `/api/engineering` 专用 HTTP 路由。旧活动选择回退到文件资源管理器。
 
+从「终端 → 监听源文件并构建」或命令面板启动 `texsys build --watch`。监听与构建诊断显示在集成终端，可用 Ctrl+C 退出。原理图、SVG 平面图和场景使用实际文件路径打开。已发布文件更新后，打开的预览沿用所属编辑器组的图页与视口。
+
 POC 输出明确的退出码、诊断与结果文件；失败展示、合并门禁和消息通知属于外部 DevOps／协作平台，不在当前 POC 中实现。当前约束见 [ADR-0026](../../docs/adr/0026-git-build-workflow-and-devops-boundary.md)。
 
 ## 工作台排版

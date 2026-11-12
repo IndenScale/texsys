@@ -8,7 +8,7 @@ from texsys.library import library_entries
 from texsys.sdl_catalog import read_sdl_catalog
 from texsys_architecture import Opening, Shaft, Space, WallPanel, switchback
 
-from .unit import _number
+from .unit import _identifiers, _number
 
 
 def read_architecture(source):
@@ -165,6 +165,16 @@ def compile_architecture(root, source, config, frame, zones, levels, floor, unit
       asdict(Space((a, low_y, ground), (b, y - stair_width / 2, bottom))),
       asdict(Space((c, low_y, ground), (d, bypass_y + stair_width / 2, bottom))),
     ]
+  declared_packages = config.get("work_packages", {})
+  if not isinstance(declared_packages, dict):
+    raise ValueError("Architecture work_packages must map package IDs to room IDs.")
+  work_packages = {}
+  for package, members in sorted(declared_packages.items()):
+    selected = _identifiers(members, f"work_packages.{package}")
+    if not package.strip() or not selected or selected - rooms.keys():
+      raise ValueError(f"Architecture work package {package!r} requires known room IDs.")
+    work_packages[package] = sorted(selected)
   return {"schema_version": 1, "state": "assumed", "basis": config["basis"], "frame": frame,
           "top_m": top, "partition_x_m": partition, "compartment_door_y_m": compartment_doors,
-          "families": families, "rooms": rooms, "walls": walls, "doors": doors, "shafts": shafts, "stairs": stairs}
+          "families": families, "rooms": rooms, "walls": walls, "doors": doors, "shafts": shafts, "stairs": stairs,
+          "work_packages": work_packages}

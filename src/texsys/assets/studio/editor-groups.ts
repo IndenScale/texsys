@@ -1,5 +1,6 @@
 import type { TextFormat, TextFormatChange } from "./sdk";
 import type { SearchMatch } from "./workspace-model";
+import type { PreviewViewport } from "./preview-viewport";
 
 export type EditorPresentation = "source" | "preview" | "markdown-editor";
 export type SourceEditorStatus = {
@@ -37,6 +38,7 @@ export type EditorView = {
   path: string;
   presentation?: EditorPresentation;
   location?: SearchMatch;
+  viewport?: PreviewViewport;
 };
 export type EditorGroup = { id: string; views: EditorView[]; activePath: string | null };
 export type EditorGroupTab = {
@@ -148,7 +150,7 @@ export function renameEditorDocument(
 }
 
 export function resolvedEditorPresentation(
-  kind: "markdown" | "diagram" | "scene" | undefined,
+  kind: "markdown" | "diagram" | "scene" | "svg" | undefined,
   requested?: EditorPresentation,
 ): EditorPresentation {
   if (!kind || (requested === "markdown-editor" && kind !== "markdown")) return "source";

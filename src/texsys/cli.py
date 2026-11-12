@@ -2,6 +2,7 @@
 
 from importlib.metadata import version as package_version
 import json
+from math import isfinite
 from pathlib import Path
 import sys
 from typing import Annotated
@@ -515,6 +516,14 @@ def build_command(
     str | None,
     typer.Option("--scope", help="Override the selected target scope with a JSON object."),
   ] = None,
+  watch: Annotated[
+    bool,
+    typer.Option("--watch", help="Rebuild when saved project inputs settle."),
+  ] = False,
+  debounce: Annotated[
+    float,
+    typer.Option("--debounce", min=0.1, help="Quiet period in seconds for --watch."),
+  ] = 2.0,
 ) -> None:
   """Check locked inputs and deterministically generate selected target artifacts."""
   parsed_scope = None
@@ -525,13 +534,25 @@ def build_command(
       _print_error(ProjectError(f"Invalid --scope JSON: {error}"), code=2)
     if not isinstance(parsed_scope, dict):
       _print_error(ProjectError("--scope must be a JSON object."), code=2)
+  if watch:
+    from texsys.build_watch import watch_build
+
+    if not isfinite(debounce):
+      _print_error(ProjectError("--debounce must be finite."), code=2)
+    try:
+      status = watch_build(
+        path, {"targets": target or [], "profile": profile, "scope": parsed_scope}, debounce, typer.echo,
+      )
+    except ProjectError as error:
+      _print_error(error, code=2)
+    raise typer.Exit(code=status)
   try:
     result = build_project(path, tuple(target or ()), profile, parsed_scope)
   except ProjectError as error:
     _print_error(error, code=2)
   for resolved in result.targets:
     typer.echo(
-      f"Target {resolved.definition.id} (profile={resolved.profile}, "
+      f"Target {resolved.id} (profile={resolved.profile}, "
       f"source={resolved.resolution_source})"
     )
   for item in result.items:

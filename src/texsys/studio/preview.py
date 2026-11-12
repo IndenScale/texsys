@@ -130,7 +130,7 @@ class ProjectPreview:
       item.update(available=False, current=False, freshness="artifact-invalid", error=str(error))
     return item
 
-  def read(self, root: str = "", *, _all_artifacts=False) -> dict:
+  def read(self, root: str = "", *, _published_files=False) -> dict:
     diagnostics = []
     try:
       latest = self._report()
@@ -152,13 +152,17 @@ class ProjectPreview:
       for record in report["artifacts"]:
         metadata = record.get("preview") if isinstance(record, dict) else None
         if not isinstance(metadata, dict) or metadata.get("kind") not in PREVIEW_KINDS:
-          if not _all_artifacts:
+          if not _published_files:
             continue
           metadata = {}
         if root and metadata.get("root") != root:
           continue
         identity = (record.get("target"), record.get("id"))
         if not all(isinstance(value, str) and value for value in identity):
+          continue
+        if _published_files and record.get("published") is False:
+          if report is latest:
+            invalid_current.add(identity)
           continue
         if report is not latest:
           latest_target = latest_targets.get(identity[0])
@@ -171,7 +175,7 @@ class ProjectPreview:
             continue
         if identity in seen and seen[identity]["available"]:
           continue
-        item = self._describe(report, record, validity, fallback=report is not latest, allow_unpreviewed=_all_artifacts)
+        item = self._describe(report, record, validity, fallback=report is not latest, allow_unpreviewed=_published_files)
         if report is latest and not item["available"]:
           invalid_current.add(identity)
         if identity in seen and not item["available"]:
@@ -179,7 +183,9 @@ class ProjectPreview:
         if item["fallback"]:
           item["latest_target"] = latest_targets[identity[0]]
         seen[identity] = item
-      if report is latest and report["targets"] and all(target.get("status") == "pass" for target in report["targets"]) and all(item["available"] for item in seen.values()):
+      if (report is latest and not invalid_current and report["targets"]
+          and all(target.get("status") == "pass" for target in report["targets"])
+          and all(item["available"] for item in seen.values())):
         break
     result["artifacts"] = list(seen.values())
     if not root:
@@ -209,7 +215,7 @@ class ProjectPreview:
       latest = self._report()
     except (OSError, ValueError, ProjectError):
       latest = None
-    selected = self.read(_all_artifacts=True)["artifacts"] if latest else []
+    selected = self.read(_published_files=True)["artifacts"] if latest else []
     for item in selected:
       if isinstance(item.get("path"), str):
         candidates.setdefault(item["path"], []).append(item)

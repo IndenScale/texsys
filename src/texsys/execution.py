@@ -4,13 +4,14 @@ from dataclasses import dataclass
 import hashlib
 import json
 from pathlib import Path
+from tempfile import TemporaryDirectory
 import tomllib
 from typing import Any
 from uuid import uuid4
 
 from texsys.build_records import (
-  build_lock, cache_environment, input_records, previous_run_id, restore_cache, snapshot, store_cache, target_cache_key,
-  timestamp, toolchain,
+  artifact_path, build_lock, cache_environment, input_records, previous_run_id, publish_artifacts, restore_cache,
+  seed_stage, snapshot, store_cache, target_cache_key, timestamp, toolchain,
 )
 
 from texsys.dependencies import LOCK_NAME, lock_project
@@ -53,6 +54,7 @@ def _input_digests(root: Path, source: str, assets: str) -> list[dict[str, str]]
 def _artifact_records(
   root: Path,
   build_root: Path,
+  stage: Path,
   target: str,
   declared_artifacts,
   existing_ids: set[str],
@@ -63,12 +65,16 @@ def _artifact_records(
       raise ProjectError(f"Target {target} declared duplicate artifact: {declared.id}")
     existing_ids.add(declared.id)
     artifact = root / declared.path
-    if artifact.resolve() != artifact or ".." in Path(declared.path).parts:
+    if ".." in Path(declared.path).parts:
       raise ProjectError(f"Artifact cannot use symlinks or parent traversal: {declared.path}")
-    try:
-      artifact.relative_to(build_root)
-    except ValueError as error:
-      raise ProjectError(f"Artifact is outside the build directory: {declared.path}") from error
+    if artifact.is_relative_to(stage):
+      public = build_root / artifact.relative_to(stage)
+    else:
+      public = artifact
+    public = artifact_path(root, build_root, public)
+    artifact = stage / public.relative_to(build_root)
+    if artifact.resolve() != artifact:
+      raise ProjectError(f"Artifact cannot use symlinks or parent traversal: {declared.path}")
     if not artifact.is_file():
       raise ProjectError(f"Target {target} did not create artifact: {declared.path}")
     records.append(
@@ -76,10 +82,11 @@ def _artifact_records(
         "target": target,
         "id": declared.id,
         "kind": declared.kind,
-        "path": artifact.relative_to(root).as_posix(),
+        "path": public.relative_to(root).as_posix(),
         "digest": file_digest(artifact),
         "complete": declared.complete,
         "partial": not declared.complete,
+        **({"publish_partial": True} if declared.publish_partial else {}),
         "preview": dict(declared.preview) if declared.preview is not None else None,
       }
     )
@@ -95,15 +102,17 @@ def build_project(
   root = path.expanduser().resolve()
   project = _project(root)
   with build_lock(root, project.build) as build_root:
-    return _build_project(root, project, build_root, targets, profile, scope)
+    with TemporaryDirectory(prefix=".stage-", dir=build_root) as temporary:
+      return _build_project(root, project, build_root, Path(temporary), targets, profile, scope)
 
 
-def _build_project(root, project, build_root, targets, profile, scope):
+def _build_project(root, project, build_root, staging, targets, profile, scope):
   manifest_path = root / "texsys.toml"
   manifest_digest = file_digest(manifest_path)
   input_records = _input_digests(root, project.source, project.assets)
   manifest = _manifest(root)
-  if input_records[:1] != [{"path": "texsys.toml", "digest": manifest_digest}] or file_digest(manifest_path) != manifest_digest:
+  if (input_records[:1] != [{"path": "texsys.toml", "digest": manifest_digest}]
+      or _project(root) != project or file_digest(manifest_path) != manifest_digest):
     raise ProjectError("texsys.toml changed while preparing the build. Retry with a stable input revision.")
   packages = project_packages(root)
   selection = resolve_targets(packages, manifest, targets, profile, scope)
@@ -113,9 +122,9 @@ def _build_project(root, project, build_root, targets, profile, scope):
   environment = cache_environment(definitions)
 
   check = check_project(root)
-  dependencies = manifest.get("dependencies", {})
+  declared_dependencies = manifest.get("dependencies", {})
   lock_path = root / LOCK_NAME
-  verify_lock = dependencies != {} or lock_path.exists() or lock_path.is_symlink()
+  verify_lock = declared_dependencies != {} or lock_path.exists() or lock_path.is_symlink()
   if verify_lock:
     lock_project(root, check=True)
   if _input_digests(root, project.source, project.assets) != input_records:
@@ -135,37 +144,49 @@ def _build_project(root, project, build_root, targets, profile, scope):
   statuses: set[str] = {check.status}
   completed = {}
   pending_cache = []
+  claimed_paths = {Path((build_root / output).as_posix().casefold()): owner
+                   for output, owner in selection.named_outputs.items()}
+  transitive_dependencies = {}
   authority_paths = (
     root / project.source, root / project.assets, root / "texsys.toml", root / "texsys.lock",
   )
-  for resolved in selection.resolved:
+  for index, resolved in enumerate(selection.resolved):
     definition = resolved.definition
+    identifier = resolved.id
+    dependencies = resolved.dependencies
+    output = resolved.output
+    target_fields = {"using": definition.id, "output": (build_root / output).relative_to(root).as_posix()} if output else {}
     base = {
-      "id": definition.id,
+      "id": identifier, **target_fields,
       "package": {"name": definition.package_name, "version": definition.package_version},
       "profile": resolved.profile, "scope": dict(resolved.scope),
       "resolution_source": resolved.resolution_source,
-      "dependencies": list(definition.dependencies),
+      "dependencies": list(dependencies),
     }
-    blocked_by = [name for name in definition.dependencies if completed[name]["status"] != "pass"]
+    blocked_by = [name for name in dependencies if completed[name]["status"] != "pass"]
     if blocked_by:
       record = {**base, "execution": "blocked", "status": "indeterminate", "blocked_by": blocked_by,
                 "cache_key": None, "diagnostics": [{"rule": "E_DEPENDENCY_BLOCKED", "status": "indeterminate",
                   "message": "Required build dependencies did not pass: " + ", ".join(blocked_by)}],
                 "open_items": [], "details": {}, "hooks": []}
       target_records.append(record)
-      completed[definition.id] = record
+      completed[identifier] = record
       statuses.add("indeterminate")
       continue
     upstream = [{"id": name, "cache_key": completed[name]["cache_key"],
                  "status": completed[name]["status"],
                  "artifacts": [{"id": a["id"], "digest": a["digest"], "complete": a["complete"]}
                                for a in artifact_records if a["target"] == name]}
-                for name in definition.dependencies]
-    safe_name = definition.id.replace(":", "-").replace("/", "-")
+                for name in dependencies]
+    dependency_ids = set(dependencies)
+    for name in dependencies:
+      dependency_ids.update(transitive_dependencies[name])
+    transitive_dependencies[identifier] = dependency_ids
+    safe_name = identifier.replace(":", "-").replace("/", "-")
+    stage = staging / str(index)
     context = BuildContext(root=root, target=definition.id, profile=resolved.profile, scope=resolved.scope,
-                           build_path=build_root, scratch_path=build_root / ".scratch" / safe_name,
-                           inputs=tuple(input_records))
+                           build_path=stage, scratch_path=build_root / ".scratch" / safe_name,
+                           inputs=tuple(input_records), instance_id=resolved.instance_id, output=output)
     cache_key = None
     status = "pass"
     diagnostics: list[dict[str, Any]] = []
@@ -182,15 +203,15 @@ def _build_project(root, project, build_root, targets, profile, scope):
         not isinstance(pattern, str) or not pattern or pattern.startswith("/") or ".." in pattern.split("/")
         for pattern in patterns
       )):
-        raise ProjectError(f"Target {definition.id} returned invalid input patterns.")
+        raise ProjectError(f"Target {identifier} returned invalid input patterns.")
       base["input_patterns"] = list(patterns) if patterns is not None else None
       cache_key = target_cache_key(resolved, input_records, tools_digest, upstream, patterns)
-      declarations = load_hooks(manifest, definition.id)
+      declarations = load_hooks(manifest, identifier)
       cache_policy = definition.cache(context) if callable(definition.cache) else definition.cache
       if not isinstance(cache_policy, bool):
         raise ProjectError(f"Target {definition.id} returned an invalid cache policy.")
       cache_enabled = cache_policy and not declarations
-      cached = restore_cache(root, build_root, cache_key) if cache_enabled else None
+      cached = restore_cache(root, build_root, stage, cache_key) if cache_enabled else None
       if cached:
         previous = cached["target"]
         status = previous["status"]
@@ -199,8 +220,10 @@ def _build_project(root, project, build_root, targets, profile, scope):
         details = previous["details"]
         current_artifacts = cached["artifacts"]
       else:
+        stage.mkdir(exist_ok=True)
+        seed_stage(root, build_root, stage, (a for a in artifact_records if a["target"] in dependency_ids))
         for declaration in (item for item in declarations if item.phase == "pre"):
-          run = run_hook(declaration, context, current_artifacts, authority_paths)
+          run = run_hook(declaration, context, current_artifacts, authority_paths, public_build=build_root)
           hook_records.append(run.evidence)
           diagnostics.extend(run.diagnostics)
           open_items.extend(run.open_items)
@@ -216,27 +239,45 @@ def _build_project(root, project, build_root, targets, profile, scope):
           diagnostics.extend(result.diagnostics)
           open_items.extend(result.open_items)
           details = result.details
-          current_artifacts.extend(_artifact_records(root, build_root, definition.id, result.artifacts, artifact_ids))
+          current_artifacts.extend(_artifact_records(root, build_root, stage, identifier, result.artifacts, artifact_ids))
         if status == "pass":
           for declaration in (item for item in declarations if item.phase == "post"):
-            run = run_hook(declaration, context, current_artifacts, authority_paths)
+            run = run_hook(declaration, context, current_artifacts, authority_paths, public_build=build_root)
             hook_records.append(run.evidence)
             diagnostics.extend(run.diagnostics)
             open_items.extend(run.open_items)
-            current_artifacts.extend(_artifact_records(root, build_root, definition.id, run.artifacts, artifact_ids))
+            current_artifacts.extend(_artifact_records(root, build_root, stage, identifier, run.artifacts, artifact_ids))
             if run.affects_target:
               status = _combined_status({status, run.status})
               if run.status != "pass":
                 break
+      source_paths = {}
+      produced_paths = set()
       for record in current_artifacts:
-        artifact = root / record["path"]
+        public = root / record["path"]
+        key = Path(public.as_posix().casefold())
+        if any(key.is_relative_to(path) or path.is_relative_to(key) for path in produced_paths) or any(
+          key.is_relative_to(path) or path.is_relative_to(key)
+          for path, owner in claimed_paths.items() if owner != identifier or path != key
+        ):
+          raise ProjectError(f"Target {identifier} conflicts with another artifact at {record['path']}.")
+        artifact = stage / public.relative_to(build_root)
+        source_paths[public] = artifact
+        produced_paths.add(key)
         record["digest"] = file_digest(artifact)
         # Execution errors cannot certify output completeness; an engineering
         # fail/indeterminate result can still have a fully formed report/scene.
         if status == "error":
           record["complete"] = False
+        if status != "pass":
+          record.pop("publish_partial", None)
         record["partial"] = not record["complete"]
-      current_artifacts = snapshot(root, run_root, current_artifacts)
+      if output is not None and status == "pass" and build_root / output not in source_paths:
+        raise ProjectError(f"Target {identifier} did not declare its configured output: {output}")
+      current_artifacts = snapshot(root, run_root, current_artifacts, {
+        public.relative_to(root).as_posix(): artifact for public, artifact in source_paths.items()
+      })
+      claimed_paths.update(dict.fromkeys(produced_paths, identifier))
     except Exception as error:
       status = "error"
       diagnostics.append({"rule": "E001", "status": "error", "message": str(error)})
@@ -245,7 +286,8 @@ def _build_project(root, project, build_root, targets, profile, scope):
       for item in current_artifacts:
         item.update(complete=False, partial=True)
 
-    generated.update((root / record["path"]).resolve() for record in current_artifacts)
+    for record in current_artifacts:
+      record["published"] = False
     artifact_records.extend(current_artifacts)
     statuses.add(status)
     record = {**base, "status": status, "execution": "cached" if cached else "executed",
@@ -254,7 +296,7 @@ def _build_project(root, project, build_root, targets, profile, scope):
     if cached:
       record["reused_from"] = cached["run_id"]
     target_records.append(record)
-    completed[definition.id] = record
+    completed[identifier] = record
     if not cached and cache_enabled and status != "error" and all(item["complete"] for item in current_artifacts):
       pending_cache.append((cache_key, record, current_artifacts))
 
@@ -276,7 +318,32 @@ def _build_project(root, project, build_root, targets, profile, scope):
     for record in artifact_records:
       record["complete"], record["partial"] = False, True
   if consistent:
+    publication_failed = set()
+    for index, target in enumerate(target_records):
+      if target["status"] == "error":
+        continue
+      artifacts = [record for record in artifact_records if record["target"] == target["id"]]
+      unavailable = publication_failed.intersection(target["dependencies"])
+      if unavailable:
+        statuses.add("error")
+        publication_failed.add(target["id"])
+        target["diagnostics"].append({"rule": "E_PUBLISH_BLOCKED", "status": "error",
+                                      "message": "Required outputs could not be published: " + ", ".join(sorted(unavailable))})
+        continue
+      try:
+        published = publish_artifacts(root, build_root, staging / "publish" / str(index), artifacts, previous_run)
+        generated.update(root / path for path in published)
+        for record in artifacts:
+          record["published"] = record["path"] in published
+        if len(published) < len(artifacts):
+          publication_failed.add(target["id"])
+      except (OSError, ProjectError) as error:
+        statuses.add("error")
+        publication_failed.add(target["id"])
+        target["diagnostics"].append({"rule": "E_PUBLISH", "status": "error", "message": str(error)})
     for key, record, artifacts in pending_cache:
+      if record["id"] in publication_failed:
+        continue
       try:
         store_cache(root, build_root, key, record, artifacts, run_id)
       except (OSError, ProjectError, ValueError) as error:
@@ -292,9 +359,11 @@ def _build_project(root, project, build_root, targets, profile, scope):
     "input_digest": canonical_digest(input_records), "toolchain": tools, "toolchain_digest": tools_digest,
     "cache_environment": environment,
     "requested_targets": list(selection.requested),
-    "resolved_targets": [{"id": item.definition.id, "profile": item.profile, "scope": dict(item.scope),
+    "resolved_targets": [{"id": item.id, "profile": item.profile, "scope": dict(item.scope),
                           "resolution_source": item.resolution_source,
-                          "dependencies": list(item.definition.dependencies)} for item in selection.resolved],
+                          "dependencies": list(item.dependencies),
+                          **({"using": item.definition.id, "output": (build_root / item.output).relative_to(root).as_posix()}
+                             if item.output is not None else {})} for item in selection.resolved],
     "packages": [{"name": name, "version": version} for name, version in sorted(selected_packages)],
     "inputs": input_records, "preflight": check.as_dict(), "diagnostics": build_diagnostics,
     "targets": target_records,

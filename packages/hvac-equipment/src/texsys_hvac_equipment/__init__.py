@@ -47,7 +47,7 @@ class HvacEquipmentPackage(TexsysPackage):
     )
 
   def build_layout(self, context: BuildContext) -> TargetResult:
-    paths = self.build(context.root)
+    paths = self.build(context.root, context.build_path)
     if not paths:
       return TargetResult(
         "indeterminate",
@@ -60,7 +60,7 @@ class HvacEquipmentPackage(TexsysPackage):
       preview={"kind": "scene", "title": "设备布局", "source_map": source_map} if key == "layout-scene" else None)
       for key, path in zip(identifiers, paths)))
 
-  def build(self, root: Path) -> tuple[str, ...]:
+  def build(self, root: Path, build_path: Path | None = None) -> tuple[str, ...]:
     system = load_system(root)
     if system is None:
       return ()
@@ -71,10 +71,11 @@ class HvacEquipmentPackage(TexsysPackage):
     solids = tuple(
       kernel.create_box(item.identity, item.origin, item.size) for item in system.equipment
     )
-    scene = root / project.build / "usd" / "layout.usda"
+    output = build_path if build_path is not None else root / project.build
+    scene = output / "usd" / "layout.usda"
     asset = Path(str(resources.files("texsys").joinpath("assets/unit_brep_cube.usda")))
     kernel.write_usd(solids, scene, asset)
-    equipment = root / project.build / "hvac" / "equipment.json"
+    equipment = output / "hvac" / "equipment.json"
     write_json(
       equipment,
       {
