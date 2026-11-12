@@ -5,10 +5,10 @@
   gap: 8px;
   min-width: 0;
   padding: 0 4px;
-  border-top: 1px solid var(--ui-chrome-border-subtle);
+  border-top: 1px solid var(--ui-border);
   background: var(--ui-context-chrome);
   color: var(--ui-text);
-  font-size: var(--ui-font-chrome, 11px);
+  font-size: var(--ui-control-text-size);
   line-height: 1;
   font-variant-numeric: tabular-nums;
   z-index: 31;
@@ -47,8 +47,11 @@
   outline-offset: -2px;
 }
 
-.studio-statusbar .statusbar-problems {
+.studio-statusbar :is(.statusbar-problems, .statusbar-engineering, .statusbar-tasks) {
   flex: 0 0 auto;
+}
+
+.studio-statusbar .statusbar-problems {
   margin-block: 2px;
   border-radius: 4px;
 }
@@ -173,15 +176,7 @@
   }
 }
 
-@media (max-width: 520px) {
-  .studio-statusbar {
-    gap: 2px;
-  }
-  .studio-statusbar .statusbar-item {
-    padding-inline: 4px;
-  }
-  .statusbar-item .statusbar-label,
-  .statusbar-project > svg:last-child,
+@media (max-width: 640px) {
   .studio-statusbar
     :is(
       .statusbar-indent,
@@ -190,6 +185,19 @@
       .statusbar-ai,
       .statusbar-keyboard
     ) {
+    display: none;
+  }
+}
+
+@media (max-width: 520px) {
+  .studio-statusbar {
+    gap: 2px;
+  }
+  .studio-statusbar .statusbar-item {
+    padding-inline: 4px;
+  }
+  .statusbar-item .statusbar-label,
+  .statusbar-project > svg:last-child {
     display: none;
   }
 }
