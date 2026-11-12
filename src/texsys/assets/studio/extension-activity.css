@@ -318,3 +318,12 @@
   width: 100%;
   padding-block: 7px;
 }
+
+.extension-detail-heading .extension-detail-status {
+  margin: 10px 0 0;
+}
+.extension-details > .markdown-preview {
+  max-inline-size: 85ch;
+  padding: 18px 0 0;
+  overflow: visible;
+}

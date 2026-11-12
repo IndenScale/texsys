@@ -15,7 +15,8 @@ export const englishMessages: Record<string, string> = {
   评分: "Rating",
   更新时间: "Last updated",
   可用于源代码编辑器的代码片段: "Snippets for the source editor",
-  "需要 VS Code 扩展宿主": "Requires the VS Code extension host",
+  "无法在 Tex Studio 安装。此扩展需要 VS Code 扩展宿主。":
+    "This extension requires a VS Code extension host and cannot be installed in Tex Studio.",
   需要其他扩展或扩展包: "Requires other extensions or an extension pack",
   "Tex Studio 尚未支持此扩展的贡献点": "Tex Studio does not support this extension's contributions",
   "Open VSX 未提供此版本的扩展清单": "Open VSX has no manifest for this version",
@@ -53,6 +54,12 @@ export const englishMessages: Record<string, string> = {
   安装: "Install",
   更新: "Update",
   "在 Open VSX 中查看": "View on Open VSX",
+  "无法在 Tex Studio 安装。此扩展依赖其他扩展或扩展包。":
+    "This extension requires dependencies or an extension pack and cannot be installed in Tex Studio.",
+  "查看版本…": "View Versions…",
+  "正在读取扩展说明…": "Loading extension README…",
+  "无法读取扩展说明。请在 Open VSX 中查看。": "Unable to load the README. View it on Open VSX.",
+  "发布者未提供扩展说明。": "The publisher has not provided a README.",
   "正在检查扩展兼容性…": "Checking extension compatibility…",
   "管理 {name}": "Manage {name}",
   刷新扩展: "Refresh Extensions",

@@ -157,6 +157,7 @@ def detail(identity, version):
   manifest = _manifest(data) if entry["vsix"] else None
   return {
     **entry, "versions": [v for v in versions if VERSION.fullmatch(v)],
+    "readme": _asset(data.get("files", {}).get("readme")),
     "hasPreRelease": "pre-release" in versions,
     "compatibility": (_compatibility(manifest) if manifest else "manifest" if entry["vsix"] else "unavailable"),
   }

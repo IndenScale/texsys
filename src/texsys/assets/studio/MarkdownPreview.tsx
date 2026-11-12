@@ -51,16 +51,27 @@ export function MarkdownPreview({
   content,
   path = "",
   onOpenFile,
+  remoteBaseUrl,
 }: {
   content: string;
   path?: string;
   onOpenFile?: (path: string) => void;
+  remoteBaseUrl?: string;
 }) {
   const tokens = useMemo(() => marked.lexer(content, { gfm: true }), [content]);
   const prefix = useId();
   const headings = new Map<string, number>();
-  const link = (href: string, children: ReactNode, title?: string | null) => {
+  const resolveLink = (href: string): MarkdownLink | undefined => {
     const target = markdownLink(href, path);
+    if (target?.kind !== "file" || !remoteBaseUrl) return target;
+    try {
+      return markdownLink(new URL(decodeHTML(href).trim(), remoteBaseUrl).href);
+    } catch {
+      return undefined;
+    }
+  };
+  const link = (href: string, children: ReactNode, title?: string | null) => {
+    const target = resolveLink(href);
     if (!target) return <>{children}</>;
     if (target.kind === "file")
       return onOpenFile ? (
@@ -122,7 +133,7 @@ export function MarkdownPreview({
           break;
         case "html":
           // Raw HTML is text, including script tags and event attributes.
-          node = token.text;
+          node = remoteBaseUrl ? null : token.text;
           break;
         case "strong":
           node = <strong>{children()}</strong>;
@@ -157,7 +168,7 @@ export function MarkdownPreview({
           break;
         case "image": {
           const image = token as Tokens.Image;
-          const target = markdownLink(image.href, path);
+          const target = resolveLink(image.href);
           node =
             target?.kind === "external" && /^https?:/i.test(target.href) ? (
               <img

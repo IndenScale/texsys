@@ -886,7 +886,7 @@ export function CoreWorkspaceProvider({
     } = {},
   ) => {
     focusGroup(groupId);
-    if (path.startsWith("\0untitled:") || path.startsWith("\0extension:")) {
+    if (path.startsWith("\0untitled:") || path === "\0extension-details") {
       if (!documentsRef.current.some((item) => item.path === path)) return;
       if (groupId === primaryEditorGroup) {
         setSettingsActive(false);
@@ -1297,7 +1297,7 @@ export function CoreWorkspaceProvider({
     setEditorGroups(nextGroups);
     fileReads.current.invalidate(path);
     failedAutoSaves.current.delete(path);
-    if (path.startsWith("\0untitled:") || path.startsWith("\0extension:")) {
+    if (path.startsWith("\0untitled:") || path === "\0extension-details") {
       setHistory(({ entries, index }) => ({
         entries: entries.filter((entry) => entry !== path),
         index: entries.slice(0, index + 1).filter((entry) => entry !== path).length - 1,
@@ -1900,7 +1900,7 @@ export function CoreWorkspaceProvider({
     plugins: state.plugins,
     activeDocument: activeTab === "source" ? active?.extension : undefined,
     openDocument: (extension) => {
-      const path = `\0extension:${extension.entry.id.toLowerCase()}`;
+      const path = "\0extension-details";
       setDocuments((previous) =>
         previous.some((item) => item.path === path)
           ? previous.map((item) => (item.path === path ? { ...item, extension } : item))

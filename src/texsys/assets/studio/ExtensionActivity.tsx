@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { t } from "./i18n";
 import { Icon } from "./ui";
+import { MarkdownPreview } from "./MarkdownPreview";
 import { NavigatorButton, NavigatorPage } from "./NavigatorPanel";
 import { NavigatorMenu, type NavigatorMenuItem } from "./NavigatorMenu";
 import { activityBarPositionMenuItem, sidebarLayoutMenuItems } from "./atomstudio/Layout";
@@ -25,13 +26,14 @@ type Entry = {
 type Detail = Entry & {
   versions: string[];
   hasPreRelease: boolean;
+  readme?: string | null;
   compatibility:
     "snippets" | "runtime" | "dependencies" | "contributions" | "manifest" | "unavailable";
 };
 export type ExtensionDocument = {
   entry: Entry;
   version: string;
-  intent?: "install" | "download";
+  intent?: "version" | "download";
 };
 type Installed = Entry & {
   enabled: boolean;
@@ -62,8 +64,8 @@ const sorts = {
 };
 const compatibility = {
   snippets: "可用于源代码编辑器的代码片段",
-  runtime: "需要 VS Code 扩展宿主",
-  dependencies: "需要其他扩展或扩展包",
+  runtime: "无法在 Tex Studio 安装。此扩展需要 VS Code 扩展宿主。",
+  dependencies: "无法在 Tex Studio 安装。此扩展依赖其他扩展或扩展包。",
   contributions: "Tex Studio 尚未支持此扩展的贡献点",
   manifest: "Open VSX 未提供此版本的扩展清单",
   unavailable: "当前版本没有可下载的 VSIX",
@@ -552,9 +554,9 @@ export function useExtensionActivity({
       ...(!entry.builtin
         ? [
             {
-              label: t("安装特定版本…"),
+              label: t(local ? "安装特定版本…" : "查看版本…"),
               separator: !!local,
-              run: () => openEntry(entry, local?.version ?? entry.version, "install"),
+              run: () => openEntry(entry, local?.version ?? entry.version, "version"),
             },
           ]
         : []),
@@ -674,41 +676,29 @@ export function useExtensionActivity({
                   </span>
                 </span>
               </button>
-              {!entry.builtin && (
+              {local && (
                 <div className="extension-row-actions">
-                  {(!local || update) && (
+                  {update && (
                     <button
                       type="button"
                       className="extension-primary"
                       disabled={pending}
-                      onClick={() => {
-                        if (update) void perform(() => install(update, update.version));
-                        else {
-                          openEntry(entry, entry.version);
-                          void perform(async () => {
-                            const candidate = await getDetail(entry, entry.version);
-                            if (candidate.compatibility === "snippets")
-                              await install(candidate, candidate.version);
-                          });
-                        }
-                      }}
+                      onClick={() => void perform(() => install(update, update.version))}
                     >
-                      {t(local ? "更新" : "安装")}
+                      {t("更新")}
                     </button>
                   )}
-                  {local && (
-                    <NavigatorButton
-                      label={t("管理 {name}", { name: entry.name })}
-                      icon="settings"
-                      aria-haspopup="menu"
-                      aria-expanded={context?.entry === entry}
-                      onClick={(event) => {
-                        const anchor = event.currentTarget;
-                        const { left, bottom } = anchor.getBoundingClientRect();
-                        setContext({ x: left, y: bottom, anchor, entry });
-                      }}
-                    />
-                  )}
+                  <NavigatorButton
+                    label={t("管理 {name}", { name: entry.name })}
+                    icon="settings"
+                    aria-haspopup="menu"
+                    aria-expanded={context?.entry === entry}
+                    onClick={(event) => {
+                      const anchor = event.currentTarget;
+                      const { left, bottom } = anchor.getBoundingClientRect();
+                      setContext({ x: left, y: bottom, anchor, entry });
+                    }}
+                  />
                 </div>
               )}
             </li>
@@ -1133,7 +1123,8 @@ function ExtensionDetails({
             <span>{entry.publisher}</span>
             <span>{entry.id}</span>
             <span>
-              {t("版本")} {installed?.version ?? entry.version}
+              {t("版本")}{" "}
+              {currentDetail?.version ?? (/^\d/.test(version) ? version : entry.version)}
             </span>
           </p>
           {entry.description && <p>{entry.description}</p>}
@@ -1192,20 +1183,80 @@ function ExtensionDetails({
               triggerIcon="settings"
             />
           </div>
+          {entry.builtin ? (
+            <p>{t("随宿主加载的 Tex Studio 专业插件")}</p>
+          ) : current && settled.error ? (
+            <p className="core-error" role="alert">
+              {settled.error}
+            </p>
+          ) : (
+            <p role="status" className="extension-detail-status">
+              {t(
+                currentDetail ? compatibility[currentDetail.compatibility] : "正在检查扩展兼容性…",
+              )}
+            </p>
+          )}
         </div>
       </header>
-      {entry.builtin ? (
-        <p>{t("随宿主加载的 Tex Studio 专业插件")}</p>
-      ) : current && settled.error ? (
-        <p className="core-error" role="alert">
-          {settled.error}
-        </p>
-      ) : (
-        <p role="status" className="extension-detail-status">
-          {t(currentDetail ? compatibility[currentDetail.compatibility] : "正在检查扩展兼容性…")}
-        </p>
-      )}
+      {currentDetail && <ExtensionReadme url={currentDetail.readme} />}
     </section>
+  );
+}
+
+function ExtensionReadme({ url }: { url?: string | null }) {
+  const [result, setResult] = useState<{ url: string; content?: string }>();
+  useEffect(() => {
+    if (!url) return;
+    const controller = new AbortController();
+    async function load(source: string) {
+      const response = await fetch(source, {
+        signal: controller.signal,
+        credentials: "omit",
+        referrerPolicy: "no-referrer",
+      });
+      const stream = response.body;
+      if (!response.ok || !stream) throw new Error();
+      const reader = stream.getReader();
+      const decoder = new TextDecoder();
+      let bytes = 0;
+      let content = "";
+      while (true) {
+        const chunk = await reader.read();
+        if (chunk.done) return content + decoder.decode();
+        bytes += chunk.value.byteLength;
+        if (bytes > 256 * 1024) {
+          await reader.cancel();
+          throw new Error();
+        }
+        content += decoder.decode(chunk.value, { stream: true });
+      }
+    }
+    void load(url).then(
+      (content) => {
+        if (!controller.signal.aborted) setResult({ url, content });
+      },
+      () => {
+        if (!controller.signal.aborted) setResult({ url });
+      },
+    );
+    return () => controller.abort();
+  }, [url]);
+  if (url && result?.url !== url)
+    return (
+      <p className="extension-detail-status" role="status">
+        {t("正在读取扩展说明…")}
+      </p>
+    );
+  if (url && result?.content?.trim())
+    return <MarkdownPreview content={result.content} remoteBaseUrl={url} />;
+  return (
+    <p className="extension-detail-status">
+      {t(
+        url && result?.content === undefined
+          ? "无法读取扩展说明。请在 Open VSX 中查看。"
+          : "发布者未提供扩展说明。",
+      )}
+    </p>
   );
 }
 
