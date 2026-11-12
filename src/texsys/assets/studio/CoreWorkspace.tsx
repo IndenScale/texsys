@@ -204,6 +204,7 @@ const tabCloseKeys = macKeys ? "Delete Backspace" : "Delete";
 
 function DocumentTab({
   selected,
+  extension,
   tabStop = selected,
   title,
   children,
@@ -214,6 +215,7 @@ function DocumentTab({
   onClose,
 }: {
   selected: boolean;
+  extension?: boolean;
   tabStop?: boolean;
   title?: string;
   children: ReactNode;
@@ -226,6 +228,7 @@ function DocumentTab({
   return (
     <div
       className={`core-file-tab${selected ? " active" : ""}`}
+      data-extension={extension || undefined}
       onKeyDown={(event) => {
         if (
           (event.key !== "Delete" && !(macKeys && event.key === "Backspace")) ||
@@ -2512,7 +2515,7 @@ export function CoreWorkspaceProvider({
               (item) => item.kind === "modules" && item.definition === scope?.key,
             );
             const title =
-              document.extension?.entry.name ??
+              (document.extension && t("扩展: {0}", { 0: document.extension.entry.name })) ??
               (selection
                 ? (("occurrence" in selection ? selection.occurrence.at(-1) : undefined) ??
                   scope?.definition?.name ??
@@ -2532,6 +2535,7 @@ export function CoreWorkspaceProvider({
             return (
               <DocumentTab
                 key={document.path}
+                extension={!!document.extension}
                 selected={activeTab === "source" && activePath === document.path}
                 tabStop={tabStop === "source" && activePath === document.path}
                 title={selection || document.untitled || document.extension ? title : document.path}
@@ -2675,7 +2679,7 @@ export function CoreWorkspaceProvider({
         const selection = document.design?.selection;
         const scope = selection && designIndex && resolveDesign(designIndex, selection);
         const label =
-          document.extension?.entry.name ??
+          (document.extension && t("扩展: {0}", { 0: document.extension.entry.name })) ??
           (selection
             ? (("occurrence" in selection ? selection.occurrence.at(-1) : undefined) ??
               scope?.definition?.name ??
@@ -3029,7 +3033,7 @@ export function CoreWorkspaceProvider({
         setDocuments((previous) =>
           previous.map((item) =>
             item.path === active.path && item.extension
-              ? { ...item, extension: { ...item.extension, version } }
+              ? { ...item, extension: { ...item.extension, version, intent: undefined } }
               : item,
           ),
         ),

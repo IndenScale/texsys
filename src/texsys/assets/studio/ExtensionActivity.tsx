@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { t } from "./i18n";
 import { Icon } from "./ui";
-import { ActionLink, Button, Select } from "./atomstudio/primitives";
+import { Button } from "./atomstudio/primitives";
 import { MarkdownPreview } from "./MarkdownPreview";
 import {
   ExtensionCache,
@@ -10,7 +10,7 @@ import {
   type ExtensionMarkdown,
 } from "./extension-loading";
 import { NavigatorButton, NavigatorPage } from "./NavigatorPanel";
-import { NavigatorMenu, type NavigatorMenuItem } from "./NavigatorMenu";
+import { NavigatorMenu, NavigatorSplitButton, type NavigatorMenuItem } from "./NavigatorMenu";
 import { activityBarPositionMenuItem, sidebarLayoutMenuItems } from "./atomstudio/Layout";
 import { useExtensionSnippets, type ExtensionSnippet } from "./extension-snippets";
 import type { WorkbenchProps } from "./sdk";
@@ -25,6 +25,7 @@ type Entry = {
   icon?: string;
   vsix?: string;
   rating?: number;
+  reviews?: number;
   downloads?: number;
   verified?: boolean;
   preRelease?: boolean;
@@ -36,10 +37,14 @@ type Detail = Entry & {
   readme?: string | null;
   changelog?: string | null;
   categories: string[];
+  publisherName?: string;
+  publishedAt?: string;
+  bundled: string[];
   resources: Partial<Record<"repository" | "issues" | "homepage" | "license", string | null>>;
 };
 type Compatibility = {
   version: string;
+  contributions?: string[];
   compatibility:
     "snippets" | "runtime" | "dependencies" | "contributions" | "manifest" | "unavailable";
 };
@@ -384,12 +389,13 @@ export function useExtensionActivity({
     return result;
   }
 
-  async function install(entry: Entry, version: string) {
+  async function install(entry: Entry, version: string, autoUpdate?: boolean) {
     await change({
       action: "install",
       id: entry.id,
       version,
       previousVersion: installed.get(key(entry))?.version ?? null,
+      autoUpdate,
     });
     setUpdates((before) => {
       const next = { ...before };
@@ -547,45 +553,50 @@ export function useExtensionActivity({
     { label: t("显示已启用的扩展"), run: () => setSearchText("@enabled") },
   ];
 
-  function entryActions(entry: Entry): NavigatorMenuItem[] {
+  function setEnabled(entry: Installed, enabled: boolean, scope: "global" | "workspace") {
+    return perform(async () => {
+      await change({ action: "enable", id: entry.id, scope, enabled });
+    });
+  }
+  function uninstall(entry: Entry) {
+    return perform(async () => {
+      await change({ action: "uninstall", id: entry.id });
+      notify(t("已卸载 {name}。", { name: entry.name }));
+    });
+  }
+  function toggleAutoUpdate(entry: Installed) {
+    return perform(async () => {
+      await change({ action: "auto-update", id: entry.id, enabled: !entry.autoUpdate });
+    });
+  }
+  function entryActions(entry: Entry, inDetail = false): NavigatorMenuItem[] {
     const local = installed.get(key(entry));
     const recommended = recommendations.some((item) => key(item) === key(entry));
-    const enable = (enabled: boolean, scope: string) => () =>
-      void perform(async () => {
-        await change({ action: "enable", id: entry.id, scope, enabled });
-      });
     const actions: NavigatorMenuItem[] = [
-      ...(local
+      ...(!inDetail && local
         ? [
             {
               label: t(local.globalEnabled ? "禁用" : "启用"),
-              run: enable(!local.globalEnabled, "global"),
+              run: () => void setEnabled(local, !local.globalEnabled, "global"),
             },
             {
               label: t(local.enabled ? "禁用（工作区）" : "启用（工作区）"),
-              run: enable(!local.enabled, "workspace"),
+              run: () => void setEnabled(local, !local.enabled, "workspace"),
             },
             {
               label: t("自动更新"),
               checked: local.autoUpdate,
               checkbox: true,
               separator: true,
-              run: () =>
-                void perform(async () => {
-                  await change({ action: "auto-update", id: entry.id, enabled: !local.autoUpdate });
-                }),
+              run: () => void toggleAutoUpdate(local),
             },
             {
               label: t("卸载"),
-              run: () =>
-                void perform(async () => {
-                  await change({ action: "uninstall", id: entry.id });
-                  notify(t("已卸载 {name}。", { name: entry.name }));
-                }),
+              run: () => void uninstall(entry),
             },
           ]
         : []),
-      ...(!entry.builtin
+      ...(!inDetail && !entry.builtin
         ? [
             {
               label: t(local ? "安装特定版本…" : "查看版本…"),
@@ -596,7 +607,7 @@ export function useExtensionActivity({
         : []),
       {
         label: t("复制"),
-        separator: !entry.builtin,
+        separator: !inDetail && !entry.builtin,
         run: () => copy(`${entry.name} (${entry.id})`),
       },
       { label: t("复制扩展 ID"), run: () => copy(entry.id) },
@@ -629,7 +640,7 @@ export function useExtensionActivity({
             },
           ]
         : []),
-      ...(!entry.builtin
+      ...(!inDetail && !entry.builtin
         ? [
             {
               label: t("下载 VSIX"),
@@ -867,8 +878,32 @@ export function useExtensionActivity({
         installed={installed.get(key(request.entry))}
         pending={pending}
         revision={revision}
-        manage={entryActions(request.entry)}
-        install={(entry) => void perform(() => install(entry, entry.version))}
+        manage={entryActions(request.entry, true)}
+        setEnabled={setEnabled}
+        uninstall={uninstall}
+        toggleAutoUpdate={toggleAutoUpdate}
+        switchChannel={(entry, preRelease) =>
+          void perform(async () => {
+            const params = versionKey(entry, preRelease ? "pre-release" : "latest");
+            const target = await detailCache.load(params, () => loadDetail(params));
+            const concrete = versionKey(target, target.version);
+            const check = await compatibilityCache.load(concrete, () =>
+              loadCompatibility(concrete),
+            );
+            if (
+              Boolean(target.preRelease) !== preRelease ||
+              check.version !== target.version ||
+              check.compatibility !== "snippets"
+            ) {
+              throw new Error(t("此发布频道没有可安装的版本。"));
+            }
+            await install(target, target.version);
+            changeVersion(target.version);
+          })
+        }
+        install={(entry, autoUpdate) =>
+          void perform(() => install(entry, entry.version, autoUpdate))
+        }
       />
     ),
     actions: (
@@ -1144,6 +1179,10 @@ function ExtensionDetails({
   revision,
   manage,
   install,
+  setEnabled,
+  uninstall,
+  toggleAutoUpdate,
+  switchChannel,
 }: {
   request: ExtensionDocument;
   detailCache: ExtensionCache<Detail>;
@@ -1156,10 +1195,15 @@ function ExtensionDetails({
   pending: boolean;
   revision: number;
   manage: NavigatorMenuItem[];
-  install: (entry: Detail) => void;
+  install: (entry: Detail, autoUpdate?: boolean) => void;
+  setEnabled: (entry: Installed, enabled: boolean, scope: "global" | "workspace") => Promise<void>;
+  uninstall: (entry: Entry) => Promise<void>;
+  toggleAutoUpdate: (entry: Installed) => Promise<void>;
+  switchChannel: (entry: Installed, preRelease: boolean) => void;
 }) {
   const { entry, version, intent } = request;
-  const [panel, setPanel] = useState<"readme" | "changelog">("readme");
+  const [initialAutoUpdate, setInitialAutoUpdate] = useState(true);
+  const [panel, setPanel] = useState<"readme" | "features" | "changelog">("readme");
   const metadata = useExtensionResource(
     entry.builtin ? undefined : versionKey(entry, version),
     revision,
@@ -1175,7 +1219,7 @@ function ExtensionDetails({
   );
   const result = check.data?.version === detail?.version ? check.data?.compatibility : undefined;
   const documentType = panel === "changelog" && detail?.changelog ? "changelog" : "readme";
-  const documentUrl = detail?.[documentType] ?? undefined;
+  const documentUrl = panel === "features" ? undefined : (detail?.[documentType] ?? undefined);
   const markdown = useExtensionResource(
     documentUrl,
     revision,
@@ -1183,114 +1227,179 @@ function ExtensionDetails({
     loadExtensionMarkdown,
   );
   const currentDetail = detail ?? detailCache.read(versionKey(entry, entry.version));
-  const versionField = useRef<HTMLSelectElement>(null);
-  useEffect(() => {
-    if (intent) versionField.current?.focus({ preventScroll: true });
-  }, [intent, entry.id]);
-
   const directDownload = version === entry.version ? entry.vsix : undefined;
   const download = detail ? detail.vsix : directDownload;
   const status = detail && !detail.vsix ? "unavailable" : result;
+  const enabledLabel = t(installed?.enabled ? "禁用" : "启用");
+  const release =
+    detail?.preRelease ??
+    (version === "pre-release" || (version === entry.version && entry.preRelease));
+  const channelLabel = t(release ? "显示发布版本" : "显示预发布版本");
+  const versions = [...new Set([entry.version, ...(currentDetail?.versions ?? [])])].map(
+    (option) => ({
+      label: option,
+      checked: option === (detail?.version ?? version),
+      run: () => changeVersion(option),
+    }),
+  );
+  const versionMenu = { label: t("查看版本…"), submenu: versions };
+  const downloadMenu: NavigatorMenuItem[] = [
+    {
+      label: t("下载 VSIX"),
+      run: download ? () => window.open(download, "_blank", "noopener,noreferrer") : undefined,
+    },
+    { label: t("下载特定版本的 VSIX…"), submenu: versions },
+  ];
+  const [dismissedPicker, setDismissedPicker] = useState<ExtensionDocument>();
+  const showPicker = !!intent && dismissedPicker !== request;
+  const gearItems = showPicker
+    ? [...versions, { label: "", separator: true }, ...downloadMenu.slice(0, 1)]
+    : [
+        ...(currentDetail?.hasPreRelease
+          ? [
+              { label: channelLabel, run: () => changeVersion(release ? "latest" : "pre-release") },
+              { label: "", separator: true },
+            ]
+          : []),
+        ...manage,
+        ...(!entry.builtin
+          ? [
+              { label: "", separator: true },
+              versionMenu,
+              ...downloadMenu,
+              {
+                label: t("在 Open VSX 中查看"),
+                run: () => window.open(itemUrl(entry), "_blank", "noopener,noreferrer"),
+              },
+            ]
+          : []),
+      ];
+  const installable = detail && result === "snippets" && detail.version !== installed?.version;
+  const rating = detail?.rating ?? entry.rating;
+  const reviews = detail?.reviews ?? entry.reviews;
   return (
     <section className="extension-details" aria-label={entry.name}>
       <header className="extension-detail-heading">
         <ExtensionIcon key={entry.icon ?? entry.id} entry={entry} />
         <div>
-          <h1>{entry.name}</h1>
+          <h1>
+            {entry.name}
+            {release && <span className="extension-release-tag">pre-release</span>}
+          </h1>
           <p className="extension-detail-meta">
             <span>
-              {entry.verified && <Icon name="tick" size={12} />}
-              {entry.publisher}
+              {detail?.publisherName || entry.publisher}
+              {entry.verified && (
+                <span className="extension-verified" title={t("已验证的发布者")}>
+                  <Icon name="tick" size={11} />
+                </span>
+              )}
             </span>
             {!!entry.downloads && (
               <span>
-                <Icon name="download" size={13} />
+                <Icon name="download" size={15} />
                 {entry.downloads.toLocaleString()}
               </span>
             )}
-            {entry.rating != null && (
-              <span>
-                <Icon name="star" size={13} />
-                {ratingFormat.format(entry.rating)}
-              </span>
-            )}
-            {entry.builtin && (
-              <span>
-                {t("版本")} {entry.version}
+            {rating != null && (
+              <span aria-label={`${t("评分")} ${ratingFormat.format(rating)}`}>
+                <span className="extension-rating-stars">
+                  {Array.from({ length: 5 }, (_, i) => (
+                    <span key={i} data-filled={i < Math.round(rating) || undefined}>
+                      <Icon name="star" size={16} />
+                    </span>
+                  ))}
+                </span>
+                {reviews != null && `(${reviews.toLocaleString()})`}
               </span>
             )}
           </p>
-          {entry.description && <p>{entry.description}</p>}
-          <div className="studio-control-group">
-            {!entry.builtin && (
-              <>
-                <label className="studio-control-field">
-                  <span>{t("版本")}</span>
-                  <Select
-                    controlRef={versionField}
-                    width="compact"
-                    aria-label={t("扩展版本")}
-                    title={detail?.version ?? (/^\d/.test(version) ? version : undefined)}
-                    value={version}
-                    onChange={(event) => changeVersion(event.target.value)}
-                  >
-                    <option value="latest">{t("最新版本")}</option>
-                    {(version === "pre-release" || currentDetail?.hasPreRelease) && (
-                      <option value="pre-release">{t("预发布版本")}</option>
-                    )}
-                    {[
-                      ...new Set([
-                        entry.version,
-                        ...(/^\d/.test(version) ? [version] : []),
-                        ...(currentDetail?.versions ?? []),
-                        ...(detail ? [detail.version] : []),
-                      ]),
-                    ].map((option) => (
-                      <option value={option} key={option}>
-                        {option}
-                      </option>
-                    ))}
-                  </Select>
-                </label>
-                <ActionLink
-                  icon="download"
-                  href={download ?? undefined}
-                  rel="noreferrer"
-                  target="_blank"
-                >
-                  {t("下载 VSIX")}
-                </ActionLink>
-                <ActionLink
-                  href={itemUrl(entry)}
-                  aria-label={t("在 Open VSX 中查看")}
-                  rel="noreferrer"
-                  target="_blank"
-                >
-                  Open VSX
-                </ActionLink>
-              </>
-            )}
-            <NavigatorMenu
-              label={t("管理 {name}", { name: entry.name })}
-              items={manage}
-              triggerClassName="studio-control-icon"
-              triggerIcon="settings"
-            />
-            {detail && result === "snippets" && detail.version !== installed?.version && (
+          {entry.description && <p className="extension-detail-description">{entry.description}</p>}
+          <div className="studio-control-group extension-actions">
+            {installable && (
               <Button
                 appearance="primary"
+                density="compact"
                 type="button"
                 disabled={pending}
-                onClick={() => install(detail)}
+                onClick={() => install(detail, installed ? undefined : initialAutoUpdate)}
               >
                 {t(installed ? "安装此版本" : "安装")}
               </Button>
             )}
+            {installed && (
+              <>
+                {!installable && detail?.hasPreRelease && (
+                  <Button
+                    appearance="primary"
+                    density="compact"
+                    type="button"
+                    disabled={pending}
+                    onClick={() => switchChannel(installed, !installed.preRelease)}
+                  >
+                    {t(installed.preRelease ? "切换为发布版本" : "切换到预发布版本")}
+                  </Button>
+                )}
+                <NavigatorSplitButton
+                  label={enabledLabel}
+                  menuLabel={t("启用范围")}
+                  disabled={pending}
+                  onClick={() => void setEnabled(installed, !installed.enabled, "global")}
+                  items={[
+                    {
+                      label: enabledLabel,
+                      run: () => void setEnabled(installed, !installed.enabled, "global"),
+                    },
+                    {
+                      label: t(installed.enabled ? "禁用（工作区）" : "启用（工作区）"),
+                      run: () => void setEnabled(installed, !installed.enabled, "workspace"),
+                    },
+                  ]}
+                />
+                <NavigatorSplitButton
+                  label={t("卸载")}
+                  menuLabel={t("卸载与版本")}
+                  disabled={pending}
+                  onClick={() => void uninstall(installed)}
+                  items={[
+                    { label: t("卸载"), run: () => void uninstall(installed) },
+                    { label: t("安装特定版本…"), submenu: versions },
+                  ]}
+                />
+              </>
+            )}
+            {(installed || installable) && (
+              <label className="studio-control-checkbox">
+                <input
+                  type="checkbox"
+                  checked={installed?.autoUpdate ?? initialAutoUpdate}
+                  disabled={pending}
+                  onChange={(event) => {
+                    if (installed) void toggleAutoUpdate(installed);
+                    else setInitialAutoUpdate(event.target.checked);
+                  }}
+                />
+                {t("自动更新")}
+              </label>
+            )}
+            <NavigatorMenu
+              label={t("管理 {name}", { name: entry.name })}
+              items={gearItems}
+              openRequest={showPicker && detail ? request : undefined}
+              onDismiss={() => {
+                if (showPicker) setDismissedPicker(request);
+              }}
+              placement="start"
+              triggerClassName="studio-compact-icon"
+              triggerIcon="settings"
+              menuClassName="navigator-menu-compact extension-gear-menu"
+            />
           </div>
           {entry.builtin ? (
             <p>{t("随宿主加载的 Tex Studio 专业插件")}</p>
           ) : (
             <p className="extension-detail-status" role="status">
+              {status && status !== "snippets" && <Icon name="warning" size={15} />}
               {metadata.error ||
                 check.error ||
                 t(status ? compatibility[status] : "正在检查扩展兼容性…")}
@@ -1303,10 +1412,17 @@ function ExtensionDetails({
           <div className="extension-detail-navigation">
             <button
               type="button"
-              aria-pressed={documentType === "readme"}
+              aria-pressed={panel === "readme" || (panel === "changelog" && !detail?.changelog)}
               onClick={() => setPanel("readme")}
             >
-              {t("详细信息")}
+              {t("细节")}
+            </button>
+            <button
+              type="button"
+              aria-pressed={panel === "features"}
+              onClick={() => setPanel("features")}
+            >
+              {t("功能")}
             </button>
             {detail?.changelog && (
               <button
@@ -1320,11 +1436,44 @@ function ExtensionDetails({
           </div>
           <div className="extension-detail-body">
             <div className="extension-detail-document">
+              {panel === "readme" && !!detail?.bundled.length && (
+                <section className="extension-detail-pack">
+                  <h2>
+                    {t("扩展包")} ({detail.bundled.length})
+                  </h2>
+                  <ul>
+                    {detail.bundled.map((id) => (
+                      <li key={id}>
+                        <a
+                          href={`https://open-vsx.org/extension/${id.replace(".", "/")}`}
+                          target="_blank"
+                          rel="noreferrer"
+                        >
+                          {id}
+                        </a>
+                      </li>
+                    ))}
+                  </ul>
+                </section>
+              )}
               {metadata.error ? (
                 <p className="core-error" role="alert">
                   {metadata.error}
                 </p>
+              ) : panel === "features" && (status || check.error) ? (
+                <section className="extension-detail-features">
+                  {check.data?.contributions?.length ? (
+                    <ul>
+                      {check.data.contributions.map((contribution) => (
+                        <li key={contribution}>{contribution}</li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p>{check.error ?? (status && t(compatibility[status]))}</p>
+                  )}
+                </section>
               ) : !detail ||
+                panel === "features" ||
                 (documentUrl && markdown.data === undefined && markdown.error === undefined) ? (
                 <ExtensionSkeleton
                   label={t(documentType === "readme" ? "正在读取扩展说明…" : "正在读取更改日志…")}
@@ -1353,6 +1502,25 @@ function ExtensionDetails({
             </div>
             {detail && (
               <aside className="extension-detail-resources">
+                <section>
+                  <h2>{t("市场")}</h2>
+                  <dl className="extension-market-metadata">
+                    <div>
+                      <dt>{t("标识符")}</dt>
+                      <dd>{entry.id}</dd>
+                    </div>
+                    <div>
+                      <dt>{t("版本")}</dt>
+                      <dd>{detail.version}</dd>
+                    </div>
+                    {detail.publishedAt && (
+                      <div>
+                        <dt>{t("发布时间")}</dt>
+                        <dd>{new Date(detail.publishedAt).toLocaleDateString()}</dd>
+                      </div>
+                    )}
+                  </dl>
+                </section>
                 {!!detail.categories.length && (
                   <section>
                     <h2>{t("类别")}</h2>
@@ -1382,10 +1550,6 @@ function ExtensionDetails({
                       </a>
                     </li>
                   </ul>
-                </section>
-                <section>
-                  <h2>{t("扩展 ID")}</h2>
-                  <span>{entry.id}</span>
                 </section>
               </aside>
             )}

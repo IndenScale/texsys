@@ -89,7 +89,7 @@ def _entry(data):
   return {
     "id": identity, "name": data.get("displayName") or name, "publisher": namespace,
     "version": data["version"], "description": data.get("description") or "",
-    "downloads": data.get("downloadCount", 0), "rating": data.get("averageRating"),
+    "downloads": data.get("downloadCount", 0), "rating": data.get("averageRating"), "reviews": data.get("reviewCount"),
     "icon": _asset(files.get("icon")), "vsix": _asset(files.get("download")),
     "verified": data.get("verified", False), "preRelease": data.get("preRelease", False),
   }
@@ -174,6 +174,12 @@ def detail(identity, version):
     "readme": _asset(files.get("readme")),
     "changelog": _asset(files.get("changelog")),
     "hasPreRelease": "pre-release" in versions,
+    "publisherName": data.get("namespaceDisplayName"),
+    "publishedAt": data.get("timestamp"),
+    "bundled": [
+      f"{item['namespace']}.{item['extension']}" for item in data.get("bundledExtensions", [])
+      if isinstance(item, dict) and ID.fullmatch(f"{item.get('namespace', '')}.{item.get('extension', '')}")
+    ],
     "categories": [item for item in data.get("categories", []) if isinstance(item, str)],
     "resources": {
       "repository": _web_link(data.get("repository")),
@@ -189,7 +195,11 @@ def check_compatibility(identity, version):
   if not entry["vsix"]:
     return {"version": entry["version"], "compatibility": "unavailable"}
   manifest = _manifest(data)
-  return {"version": entry["version"], "compatibility": _compatibility(manifest) if manifest else "manifest"}
+  return {
+    "version": entry["version"],
+    "compatibility": _compatibility(manifest) if manifest else "manifest",
+    "contributions": list(manifest.get("contributes", {})) if manifest else [],
+  }
 
 
 def _read_member(archive, path):
@@ -367,6 +377,8 @@ class StudioExtensions:
       raise ProjectError("扩展开关值无效。")
     # Network and ZIP validation finish before the existing installation can change.
     if action == "install":
+      if "autoUpdate" in request and type(request["autoUpdate"]) is not bool:
+        raise ProjectError("扩展开关值无效。")
       entry, snippets = _install(identity, request.get("version", "latest"))
     with self.lock:
       data = self._read()
@@ -376,7 +388,7 @@ class StudioExtensions:
         expected = request.get("previousVersion")
         if expected != (item["entry"]["version"] if item else None):
           raise Conflict("扩展已发生变化，请刷新后重试。")
-        installed[key] = {**(item or {"enabled": True, "autoUpdate": True, "workspaces": {}}),
+        installed[key] = {**(item or {"enabled": True, "autoUpdate": request.get("autoUpdate", True), "workspaces": {}}),
                           "entry": entry, "snippets": snippets}
       elif action == "ignore":
         data["ignored"] = sorted((set(data["ignored"]) - {key}) | ({key} if enabled else set()))

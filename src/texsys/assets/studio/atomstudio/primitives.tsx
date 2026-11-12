@@ -2,10 +2,8 @@
  * React boundary for the imported AtomStudio components.
  */
 import React, {
-  type AnchorHTMLAttributes,
   type ButtonHTMLAttributes,
   type HTMLAttributes,
-  type ReactNode,
   type Ref,
   type SelectHTMLAttributes,
 } from "react";
@@ -48,7 +46,7 @@ export function Select({
   controlRef,
   ...props
 }: SelectHTMLAttributes<HTMLSelectElement> & {
-  width?: "compact" | "standard" | "wide";
+  width?: "standard" | "wide";
   controlRef?: Ref<HTMLSelectElement>;
 }) {
   return (
@@ -59,31 +57,6 @@ export function Select({
   );
 }
 
-export function ActionLink({
-  href,
-  children,
-  icon,
-  ...props
-}: Omit<AnchorHTMLAttributes<HTMLAnchorElement>, "className"> & {
-  children: ReactNode;
-  icon?: string;
-}) {
-  const content = (
-    <>
-      {icon && <StudioIcon name={icon} size={14} />}
-      {children}
-    </>
-  );
-  return href ? (
-    <a {...props} href={href} className="studio-control studio-control-secondary">
-      {content}
-    </a>
-  ) : (
-    <span role="link" aria-disabled="true" className="studio-control studio-control-secondary">
-      {content}
-    </span>
-  );
-}
 export function Icon({ name }: { name: string }) {
   return <StudioIcon name={name} size={16} />;
 }

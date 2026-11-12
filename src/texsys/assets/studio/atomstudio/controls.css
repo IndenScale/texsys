@@ -4,16 +4,7 @@
   align-items: center;
   gap: var(--space-2);
 }
-.studio-control-field {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-2);
-  max-inline-size: 100%;
-  color: var(--ui-text-muted);
-  font-size: var(--ui-control-text-size);
-}
-.studio-control,
-.navigator-button.studio-control-icon {
+.studio-control {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -41,22 +32,16 @@
 .studio-control-primary:hover:not(:disabled) {
   filter: brightness(1.09);
 }
-.studio-control-secondary:hover:not(:disabled, [aria-disabled="true"]),
-.navigator-button.studio-control-icon:is(:hover, [aria-expanded="true"]) {
+.studio-control-secondary:hover:not(:disabled, [aria-disabled="true"]) {
   background: var(--ui-control-hover);
 }
 .studio-control[aria-disabled="true"],
 .studio-select-input:disabled {
   opacity: 0.48;
 }
-.studio-control:focus-visible,
-.navigator-button.studio-control-icon:focus-visible {
+.studio-control:focus-visible {
   outline: 2px solid var(--ui-proof);
   outline-offset: 2px;
-}
-.navigator-button.studio-control-icon {
-  inline-size: var(--ui-control-height);
-  padding: 0;
 }
 .studio-select {
   position: relative;
@@ -64,9 +49,6 @@
   inline-size: var(--ui-select-width-standard);
   min-inline-size: 0;
   max-inline-size: 100%;
-}
-.studio-select[data-width="compact"] {
-  inline-size: var(--ui-select-width-compact);
 }
 .studio-select[data-width="wide"] {
   inline-size: var(--ui-select-width-wide);
@@ -92,4 +74,44 @@
   transform: translateY(-50%);
   color: var(--ui-text-muted);
   pointer-events: none;
+}
+
+.studio-split-button {
+  display: inline-flex;
+  align-items: stretch;
+  border: 1px solid var(--ui-border);
+  border-radius: var(--ui-control-radius);
+}
+.studio-split-button > .studio-control {
+  border: 0;
+  border-radius: var(--ui-control-radius) 0 0 var(--ui-control-radius);
+}
+.studio-split-button > .studio-split-trigger {
+  width: 20px;
+  height: auto;
+  min-height: var(--ui-control-height-compact);
+  position: relative;
+  border-radius: 0 var(--ui-control-radius) var(--ui-control-radius) 0;
+}
+.studio-split-button > .studio-split-trigger::before {
+  content: "";
+  position: absolute;
+  inset: 3px auto 3px 0;
+  border-inline-start: 1px solid var(--ui-border);
+}
+.navigator-button.studio-compact-icon {
+  width: 24px;
+  height: 24px;
+}
+.studio-control-checkbox {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  white-space: nowrap;
+}
+.studio-control-checkbox input {
+  margin: 0;
+  width: 16px;
+  height: 16px;
+  accent-color: var(--ui-proof);
 }

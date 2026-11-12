@@ -49,7 +49,10 @@ def test_vsix_update_validates_before_replacing_and_preserves_workspace_state(tm
   digest = None
   store = extensions.StudioExtensions(tmp_path / "data" / "extensions.json")
   workspace = tmp_path / "project"
-  result = store.change(workspace, {"id": identity, "action": "install", "version": "1.0.0"})
+  result = store.change(workspace, {
+    "id": identity, "action": "install", "version": "1.0.0", "autoUpdate": False,
+  })
+  assert result["installed"][0]["autoUpdate"] is False
   assert result["installed"][0]["snippets"][0]["body"] == "- [ ] ${1:text}\n$0"
   store.change(workspace, {"id": identity, "action": "enable", "scope": "workspace", "enabled": False})
   assert store.state(workspace)["installed"][0]["snippets"] == []
@@ -65,6 +68,7 @@ def test_vsix_update_validates_before_replacing_and_preserves_workspace_state(tm
   digest = hashlib.sha256(archive()).hexdigest().encode()
   result = store.change(workspace, update)
   assert result["installed"][0]["version"] == "1.1.0"
+  assert result["installed"][0]["autoUpdate"] is False
   assert result["installed"][0]["enabled"] is False
   with pytest.raises(Conflict):
     store.change(workspace, update)

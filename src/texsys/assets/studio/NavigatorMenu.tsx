@@ -1,5 +1,6 @@
 import React, { useEffect, useId, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { Keycaps } from "./Keycaps";
+import { Button } from "./atomstudio/primitives";
 import { NavigatorButton } from "./NavigatorPanel";
 import { Icon } from "./ui";
 
@@ -23,57 +24,41 @@ function placeMenu(
 ) {
   const edge = 6;
   const gap = 3;
-  menu.style.maxHeight = "none";
-  menu.style.overflow = "visible";
-  menu.style.overflowY = "visible";
-
-  if (direction === "up") {
-    menu.style.maxHeight = `${Math.max(32, top - gap - edge)}px`;
-    menu.style.overflowY = "auto";
-  }
-
+  menu.style.maxHeight = "";
+  menu.style.overflowY = "";
   const { width, height } = menu.getBoundingClientRect();
   const maxX = window.innerWidth - width - edge;
-  const maxY = window.innerHeight - height - edge;
-  const preferSide = placement === "side" && right <= maxX;
-  const x = preferSide
-    ? right
-    : placement === "point" || placement === "start"
-      ? left
-      : right - width;
-
-  const spaceBelow = window.innerHeight - bottom - gap - edge;
-  const spaceAbove = top - gap - edge;
-
-  let y: number;
-  if (placement === "point") {
-    // Context menu (right-click point): standard VS Code / native OS behavior.
-    // Start at cursor y; if space below is limited, clamp bottom to window.innerHeight - edge
-    // so the menu spans across the cursor point ("上面有一点，下面有一点") without scrolling.
-    y = direction === "up" ? top - gap - height : Math.min(top, maxY);
-  } else if (direction === "down") {
-    y = bottom + gap;
-    if (y + height > window.innerHeight - edge && spaceAbove > spaceBelow) {
-      y = top - height - gap;
-    }
-  } else if (direction === "up") {
-    y = top - height - gap;
-  } else {
-    if (spaceBelow >= height) {
-      y = bottom + gap;
-    } else if (spaceAbove >= height) {
-      y = top - height - gap;
-    } else if (spaceAbove > spaceBelow) {
-      y = top - height - gap;
-    } else {
-      y = bottom + gap;
-    }
+  const x =
+    placement === "side" && right <= maxX
+      ? right
+      : placement === "start" || placement === "point"
+        ? left
+        : right - width;
+  const above = Math.max(0, top - gap - edge);
+  const below = Math.max(0, window.innerHeight - bottom - gap - edge);
+  const upward =
+    direction === "up"
+      ? height <= above || (height > below && above >= below)
+      : height > below && (height <= above || above > below);
+  const available =
+    placement === "point" && direction !== "up"
+      ? window.innerHeight - 2 * edge
+      : upward
+        ? above
+        : below;
+  if (height > available) {
+    menu.style.maxHeight = `${available}px`;
+    menu.style.overflowY = "auto";
   }
-
-  const finalX = Math.max(edge, Math.min(x, maxX));
-  const finalY = Math.max(edge, Math.min(y, maxY));
-  menu.style.left = `${finalX}px`;
-  menu.style.top = `${finalY}px`;
+  const actualHeight = menu.getBoundingClientRect().height;
+  const y =
+    placement === "point" && direction !== "up"
+      ? Math.min(top, window.innerHeight - actualHeight - edge)
+      : upward
+        ? top - gap - actualHeight
+        : bottom + gap;
+  menu.style.left = `${Math.max(edge, Math.min(x, maxX))}px`;
+  menu.style.top = `${Math.max(edge, y)}px`;
 }
 
 export function NavigatorMenu({
@@ -87,6 +72,9 @@ export function NavigatorMenu({
   direction = "auto",
   triggerClassName,
   triggerIcon = "more",
+  menuClassName,
+  openRequest,
+  triggerDisabled,
   detail,
 }: {
   label: string;
@@ -99,6 +87,9 @@ export function NavigatorMenu({
   direction?: "down" | "up" | "auto";
   triggerClassName?: string;
   triggerIcon?: ReactNode;
+  menuClassName?: string;
+  openRequest?: object;
+  triggerDisabled?: boolean;
   detail?: ReactNode;
 }) {
   const id = useId();
@@ -147,7 +138,9 @@ export function NavigatorMenu({
       "point",
       direction,
     );
-    (menu.querySelector<HTMLButtonElement>("button:not(:disabled)") ?? menu).focus();
+    (menu.querySelector<HTMLButtonElement>("button:not(:disabled)") ?? menu).focus({
+      preventScroll: true,
+    });
   }, [point, direction]);
 
   useLayoutEffect(() => {
@@ -158,19 +151,20 @@ export function NavigatorMenu({
     const button = submenuParent(activeSubmenuIndex);
     if (!button) return;
     const rect = button.getBoundingClientRect();
+    const edge = 6;
+    sub.style.maxHeight = `${window.innerHeight - edge * 2}px`;
+    sub.style.overflowY = "auto";
     const { width, height } = sub.getBoundingClientRect();
-    const edge = 4;
-    const spaceRight = window.innerWidth - rect.right - edge;
-    const shouldGoRight = spaceRight >= width || spaceRight >= rect.left;
-    const left = shouldGoRight
-      ? Math.min(rect.right + 2, window.innerWidth - width - edge)
-      : Math.max(edge, rect.left - width - 2);
-    const top = Math.max(edge, Math.min(rect.top - 4, window.innerHeight - height - edge));
-    sub.style.left = `${left}px`;
-    sub.style.top = `${top}px`;
-    sub.style.maxHeight = "none";
-    sub.style.overflow = "visible";
-    sub.style.overflowY = "visible";
+    const parent = parentMenu.getBoundingClientRect();
+    const gap = 2;
+    const spaceRight = window.innerWidth - parent.right - edge - gap;
+    const spaceLeft = parent.left - edge - gap;
+    if (spaceRight >= width || spaceLeft >= width) {
+      sub.style.left = `${spaceRight >= width ? parent.right + gap : parent.left - gap - width}px`;
+      sub.style.top = `${Math.max(edge, Math.min(rect.top - 4, window.innerHeight - height - edge))}px`;
+    } else {
+      placeMenu(sub, rect, "start");
+    }
     if (focusSubmenuAfterOpen.current) {
       sub.querySelector<HTMLButtonElement>("button:not(:disabled)")?.focus();
       focusSubmenuAfterOpen.current = false;
@@ -182,15 +176,37 @@ export function NavigatorMenu({
     const dismiss = () => {
       if (menuRef.current?.matches(":popover-open")) menuRef.current.hidePopover();
     };
+    const dismissOnOutsideScroll = (event: Event) => {
+      if (!(event.target instanceof Node) || !menuRef.current?.contains(event.target)) dismiss();
+    };
     window.addEventListener("resize", dismiss);
-    return () => window.removeEventListener("resize", dismiss);
+    window.addEventListener("scroll", dismissOnOutsideScroll, true);
+    return () => {
+      window.removeEventListener("resize", dismiss);
+      window.removeEventListener("scroll", dismissOnOutsideScroll, true);
+    };
   }, [open]);
+
+  useLayoutEffect(() => {
+    if (openRequest && !menuRef.current?.matches(":popover-open")) {
+      document.getElementById(`${id}-trigger`)?.click();
+    }
+  }, [openRequest, id]);
+
+  useLayoutEffect(() => {
+    const menu = menuRef.current;
+    const trigger = document.getElementById(`${id}-trigger`);
+    if (open && menu && trigger) {
+      placeMenu(menu, trigger.getBoundingClientRect(), placement, direction);
+    }
+  }, [open, id, items, placement, direction]);
 
   return (
     <>
       {!point && (
         <NavigatorButton
           id={`${id}-trigger`}
+          disabled={triggerDisabled}
           className={triggerClassName}
           label={label}
           title={title}
@@ -208,7 +224,9 @@ export function NavigatorMenu({
             }
             menu.showPopover();
             placeMenu(menu, event.currentTarget.getBoundingClientRect(), placement, direction);
-            (menu.querySelector<HTMLButtonElement>("button:not(:disabled)") ?? menu).focus();
+            (menu.querySelector<HTMLButtonElement>("button:not(:disabled)") ?? menu).focus({
+              preventScroll: true,
+            });
           }}
           onKeyDown={(event) => {
             if (event.key === "ArrowDown" && !open) {
@@ -219,7 +237,7 @@ export function NavigatorMenu({
         />
       )}
       <div
-        className="navigator-menu"
+        className={`navigator-menu ${menuClassName ?? ""}`}
         id={id}
         ref={menuRef}
         role="menu"
@@ -339,7 +357,10 @@ export function NavigatorMenu({
                     openSubmenu(index, true);
                     return;
                   }
-                  if (!checkbox) menuRef.current?.hidePopover();
+                  if (!checkbox) {
+                    menuRef.current?.hidePopover();
+                    document.getElementById(`${id}-trigger`)?.focus({ preventScroll: true });
+                  }
                   run?.();
                 }}
               >
@@ -364,7 +385,7 @@ export function NavigatorMenu({
         {activeSubmenuIndex !== null && items[activeSubmenuIndex]?.submenu && (
           <div
             ref={submenuRef}
-            className="navigator-menu navigator-submenu"
+            className={`navigator-menu navigator-submenu ${menuClassName ?? ""}`}
             role="menu"
             aria-label={items[activeSubmenuIndex].label}
             tabIndex={-1}
@@ -422,6 +443,7 @@ export function NavigatorMenu({
                   if (!subItem.checkbox) {
                     menuRef.current?.hidePopover();
                     closeSubmenu();
+                    document.getElementById(`${id}-trigger`)?.focus({ preventScroll: true });
                   }
                   subItem.run?.();
                 }}
@@ -441,5 +463,42 @@ export function NavigatorMenu({
         )}
       </div>
     </>
+  );
+}
+
+export function NavigatorSplitButton({
+  label,
+  menuLabel,
+  items,
+  onClick,
+  disabled,
+}: {
+  label: string;
+  menuLabel: string;
+  items: NavigatorMenuItem[];
+  onClick: () => void;
+  disabled?: boolean;
+}) {
+  return (
+    <div className="studio-split-button">
+      <Button
+        type="button"
+        appearance="secondary"
+        density="compact"
+        disabled={disabled}
+        onClick={onClick}
+      >
+        {label}
+      </Button>
+      <NavigatorMenu
+        label={menuLabel}
+        items={items}
+        placement="start"
+        triggerIcon="chevron-down"
+        triggerClassName="studio-split-trigger"
+        menuClassName="navigator-menu-compact"
+        triggerDisabled={disabled}
+      />
+    </div>
   );
 }

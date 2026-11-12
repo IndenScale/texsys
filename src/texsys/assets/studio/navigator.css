@@ -131,3 +131,18 @@
   line-height: 1;
   white-space: nowrap;
 }
+
+.navigator-menu-compact {
+  background: var(--ui-canvas);
+  border-color: var(--ui-border);
+  scrollbar-width: thin;
+}
+.navigator-menu-compact > button {
+  min-height: 24px;
+  padding-block: 3px;
+  line-height: 18px;
+}
+.navigator-menu-compact > .navigator-menu-group-start[role="separator"] {
+  margin-block: 4px;
+  margin-inline: -4px;
+}
