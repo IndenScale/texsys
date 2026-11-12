@@ -116,6 +116,8 @@ export type WorkbenchProps = {
     canForward: boolean;
     canClose?: boolean;
     canNavigateProblems?: boolean;
+    /** Count of current items shown in the Problems panel. */
+    problemsCount?: number;
     objectDefinition?: string;
   }) => void;
 };

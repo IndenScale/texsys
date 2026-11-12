@@ -45,7 +45,7 @@ function placeMenu(
     // Context menu (right-click point): standard VS Code / native OS behavior.
     // Start at cursor y; if space below is limited, clamp bottom to window.innerHeight - edge
     // so the menu spans across the cursor point ("上面有一点，下面有一点") without scrolling.
-    y = Math.max(edge, Math.min(top, window.innerHeight - height - edge));
+    y = direction === "up" ? top - gap - height : Math.min(top, maxY);
   } else if (direction === "down") {
     y = bottom + gap;
     if (y + height > window.innerHeight - edge && spaceAbove > spaceBelow) {
@@ -81,6 +81,7 @@ export function NavigatorMenu({
   direction = "auto",
   triggerClassName,
   triggerIcon = "more",
+  detail,
 }: {
   label: string;
   title?: string;
@@ -91,6 +92,7 @@ export function NavigatorMenu({
   direction?: "down" | "up" | "auto";
   triggerClassName?: string;
   triggerIcon?: ReactNode;
+  detail?: ReactNode;
 }) {
   const id = useId();
   const menuRef = useRef<HTMLDivElement>(null);
@@ -269,6 +271,7 @@ export function NavigatorMenu({
           buttons[next]?.focus();
         }}
       >
+        {detail && <div className="navigator-menu-detail">{detail}</div>}
         {items.map(
           (
             {

@@ -19,6 +19,7 @@ import "monaco-editor/languages/definitions/python/register.js";
 import "monaco-editor/languages/definitions/shell/register.js";
 import "monaco-editor/languages/definitions/yaml/register.js";
 import { t } from "./i18n";
+import type { SourceEditorStatus } from "./editor-groups";
 import type { SourceEditCommand } from "./menus";
 import "./toml-language";
 import { useUserPreferences } from "./user-preferences";
@@ -140,6 +141,23 @@ export function runSourceEditCommand(
   }
 }
 
+function reportSourceStatus(
+  code: editor.ICodeEditor,
+  report?: (status: SourceEditorStatus) => void,
+) {
+  const model = code.getModel();
+  const position = code.getPosition();
+  if (!report || !model || !position) return;
+  const { tabSize, insertSpaces } = model.getOptions();
+  report({
+    line: position.lineNumber,
+    column: position.column,
+    tabSize,
+    insertSpaces,
+    language: model.getLanguageId(),
+  });
+}
+
 export function SourceEditor({
   viewId = "primary",
   path,
@@ -150,7 +168,7 @@ export function SourceEditor({
   focusRequest,
   onFocusHandled,
   onChange,
-  onCursorLine,
+  onStatus,
   onFocus,
 }: {
   viewId?: string;
@@ -162,14 +180,14 @@ export function SourceEditor({
   focusRequest?: { origin: Element | null };
   onFocusHandled: () => void;
   onChange: (value: string) => void;
-  onCursorLine: (line: number) => void;
+  onStatus?: (status: SourceEditorStatus) => void;
   onFocus?: () => void;
 }) {
   const container = useRef<HTMLDivElement>(null);
   const instance = useRef<editor.IStandaloneCodeEditor>(null);
   const attached = useRef<ModelState>(null);
-  const callbacks = useRef({ onChange, onCursorLine, onFocus });
-  callbacks.current = { onChange, onCursorLine, onFocus };
+  const callbacks = useRef({ onChange, onStatus, onFocus });
+  callbacks.current = { onChange, onStatus, onFocus };
   const label = t("文件内容");
   const language = languageByExtension[sourceFileFormat(path)] ?? "plaintext";
   const { editorFontSize, editorWordWrap, editorLineNumbers, editorMinimap } = useUserPreferences();
@@ -191,9 +209,12 @@ export function SourceEditor({
     const change = code.onDidChangeModelContent((event) => {
       if (!event.isFlush) callbacks.current.onChange(code.getValue());
     });
-    const cursor = code.onDidChangeCursorPosition(({ position }) => {
-      callbacks.current.onCursorLine(position.lineNumber);
-    });
+    const report = () => reportSourceStatus(code, callbacks.current.onStatus);
+    const statusListeners = [
+      code.onDidChangeCursorPosition(report),
+      code.onDidChangeModelOptions(report),
+      code.onDidChangeModelLanguage(report),
+    ];
     const focus = code.onDidFocusEditorWidget(() => callbacks.current.onFocus?.());
     return () => {
       if (attached.current && !attached.current.model.isDisposed())
@@ -201,7 +222,7 @@ export function SourceEditor({
       attached.current = null;
       instance.current = null;
       change.dispose();
-      cursor.dispose();
+      statusListeners.forEach((listener) => listener.dispose());
       focus.dispose();
       editorViews.delete(code);
       code.dispose();
@@ -244,7 +265,7 @@ export function SourceEditor({
     code.setModel(next.model);
     const viewState = next.viewStates.get(viewId);
     if (viewState) code.restoreViewState(viewState);
-    callbacks.current.onCursorLine(code.getPosition()?.lineNumber ?? 1);
+    reportSourceStatus(code, callbacks.current.onStatus);
   }, [models, path, value, language, viewId]);
 
   useLayoutEffect(() => {

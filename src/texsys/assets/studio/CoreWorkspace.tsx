@@ -97,6 +97,7 @@ import {
   type EditorGroup,
   type EditorPresentation,
   type EditorGroupTab,
+  type SourceEditorStatus,
 } from "./editor-groups";
 export type { EditorGroupTab } from "./editor-groups";
 
@@ -113,7 +114,6 @@ type Document = {
   loading?: boolean;
   error?: string;
   location?: SearchMatch;
-  cursorLine?: number;
   design?: { selection: DesignSelection; view: DesignView };
   untitled?: string;
   generated?: boolean;
@@ -306,6 +306,7 @@ export function CoreWorkspaceProvider({
   closeShortcut,
   navigationRequest,
   onNavigationState,
+  onSourceStatus,
   hasDomain,
   showEditorPicker,
   children,
@@ -342,6 +343,7 @@ export function CoreWorkspaceProvider({
     canUndo: boolean;
     canRedo: boolean;
   }) => void;
+  onSourceStatus?: (status?: SourceEditorStatus) => void;
   hasDomain: boolean;
   showEditorPicker: (items: EditorPickerItem[]) => void;
   children: ReactNode;
@@ -432,6 +434,7 @@ export function CoreWorkspaceProvider({
   const [focusedGroup, setFocusedGroup] = useState(primaryEditorGroup);
   const groupsRef = useRef(editorGroups);
   groupsRef.current = editorGroups;
+  const sourceStatuses = useRef(new Map<string, { path: string; status: SourceEditorStatus }>());
   const focusedGroupRef = useRef(focusedGroup);
   focusedGroupRef.current = focusedGroup;
   const focusGroup = useCallback((id: string) => {
@@ -630,6 +633,19 @@ export function CoreWorkspaceProvider({
     !active.reason &&
     !closeDisabled &&
     activePresentation === "source";
+  const sourceStatusPath =
+    activeTab === "source" &&
+    !active?.design &&
+    !active?.loading &&
+    !active?.error &&
+    !active?.reason &&
+    activePresentation === "source"
+      ? active?.path
+      : undefined;
+  useLayoutEffect(() => {
+    const snapshot = sourceStatuses.current.get(activeGroup.id);
+    onSourceStatus?.(snapshot?.path === sourceStatusPath ? snapshot?.status : undefined);
+  }, [activeGroup.id, sourceStatusPath, onSourceStatus]);
   const canEditSource = canReadSource;
   const canSave =
     activeTab === "source" &&
@@ -2994,9 +3010,10 @@ export function CoreWorkspaceProvider({
               }
               onFocusHandled={() => setSourceFocus(undefined)}
               onChange={(content) => changeDocumentContent(active.path, content)}
-              onCursorLine={(cursorLine) => {
-                if ((view?.cursorLine ?? 1) !== cursorLine)
-                  updateView(group.id, active.path, { cursorLine });
+              onStatus={(status) => {
+                sourceStatuses.current.set(group.id, { path: active.path, status });
+                if (group.id === activeGroup.id && active.path === sourceStatusPath)
+                  onSourceStatus?.(status);
               }}
             />
           </>

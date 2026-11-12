@@ -27,6 +27,7 @@ import { CommandCenter } from "./CommandCenter";
 import { AnimatedPresence } from "./AnimatedPresence";
 import { ToolbarButton } from "./ToolbarButton";
 import { ApplicationMenuBar } from "./ApplicationMenuBar";
+import { StatusBar, createSourceStatusStore, useStatusBarPreferences } from "./StatusBar";
 import { NavigatorMenu } from "./NavigatorMenu";
 import { WorkbenchBottomPanel } from "./BottomPanel";
 import {
@@ -278,6 +279,8 @@ function Studio({
   }>();
   const [state, setState] = useState<StudioState>();
   const titlebar = useRef<HTMLElement>(null);
+  const statusBar = useStatusBarPreferences();
+  const [sourceStatus] = useState(createSourceStatusStore);
   const [titlebarMenuPoint, setTitlebarMenuPoint] = useState<{ x: number; y: number }>();
   const [hiddenTitlebarGroups, setHiddenTitlebarGroups] = useState(readHiddenTitlebarGroups);
   useEffect(() => {
@@ -301,7 +304,6 @@ function Studio({
   const commandOrigin = useRef<HTMLElement | null>(null);
   const closeCommands = useCallback(() => setCommandOpen(false), []);
   const openTitlebarMenu = (point: { x: number; y: number }) => {
-    setMenu(null);
     closeCommands();
     setTitlebarMenuPoint(point);
   };
@@ -309,7 +311,6 @@ function Studio({
     setRecentPaths(state ? readRecentFiles(state.project.path) : []);
     if (!commandOpen) commandOrigin.current = document.activeElement as HTMLElement | null;
     setTitlebarMenuPoint(undefined);
-    setMenu(null);
     setCommandScope(scope);
     setCommandOpen(true);
     setCommandFocusRequest((previous) => previous + 1);
@@ -360,6 +361,7 @@ function Studio({
         canForward: boolean;
         canClose?: boolean;
         canNavigateProblems?: boolean;
+        problemsCount?: number;
         objectDefinition?: string;
       }
     >
@@ -380,7 +382,6 @@ function Studio({
     },
     [],
   );
-  const [menu, setMenu] = useState<"project" | "discipline" | null>(null);
   const [defaultLayout] = useState(initialLayout);
   const [workbench, setWorkbench] = useState<LayoutPreferences & { project: string }>({
     project: "",
@@ -459,13 +460,6 @@ function Studio({
     const timer = setTimeout(() => setToast(undefined), 6500);
     return () => clearTimeout(timer);
   }, [toast]);
-  useEffect(() => {
-    const handler = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setMenu(null);
-    };
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
-  }, []);
   const updateLayout = (id: string, patch: Partial<StudioLayout>) =>
     setWorkbench((previous) => ({
       ...previous,
@@ -495,16 +489,23 @@ function Studio({
     : [];
   const activeRunCommands = current ? runCommands[active] : undefined;
   const running = state?.jobs.filter((job) => job.state === "running").length ?? 0;
+  const revealPanel = (tab: "problems" | "tasks") =>
+    updateLayout(active, {
+      bottomOpen: true,
+      bottomTab: tab,
+      ...(layout.hiddenBottomTabs?.includes(tab) && {
+        hiddenBottomTabs: layout.hiddenBottomTabs.filter((id) => id !== tab),
+      }),
+    });
   const showTasks = (id?: string) => {
     setTaskId(id);
-    updateLayout(active, { bottomOpen: true, bottomTab: "tasks" });
+    revealPanel("tasks");
   };
   const requestNavigation = (command: string, path?: string) => {
     setNavigation((previous) => ({
       ...previous,
       [active]: { command, path, token: (previous[active]?.token ?? 0) + 1 },
     }));
-    setMenu(null);
   };
   const canNavigateProblems = !!historyStates[active]?.canNavigateProblems;
   const historyState = coreHistory.active
@@ -528,7 +529,6 @@ function Studio({
     "help.shortcuts": coreHistory.canCreateFile,
   };
   const invokeCommand = (id: string) => {
-    setMenu(null);
     if (id.startsWith("studio.editor:")) {
       editorPickerItems.find((item) => item.id === id)?.run();
       return;
@@ -621,6 +621,9 @@ function Studio({
       case "view.bottom":
         updateLayout(active, { bottomOpen: !layout.bottomOpen });
         break;
+      case "view.statusbar":
+        statusBar.setVisible(!statusBar.visible);
+        break;
       case "view.inspector":
         updateLayout(active, { inspectorOpen: !layout.inspectorOpen });
         break;
@@ -636,10 +639,12 @@ function Studio({
         });
         break;
       case "studio.reveal:problems":
+        revealPanel("problems");
+        break;
       case "studio.reveal:terminal":
         updateLayout(active, {
           bottomOpen: true,
-          bottomTab: id === "studio.reveal:problems" ? "problems" : "terminal",
+          bottomTab: "terminal",
         });
         break;
       case "view.wordWrap":
@@ -670,7 +675,7 @@ function Studio({
         if (layout.bottomOpen && layout.bottomTab === "problems") {
           updateLayout(active, { bottomOpen: false });
         } else {
-          updateLayout(active, { bottomOpen: true, bottomTab: "problems" });
+          revealPanel("problems");
         }
         break;
       case "objects.search":
@@ -845,21 +850,23 @@ function Studio({
             ? confirmBeforeUnload
             : item.id === "view.sidebar"
               ? layout.sidebarOpen
-              : item.id === "view.bottom"
-                ? layout.bottomOpen
-                : item.id === "view.toggleMaximize"
-                  ? layout.bottomMaximized
-                  : item.id === "view.terminal"
-                    ? layout.bottomOpen && layout.bottomTab === "terminal"
-                    : item.id === "view.problems"
-                      ? layout.bottomOpen && layout.bottomTab === "problems"
-                      : item.id === "view.inspector"
-                        ? layout.inspectorOpen
-                        : item.id === "view.wordWrap"
-                          ? editorWordWrap !== "off"
-                          : item.id === "view.fullscreen"
-                            ? fullscreen
-                            : undefined,
+              : item.id === "view.statusbar"
+                ? statusBar.visible
+                : item.id === "view.bottom"
+                  ? layout.bottomOpen
+                  : item.id === "view.toggleMaximize"
+                    ? layout.bottomMaximized
+                    : item.id === "view.terminal"
+                      ? layout.bottomOpen && layout.bottomTab === "terminal"
+                      : item.id === "view.problems"
+                        ? layout.bottomOpen && layout.bottomTab === "problems"
+                        : item.id === "view.inspector"
+                          ? layout.inspectorOpen
+                          : item.id === "view.wordWrap"
+                            ? editorWordWrap !== "off"
+                            : item.id === "view.fullscreen"
+                              ? fullscreen
+                              : undefined,
     })),
   );
   useEffect(() => {
@@ -1009,15 +1016,16 @@ function Studio({
   };
   const branch = state?.project.branch;
   const branchLabel =
-    branch?.kind === "branch"
+    branch?.kind === "branch" && branch.name
       ? branch.name
       : branch?.kind === "detached"
         ? t("游离 {0}", { "0": branch.name })
         : branch?.kind === "unversioned"
           ? t("无版本库")
           : t("分支不可用");
+  const showStatusBar = !emptyWorkspace && statusBar.visible;
   return (
-    <div className={emptyWorkspace ? "studio-app is-empty-workspace" : "studio-app"}>
+    <div className={`studio-app${showStatusBar ? " has-statusbar" : ""}`}>
       <header
         ref={titlebar}
         className={`studio-titlebar ${chrome.nativeMenu ? "has-native-menu" : "has-app-menu"} window-controls-${chrome.windowControls}`}
@@ -1046,10 +1054,9 @@ function Studio({
               commands={menuItems}
               invoke={invokeCommand}
               onOpen={() => {
-                setMenu(null);
                 closeCommands();
               }}
-              dismiss={commandOpen || menu !== null || !!titlebarMenuPoint}
+              dismiss={commandOpen || !!titlebarMenuPoint}
             />
           )}
           {(showNavigation || showLayout) && (
@@ -1200,7 +1207,6 @@ function Studio({
             tooltip={t("设置")}
             disabled={!state}
             onClick={() => {
-              setMenu(null);
               closeCommands();
               setSettingsRequest((request) => request + 1);
             }}
@@ -1270,6 +1276,7 @@ function Studio({
             closeShortcut={closeShortcut}
             navigationRequest={navigation[active]}
             onNavigationState={reportCoreHistory}
+            onSourceStatus={sourceStatus.set}
             hasDomain={available.length > 0}
             showEditorPicker={(items) => {
               setEditorPickerItems(items);
@@ -1337,6 +1344,7 @@ function Studio({
                             previous[id]?.canForward === next.canForward &&
                             previous[id]?.canClose === next.canClose &&
                             previous[id]?.canNavigateProblems === next.canNavigateProblems &&
+                            previous[id]?.problemsCount === next.problemsCount &&
                             previous[id]?.objectDefinition === next.objectDefinition
                               ? previous
                               : { ...previous, [id]: next },
@@ -1367,104 +1375,59 @@ function Studio({
           </CoreWorkspaceProvider>
         )}
       </main>
-      <footer className="studio-statusbar" aria-label={t("工作空间状态")} hidden={emptyWorkspace}>
-        <div className="project-context context-item">
-          <button
-            className="context-button"
-            aria-haspopup="menu"
-            aria-label={t("当前项目")}
-            aria-expanded={menu === "project"}
-            title={state?.project.path}
-            onClick={() => setMenu(menu === "project" ? null : "project")}
-          >
-            <Icon name="folder" size={16} />
-            <span>{state?.project.name ?? t("打开项目中")}</span>
-            <Icon name="chevron" size={13} />
-          </button>
-          <AnimatedPresence show={menu === "project"}>
-            <button
-              className="menu-backdrop"
-              aria-label={t("关闭项目菜单")}
-              onClick={() => setMenu(null)}
-            />
-            <div className="context-menu" role="menu" aria-label={t("项目菜单")}>
-              <p>{state?.project.name}</p>
-              <small className="context-path">{state?.project.path}</small>
-              <button role="menuitem" onClick={() => requestNavigation("overview")}>
-                <Icon name="folder" size={16} />
-                {t("项目概览")}
-              </button>
-              <button role="menuitem" onClick={() => requestNavigation("capabilities")}>
-                <Icon name="info" size={16} />
-                {t("专业能力与范围")}
-              </button>
-            </div>
-          </AnimatedPresence>
-        </div>
-        <span className="context-separator">/</span>
-        <div className="discipline-context context-item">
-          <button
-            className="context-button"
-            aria-haspopup="menu"
-            aria-label={t("当前专业")}
-            aria-expanded={menu === "discipline"}
-            onClick={() => setMenu(menu === "discipline" ? null : "discipline")}
-          >
-            <span>{t(current?.manifest.discipline) ?? t("通用编辑")}</span>
-            <Icon name="chevron" size={13} />
-          </button>
-          <AnimatedPresence show={menu === "discipline"}>
-            <button
-              className="menu-backdrop"
-              aria-label={t("关闭专业菜单")}
-              onClick={() => setMenu(null)}
-            />
-            <div className="context-menu" role="menu" aria-label={t("专业菜单")}>
-              <p>{t("专业工作台")}</p>
-              {available.map((plugin) => (
-                <button
-                  key={plugin.manifest.id}
-                  role="menuitem"
-                  onClick={() => {
-                    setActive(plugin.manifest.id);
-                    setMenu(null);
-                  }}
-                >
-                  <Icon name="grid" size={16} />
-                  <span>{t(plugin.manifest.discipline)}</span>
-                  {plugin.manifest.id === active && <Icon name="tick" size={14} />}
-                </button>
-              ))}
-            </div>
-          </AnimatedPresence>
-        </div>
-        <span className="context-separator">/</span>
-        <div
-          className="branch-context"
-          aria-label={t("当前分支")}
-          title={
-            branch?.kind === "branch" ? t("项目 Git 分支：{0}", { "0": branch.name }) : branchLabel
+      {showStatusBar && (
+        <StatusBar
+          preferences={statusBar}
+          project={state?.project}
+          projectActions={[
+            {
+              label: t("项目概览"),
+              icon: "folder",
+              run: current
+                ? () => requestNavigation("overview")
+                : () => invokeCommand("workspace.explorer"),
+            },
+            ...(current
+              ? [
+                  {
+                    label: t("专业能力与范围"),
+                    icon: "info",
+                    run: () => requestNavigation("capabilities"),
+                  },
+                ]
+              : []),
+          ]}
+          branch={
+            state && {
+              label: branchLabel,
+              description:
+                branch?.kind === "branch"
+                  ? t("项目 Git 分支：{0}", { "0": branch.name })
+                  : branchLabel,
+              canOpen: branch?.kind === "branch" || branch?.kind === "detached",
+            }
           }
-        >
-          <Icon name="branch" size={15} />
-          <span>{branchLabel}</span>
-        </div>
-
-        <span className="statusbar-spacer" />
-        <span className="statusbar-connection" title={state?.project.path}>
-          <i className={error ? "offline-dot" : "online-dot"} />
-          {error ? t("连接中断") : t("本地")}
-        </span>
-        {current && <span className="statusbar-review">{t("概念设计 · 待工程审核")}</span>}
-        <span className="statusbar-revision" title={state?.project.revision}>
-          {state ? t("修订 {0}", { "0": state.project.revision.slice(7, 15) }) : t("读取中")}
-        </span>
-        <button className="statusbar-runs" onClick={() => showTasks()}>
-          {running
-            ? t("{0} 个任务运行中", { "0": running })
-            : t("{0} 次运行", { "0": state?.jobs.length ?? 0 })}
-        </button>
-      </footer>
+          discipline={current && t(current.manifest.discipline)}
+          disciplineActions={available.map(({ manifest }) => ({
+            label: t(manifest.discipline),
+            checked: manifest.id === active,
+            run: () => setActive(manifest.id),
+          }))}
+          connection={error ? "offline" : state ? "online" : "loading"}
+          problems={current ? historyStates[active]?.problemsCount : undefined}
+          jobs={state?.jobs.length ?? 0}
+          running={running}
+          sourceStore={sourceStatus}
+          onBranch={() => invokeCommand("workspace.scm")}
+          onProblems={() => revealPanel("problems")}
+          onTasks={() => showTasks()}
+          onGoToLine={() => invokeCommand("editor.gotoLine")}
+          onHide={() => {
+            statusBar.setVisible(false);
+            titlebar.current?.focus();
+          }}
+        />
+      )}
       <AnimatedPresence show={!!toast}>
         <div className={`studio-toast ${toast?.error ? "error" : ""}`} role="status">
           <Icon name={toast?.error ? "info" : "check"} />

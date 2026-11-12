@@ -385,11 +385,11 @@ test("menu and command search share group names and stable action identities", (
     filterCommands(commands, "")
       .filter((item) => item.id.startsWith("view."))
       .map((item) => item.id),
-    ["view.open", "view.panelPosition", "view.wordWrap", "view.fullscreen"],
+    ["view.open", "view.panelPosition", "view.statusbar", "view.wordWrap", "view.fullscreen"],
   );
   assert.deepEqual(
     filterCommands(commands, "布局").map((item) => item.id),
-    ["view.sidebar", "view.bottom", "view.inspector"],
+    ["view.sidebar", "view.bottom", "view.inspector", "view.statusbar"],
   );
 });
 

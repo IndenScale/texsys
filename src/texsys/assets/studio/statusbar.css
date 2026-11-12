@@ -1,0 +1,135 @@
+.studio-statusbar {
+  display: flex;
+  align-items: stretch;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 0;
+  padding: 0 4px;
+  border-top: 1px solid var(--ui-chrome-border-subtle);
+  background: var(--ui-context-chrome);
+  color: var(--ui-text);
+  font-size: var(--ui-font-chrome, 11px);
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  z-index: 31;
+}
+
+.statusbar-group {
+  display: flex;
+  align-items: stretch;
+  min-width: 0;
+}
+
+.statusbar-editor {
+  flex: 0 0 auto;
+  margin-inline-start: auto;
+}
+
+.studio-statusbar .statusbar-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  width: auto;
+  height: auto;
+  min-width: 0;
+  padding: 0 6px;
+  border-radius: 0;
+  color: inherit;
+  white-space: nowrap;
+}
+
+.studio-statusbar button.statusbar-item:is(:hover, [aria-expanded="true"]) {
+  background: var(--ui-control-hover);
+}
+
+.studio-statusbar:focus-visible,
+.studio-statusbar button.statusbar-item:focus-visible {
+  outline-offset: -2px;
+}
+
+.statusbar-item > svg {
+  flex: 0 0 auto;
+}
+
+.statusbar-item .statusbar-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.studio-statusbar :is(.statusbar-project, .statusbar-branch, .statusbar-discipline) {
+  flex-shrink: 1;
+}
+
+.statusbar-project .statusbar-label {
+  max-width: 28ch;
+}
+
+.statusbar-branch .statusbar-label {
+  max-width: 26ch;
+}
+
+.statusbar-discipline .statusbar-label {
+  max-width: 20ch;
+}
+
+.studio-statusbar .statusbar-connection {
+  flex: 0 0 auto;
+  color: var(--ui-text-muted);
+}
+
+.statusbar-connection > i {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.statusbar-connection[data-state="online"] > i {
+  background: #27896e;
+}
+
+.studio-statusbar .statusbar-connection[data-state="offline"] {
+  color: #9a412e;
+}
+
+.studio-statusbar .statusbar-tasks[data-running="true"] {
+  color: var(--accent);
+}
+
+.studio-statusbar .navigator-menu-detail {
+  display: grid;
+  gap: 4px;
+  max-width: min(44ch, calc(100vw - 34px));
+  padding: 7px 7px 9px;
+  margin-bottom: 4px;
+  border-bottom: 1px solid var(--ui-chrome-border-subtle);
+  color: var(--ui-text-muted);
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.studio-statusbar .navigator-menu-detail > strong {
+  color: var(--ui-text);
+}
+
+@media (max-width: 740px) {
+  .statusbar-connection:not([data-state="offline"]) .statusbar-label,
+  .statusbar-discipline .statusbar-label,
+  .statusbar-discipline > svg:last-child {
+    display: none;
+  }
+}
+
+@media (max-width: 520px) {
+  .studio-statusbar {
+    gap: 2px;
+  }
+  .studio-statusbar .statusbar-item {
+    padding-inline: 4px;
+  }
+  .statusbar-item .statusbar-label,
+  .statusbar-project > svg:last-child,
+  .studio-statusbar :is(.statusbar-indent, .statusbar-encoding) {
+    display: none;
+  }
+}

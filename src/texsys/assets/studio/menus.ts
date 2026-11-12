@@ -194,6 +194,7 @@ export const studioMenus: MenuGroup[] = [
         separator: true,
         keywords: "Dock Panel Position",
       },
+      { id: "view.statusbar", label: "状态栏", keywords: "Status Bar 外观 布局" },
       { id: "view.wordWrap", label: "自动换行", separator: true, keywords: "Word Wrap" },
       { id: "view.fullscreen", label: "全屏", keywords: "Full Screen 专注 编辑器快捷键" },
     ],

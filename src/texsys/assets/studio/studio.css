@@ -111,17 +111,14 @@ button svg {
   --titlebar-control-height: 28px;
   --titlebar-height: calc(var(--titlebar-control-height) + var(--workbench-top-inset));
   display: grid;
-  grid-template-rows: var(--titlebar-height) minmax(0, 1fr) 25px;
+  grid-template-rows: var(--titlebar-height) minmax(0, 1fr);
   height: 100dvh;
   min-height: 400px;
   overflow: hidden;
   background: var(--ui-workbench-backdrop);
 }
-.studio-app.is-empty-workspace {
-  grid-template-rows: var(--titlebar-height) minmax(0, 1fr);
-}
-.studio-statusbar[hidden] {
-  display: none;
+.studio-app.has-statusbar {
+  grid-template-rows: var(--titlebar-height) minmax(0, 1fr) 24px;
 }
 .studio-titlebar {
   display: grid;
@@ -579,95 +576,6 @@ button svg {
   white-space: nowrap;
   border: 0;
 }
-.context-item {
-  position: relative;
-  min-width: 0;
-}
-.context-button {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  min-height: 23px;
-  padding: 2px 5px;
-  border-radius: 2px;
-  font-size: 11px;
-  white-space: nowrap;
-}
-.context-button:hover {
-  background: var(--ui-control-hover);
-}
-.context-button span {
-  max-width: 240px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.context-separator {
-  color: #9aa1a7;
-  opacity: 0.65;
-}
-.branch-context {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 0 5px;
-  font-size: 11px;
-  min-width: 0;
-}
-.branch-context span {
-  max-width: 160px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.menu-backdrop {
-  position: fixed;
-  inset: 0;
-  z-index: 40;
-  cursor: default;
-}
-.context-menu {
-  position: absolute;
-  bottom: 30px;
-  left: 0;
-  z-index: 45;
-  min-width: 240px;
-  max-width: 400px;
-  background: white;
-  color: var(--ink);
-  border: 1px solid var(--line);
-  border-radius: 5px;
-  box-shadow: 0 8px 30px #182c3826;
-  padding: 5px;
-}
-.context-menu p {
-  font-size: 11px;
-  color: var(--muted);
-  padding: 8px;
-  margin: 0;
-}
-.context-menu .context-path {
-  display: block;
-  padding: 0 8px 10px;
-  font-size: 10px;
-  color: var(--muted);
-  overflow-wrap: anywhere;
-}
-.context-menu > button {
-  display: flex;
-  align-items: center;
-  width: 100%;
-  gap: 9px;
-  padding: 9px 8px;
-  text-align: left;
-  border-radius: 3px;
-  font-size: 12px;
-}
-.context-menu > button:hover {
-  background: var(--accent-soft);
-}
-.context-menu > button span {
-  flex: 1;
-}
 .studio-workspace {
   min-width: 0;
   min-height: 0;
@@ -696,9 +604,6 @@ button svg {
   opacity: 0;
   pointer-events: none;
 }
-.motion-presence[data-open="false"] > .context-menu {
-  translate: 0 4px;
-}
 .motion-presence[data-open="false"] > .chrome-tooltip,
 .motion-presence[data-open="false"] > .studio-toast {
   translate: 0 -3px;
@@ -706,9 +611,6 @@ button svg {
 @starting-style {
   .motion-presence[data-open="true"] > * {
     opacity: 0;
-  }
-  .motion-presence[data-open="true"] > .context-menu {
-    translate: 0 4px;
   }
   .motion-presence[data-open="true"] > .chrome-tooltip,
   .motion-presence[data-open="true"] > .studio-toast {
@@ -724,25 +626,7 @@ button svg {
     color var(--motion-fast),
     border-color var(--motion-fast);
 }
-@media (max-width: 900px) {
-  .studio-statusbar .statusbar-review,
-  .studio-statusbar .statusbar-revision {
-    display: none;
-  }
-  .context-button span {
-    max-width: 180px;
-  }
-}
 @media (max-width: 600px) {
-  .studio-statusbar .statusbar-connection {
-    display: none;
-  }
-  .context-button span {
-    max-width: 110px;
-  }
-  .branch-context span {
-    max-width: 70px;
-  }
   .command-center {
     padding-inline: 5px;
   }
@@ -764,39 +648,6 @@ button svg {
     animation: none !important;
     transition: none !important;
   }
-}
-.studio-statusbar {
-  display: flex;
-  gap: 6px;
-  align-items: center;
-  padding: 0 8px;
-  background: var(--ui-workbench-backdrop);
-  color: #727b83;
-  font-size: 11px;
-  z-index: 31;
-}
-.studio-statusbar > span {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  white-space: nowrap;
-}
-.statusbar-spacer {
-  flex: 1;
-}
-.studio-statusbar button {
-  font-size: 11px;
-  padding: 2px 0;
-}
-.online-dot,
-.offline-dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: #3b9a82;
-}
-.offline-dot {
-  background: #b9624b;
 }
 .small-button,
 .primary-button {
@@ -1015,12 +866,6 @@ button svg {
   overflow-wrap: anywhere;
 }
 
-.studio-statusbar .statusbar-connection,
-.studio-statusbar .statusbar-review,
-.studio-statusbar .statusbar-revision,
-.studio-statusbar .statusbar-runs {
-  margin-left: 8px;
-}
 .command-panel {
   position: absolute;
   top: calc(100% + var(--workbench-top-inset));

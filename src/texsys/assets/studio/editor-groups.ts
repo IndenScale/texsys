@@ -1,11 +1,18 @@
 import type { SearchMatch } from "./workspace-model";
 
 export type EditorPresentation = "source" | "preview" | "markdown-editor";
+export type SourceEditorStatus = {
+  line: number;
+  column: number;
+  tabSize: number;
+  insertSpaces: boolean;
+  language: string;
+};
+
 export type EditorView = {
   path: string;
   presentation?: EditorPresentation;
   location?: SearchMatch;
-  cursorLine?: number;
 };
 export type EditorGroup = { id: string; views: EditorView[]; activePath: string | null };
 export type EditorGroupTab = {

@@ -502,7 +502,6 @@ export function WelcomeWorkspace({
                   previous.map((doc) => (doc.id === current.id ? { ...doc, value } : doc)),
                 )
               }
-              onCursorLine={noAction}
               onFocusHandled={noAction}
             />
           </div>

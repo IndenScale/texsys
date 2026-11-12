@@ -436,6 +436,7 @@ function Workspace({
       canForward: history.index < history.entries.length - 1,
       canClose: documents.length > 0,
       canNavigateProblems: currentIssues.length > 0,
+      problemsCount: currentIssues.length,
       objectDefinition,
     });
   }, [history, documents.length, currentIssues.length, objectDefinition, onNavigationState]);
