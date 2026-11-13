@@ -8,6 +8,7 @@ from pathlib import Path
 import subprocess
 import tempfile
 
+from texsys.distribution import private_reference
 from texsys.project import MANIFEST_NAME, Project, ProjectError, parse_project_manifest
 from .files import MAX_PREVIEW_BYTES, workspace_path
 from .runtime import Conflict
@@ -273,6 +274,11 @@ def _validate_staged_paths(root: Path, build: str, status: dict, *, base: str | 
   staged = [os.fsdecode(name) for name in staged if name]
   if not staged:
     raise ProjectError("请先暂存需要提交的文件。")
+  if index_file is not None:
+    _reject_reference_paths(os.fsdecode(name) for name in staged)
+  else:
+    additions = git(root, "diff", "--cached", "--no-renames", "--name-only", "--diff-filter=ACMRT", "-z")
+    _reject_reference_paths(os.fsdecode(name) for name in additions.split(b"\0") if name)
   root = root.resolve()
   repo = Path(status["repository"])
   visible_staged = {path for entry in status["entries"] if entry["index"] not in {" ", "?"}
@@ -288,6 +294,12 @@ def _validate_staged_paths(root: Path, build: str, status: dict, *, base: str | 
   if any(entry["index"] == "U" or entry["worktree"] == "U" or
          entry["index"] + entry["worktree"] in {"AA", "DD"} for entry in status["entries"]):
     raise ProjectError("请先解决合并冲突。")
+
+
+def _reject_reference_paths(paths):
+  for path in paths:
+    if private_reference(path):
+      raise ProjectError(f"原始参考资料禁止提交或发送，请存放在本地 refs/：{path}")
 
 
 def staged_commit_diff(root: Path, build: str, snapshot) -> str:
@@ -385,6 +397,7 @@ def source_operation(root: Path, build: str, request: dict) -> dict:
     git(root, "init")
     return source_status(root, build)
   _validate_snapshot(status, request.get("snapshot"))
+  repo_prefix = root.resolve().relative_to(Path(status["repository"]))
   if action in {"stage_all", "unstage_all"}:
     records = [entry for entry in status["entries"] if
                (entry["worktree"] != " " if action == "stage_all" else entry["index"] not in {" ", "?"})]
@@ -394,6 +407,7 @@ def source_operation(root: Path, build: str, request: dict) -> dict:
     for path in paths:
       workspace_path(root, path, build, missing=True)
     if action == "stage_all":
+      _reject_reference_paths((repo_prefix / path).as_posix() for path in paths if (root / path).exists())
       git(root, "add", "-A", "--", *paths)
     elif git(root, "rev-parse", "--verify", "HEAD", accepted=(0, 128)):
       git(root, "reset", "-q", "HEAD", "--", *paths)
@@ -422,6 +436,7 @@ def source_operation(root: Path, build: str, request: dict) -> dict:
     if action == "stage":
       if record["worktree"] == " ":
         raise ProjectError("该文件没有未暂存的变更。")
+      _reject_reference_paths((repo_prefix / path).as_posix() for path in paths if (root / path).exists())
       git(root, "add", "-A", "--", *paths)
     elif record["index"] in {" ", "?"}:
       raise ProjectError("该文件没有已暂存的变更。")

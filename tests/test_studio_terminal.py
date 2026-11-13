@@ -134,11 +134,11 @@ def test_terminal_controls_tty_retains_state_and_reaps_jobs(shell, terminal_clie
   assert os.getsid(shell_pid) == shell_pid
   terminal.until(re.escape(PROMPT))
   terminal.input(b"test -t 0 && : </dev/tty && cd nested && export TEXSYS_PTY_TEST=sticky && printf 't%sy\\n' t\r")
-  terminal.until(rb"\r\ntty\r\n")
+  terminal.until(rb"\r\n(?:\x1b\[\?2004l\r)?tty\r\n")
   terminal.until(re.escape(PROMPT))
   terminal.send(dict(type="resize", rows=32, cols=96))
   terminal.input(b'printf "%s:%s\\n" "${PWD##*/}" "$TEXSYS_PTY_TEST"; stty size\r')
-  terminal.until(rb"\r\nnested:sticky\r\n32 96\r\n")
+  terminal.until(rb"\r\n(?:\x1b\[\?2004l\r)?nested:sticky\r\n32 96\r\n")
   terminal.until(re.escape(PROMPT))
   terminal.input(b"sleep 60 & printf 'child-%s\\n' \"$!\" ; printf 'star%s\\n' ted; sleep 60\r")
   child_pid = int(terminal.until(rb"child-(\d+)\r\n")[0])

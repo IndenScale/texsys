@@ -92,6 +92,7 @@ def test_real_cli_reuses_targets_and_rebuilds_only_changed_layout(tmp_path):
   assert {target["id"]: target["execution"] for target in third["targets"]} == {
     "hvac:equipment-bom": "cached", "hvac:physical-model": "cached", "system-schematic": "cached",
     "system-topology": "cached", "hvac:project-layout": "executed",
+    "drawing-system": "cached", "drawing-notes": "cached",
   }
   assert (project / original_scene["stored_path"]).read_bytes() == original_bytes
   assert (project / original_scene["path"]).read_bytes() != original_bytes

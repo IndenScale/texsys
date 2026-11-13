@@ -14,7 +14,10 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v4
         with:
-          fetch-depth: ${{ github.event_name == 'pull_request' && '0' || '1' }}
+          fetch-depth: 0
+
+      - name: Reject original reference files in Git history
+        run: python3 src/texsys/distribution.py --revision HEAD
 
       - name: Install uv
         uses: astral-sh/setup-uv@v6

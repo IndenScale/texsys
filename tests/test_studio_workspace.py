@@ -10,7 +10,7 @@ from texsys.studio.files import (file_operation, project_file, project_files, se
 from texsys.studio.runtime import Conflict
 from texsys.studio.server import run_terminal_command
 from texsys.studio.source_control import (source_branches, source_diff, source_operation, source_status,
-                                         switch_source_branch)
+                                         staged_commit_diff, switch_source_branch)
 
 
 def git(root, *args):
@@ -164,6 +164,25 @@ def test_git_detects_same_status_content_changes_and_rejects_stale_actions(repo)
   with pytest.raises(Conflict):
     source_operation(repo, "build", {"action": "stage", "path": "model.txt", "snapshot": baseline["snapshot"]})
   assert git(repo, "diff", "--cached") == b""
+
+
+def test_original_drawing_cannot_be_staged_committed_or_sent_to_ai(repo):
+  drawing = repo / "original.DWG"
+  drawing.write_bytes(b"AC1032")
+  (repo / "model.txt").write_text("updated\n")
+  with pytest.raises(ProjectError, match="原始参考资料"):
+    operation(repo, "stage_all")
+  assert git(repo, "diff", "--cached") == b""
+
+  git(repo, "add", "-f", drawing.name)
+  with pytest.raises(ProjectError, match="原始参考资料"):
+    operation(repo, "commit", message="drawing")
+  with pytest.raises(ProjectError, match="原始参考资料"):
+    staged_commit_diff(repo, "build", source_status(repo, "build")["snapshot"])
+  operation(repo, "unstage", path=drawing.name)
+  operation(repo, "stage", path="model.txt")
+  operation(repo, "commit", message="model only")
+  assert git(repo, "show", "HEAD:model.txt") == b"updated\n"
 
 
 def test_nested_project_does_not_show_or_commit_other_project_changes(repo):

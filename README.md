@@ -20,6 +20,8 @@ texsys 得名于「文本化系统」，目标是让复杂系统像软件一样�
 
 项目当前处于**可执行参考实现与工程 POC 建设阶段**。JSON 交换子集、形式检查、路径与发布包依赖、暖通链路和数据中心概念计算已可执行；最终 SDL 文本语法、通用工程事实／结论模型及真实工程接受尚未完成。Python 支持准稳态水力与集总热动态，既有 OpenModelica 路线对三个暖通工况有独立比较记录；几何包括 USD 包络、路由和有限空间校核，通用精确几何与高保真求解仍未完成。见 [项目进度审查](docs/progress.md) 和 [完整目标台账](docs/engineering-poc.md)。
 
+下载源码、准备依赖并运行标准冷站示例，请参阅 [GitHub 下载与部署](docs/github-deployment.md)。
+
 Tex Studio 已提供本地网页插件宿主、通用项目编辑、模块库／实例导航、场景预览与暖通工作台，支持实例参数编辑、后台检查、出图、仿真和结果回放。跨专业对象视图仍在贯通；工程变更复用 Git 与命令行检查，领域计算存在不等于相应专业界面已可用。Electron 桌面端与远程协作尚未实现。
 
 `texsys build` 生成的 BOM、拓扑、原理图与场景作为独立文件，从文件资源管理器或快速打开进入各自的文档标签。预览按真实文件路径识别，与 Activity 或项目根对象视图无关。构建按目标复用缓存，独立分支可在其他目标失败后继续，必需检查失败仍返回非零退出码。文件共用“预览 / 源代码”和保存布局，Markdown、图纸和场景只替换预览渲染器，普通 JSON 使用代码编辑器。生成文件也能编辑；预览不额外展示构建状态、运行 ID 或缓存信息，对象与源码映射保留在底层。可执行入口见 [同源冷站示例](examples/hvac-dynamic-station/README.md)，行为契约见 [ADR-0027](docs/adr/0027-incremental-build-and-project-preview.md) 和 [ADR-0028](docs/adr/0028-file-based-artifact-preview.md)。
@@ -140,4 +142,4 @@ uv run --locked --only-group docs-lint tools/check_doc_language.py --base main -
 - ADR 只增不改；改变已接受决策时新增后继 ADR。
 - 待定项必须进入 `docs/open-questions.md`，带触发条件，不允许散落在正文里。
 - 文档中"已知/假设/待定/缺失/不适用/失败"六态必须区分，不得用空值或默认值代替。
-- 原始图纸与客户资料**不入库**：本地 `refs/`，已被忽略；入库的只有提取后的模型与结论。
+- 原始图纸和客户资料只存放于本地 `refs/`。Git 提交、发布和工程包只使用允许分发的派生模型、示例与证据，详见 [参考资料管理](docs/references.md)。

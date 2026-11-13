@@ -103,6 +103,20 @@ def test_reproducible_pack_and_two_consumers_without_author_sources(tmp_path):
   assert dependency_status(one)["synchronized"]
 
 
+def test_original_drawing_cannot_be_packed_or_imported(tmp_path):
+  source = capability(tmp_path / "equipment", "equipment")
+  (source / "assets/original.DXF").write_bytes(b"drawing")
+  with pytest.raises(ProjectError, match="原始参考资料"):
+    pack_package(source, tmp_path / "packed")
+  assert not list((tmp_path / "packed").glob("*.texpkg"))
+
+  archive = tmp_path / "external.texpkg"
+  with zipfile.ZipFile(archive, "w") as bundle:
+    bundle.writestr("assets/refs/site.txt", "raw reference")
+  with pytest.raises(ProjectError, match="原始参考资料"):
+    publish_package(archive, tmp_path / "registry")
+
+
 def test_explicit_upgrade_rollback_and_stale_or_tampered_plan(tmp_path):
   registry = tmp_path / "registry"
   source = capability(tmp_path / "equipment", "equipment")

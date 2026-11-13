@@ -16,6 +16,7 @@ import tomlkit
 
 from texsys.project import MANIFEST_NAME, ProjectError, inspect_project
 from texsys.component_exports import component_exports
+from texsys.distribution import private_reference
 
 
 HEADER = "texsys-package.json"
@@ -122,7 +123,10 @@ def _archive(source: Path, versions: dict[str, str], output: Path) -> dict:
     for layout in (project.source, project.assets):
       (staged / layout).mkdir(parents=True, exist_ok=True)
     for file in _package_files(source):
-      target = staged / file.relative_to(source)
+      relative = file.relative_to(source)
+      if private_reference(relative.as_posix()):
+        raise ProjectError(f"原始参考资料禁止随工程包分发：{relative}")
+      target = staged / relative
       target.parent.mkdir(parents=True, exist_ok=True)
       shutil.copyfile(file, target)
     if _package_digest(staged) != before or _package_digest(source) != before:
@@ -205,6 +209,8 @@ def read_archive(path: Path, destination: Path | None = None) -> dict:
       total = 0
       for member in members:
         name = _canonical_member(member.filename)
+        if private_reference(name):
+          raise ProjectError(f"原始参考资料禁止随工程包分发：{name}")
         mode = member.external_attr >> 16
         if name.casefold() in names or member.is_dir() or stat.S_ISLNK(mode) or (stat.S_IFMT(mode) not in {0, stat.S_IFREG}):
           raise ProjectError(f"Duplicate or non-regular package member: {name}")

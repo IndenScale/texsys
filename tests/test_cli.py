@@ -1,4 +1,5 @@
 from importlib.metadata import version as package_version
+import re
 
 from typer.testing import CliRunner
 
@@ -9,16 +10,17 @@ runner = CliRunner()
 
 def test_help() -> None:
   result = runner.invoke(app, ["--help"])
+  output = re.sub(r"\x1b\[[0-9;]*m", "", result.output)
 
   assert result.exit_code == 0
-  assert "Usage:" in result.output
-  assert "--help" in result.output
-  assert "--version" in result.output
-  assert "init" in result.output
-  assert "info" in result.output
-  assert "check" in result.output
-  assert "lint" in result.output
-  assert "--install-completion" not in result.output
+  assert "Usage:" in output
+  assert "--help" in output
+  assert "--version" in output
+  assert "init" in output
+  assert "info" in output
+  assert "check" in output
+  assert "lint" in output
+  assert "--install-completion" not in output
 
 
 def test_version() -> None:

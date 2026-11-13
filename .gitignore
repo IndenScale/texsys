@@ -32,9 +32,15 @@ __pycache__/
 .uv/
 
 # 原始资料常见格式（即使误放也不入库）
+*.[pP][dD][fF]
+*.[dD][wW][gG]
+*.[dD][xX][fF]
+*.[dD][gG][nN]
+*.[rR][vV][tT]
+*.[rR][fF][aA]
+*.[iI][fF][cC]
 *.rar
 *.zip
-*.dwg
 
 # Studio browser acceptance artifacts
 .playwright-cli/

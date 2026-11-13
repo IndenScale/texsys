@@ -122,7 +122,7 @@ def test_api_and_direct_edit_produce_same_cold_station_artifacts(tmp_path):
   assert api.apply_edit(project, batch, preview["plan"])["applied"] is True
   assert api.read_design(project)["document"] == direct
   assert run_project_operation(project, "build", {"scope": {"view": "system"}})["status"] == "pass"
-  diagram = project / "build/hvac/system/system.json"
+  diagram = project / "build/drawings/schematics/system.json"
   first = diagram.read_bytes()
 
   shutil.rmtree(project / "build")
