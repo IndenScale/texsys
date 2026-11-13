@@ -3,20 +3,42 @@ import { gfm } from "turndown-plugin-gfm";
 
 const DEFAULT_ORIGIN = "https://movement-engineering-20261111.hfu7565ytru.chatgpt.site";
 const OMIT_TAGS = new Set([
-  "NAV", "BUTTON", "SCRIPT", "STYLE", "SVG", "NOSCRIPT", "DIALOG", "FORM", "INPUT", "SELECT", "TEXTAREA",
+  "NAV",
+  "BUTTON",
+  "SCRIPT",
+  "STYLE",
+  "SVG",
+  "NOSCRIPT",
+  "DIALOG",
+  "FORM",
+  "INPUT",
+  "SELECT",
+  "TEXTAREA",
 ]);
 const CHROME_CLASSES = new Set([
-  "site-header", "site-footer", "skip-link", "article-toc", "article-tools", "page-tools",
-  "search-dialog", "search-results", "mobile-nav", "desktop-nav", "lexicon-toolbar", "related",
+  "site-header",
+  "site-footer",
+  "skip-link",
+  "article-toc",
+  "article-tools",
+  "page-tools",
+  "search-dialog",
+  "search-results",
+  "mobile-nav",
+  "desktop-nav",
+  "lexicon-toolbar",
+  "related",
   "lab-console",
 ]);
 
 function excluded(node) {
-  return OMIT_TAGS.has(node.nodeName.toUpperCase())
-    || node.hasAttribute("data-md-exclude")
-    || node.hasAttribute("hidden")
-    || (node.getAttribute("class") || "").split(/\s+/).some((name) => CHROME_CLASSES.has(name))
-    || ["navigation", "search", "banner", "contentinfo"].includes(node.getAttribute("role"));
+  return (
+    OMIT_TAGS.has(node.nodeName.toUpperCase()) ||
+    node.hasAttribute("data-md-exclude") ||
+    node.hasAttribute("hidden") ||
+    (node.getAttribute("class") || "").split(/\s+/).some((name) => CHROME_CLASSES.has(name)) ||
+    ["navigation", "search", "banner", "contentinfo"].includes(node.getAttribute("role"))
+  );
 }
 
 function codeText(node) {
@@ -44,8 +66,9 @@ function absoluteURL(value, canonical) {
 
 function destination(url) {
   // Spaces and brackets otherwise change the boundaries of a Markdown link.
-  return url.replace(/[()<>\s]/g, (character) => encodeURIComponent(character)
-    .replaceAll("(", "%28").replaceAll(")", "%29"));
+  return url.replace(/[()<>\s]/g, (character) =>
+    encodeURIComponent(character).replaceAll("(", "%28").replaceAll(")", "%29"),
+  );
 }
 
 function converter(canonical) {
@@ -70,9 +93,13 @@ function converter(canonical) {
       const href = absoluteURL(node.getAttribute("href"), canonical);
       if (!href) return content;
       const title = node.getAttribute("title");
-      const suffix = title ? ` "${title.replaceAll("\\", "\\\\").replaceAll('"', '\\"').replace(/\s+/g, " ")}"` : "";
+      const suffix = title
+        ? ` "${title.replaceAll("\\", "\\\\").replaceAll('"', '\\"').replace(/\s+/g, " ")}"`
+        : "";
       const target = `${destination(href)}${suffix}`;
-      if (node.querySelector("h1,h2,h3,h4,h5,h6,p,div,section,article,ul,ol,table,pre,blockquote")) {
+      if (
+        node.querySelector("h1,h2,h3,h4,h5,h6,p,div,section,article,ul,ol,table,pre,blockquote")
+      ) {
         // An HTML card may wrap several blocks in one anchor. CommonMark link
         // labels cannot span those blocks, so link its heading and keep its prose.
         const blocks = content.trim();
@@ -99,10 +126,13 @@ function converter(canonical) {
     replacement(_content, node) {
       const code = node.querySelector("code") || node;
       const classes = `${code.getAttribute("class") || ""} ${node.getAttribute("class") || ""}`;
-      const language = (classes.match(/(?:^|\s)(?:language|lang)-([\w+#.-]+)/) || [])[1]
-        || (node.getAttribute("data-language") || "").replace(/[^\w+#.-]/g, "");
+      const language =
+        (classes.match(/(?:^|\s)(?:language|lang)-([\w+#.-]+)/) || [])[1] ||
+        (node.getAttribute("data-language") || "").replace(/[^\w+#.-]/g, "");
       const source = codeText(code).replace(/\r\n?/g, "\n").replace(/\n$/, "");
-      const fence = "`".repeat(Math.max(3, ...[...source.matchAll(/`+/g)].map(([run]) => run.length + 1)));
+      const fence = "`".repeat(
+        Math.max(3, ...[...source.matchAll(/`+/g)].map(([run]) => run.length + 1)),
+      );
       return `\n\n${fence}${language}\n${source}\n${fence}\n\n`;
     },
   });
@@ -119,7 +149,10 @@ function converter(canonical) {
     replacement(content, node) {
       const prefix = node === node.parentNode.firstElementChild ? "| " : " ";
       // GFM tables cannot contain physical newlines or unescaped column bars.
-      const cell = content.trim().replace(/(?<!\\)\|/g, "\\|").replace(/\s*\n\s*/g, "<br>");
+      const cell = content
+        .trim()
+        .replace(/(?<!\\)\|/g, "\\|")
+        .replace(/\s*\n\s*/g, "<br>");
       return `${prefix}${cell} |`;
     },
   });
@@ -128,9 +161,12 @@ function converter(canonical) {
     replacement(content, node) {
       const first = node.rows[0];
       if (!first) return "";
-      const hasHeader = first.parentNode.nodeName === "THEAD"
-        || [...first.cells].every((cell) => cell.nodeName === "TH");
-      const emptyHeader = hasHeader ? "" : `|${"  |".repeat(first.cells.length)}\n|${" --- |".repeat(first.cells.length)}\n`;
+      const hasHeader =
+        first.parentNode.nodeName === "THEAD" ||
+        [...first.cells].every((cell) => cell.nodeName === "TH");
+      const emptyHeader = hasHeader
+        ? ""
+        : `|${"  |".repeat(first.cells.length)}\n|${" --- |".repeat(first.cells.length)}\n`;
       return `\n\n${emptyHeader}${content.trim().replace(/\n{2,}/g, "\n")}\n\n`;
     },
   });
@@ -154,7 +190,8 @@ export function pageMarkdown(page, { origin = DEFAULT_ORIGIN, body, sourceMarkdo
   const service = converter(canonical);
   const title = `# ${service.escape(page.title || "Movement")}`;
   const metadata = [page.english, page.summary]
-    .filter(Boolean).map((value) => service.escape(value));
+    .filter(Boolean)
+    .map((value) => service.escape(value));
   metadata.push(`原文：[${canonical}](${destination(canonical)})`);
   const related = (page.related || []).flatMap((item) => {
     const href = absoluteURL(item.href, canonical);

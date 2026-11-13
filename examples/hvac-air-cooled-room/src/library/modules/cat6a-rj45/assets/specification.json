@@ -1,10 +1,6 @@
 {
   "basis": "风冷机房参考库方案假设",
-  "envelope_m": [
-    0.02,
-    1,
-    0.016
-  ],
+  "envelope_m": [0.02, 1, 0.016],
   "frame": {
     "front": "-Y",
     "origin": "包络最小角",
@@ -18,11 +14,7 @@
     "medium": "Cat 6A 铜缆",
     "planning_min_bend_radius_m": 0.035,
     "reference_length_m": 1.0,
-    "route_color": [
-      0.1,
-      0.4,
-      0.68
-    ]
+    "route_color": [0.1, 0.4, 0.68]
   },
   "schema_version": 1,
   "state": "assumed"

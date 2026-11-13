@@ -3,6 +3,7 @@ name: CI
 on:
   push:
   pull_request:
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -10,22 +11,25 @@ permissions:
 jobs:
   test:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - name: Check out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
+          persist-credentials: false
 
       - name: Reject private files in Git history
         run: python3 src/texsys/distribution.py --revision HEAD
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v6
+        uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
         with:
+          version: "0.12.19"
           enable-cache: true
 
       - name: Install Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 22
 
@@ -42,24 +46,7 @@ jobs:
           uv run --locked --only-group docs-lint tools/check_doc_language.py --base "$PR_BASE" --head "$PR_HEAD"
 
       - name: Install integrity-checked local Node tools
-        run: uv run tools/sync_node_tools.py
-
-      - name: Run unit and examples end-to-end tests
-        run: uv run pytest
-
-      - name: Verify public examples
-        run: |
-          uv run texsys check -p examples/minimal
-          uv run texsys check -p examples/hvac-cold-station
-          uv run texsys check -p examples/hvac-system-schematic
-          uv run texsys check -p examples/hvac-dynamic-station
-          uv run texsys format --check -p examples/hvac-dynamic-station
-          uv run texsys lock --check -p examples/hvac-dynamic-station
-          uv run texsys format --check -p examples/minimal
-          uv run texsys format --check -p examples/hvac-cold-station
-          uv run texsys format --check -p examples/hvac-system-schematic
-          uv run texsys lock --check -p examples/hvac-system-schematic
-          uv run texsys build -p examples/hvac-system-schematic
+        run: uv run --locked tools/sync_node_tools.py
 
       - name: Check documentation and command policy
         run: |
@@ -74,3 +61,18 @@ jobs:
           node --test tools/test_studio_editor_groups.mjs tools/test_navigator_menu.mjs tools/test_explorer_tree.mjs tools/test_markdown_ui.mjs tools/test_markdown_editor.mjs
           node node_modules/typescript/bin/tsc --noEmit --strict --jsx react-jsx --moduleResolution bundler --module esnext --target es2022 --lib es2022,dom --skipLibCheck packages/hvac-graphics/src/texsys_hvac_graphics/assets/*.ts packages/hvac-graphics/src/texsys_hvac_graphics/assets/*.tsx
           node node_modules/typescript/bin/tsc --noEmit --strict --jsx react-jsx --moduleResolution bundler --module esnext --target es2022 --lib es2022,dom --skipLibCheck src/texsys/assets/studio/*.ts src/texsys/assets/studio/*.tsx packages/studio-hvac/src/texsys_studio_hvac/assets/*.tsx
+
+      - name: Verify public examples
+        run: |
+          for example in minimal hvac-cold-station hvac-system-schematic hvac-dynamic-station; do
+            uv run --locked texsys check -p "examples/$example"
+            uv run --locked texsys format --check -p "examples/$example"
+            uv run --locked texsys lock --check -p "examples/$example"
+          done
+          uv run --locked texsys lock --check -p examples/datacenter-hybrid-unit
+          uv run --locked texsys lock --check -p examples/hvac-air-cooled-room
+          uv run --locked texsys build -p examples/hvac-system-schematic
+          uv run --locked texsys build -p examples/hvac-dynamic-station --target drawing-system --target drawing-notes
+
+      - name: Run unit and examples end-to-end tests
+        run: uv run --locked pytest

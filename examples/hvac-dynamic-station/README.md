@@ -45,13 +45,13 @@ uv run --locked texsys build -p examples/hvac-dynamic-station
 
 图页由独立的设计组件、项目内容和已有视图编译组成：
 
-| 维护内容 | 源文件 | 修改作用 |
-| --- | --- | --- |
-| 图框与排版规则 | `sheet` 包中的 `sheet:a3-landscape`、`sheet:a3-notes` | 定义纸幅、线宽、文字样式及内容区域；可改为项目内的模板路径 |
-| 项目、图名与修订 | [原理图标题栏](assets/sheets/title.json)、[总说明标题栏](assets/sheets/notes-title.json) | 每张图独立的图号、图名和修订字段 |
-| 工程说明 | [general-notes.txt](assets/sheets/general-notes.txt) | 由工程师直接维护的总说明，保留段落与显式编号 |
-| 页脚文字 | [footer.txt](assets/sheets/footer.txt) | 维护草稿标识和适用范围，使用 `{{drawing_number}}` 等字段绑定 |
-| 图页装配 | [system.sheet.json](assets/sheets/system.sheet.json)、[notes.sheet.json](assets/sheets/notes.sheet.json) | 选择模板、元数据、文字和已构建的视图 |
+| 维护内容         | 源文件                                                                                                   | 修改作用                                                     |
+| ---------------- | -------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------ |
+| 图框与排版规则   | `sheet` 包中的 `sheet:a3-landscape`、`sheet:a3-notes`                                                    | 定义纸幅、线宽、文字样式及内容区域；可改为项目内的模板路径   |
+| 项目、图名与修订 | [原理图标题栏](assets/sheets/title.json)、[总说明标题栏](assets/sheets/notes-title.json)                 | 每张图独立的图号、图名和修订字段                             |
+| 工程说明         | [general-notes.txt](assets/sheets/general-notes.txt)                                                     | 由工程师直接维护的总说明，保留段落与显式编号                 |
+| 页脚文字         | [footer.txt](assets/sheets/footer.txt)                                                                   | 维护草稿标识和适用范围，使用 `{{drawing_number}}` 等字段绑定 |
+| 图页装配         | [system.sheet.json](assets/sheets/system.sheet.json)、[notes.sheet.json](assets/sheets/notes.sheet.json) | 选择模板、元数据、文字和已构建的视图                         |
 
 普通文字和 JSON 在 Studio 通用编辑器中维护；输出 SVG 使用现有图纸预览。默认构建已经包含 `drawing-system` 和 `drawing-notes`，也可分别执行：
 

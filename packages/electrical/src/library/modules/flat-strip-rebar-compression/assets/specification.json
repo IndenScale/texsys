@@ -3,28 +3,12 @@
   "state": "assumed",
   "interfaces": {
     "tape": {
-      "position_m": [
-        -0.08,
-        0,
-        0.016
-      ],
-      "normal": [
-        -1,
-        0,
-        0
-      ]
+      "position_m": [-0.08, 0, 0.016],
+      "normal": [-1, 0, 0]
     },
     "rebar": {
-      "position_m": [
-        0,
-        0,
-        0
-      ],
-      "normal": [
-        0,
-        1,
-        0
-      ]
+      "position_m": [0, 0, 0],
+      "normal": [0, 1, 0]
     }
   },
   "properties": {

@@ -12,11 +12,6 @@
     "diameter_mm": 20
   },
   "environment": "concrete-embedded",
-  "installation_records": [
-    "connector",
-    "tool",
-    "die",
-    "basis"
-  ],
+  "installation_records": ["connector", "tool", "die", "basis"],
   "limitations": "此处适配尺寸和工法为算例假设。须由适用连接件及成套工具的资料证明实际工况。"
 }

@@ -13,7 +13,12 @@ def build_project(root, **options):
   report = Path(result.pop("report"))
   document = json.loads(report.read_text())
   artifacts = {root / item["path"] for item in document["artifacts"]}
-  return SimpleNamespace(**result, report=report, items=tuple(sorted(artifacts)))
+  diagnostics = "\n".join(
+    f"{target['id']}: {json.dumps(item, ensure_ascii=False, sort_keys=True)}"
+    for target in [{"id": "build", "diagnostics": document["diagnostics"]}, *document["targets"]]
+    for item in target["diagnostics"]
+  )
+  return SimpleNamespace(**result, report=report, items=tuple(sorted(artifacts)), diagnostics=diagnostics)
 
 
 def check_project(root):

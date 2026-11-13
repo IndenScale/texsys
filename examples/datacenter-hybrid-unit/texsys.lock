@@ -33,7 +33,7 @@ name = "electrical"
 version = "0.1.0"
 source = "path"
 path = "../../packages/electrical"
-digest = "sha256:e1d117501c1260beeba8b95c0a9a8a8744a94621144f88f0931b42044351101e"
+digest = "sha256:98481964cc02ecc661bcebc85d5d16065180f84b2c7f154195a2c476f0731adb"
 direct = false
 dependencies = []
 
@@ -51,7 +51,7 @@ name = "hvac-dynamics"
 version = "0.1.0"
 source = "path"
 path = "../../packages/hvac-dynamics"
-digest = "sha256:a0401646148d87703baae97dfb039a402c928c86bbfe72d7baf5ba9c5e747fe6"
+digest = "sha256:1461f4588e81e931b6c1060382ef65c3441088882770e55b736012c75c8552a4"
 direct = false
 dependencies = []
 
@@ -87,6 +87,6 @@ name = "structure"
 version = "0.1.0"
 source = "path"
 path = "../../packages/structure"
-digest = "sha256:b662bd1127a63d0e8ca98dacfda7bb2879b109d1a77e014cd853e6c1037208c5"
+digest = "sha256:369b63956ff45c7671c8a5c02bcf277fb26ce8619b0b6148a727f836df52e5f0"
 direct = false
 dependencies = ["spatial"]

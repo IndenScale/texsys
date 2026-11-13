@@ -8,8 +8,8 @@
   "return_temperature_c": 32.0,
   "additional_room_load_kw": 2.0,
   "scenarios": {
-    "normal": {"unavailable_cooling_units": []},
-    "AC-01-out": {"unavailable_cooling_units": ["AC-01"]},
-    "AC-02-out": {"unavailable_cooling_units": ["AC-02"]}
+    "normal": { "unavailable_cooling_units": [] },
+    "AC-01-out": { "unavailable_cooling_units": ["AC-01"] },
+    "AC-02-out": { "unavailable_cooling_units": ["AC-02"] }
   }
 }

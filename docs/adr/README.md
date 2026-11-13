@@ -26,35 +26,35 @@ adr/NNNN-short-title.md
 
 ## 决策索引
 
-| 编号                                                                     | 决策                                                        | 状态                                   |
-| ------------------------------------------------------------------------ | ----------------------------------------------------------- | -------------------------------------- |
-| [0001](0001-openusd-native-scene-geometry.md)                            | 采用 OpenUSD 与 USD BRep 作为原生场景和几何技术栈           | 提议（待探索性验证）                  |
-| [0002](0002-design-time-vs-operation-time.md)                            | 调度属于运行期，不进入 SDL 设计模型                         | 已接受                                 |
-| [0003](0003-python-and-typer-toolchain.md)                               | 采用 Python 与 Typer 作为参考实现和命令行技术栈              | 已接受（0004 补充）                    |
-| [0004](0004-uv-only-python-workflow.md)                                  | 统一使用 uv 管理 Python 环境与命令入口                      | 已接受                                 |
-| [0005](0005-executable-examples.md)                                      | 以可执行示例统一参考用例与端到端桩数据                | 已接受                                 |
-| [0006](0006-design-dependency-management.md)                             | 分离设计依赖的声明、锁定与同步                              | 已接受                                 |
-| [0007](0007-formal-checking-and-formatting.md)                           | 以 JSON 交换子集启动形式检查与格式化                        | 已接受（0022 修订命令职责）            |
-| [0008](0008-six-stage-sysda-model.md)                                    | 采用六阶段 SysDA 模型并区分三类仿真                         | 已接受（0023 修订容量归属及活动映射） |
-| [0009](0009-equipment-and-topology-refinement.md)                        | 建立设备与拓扑的分层映射规则                                | 已接受                                 |
-| [0010](0010-build-test-sim-and-package-boundaries.md)                    | 划分 `build`、`test`、`sim` 与领域包边界                          | 已接受（0011 补充）                    |
-| [0011](0011-stage-scoped-build-targets.md)                               | 采用按阶段解析目标的分阶段构建                              | 已接受（0013 补充）                    |
-| [0012](0012-multidisciplinary-interface-contracts.md)                    | 采用接口契约支持多专业协同构建                              | 已接受                                 |
-| [0013](0013-target-specific-build-derivations.md)                        | 采用目标特定的构建推导与交付视图                            | 已接受（0014、0015、0016、0017 补充）  |
-| [0014](0014-target-bom-and-configuration-baselines.md)                   | 采用目标 BOM 与配置事实快照                                 | 已接受（0016 补充）                    |
-| [0015](0015-contract-bound-hook-runner.md)                               | 采用受构建契约约束的钩子执行器                            | 已接受                                 |
-| [0016](0016-compose-bom-from-neutral-kernel-and-discipline-contracts.md) | 以通用 BOM 内核和专业契约组合替代继承                       | 已接受                                 |
-| [0017](0017-schematic-projection-symbol-resolution-and-rendering.md)     | 采用契约组合的系统原理图投影、图元解析与渲染                | 已接受（待冷站探索性验证；0018 补充） |
-| [0018](0018-deliverable-semantics-and-baseline-gates.md)                 | 以组成、拓扑、行为与空间界定工程交付物并采用基线准出门禁    | 已接受                                 |
-| [0019](0019-first-executable-hvac-schematic-slice.md)                    | 以单页根网络启动暖通原理图可执行切片                      | 已接受；0017／0018 的首个实现子集      |
-| [0020](0020-python-physics-and-typescript-engineering-graphics.md)       | Python 物理行为与 TypeScript/React 工程图元；清除旧草稿实现 | 已接受                                 |
-| [0021](0021-tex-studio-plugin-based-disciplinary-workbenches.md)         | Tex Studio 采用插件式多专业工作台架构                       | 已接受                                 |
-| [0022](0022-separate-project-check-and-style-lint.md)                    | 区分项目检查与源文件风格检查                                | 已接受                                 |
-| [0023](0023-design-commitments-and-professional-activities.md)           | 区分设计承诺层级与专业活动并统一容量归属                    | 已接受                                 |
+| 编号                                                                     | 决策                                                        | 状态                                       |
+| ------------------------------------------------------------------------ | ----------------------------------------------------------- | ------------------------------------------ |
+| [0001](0001-openusd-native-scene-geometry.md)                            | 采用 OpenUSD 与 USD BRep 作为原生场景和几何技术栈           | 提议（待探索性验证）                       |
+| [0002](0002-design-time-vs-operation-time.md)                            | 调度属于运行期，不进入 SDL 设计模型                         | 已接受                                     |
+| [0003](0003-python-and-typer-toolchain.md)                               | 采用 Python 与 Typer 作为参考实现和命令行技术栈             | 已接受（0004 补充）                        |
+| [0004](0004-uv-only-python-workflow.md)                                  | 统一使用 uv 管理 Python 环境与命令入口                      | 已接受                                     |
+| [0005](0005-executable-examples.md)                                      | 以可执行示例统一参考用例与端到端桩数据                      | 已接受                                     |
+| [0006](0006-design-dependency-management.md)                             | 分离设计依赖的声明、锁定与同步                              | 已接受                                     |
+| [0007](0007-formal-checking-and-formatting.md)                           | 以 JSON 交换子集启动形式检查与格式化                        | 已接受（0022 修订命令职责）                |
+| [0008](0008-six-stage-sysda-model.md)                                    | 采用六阶段 SysDA 模型并区分三类仿真                         | 已接受（0023 修订容量归属及活动映射）      |
+| [0009](0009-equipment-and-topology-refinement.md)                        | 建立设备与拓扑的分层映射规则                                | 已接受                                     |
+| [0010](0010-build-test-sim-and-package-boundaries.md)                    | 划分 `build`、`test`、`sim` 与领域包边界                    | 已接受（0011 补充）                        |
+| [0011](0011-stage-scoped-build-targets.md)                               | 采用按阶段解析目标的分阶段构建                              | 已接受（0013 补充）                        |
+| [0012](0012-multidisciplinary-interface-contracts.md)                    | 采用接口契约支持多专业协同构建                              | 已接受                                     |
+| [0013](0013-target-specific-build-derivations.md)                        | 采用目标特定的构建推导与交付视图                            | 已接受（0014、0015、0016、0017 补充）      |
+| [0014](0014-target-bom-and-configuration-baselines.md)                   | 采用目标 BOM 与配置事实快照                                 | 已接受（0016 补充）                        |
+| [0015](0015-contract-bound-hook-runner.md)                               | 采用受构建契约约束的钩子执行器                              | 已接受                                     |
+| [0016](0016-compose-bom-from-neutral-kernel-and-discipline-contracts.md) | 以通用 BOM 内核和专业契约组合替代继承                       | 已接受                                     |
+| [0017](0017-schematic-projection-symbol-resolution-and-rendering.md)     | 采用契约组合的系统原理图投影、图元解析与渲染                | 已接受（待冷站探索性验证；0018 补充）      |
+| [0018](0018-deliverable-semantics-and-baseline-gates.md)                 | 以组成、拓扑、行为与空间界定工程交付物并采用基线准出门禁    | 已接受                                     |
+| [0019](0019-first-executable-hvac-schematic-slice.md)                    | 以单页根网络启动暖通原理图可执行切片                        | 已接受；0017／0018 的首个实现子集          |
+| [0020](0020-python-physics-and-typescript-engineering-graphics.md)       | Python 物理行为与 TypeScript/React 工程图元；清除旧草稿实现 | 已接受                                     |
+| [0021](0021-tex-studio-plugin-based-disciplinary-workbenches.md)         | Tex Studio 采用插件式多专业工作台架构                       | 已接受                                     |
+| [0022](0022-separate-project-check-and-style-lint.md)                    | 区分项目检查与源文件风格检查                                | 已接受                                     |
+| [0023](0023-design-commitments-and-professional-activities.md)           | 区分设计承诺层级与专业活动并统一容量归属                    | 已接受                                     |
 | [0024](0024-portable-capability-packages.md)                             | 可移动工程能力包与项目锁定执行                              | 已接受；修订 0006 来源范围与 0010 执行发现 |
-| [0025](0025-package-component-ide-boundaries.md) | 明确 CLI 项目依赖、部件包与 IDE 插件独立边界 | 已接受；修订 0024 与 0021 |
-| [0026](0026-git-build-workflow-and-devops-boundary.md) | 工程变更使用 Git 与构建，DevOps 集成不纳入 POC | 已接受 |
-| [0027](0027-incremental-build-and-project-preview.md) | 增量构建、独立分支失败隔离与只读项目预览 | 已接受；补充 0011、0013、0021、0026 |
-| [0028](0028-file-based-artifact-preview.md) | 独立文件文档与预览渲染契约，预览不依赖 Activity | 已接受；修订 0027 的文档入口 |
-| [0029](0029-named-build-targets-and-file-refresh.md) | 命名构建目标、自动重建与文件视口 | 已接受；补充 0027 与 0028 |
-| [0030](0030-independent-sheet-components-and-content.md) | 独立维护图页设计组件与项目内容，通过构建链组合 | 已接受；补充 0017、0025 与 0029 |
+| [0025](0025-package-component-ide-boundaries.md)                         | 明确 CLI 项目依赖、部件包与 IDE 插件独立边界                | 已接受；修订 0024 与 0021                  |
+| [0026](0026-git-build-workflow-and-devops-boundary.md)                   | 工程变更使用 Git 与构建，DevOps 集成不纳入 POC              | 已接受                                     |
+| [0027](0027-incremental-build-and-project-preview.md)                    | 增量构建、独立分支失败隔离与只读项目预览                    | 已接受；补充 0011、0013、0021、0026        |
+| [0028](0028-file-based-artifact-preview.md)                              | 独立文件文档与预览渲染契约，预览不依赖 Activity             | 已接受；修订 0027 的文档入口               |
+| [0029](0029-named-build-targets-and-file-refresh.md)                     | 命名构建目标、自动重建与文件视口                            | 已接受；补充 0027 与 0028                  |
+| [0030](0030-independent-sheet-components-and-content.md)                 | 独立维护图页设计组件与项目内容，通过构建链组合              | 已接受；补充 0017、0025 与 0029            |

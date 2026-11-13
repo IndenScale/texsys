@@ -20,10 +20,10 @@ Tex Studio 界面插件另通过 `texsys.studio` 入口发现。`studio-hvac/`�
 | `hvac-formatter/`  | `texsys-hvac-formatter`  | `hvac-formatter`  | 输入格式化与投影                               |
 | `hvac-checks/`     | `texsys-hvac-checks`     | `hvac-checks`     | 容量／通风／露点的 Python 设计校核             |
 | `hvac-dynamics/`   | `texsys-hvac-dynamics`   | `hvac-dynamics`   | 热水力、径向供回水配水、泵组调度与热瞬态       |
-| `hvac-bom/`        | `texsys-hvac-bom`        | `hvac-bom`        | 暖通来源适配、专业规则与视图                  |
-| `diagram/`         | `texsys-diagram`         | `diagram`         | 通用绘图契约、图元解析、人工排版层、检查与导出    |
+| `hvac-bom/`        | `texsys-hvac-bom`        | `hvac-bom`        | 暖通来源适配、专业规则与视图                   |
+| `diagram/`         | `texsys-diagram`         | `diagram`         | 通用绘图契约、图元解析、人工排版层、检查与导出 |
 | `diagram-elk/`     | `texsys-diagram-elk`     | `diagram-elk`     | 锁定 ELK 解析、完整性校验与排版配置            |
-| `hvac-diagram/`    | `texsys-hvac-diagram`    | `hvac-diagram`    | 暖通投影、概念符号与系统图／原理图目标     |
+| `hvac-diagram/`    | `texsys-hvac-diagram`    | `hvac-diagram`    | 暖通投影、概念符号与系统图／原理图目标         |
 
 依赖方向保持单向：通用 BOM 只依赖核心协议，专业适配器依赖通用内核和相应专业包；核心与通用 BOM 均不反向导入专业规则。新增领域包时，应同时提供独立版本、适用边界、测试和设计包清单，而不是将领域概念加入 SDL 核心。
 
