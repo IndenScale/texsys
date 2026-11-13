@@ -190,6 +190,7 @@ def evaluate_air_environment(source: Path, unit: dict, floor: dict, building: di
     "plan_conflicts": conflicts, "cases": cases, "levels_m": building["levels_m"], "unit_origins_m": {
       name: zone["origin_m"] for name, zone in zones.items()
     },
+    "unit_sizes_m": {name: zone["size_m"] for name, zone in zones.items()},
     "pending": ["fan-curves-and-commissioned-balancing", "vertical-inlet-gradient-and-cfd",
                 "air-leakage-measurement-and-latent-loads", "duct-fittings-acoustics-and-shop-details"],
   }
