@@ -24,8 +24,8 @@ uv run --locked texsys build -p examples/hvac-dynamic-station
 
 在 Tex Studio 的文件资源管理器中直接打开下列真实文件，每个文件拥有独立文档标签；无需进入项目实例 Activity：
 
-- `build/hvac/schematic/system.json`：原理图。
-- `build/hvac/topology/system.json`：拓扑图。
+- `build/drawings/schematics/system.json`：原理图及同目录的 SVG、HTML、Draw.io。
+- `build/drawings/topology/system.json`：拓扑图及同目录的 SVG、HTML、Draw.io。
 - `build/hvac/bom.json`：设备 BOM 数据，使用普通 JSON 编辑器。
 - `build/hvac/bom.md`：设备 BOM 文档，可切换 Markdown 预览。
 - `build/hvac/layout/scene.usda`：概念场景。
@@ -35,6 +35,6 @@ uv run --locked texsys build -p examples/hvac-dynamic-station
 
 从仓库根目录运行 `uv run --locked python tools/verify_project_preview.py`，可在隔离的两个项目副本中回放首次构建、缓存命中、布局变化、失败回退、修复及产物恢复，证据写入 `build/project-preview-poc/`。这是开发机制与概念模型的验证，不替代真实工程校准。
 
-输出包括 `build/hvac/bom.json`、`build/hvac/behavior/model.json`、`build/hvac/system/system.html`、`build/hvac/schematic/system.html` 和各工况目录。浏览器中可选择设备、查看参数依据、切换工况、播放时序、跳至下一事件、查看曲线与守恒／性能检查。工程图元页支持横向比例与标注层次变化；图形比例不修改物理性能参数。
+运行 `examples/build-deliverables/run.py all` 的独立工程演示时，包注册目标生成 `build/hvac/system/system.html`、`build/hvac/schematic/system.html` 和各工况目录。浏览器中可选择设备、查看参数依据、切换工况、播放时序、跳至下一事件、查看曲线与守恒／性能检查。工程图元页支持横向比例与标注层次变化；图形比例不修改物理性能参数。
 
 复核用例见 `tests/test_hvac_dynamics.py`、`tests/test_hvac_physical_pipeline.py` 和 `tools/verify_hvac_backends.py`。安装几何事件示例单独保留在 `hvac-cold-station`，不与运行工况混用。

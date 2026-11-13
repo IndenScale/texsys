@@ -37,6 +37,21 @@ uv run --locked texsys build -p examples/datacenter-hybrid-unit
 
 `build/datacenter/unit-study.json` 给出热量账、供电路径及工况判定。正常、一路市电退出、一个 CDU 退出三个工况预期通过。两个 CDU 同时退出是预期失败用例。构建状态表示实际判定与样例预期相符。
 
+在 Studio 的文件资源管理器中打开 `build/drawings/` 下的 SVG。图纸范围由 `texsys.toml` 的命名目标声明。
+
+| 图纸           | 构建目标                   | 输出文件                                  |
+| -------------- | -------------------------- | ----------------------------------------- |
+| 首层平面       | `plan-level-01`            | `build/drawings/plans/L01.svg`            |
+| 首层冷却设备间 | `plan-room-cooling`        | `build/drawings/rooms/L01/cooling.svg`    |
+| 首层单元分区   | `plan-zone-l01-unit-01-01` | `build/drawings/zones/L01/unit-01-01.svg` |
+| 跨楼层机电标段 | `plan-lot-mep-01`          | `build/drawings/packages/MEP-01.svg`      |
+
+楼层、房间和标段图使用概念房间轮廓，标段按成员所在楼层分图。分区图从楼层布局中投影单元包络，使用建筑平面坐标和指定楼层的标高。整栋三维场景位于 `build/scenes/building.usda`。
+
+```bash
+uv run --locked texsys build -p examples/datacenter-hybrid-unit --target plan-zone-l01-unit-01-01 --watch
+```
+
 `build/datacenter/cooling-equipment.json` 记录 400 台精密空调及 CDU 的放置、支脚身份和端口坐标，并逐一核对 400 个 CDU 设施水供回水接口与支管端点。`cooling-equipment-layout.usda` 交付可独立打开的设备几何。精密空调的送回风和机前检修空间由下游气流布置报告校核。设备锚固、CDU 检修净距及电源实体路由仍待协调。设备容量、包络和安装质量均为方案假设。
 
 `build/datacenter/tcs-study.json` 先按已有 FWS 分配校核逐机柜流量和冷量。当故障导致某个 CDU 无法用完已分配冷量时，联合求解以每条机柜回路的冷量为变量，在同一解中校核共用冷源、FWS 管段与泵扬程、CDU 热量平衡，以及 TCS 管路、机柜流量和泵扬程。求解先提高整栋实际送达的冷量，再在水力条件允许时尽量保留原分配。报告以 `building_scenario` 追溯基线，在 `dispatch.joint_fws` 记录新分配、压力余量、故障与隔离记录，以及逐 CDU 热量平衡误差。

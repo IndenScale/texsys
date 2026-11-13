@@ -61,6 +61,15 @@ def revision(root: Path) -> str:
   return canonical_digest(input_records(root))
 
 
+def _build_revision(root: Path, build: str) -> str:
+  # The runner replaces this report atomically after publishing artifacts.
+  try:
+    stat = (root / build / "build.json").stat(follow_symlinks=False)
+  except OSError:
+    return ""
+  return f"{stat.st_ino}:{stat.st_mtime_ns}:{stat.st_ctime_ns}"
+
+
 def snapshot_project(root: Path, destination: Path, records: list[dict]) -> None:
   # Lock paths are relative to canonical project roots. Temporary directories
   # may arrive through aliases such as macOS /var -> /private/var.
@@ -162,7 +171,9 @@ class StudioRuntime:
           result[identity] = plugin.state(self.root, artifacts)
         except Exception as error:
           result[identity] = {"error": str(error)}
-      return {"api_version": 1, "project": {"name": self.project.name, "path": str(self.root), "revision": current, "branch": git_context(self.root)},
+      return {"api_version": 1, "project": {"name": self.project.name, "path": str(self.root), "revision": current,
+                                            "build_revision": _build_revision(self.root, self.project.build),
+                                            "branch": git_context(self.root)},
               "plugins": [plugin.manifest for plugin in self.plugins.values()], "data": result,
               "jobs": [{**job, "current": job["revision"] == current} for job in jobs],
               "diagnostics": self.diagnostics}

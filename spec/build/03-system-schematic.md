@@ -40,7 +40,7 @@ uv run texsys build -p examples/hvac-system-schematic --target hvac:system-schem
 
 ## 产物与证据
 
-两个视图分别输出到 `build/hvac/system/` 和 `build/hvac/schematic/`，遵守项目自定义 build 目录：
+直接选择包注册目标时，系统图和原理图分别输出到构建目录的 `hvac/system/` 和 `hvac/schematic/`。项目命名目标使用清单声明的主文件路径，例如 `build/drawings/schematics/system.json`，配套文件与主文件位于同一目录：
 
 | 文件                | artifact ID     | 内容                                                         |
 | ------------------- | --------------- | ------------------------------------------------------------ |

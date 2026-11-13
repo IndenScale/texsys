@@ -45,12 +45,16 @@ default_targets = ["plan-level-01"]
 [build.targets.plan-level-01]
 using = "datacenter:floor-plan"
 scope = { level = "L01" }
-output = "build/plans/level-01.svg"
+output = "build/drawings/plans/L01.svg"
 ```
 
 `output` 是项目相对路径，位于项目配置的公开构建目录内。每个输出路径只由一个目标拥有。命名目标可以配置 `profile`，目标范围及输出格式由生成器校验。
 
 包通过 `TargetDefinition.named_output` 声明支持命名目标。`BuildContext.target` 保留生成器 ID，`instance_id` 是项目目标名，`output` 是相对于 `BuildContext.build_path` 的主输出路径。生成器在暂存目录内写出主文件与配套文件。计算对项目资产的相对链接时，使用项目配置的公开构建路径作为最终位置。数据中心示例按房间、楼层和标段出图，标段的房间成员来自建筑研究源文件，跨楼层标段在同一 SVG 内按楼层分图。
+
+公开二维图纸宜集中在构建目录下的 `drawings/`。示例使用 `schematics/`、`topology/`、`plans/`、`rooms/`、`zones/` 和 `packages/`，便于从资源管理器按图纸类型定位。目标仍从清单解析，目录和文件名用于定位产物。图纸的 JSON、SVG、HTML 等配套格式可以归属同一个目标。
+
+数据中心平面图的范围接受 `{ level = "L01" }`、`{ room = "L01/Cooling" }`、`{ level = "L01", zone = "Unit-01-01" }` 或 `{ work_package = "MEP-01" }`。楼层、房间和标段图投影概念建筑房间轮廓。分区图使用楼层标高和布局模型声明的分区平面包络，分区编号在指定楼层内解析。
 
 ## 监听落盘修改
 

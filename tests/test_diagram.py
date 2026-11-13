@@ -31,10 +31,11 @@ def project(tmp_path):
   return root
 
 
+DRAWINGS = "build/drawings/schematics"
+
+
 def load(root, filename="system.json"):
-  report = json.loads((root / "build/build.json").read_text())
-  view = report["targets"][0]["scope"].get("view", "schematic")
-  return json.loads((root / "build/hvac" / view / filename).read_text())
+  return json.loads((root / DRAWINGS / filename).read_text())
 
 
 def mutate(root, update):
@@ -58,9 +59,9 @@ def test_schematic_has_both_loops_all_ports_and_deterministic_exports(project):
   assert check_document(document) == []
   assert all(n["symbol"]["semantic_ports_complete"] for n in document["nodes"])
   assert {e["medium"] for e in document["edges"]} == {"chilled-water", "cooling-water"}
-  svg = ET.parse(project / "build/hvac/schematic/system.svg")
+  svg = ET.parse(project / DRAWINGS / "system.svg")
   assert len(svg.findall(".//{http://www.w3.org/2000/svg}polyline")) == 6
-  drawio = ET.parse(project / "build/hvac/schematic/system.drawio")
+  drawio = ET.parse(project / DRAWINGS / "system.drawio")
   cells = {o.attrib["id"]: o for o in drawio.findall(".//UserObject")}
   for node in document["nodes"]:
     assert cells[node["id"]].attrib["semantic_ref"] == node["semantic_ref"]
@@ -68,9 +69,9 @@ def test_schematic_has_both_loops_all_ports_and_deterministic_exports(project):
     cell = cells[edge["id"]].find("mxCell")
     assert cell.attrib["source"] == edge["source"]
     assert cell.attrib["target"] == edge["target"]
-  first = {p.relative_to(project): p.read_bytes() for p in (project / "build/hvac").rglob("*") if p.is_file()}
+  first = {p.name: p.read_bytes() for p in (project / DRAWINGS).iterdir()}
   assert build_project(project).status == "pass"
-  assert first == {p.relative_to(project): p.read_bytes() for p in (project / "build/hvac").rglob("*") if p.is_file()}
+  assert first == {p.name: p.read_bytes() for p in (project / DRAWINGS).iterdir()}
   assert all(p.read_bytes() == data for p, data in sources.items())
 
 
@@ -97,10 +98,10 @@ def test_build_recreates_network_projection_from_direct_file_edit(project):
     assert len(net["edges"]) == 3
     assert {edges[edge]["medium"] for edge in net["edges"]} == {net["kind"]}
     assert diagram["source_map"][net["id"]]["file"] == "src/system.sdl.json"
-  first = (project / "build/hvac/system/system.json").read_bytes()
+  first = (project / DRAWINGS / "system.json").read_bytes()
   shutil.rmtree(project / "build")
   assert runner.invoke(app, args).exit_code == 0
-  assert (project / "build/hvac/system/system.json").read_bytes() == first
+  assert (project / DRAWINGS / "system.json").read_bytes() == first
 
 
 def test_missing_behavior_degrades_without_fake_schematic(project):

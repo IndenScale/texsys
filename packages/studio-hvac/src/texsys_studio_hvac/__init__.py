@@ -1,14 +1,18 @@
 """HVAC Studio contribution, using existing engineering APIs and shared graphics."""
 
 import copy
+import hashlib
 from pathlib import Path
 import tempfile
+import tomllib
 
+from texsys.build_records import build_freshness
 from texsys.project_operations import run_project_operation
 from texsys.evidence import file_digest, write_json
 from texsys.formal import _check_schema, _check_semantics, _load_json
 from texsys.project import ProjectError, inspect_project
 from texsys.studio import StudioPlugin
+from texsys.studio.preview import ProjectPreview
 from texsys.studio.runtime import Conflict, input_records, snapshot_project
 
 MANIFEST = {"id": "texsys:hvac", "name": "Tex Studio HVAC", "discipline": "暖通", "version": "0.1.0", "api_version": 1,
@@ -17,6 +21,75 @@ MANIFEST = {"id": "texsys:hvac", "name": "Tex Studio HVAC", "discipline": "暖�
 
 def read_json(file):
   return _load_json(file.read_text(encoding="utf-8"))
+
+
+def _published_file(preview, report, record, extension):
+  if record.get("published") is not True:
+    return None
+  try:
+    file = preview._generated_location(record.get("path"))
+    if file.suffix.lower() == f".{extension}" and file_digest(file) == record.get("digest"):
+      preview._location(report, record)
+      return file
+  except (OSError, ValueError, ProjectError):
+    pass
+  return None
+
+
+def _named_drawings(root, build, diagrams, exports):
+  """Read published HVAC files using verified build records and workspace paths."""
+  preview = ProjectPreview(root, build)
+  try:
+    with (root / "texsys.toml").open("rb") as stream:
+      config = tomllib.load(stream)
+    builds = config.get("build")
+    targets = builds.get("targets") if isinstance(builds, dict) else None
+    if not isinstance(targets, dict):
+      return
+    named = {name: target for name, target in targets.items() if isinstance(target, dict)
+             and target.get("using") in ("hvac:system-schematic", "hvac:system-topology")}
+    if not named:
+      return
+    latest = preview._report()
+  except (OSError, ValueError, ProjectError):
+    return
+  current = None
+  for report in preview._history(latest):
+    for target in report["targets"]:
+      identifier = target.get("id")
+      declaration = named.get(identifier) if isinstance(identifier, str) else None
+      if (declaration is None or declaration.get("using") != target.get("using")
+          or declaration.get("output") != target.get("output")):
+        continue
+      records = {item.get("id"): item for item in report["artifacts"]
+                 if item.get("target") == target.get("id") and isinstance(item.get("id"), str)}
+      primary = records.get("system-data", {})
+      if primary.get("path") != target.get("output"):
+        continue
+      file = _published_file(preview, report, primary, "json")
+      if file is None:
+        continue
+      try:
+        content = file.read_bytes()
+        if "sha256:" + hashlib.sha256(content).hexdigest() != primary["digest"]:
+          continue
+        document = _load_json(content.decode("utf-8"))
+        view = document.get("view") if isinstance(document, dict) else None
+      except (OSError, ValueError):
+        continue
+      if view not in ("system", "schematic") or view in diagrams:
+        continue
+      if current is None and report is latest:
+        current = build_freshness(root, report)["current"]
+      is_current = report is latest and current is True
+      diagrams[view] = {"document": document, "current": is_current}
+      label = "原理图" if view == "schematic" else "系统图"
+      for extension, identifier in (("svg", "system-svg"), ("drawio", "system-drawio"), ("json", "system-data")):
+        export = file if extension == "json" else _published_file(preview, report, records.get(identifier, {}), extension)
+        if export is not None:
+          exports.append({"name": f"{label}.{extension}", "path": export.relative_to(root).as_posix(), "current": is_current})
+      if len(diagrams) == 2:
+        return
 
 
 class HvacWorkbench(StudioPlugin):
@@ -32,7 +105,12 @@ class HvacWorkbench(StudioPlugin):
     locations.append({"root": root, "current": None, "id": None})
     diagrams, runs, reports, exports = {}, {}, [], []
     report_kinds = set()
+    named_checked = False
     for location in locations:
+      if location["current"] is not True and not named_checked:
+        if len(diagrams) < 2:
+          _named_drawings(root, project.build, diagrams, exports)
+        named_checked = True
       origin = location["root"]
       info = inspect_project(origin)
       if info is None:

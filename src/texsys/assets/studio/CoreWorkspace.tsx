@@ -775,22 +775,26 @@ export function CoreWorkspaceProvider({
     setSearchEditorActive(false);
     setDiffActive(false);
   }, [focusGroup]);
+  const listingReadSequence = useRef(0);
   const readFiles = useCallback(async () => {
+    const sequence = ++listingReadSequence.current;
     setLoadingFiles(true);
     try {
       const next = await api<FileListing>("/api/files");
+      if (sequence !== listingReadSequence.current) return;
       setListing(next);
+      const byPath = new Map(next.files.map((entry) => [entry.path, entry]));
       setDocuments((previous) =>
         previous.map((item) => {
-          const file = next.files.find((entry) => entry.path === item.path);
+          const file = byPath.get(item.path);
           return file ? { ...item, generated: !!file.generated, preview: file.preview } : item;
         }),
       );
       setListingError("");
     } catch (error) {
-      setListingError(String(error));
+      if (sequence === listingReadSequence.current) setListingError(String(error));
     } finally {
-      setLoadingFiles(false);
+      if (sequence === listingReadSequence.current) setLoadingFiles(false);
     }
   }, [api]);
   const gitReadSequence = useRef(0);
@@ -835,7 +839,7 @@ export function CoreWorkspaceProvider({
   }, [readFiles, readGit, activity, busy]);
   useEffect(() => {
     void readFiles();
-  }, [checkout, state.project.revision, readFiles]);
+  }, [checkout, state.project.revision, state.project.build_revision, readFiles]);
   useEffect(() => {
     if (!dirty || !confirmBeforeUnload) return;
     const handler = (event: BeforeUnloadEvent) => {

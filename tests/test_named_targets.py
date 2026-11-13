@@ -62,7 +62,8 @@ def test_named_targets_resolve_independent_scopes_and_keep_registered_dependenci
 
 def test_floor_plans_project_declared_room_level_and_cross_level_work_package(tmp_path):
   root = copy_project(tmp_path, "datacenter-hybrid-unit")
-  targets = ["plan-room-cooling", "plan-level-01", "plan-lot-mep-01", "building-scene"]
+  zone_target = "plan-zone-l01-unit-01-01"
+  targets = ["plan-room-cooling", "plan-level-01", "plan-lot-mep-01", zone_target, "building-scene"]
   result = build_project(root, targets=targets)
   assert result.status == "pass"
   report = json.loads(result.report.read_text())
@@ -72,26 +73,34 @@ def test_floor_plans_project_declared_room_level_and_cross_level_work_package(tm
   assert (root / "build/scenes/building.json").is_file()
   assert (root / "build/datacenter/building-study.json").is_file()
 
-  def read(path):
-    svg = ElementTree.parse(root / "build/plans" / path).getroot()
+  def read(path, attribute="data-room-id"):
+    svg = ElementTree.parse(root / "build/drawings" / path).getroot()
     sheets = {}
     for sheet in svg.findall("svg:g", SVG):
       sheets[sheet.attrib["data-level-id"]] = {
-        room.attrib["data-room-id"]: room.find("svg:rect", SVG).attrib for room in sheet.findall("svg:g", SVG)
+        shape.attrib[attribute]: shape.find("svg:rect", SVG).attrib for shape in sheet.findall("svg:g", SVG)
       }
     return sheets
 
-  room = read("room-l01-cooling.svg")
+  room_path = "rooms/L01/cooling.svg"
+  zone_path = "zones/L01/unit-01-01.svg"
+  lot_path = "packages/MEP-01.svg"
+  room = read(room_path)
   assert {level: set(rooms) for level, rooms in room.items()} == {"L01": {"L01/Cooling"}}
   assert {key: float(room["L01"]["L01/Cooling"][key]) for key in ("x", "y", "width", "height")} == {
     "x": 50, "y": -42, "width": 8, "height": 18,
   }
-  floor = read("level-01.svg")
+  floor = read("plans/L01.svg")
   assert set(floor) == {"L01"}
   assert set(floor["L01"]) == {"L01/Hall", "L01/Services", "L01/Cooling", "L01/Electrical", "L01/Liquid-Collection"}
-  lot = read("lot-mep-01.svg")
+  lot = read(lot_path)
   assert {level: set(rooms) for level, rooms in lot.items()} == {
     "L01": {"L01/Cooling", "L01/Electrical"}, "L02": {"L02/Cooling"},
+  }
+  zone = read(zone_path, "data-zone-id")
+  assert {level: set(zones) for level, zones in zone.items()} == {"L01": {"L01/Unit-01-01"}}
+  assert {key: float(zone["L01"]["L01/Unit-01-01"][key]) for key in ("x", "y", "width", "height")} == {
+    "x": 4, "y": -12, "width": 8, "height": 8,
   }
 
   repeat = build_project(root, targets=targets)
@@ -100,17 +109,38 @@ def test_floor_plans_project_declared_room_level_and_cross_level_work_package(tm
   source = root / "src/building.study.json"
   data = json.loads(source.read_text())
   data["layout"]["reserves"]["Cooling"]["size_m"][0] = 7.5
+  data["layout"]["origin_m"][0] = 4.5
   source.write_text(json.dumps(data))
   updated = build_project(root, targets=targets)
   assert updated.status == "pass"
-  assert read("room-l01-cooling.svg")["L01"]["L01/Cooling"]["width"] == "7.5"
-  assert read("lot-mep-01.svg")["L02"]["L02/Cooling"]["width"] == "7.5"
-  stable_file = root / "build/plans/room-l01-cooling.svg"
+  assert read(room_path)["L01"]["L01/Cooling"]["width"] == "7.5"
+  assert read(lot_path)["L02"]["L02/Cooling"]["width"] == "7.5"
+  assert read(zone_path, "data-zone-id")["L01"]["L01/Unit-01-01"]["x"] == "4.5"
+  stable_file = root / "build/drawings" / room_path
   published = stable_file.read_bytes()
   rejected = build_project(root, targets=[targets[0]], scope={"room": "L01/missing"})
   assert rejected.status == "error"
   assert stable_file.read_bytes() == published
   assert "Unknown floor plan room" in rejected.report.read_text()
+
+  different_level = build_project(root, targets=["datacenter:floor-plan"], scope={"level": "L02", "zone": "Unit-01-01"})
+  assert different_level.status == "pass"
+  svg = ElementTree.parse(root / "build/datacenter/floor-plan.svg").getroot()
+  assert svg.find("svg:g", SVG).attrib["data-level-id"] == "L02"
+  assert svg.find("svg:g/svg:g", SVG).attrib["data-zone-id"] == "L02/Unit-01-01"
+  assert svg.find("svg:g/svg:text", SVG).text == "L02 · 7 m"
+
+  zone_file = root / "build/drawings" / zone_path
+  previous_zone = zone_file.read_bytes()
+  for scope, message in (
+    ({"zone": "Unit-01-01"}, "a level and zone together"),
+    ({"level": "missing", "zone": "Unit-01-01"}, "Unknown floor plan level"),
+    ({"level": "L01", "zone": "missing"}, "Unknown floor plan zone"),
+  ):
+    rejected = build_project(root, targets=[zone_target], scope=scope)
+    assert rejected.status == "error"
+    assert message in rejected.report.read_text()
+    assert zone_file.read_bytes() == previous_zone
 
 
 def test_schematic_named_target_reuses_registered_generator_in_another_project(tmp_path):
@@ -118,8 +148,8 @@ def test_schematic_named_target_reuses_registered_generator_in_another_project(t
   result = build_project(root, targets=["system-schematic"])
   assert result.status == "pass"
   assert {path.relative_to(root).as_posix() for path in result.items} == {
-    "build/diagrams/system.json", "build/diagrams/system.svg", "build/diagrams/system.html",
-    "build/diagrams/system.drawio", "build/diagrams/system-check.json",
+    "build/drawings/schematics/system.json", "build/drawings/schematics/system.svg", "build/drawings/schematics/system.html",
+    "build/drawings/schematics/system.drawio", "build/drawings/schematics/system-check.json",
   }
-  diagram = json.loads((root / "build/diagrams/system.json").read_text())
+  diagram = json.loads((root / "build/drawings/schematics/system.json").read_text())
   assert diagram["nodes"] and diagram["source_map"]

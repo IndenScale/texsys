@@ -387,12 +387,12 @@ test("Explorer headings manage views while the project tree keeps its own contex
   function Sidebar() {
     return useCoreWorkspace().sidebar([]);
   }
-  function Fixture() {
+  function Fixture({ buildRevision }) {
     const [layout, setLayout] = React.useState(defaults);
     return React.createElement(
       CoreWorkspaceProvider,
       {
-        state,
+        state: { ...state, project: { ...state.project, build_revision: buildRevision } },
         api,
         layout,
         changeLayout: (patch) => setLayout((current) => ({ ...current, ...patch })),
@@ -465,4 +465,14 @@ test("Explorer headings manage views while the project tree keeps its own contex
   await context(row(""));
   assert.ok(item("新建文件…"));
   assert.equal(item("打开的编辑器"), undefined);
+  await dismiss();
+
+  assert.equal(row("drawings"), null);
+  responses["/api/files"] = {
+    files: [...responses["/api/files"].files, { path: "drawings/room.svg" }],
+    directories: ["drawings"],
+    truncated: false,
+  };
+  await act(async () => root.render(React.createElement(Fixture, { buildRevision: "new-build" })));
+  assert.ok(row("drawings"));
 });

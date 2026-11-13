@@ -22,6 +22,8 @@ from texsys.studio.runtime import Conflict, StudioRuntime, git_context, revision
 from texsys.studio.server import create_server
 from texsys_studio_hvac import plugin
 
+from preview_records import preview_record, save_record
+
 ROOT = Path(__file__).parents[1]
 
 
@@ -103,6 +105,72 @@ def test_empty_host_is_a_valid_explicit_state(station):
   runtime = StudioRuntime(station, plugins={})
   state = runtime.state()
   assert state["plugins"] == [] and state["data"] == {} and state["jobs"] == []
+
+
+def test_external_build_publication_changes_studio_listing_revision(station):
+  runtime = StudioRuntime(station, plugins={})
+  initial = runtime.state()["project"]
+  report = station / "build" / "build.json"
+  write_json(report, {"run_id": "first"})
+  first = runtime.state()["project"]
+  assert first["build_revision"] != initial["build_revision"]
+  assert first["revision"] == initial["revision"]
+  assert runtime.state()["project"]["build_revision"] == first["build_revision"]
+
+  write_json(report, {"run_id": "other"})
+  second = runtime.state()["project"]
+  assert second["build_revision"] != first["build_revision"]
+  assert second["revision"] == first["revision"]
+
+
+def test_workbench_uses_verified_named_drawings_with_legacy_job_priority(station):
+  output = "build/drawings/schematics/system.json"
+  sidecar = "build/drawings/schematics/system.svg"
+  topology = "build/drawings/topology/system.json"
+  write_json(station / output, {"view": "schematic", "title": "Named schematic"})
+  write_json(station / topology, {"view": "system", "title": "Named topology"})
+  (station / sidecar).write_text('<svg xmlns="http://www.w3.org/2000/svg"/>')
+  legacy = "build/hvac/schematic/system.json"
+  write_json(station / legacy, {"view": "schematic", "title": "Legacy schematic"})
+  report = preview_record(station, "named", (
+    ("system-data", output, {"kind": "schematic"}),
+    ("system-svg", sidecar, None),
+    ("system-data", topology, {"kind": "topology"}),
+  ))
+  report["targets"] = [{"id": "system-schematic", "using": "hvac:system-schematic", "output": output},
+                       {"id": "system-topology", "using": "hvac:system-topology", "output": topology}]
+  for record in report["artifacts"]:
+    record.update(published=True, target="system-topology" if record["path"] == topology else "system-schematic")
+  save_record(station, report)
+
+  state = plugin.state(station, [])
+  assert state["diagrams"]["schematic"]["document"]["title"] == "Named schematic"
+  assert state["diagrams"]["system"]["document"]["title"] == "Named topology"
+  assert {item["path"] for item in state["exports"]} == {output, sidecar, topology}
+
+  preview_record(station, "unrelated", previous="named")
+  historical = plugin.state(station, [])
+  assert historical["diagrams"]["schematic"]["document"]["title"] == "Named schematic"
+  assert historical["diagrams"]["schematic"]["current"] is False
+
+  job = station / "build/studio/job"
+  job.mkdir(parents=True)
+  shutil.copyfile(station / "texsys.toml", job / "texsys.toml")
+  write_json(job / legacy, {"view": "schematic", "title": "Job schematic"})
+  job_state = plugin.state(station, [{"root": job, "current": True}])
+  assert job_state["diagrams"]["schematic"] == {
+    "document": {"view": "schematic", "title": "Job schematic"}, "current": True,
+  }
+  assert job_state["diagrams"]["system"]["document"]["title"] == "Named topology"
+
+  manifest = station / "texsys.toml"
+  manifest.write_text(manifest.read_text().replace(output, "../outside.json"))
+  report["targets"][0]["output"] = "../outside.json"
+  report["artifacts"][0]["path"] = "../outside.json"
+  save_record(station, report)
+  rejected = plugin.state(station, [])
+  assert rejected["diagrams"]["schematic"]["document"]["title"] == "Legacy schematic"
+  assert "../outside.json" not in {item["path"] for item in rejected["exports"]}
 
 
 def test_edit_changes_only_instance_and_undo_restores_inheritance(runtime):

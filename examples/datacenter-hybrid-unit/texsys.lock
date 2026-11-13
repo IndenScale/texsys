@@ -24,7 +24,7 @@ name = "datacenter"
 version = "0.1.0"
 source = "path"
 path = "../../packages/datacenter"
-digest = "sha256:d86287e55d0a584eb6de2d128b20f5b1f0ada6b0d8135342234aca92df0e37e0"
+digest = "sha256:cf341b4fa9d13657d884cffe69b3ede642b6634aa5c76034de8f3dab89ad1726"
 direct = true
 dependencies = ["architecture", "controls", "electrical", "fire-protection", "hvac-dynamics", "hvac-equipment", "plumbing", "spatial", "structure"]
 

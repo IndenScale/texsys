@@ -60,6 +60,7 @@ export type StudioState = {
     name: string;
     path: string;
     revision: string;
+    build_revision?: string;
     branch?: { kind: "branch" | "detached" | "unversioned" | "unavailable"; name?: string };
   };
   plugins: PluginManifest[];

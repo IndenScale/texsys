@@ -77,6 +77,8 @@ def test_real_cli_reuses_targets_and_rebuilds_only_changed_layout(tmp_path):
   assert cli("lock").returncode == 0
   first = build()
   assert all(target["execution"] == "executed" for target in first["targets"])
+  drawings = {item["path"] for item in first["artifacts"] if item["id"] == "system-data" and item["published"]}
+  assert drawings == {"build/drawings/schematics/system.json", "build/drawings/topology/system.json"}
   original_scene = next(item for item in first["artifacts"] if (item.get("preview") or {}).get("kind") == "scene")
   original_bytes = (project / original_scene["stored_path"]).read_bytes()
   second = build()
@@ -88,8 +90,8 @@ def test_real_cli_reuses_targets_and_rebuilds_only_changed_layout(tmp_path):
   layout.write_text(json.dumps(document))
   third = build()
   assert {target["id"]: target["execution"] for target in third["targets"]} == {
-    "hvac:equipment-bom": "cached", "hvac:physical-model": "cached", "hvac:system-schematic": "cached",
-    "hvac:system-topology": "cached", "hvac:project-layout": "executed",
+    "hvac:equipment-bom": "cached", "hvac:physical-model": "cached", "system-schematic": "cached",
+    "system-topology": "cached", "hvac:project-layout": "executed",
   }
   assert (project / original_scene["stored_path"]).read_bytes() == original_bytes
   assert (project / original_scene["path"]).read_bytes() != original_bytes
@@ -100,5 +102,5 @@ def test_real_cli_reuses_targets_and_rebuilds_only_changed_layout(tmp_path):
   report = json.loads((project / "build/build.json").read_text())
   records = {target["id"]: target for target in report["targets"]}
   assert records["hvac:project-layout"]["status"] != "pass"
-  assert records["hvac:equipment-bom"]["status"] == records["hvac:system-topology"]["status"] == "pass"
-  assert records["hvac:equipment-bom"]["execution"] == records["hvac:system-topology"]["execution"] == "cached"
+  assert records["hvac:equipment-bom"]["status"] == records["system-topology"]["status"] == "pass"
+  assert records["hvac:equipment-bom"]["execution"] == records["system-topology"]["execution"] == "cached"

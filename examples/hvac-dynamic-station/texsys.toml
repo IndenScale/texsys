@@ -9,7 +9,15 @@ assets = "assets"
 build = "build"
 
 [build]
-default_targets = ["hvac:equipment-bom", "hvac:physical-model", "hvac:system-schematic", "hvac:system-topology", "hvac:project-layout"]
+default_targets = ["hvac:equipment-bom", "hvac:physical-model", "system-schematic", "system-topology", "hvac:project-layout"]
+
+[build.targets.system-schematic]
+using = "hvac:system-schematic"
+output = "build/drawings/schematics/system.json"
+
+[build.targets.system-topology]
+using = "hvac:system-topology"
+output = "build/drawings/topology/system.json"
 
 [dependencies]
 hvac-diagram = { path = "../../packages/hvac-diagram", version = "0.1.0" }
