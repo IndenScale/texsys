@@ -193,6 +193,10 @@ export const englishMessages: Record<string, string> = {
   正在读取场景: "Loading scene",
   "SVG 预览": "SVG preview",
   "SVG 文档无效": "Invalid SVG document",
+  "Draw.io 预览": "Draw.io preview",
+  "正在读取 Draw.io 图纸…": "Loading Draw.io drawing…",
+  "Draw.io 文档无效或无法读取": "The Draw.io document is invalid or unreadable",
+  "{0} 个 Draw.io 图元无法完整显示": "Draw.io elements shown with limited detail: {0}",
   "拖动旋转，按住 Shift 拖动平移": "Drag to orbit, Shift-drag to pan",
   "预览支持 USD 网格、立方体和 BRep 包络。": "Preview supports USD meshes, cubes, and BRep bounds.",
   "在 {0} 生成 USD 场景后，这里会自动加载。":
@@ -1453,7 +1457,6 @@ export const englishMessages: Record<string, string> = {
   恢复默认值: "Restore defaults",
   编辑器字号: "Editor font size",
   自动换行: "Word wrap",
-  "按宽度换行，最多 110 列": "At editor width, up to 110 columns",
   按编辑器宽度换行: "At editor width",
   关闭换行: "Off",
   显示行号: "Show line numbers",

@@ -3,10 +3,9 @@ import { EditorActionButton } from "./EditorActionButton";
 import { NavigatorMenu, type NavigatorMenuItem } from "./NavigatorMenu";
 import { t, useLocale } from "./i18n";
 import { Icon } from "./ui";
-import type { filePreviewKind } from "./workspace-model";
+import type { FilePreviewKind } from "./workspace-model";
 import "./file-editor-actions.css";
 
-export type FilePreviewKind = NonNullable<ReturnType<typeof filePreviewKind>>;
 export type FilePresentation = "source" | "preview" | "markdown-editor";
 
 const previewLabels: Record<FilePreviewKind, string> = {
@@ -14,6 +13,7 @@ const previewLabels: Record<FilePreviewKind, string> = {
   diagram: "原理图预览",
   scene: "场景预览",
   svg: "SVG 预览",
+  drawio: "Draw.io 预览",
 };
 
 export function FileOpenWith({

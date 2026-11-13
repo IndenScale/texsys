@@ -1,5 +1,7 @@
 import React, { useMemo, useState } from "react";
 import { DrawingPreview, svgDrawingBounds } from "./DrawingPreview";
+import { DrawioPreview } from "./DrawioPreview";
+import type { FilePreviewKind } from "./workspace-model";
 import { ScenePreview } from "./ScenePreview";
 import { MarkdownPreview } from "./MarkdownPreview";
 import type { FilePreviewFormat, WorkbenchProps } from "./sdk";
@@ -36,7 +38,7 @@ export function FilePreviewContent({
   api: WorkbenchProps["api"];
   active?: boolean;
   path: string;
-  kind: "markdown" | "diagram" | "scene" | "svg";
+  kind: FilePreviewKind;
   content: string;
   version: string;
   preview?: FilePreviewFormat;
@@ -63,6 +65,15 @@ export function FilePreviewContent({
       />
     );
   const drawingViewport = viewport?.kind === "drawing" ? viewport : undefined;
+  if (kind === "drawio")
+    return (
+      <DrawioPreview
+        content={content}
+        label={path}
+        viewport={drawingViewport}
+        onViewportChange={onViewportChange}
+      />
+    );
   if (kind === "svg")
     return (
       <SvgFilePreview

@@ -16,12 +16,14 @@ import "monaco-editor/features/snippet/register.js";
 import "monaco-editor/editor/contrib/toggleTabFocusMode/browser/toggleTabFocusMode.js";
 import "monaco-editor/editor/contrib/tokenization/browser/tokenization.js";
 import "monaco-editor/language/json/monaco.contribution.js";
+import "monaco-editor/languages/definitions/html/register.js";
 import "monaco-editor/languages/definitions/ini/register.js";
 import "monaco-editor/languages/definitions/markdown/register.js";
 import "monaco-editor/languages/definitions/javascript/register.js";
 import "monaco-editor/languages/definitions/typescript/register.js";
 import "monaco-editor/languages/definitions/python/register.js";
 import "monaco-editor/languages/definitions/shell/register.js";
+import "monaco-editor/languages/definitions/xml/register.js";
 import "monaco-editor/languages/definitions/yaml/register.js";
 import { t } from "./i18n";
 import type { SourceEditorStatus, SourceStatusAction } from "./editor-groups";
@@ -43,6 +45,11 @@ const languageByExtension: Record<string, string> = {
   tsx: "typescript",
   json: "json",
   jsonc: "json",
+  html: "html",
+  htm: "html",
+  xml: "xml",
+  drawio: "xml",
+  svg: "xml",
   md: "markdown",
   markdown: "markdown",
   ini: "ini",
@@ -287,7 +294,6 @@ export function SourceEditor({
       automaticLayout: true,
       fontFamily: "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace",
       lineNumbersMinChars: 3,
-      wordWrapColumn: 110,
       wrappingIndent: "same",
       padding: { top: 8, bottom: 8 },
       scrollBeyondLastLine: false,

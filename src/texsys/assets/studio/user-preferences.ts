@@ -1,8 +1,8 @@
 import { useSyncExternalStore } from "react";
+import type { FilePreviewKind } from "./workspace-model";
 
-type WordWrap = "bounded" | "on" | "off";
+type WordWrap = "on" | "off";
 export type FileEditorMode = "source" | "preview" | "markdown-editor";
-type FileEditorKind = "markdown" | "diagram" | "scene" | "svg" | undefined;
 export type FileEditorAssociations = Record<string, FileEditorMode>;
 
 export type UserPreferences = {
@@ -20,7 +20,7 @@ export type UserPreferences = {
 export const fontSizeOptions = Array.from({ length: 17 }, (_, index) => index + 8);
 export const defaultEditorPreferences = {
   editorFontSize: 13,
-  editorWordWrap: "bounded",
+  editorWordWrap: "on",
   editorLineNumbers: true,
   editorMinimap: true,
   editorScreenReader: false,
@@ -59,7 +59,10 @@ function readFileAssociations(value: unknown): FileEditorAssociations {
   );
 }
 
-function supportsFileEditor(kind: FileEditorKind, mode: unknown): mode is FileEditorMode {
+function supportsFileEditor(
+  kind: FilePreviewKind | undefined,
+  mode: unknown,
+): mode is FileEditorMode {
   return (
     mode === "source" ||
     (mode === "preview" && !!kind) ||
@@ -70,7 +73,7 @@ function supportsFileEditor(kind: FileEditorKind, mode: unknown): mode is FileEd
 /** Resolve only when creating a view; existing views keep their selected opening mode. */
 export function fileEditorDefault(
   path: string,
-  kind: FileEditorKind,
+  kind: FilePreviewKind | undefined,
   associations: FileEditorAssociations,
 ): FileEditorMode {
   const extension = fileEditorExtension(path);
@@ -144,7 +147,7 @@ export function updateUserPreferences(patch: Partial<UserPreferences>) {
 
 export function setFileEditorDefault(
   path: string,
-  kind: FileEditorKind,
+  kind: FilePreviewKind | undefined,
   mode: FileEditorMode,
 ): boolean {
   const extension = fileEditorExtension(path);

@@ -1,5 +1,5 @@
 import type { TextFormat, TextFormatChange } from "./sdk";
-import type { SearchMatch } from "./workspace-model";
+import type { FilePreviewKind, SearchMatch } from "./workspace-model";
 import type { PreviewViewport } from "./preview-viewport";
 
 export type EditorPresentation = "source" | "preview" | "markdown-editor";
@@ -26,6 +26,8 @@ export const sourceLanguages = {
   auto: "自动检测",
   plaintext: "纯文本",
   json: "JSON",
+  html: "HTML",
+  xml: "XML",
   markdown: "Markdown",
   ini: "INI",
   toml: "TOML",
@@ -150,7 +152,7 @@ export function renameEditorDocument(
 }
 
 export function resolvedEditorPresentation(
-  kind: "markdown" | "diagram" | "scene" | "svg" | undefined,
+  kind: FilePreviewKind | undefined,
   requested?: EditorPresentation,
 ): EditorPresentation {
   if (!kind || (requested === "markdown-editor" && kind !== "markdown")) return "source";

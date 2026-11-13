@@ -210,10 +210,15 @@ export class FileReadRequests {
   }
 }
 
-export function filePreviewKind(file?: Pick<FilePreview, "path" | "preview" | "content">) {
+export type FilePreviewKind = "markdown" | "svg" | "drawio" | "scene" | "diagram";
+
+export function filePreviewKind(
+  file?: Pick<FilePreview, "path" | "preview" | "content" | "reason">,
+): FilePreviewKind | undefined {
   if (!file) return;
   if (/\.(md|markdown)$/i.test(file.path)) return "markdown";
   if (/\.svg$/i.test(file.path)) return "svg";
+  if (/\.drawio$/i.test(file.path)) return file.reason ? undefined : "drawio";
   if (file.preview?.kind === "scene" || /\.usd[ac]?$/i.test(file.path)) return "scene";
   if (["diagram", "schematic", "topology"].includes(file.preview?.kind ?? "")) return "diagram";
   if (/\.json$/i.test(file.path) && file.content) {

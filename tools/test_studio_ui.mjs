@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import Module from "node:module";
 import path from "node:path";
+import { deflateRawSync } from "node:zlib";
 import esbuild from "esbuild-wasm";
 
 function load(source) {
@@ -963,6 +964,7 @@ test("editor and terminal preferences persist independently and tolerate invalid
     const { updateUserPreferences, defaultEditorPreferences } = load(
       "src/texsys/assets/studio/user-preferences.ts",
     );
+    assert.equal(defaultEditorPreferences.editorWordWrap, "on");
     updateUserPreferences({ editorLineNumbers: false, editorScreenReader: true });
     assert.deepEqual(JSON.parse(values.get(storageKey)), {
       editorFontSize: 13,
@@ -984,6 +986,10 @@ test("editor and terminal preferences persist independently and tolerate invalid
       confirmBeforeUnload: false,
       fileAssociations: {},
     });
+    values.set(storageKey, '{"editorWordWrap":"bounded"}');
+    const reloaded = load("src/texsys/assets/studio/user-preferences.ts");
+    reloaded.updateUserPreferences({});
+    assert.equal(JSON.parse(values.get(storageKey)).editorWordWrap, "on");
   } finally {
     if (original) Object.defineProperty(globalThis, "localStorage", original);
     else delete globalThis.localStorage;
@@ -1000,6 +1006,8 @@ test("file opening defaults only select renderers supported by the current file"
   assert.equal(fileEditorDefault("README.md", "markdown", {}), "source");
   assert.equal(fileEditorDefault("model.usda", "scene", {}), "preview");
   assert.equal(fileEditorDefault("schematic.json", "diagram", {}), "preview");
+  assert.equal(fileEditorDefault("system.drawio", "drawio", {}), "preview");
+  assert.equal(fileEditorDefault("system.drawio", "drawio", { drawio: "source" }), "source");
   assert.equal(fileEditorDefault("data.json", undefined, {}), "source");
   const associations = { md: "markdown-editor", json: "preview", usda: "source" };
   assert.equal(fileEditorDefault("Guide.MD", "markdown", associations), "markdown-editor");
@@ -1476,11 +1484,15 @@ test("same-named file tabs use their shortest distinct parent path", () => {
   assert.equal(fileDocumentTitle(paths[1], paths), "system.json · topology");
   assert.equal(fileDocumentTitle(paths[2], paths), "ordinary.json");
 });
-test("Markdown, USD, SVG and explicit diagram formats select a preview renderer", () => {
+test("Markdown, USD, SVG, Draw.io and explicit diagram formats select a preview renderer", () => {
   assert.equal(filePreviewKind({ path: "build/hvac/bom.md" }), "markdown");
   assert.equal(filePreviewKind({ path: "notes.markdown" }), "markdown");
   assert.equal(filePreviewKind({ path: "new.usda" }), "scene");
   assert.equal(filePreviewKind({ path: "build/plans/room.SVG" }), "svg");
+  assert.equal(filePreviewKind({ path: "copied/loop.DRAWIO" }), "drawio");
+  assert.equal(filePreviewKind({ path: "large.drawio", reason: "Too large" }), undefined);
+  assert.equal(filePreviewKind({ path: "build/drawings/schematics/system.html" }), undefined);
+  assert.equal(filePreviewKind({ path: "build/bom.csv" }), undefined);
   for (const name of ["bom.json", "system-check.json", "build.json", "ordinary.json"])
     assert.equal(
       filePreviewKind({
@@ -1653,7 +1665,7 @@ test("mounted artifact previews preserve their viewport when file geometry chang
             ],
     };
   };
-  function Harness({ kind, version, content = "", visible = true }) {
+  function Harness({ kind, version, content = "", visible = true, dirty = false }) {
     const [viewport, onViewportChange] = useState();
     return (
       visible &&
@@ -1666,8 +1678,9 @@ test("mounted artifact previews preserve their viewport when file geometry chang
           scene: "build/site.usda",
           svg: "build/floor.svg",
           diagram: "build/system.json",
+          drawio: "build/system.drawio",
         }[kind],
-        dirty: false,
+        dirty,
         viewport,
         onViewportChange,
       })
@@ -1722,6 +1735,75 @@ test("mounted artifact previews preserve their viewport when file geometry chang
     container.querySelector(".project-preview-node").getAttribute("transform"),
     "translate(300,100)",
   );
+
+  const drawio = `<mxfile compressed="false"><diagram id="schematic" name="Schematic">
+    <mxGraphModel pageWidth="600" pageHeight="400"><root>
+      <mxCell id="0"/><mxCell id="1" parent="0"/>
+      <mxCell id="banner" value="Station&#10;Schematic" vertex="1" parent="1" style="text;html=0;align=left;fontSize=13;">
+        <mxGeometry x="24" y="10" width="500" height="50" as="geometry"/>
+      </mxCell>
+      <UserObject id="pump" label="Pump"><mxCell vertex="1" parent="1" style="noLabel=1;fillColor=none;strokeColor=none;">
+        <mxGeometry x="100" y="80" width="60" height="30" as="geometry"/>
+      </mxCell></UserObject>
+      <mxCell id="symbol" vertex="1" parent="pump" style="shape=image;image=data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%2F%3E;">
+        <mxGeometry width="60" height="30" as="geometry"/>
+      </mxCell>
+      <mxCell id="port" vertex="1" parent="pump" style="shape=ellipse;fillColor=#2563eb;strokeColor=none;">
+        <mxGeometry x="1" y="0.5" width="3" height="3" relative="1" as="geometry"><mxPoint x="-1.5" y="-1.5" as="offset"/></mxGeometry>
+      </mxCell>
+      <mxCell id="outlet" vertex="1" parent="1" style="shape=image;image=https://example.invalid/image.svg;">
+        <mxGeometry x="240" y="150" width="10" height="10" as="geometry"/>
+      </mxCell>
+      <mxCell id="flow" edge="1" parent="1" source="port" target="outlet" style="noEdgeStyle=1;exitX=0.5;exitY=0.5;entryX=0.5;entryY=0.5;endArrow=open;">
+        <mxGeometry relative="1" as="geometry"><Array as="points"><mxPoint x="200" y="95"/><mxPoint x="200" y="155"/></Array></mxGeometry>
+      </mxCell>
+    </root></mxGraphModel></diagram></mxfile>`;
+  await render({ kind: "drawio", version: "v1", content: drawio });
+  assert.equal(container.querySelectorAll('[data-drawio-cell="banner"] tspan').length, 2);
+  assert.equal(container.querySelectorAll("image").length, 1);
+  assert.match(container.querySelector("image").getAttribute("href"), /^data:image\/svg\+xml/);
+  const flow = container.querySelector('[data-drawio-cell="flow"] polyline');
+  assert.match(flow.getAttribute("points"), /^160,95\s+200,95\s+200,155\s+245,155$/);
+  await zoom();
+  const drawioBox = container
+    .querySelector(".project-preview-drawing > svg")
+    .getAttribute("viewBox");
+  await render({
+    kind: "drawio",
+    version: "v1",
+    content: drawio.replace("Station", "Draft"),
+    dirty: true,
+  });
+  assert.match(container.querySelector('[data-drawio-cell="banner"]').textContent, /Draft/);
+  assert.equal(
+    container.querySelector(".project-preview-drawing > svg").getAttribute("viewBox"),
+    drawioBox,
+  );
+  await render({ kind: "drawio", version: "v1", content: "<mxfile>", dirty: true });
+  assert.match(container.textContent, /无法预览此文件/);
+  assert.equal(container.querySelector('[data-drawio-cell="banner"]'), null);
+
+  const graph = drawio.match(/<mxGraphModel[\s\S]+<\/mxGraphModel>/)[0];
+  const encodedGraph = deflateRawSync(
+    encodeURIComponent(graph.replace("Station", "压缩图页")),
+  ).toString("base64");
+  const multipage = drawio.replace(
+    "</mxfile>",
+    `<diagram id="compressed" name="Second">${encodedGraph}</diagram></mxfile>`,
+  );
+  await render({ kind: "drawio", version: "v2", content: multipage });
+  await act(async () => {
+    const { setImmediate } = await import("node:timers/promises");
+    for (let attempt = 0; attempt < 50 && !container.querySelector("select"); attempt++)
+      await setImmediate();
+  });
+  await act(() => {
+    const pages = container.querySelector("select");
+    assert.equal(pages.options.length, 2);
+    pages.value = "compressed";
+    pages.dispatchEvent(new window.Event("change", { bubbles: true }));
+  });
+  assert.match(container.querySelector('[data-drawio-cell="banner"]').textContent, /压缩图页/);
 
   await render({ kind: "scene", version: "v1" });
   await zoom();

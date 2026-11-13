@@ -82,7 +82,6 @@ function choices<T extends string | number>(options: readonly { value: T; label:
 
 const fontSize = choices(fontSizeOptions.map((value) => ({ value, label: `${value} px` })));
 const wordWrap = choices([
-  { value: "bounded", label: "按宽度换行，最多 110 列" },
   { value: "on", label: "按编辑器宽度换行" },
   { value: "off", label: "关闭换行" },
 ] as const);
