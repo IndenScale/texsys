@@ -157,10 +157,31 @@ def write_building_usd(report: dict, path: Path) -> None:
   UsdGeom.SetStageUpAxis(stage, "Z")
   root = UsdGeom.Xform.Define(stage, "/Datacenter")
   stage.SetDefaultPrim(root.GetPrim())
+  root.GetPrim().SetCustomDataByKey("frame", report["frame"])
+  architecture = report.get("architecture", {})
+  root.GetPrim().SetCustomDataByKey("spaceUsesComplete", architecture.get("space_uses_complete", False))
+  room_uses = {}
+  for identity, room in sorted(architecture.get("rooms", {}).items()):
+    if "space_use" in room:
+      level, _, _ = identity.partition("/")
+      room_uses.setdefault(level, []).append((identity, room))
   height = report["unit_height_m"]
   for level, elevation in sorted(report["levels_m"].items()):
     parent = f"/Datacenter/{_prim_name(level)}"
-    UsdGeom.Xform.Define(stage, parent)
+    level_prim = UsdGeom.Xform.Define(stage, parent).GetPrim()
+    level_prim.SetCustomDataByKey("levelId", level)
+    level_prim.SetCustomDataByKey("elevationM", float(elevation))
+    for identity, room in room_uses.get(level, []):
+      low, high = room["minimum_m"], room["maximum_m"]
+      size = Gf.Vec3d(*(b - a for a, b in zip(low, high, strict=True)))
+      center = Gf.Vec3d(*((a + b) / 2 for a, b in zip(low, high, strict=True)))
+      space = UsdGeom.Cube.Define(stage, f"{parent}/ClassifiedSpaces/{_prim_name(identity)}")
+      space.CreateSizeAttr(1)
+      space.CreatePurposeAttr(UsdGeom.Tokens.guide)
+      space.AddTranslateOp().Set(center)
+      space.AddScaleOp(UsdGeom.XformOp.PrecisionDouble).Set(size)
+      space.GetPrim().SetCustomDataByKey("spaceUse", room["space_use"])
+      space.GetPrim().SetCustomDataByKey("identity", identity)
     for identity, zone in sorted(report["floor_zones"].items()):
       x, y = zone["origin_m"]
       width, depth = zone["size_m"]

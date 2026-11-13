@@ -298,6 +298,9 @@ def write_scene(room, path, level, modules, width, length):
     clearance_volume("UpperBoundary", "clearance-upper", upper, upper + .01)
     root.SetCustomDataByKey("clearanceComplete", complete)
 
+  if (transport := room.layout.get("building_transport")) is not None:
+    write_building_transport(stage, room, transport, width, level)
+
   def anchor(parent, name, identity):
     prim = UsdGeom.Xform.Define(stage, f"{parent}/{_prim_name(name)}").GetPrim()
     if identity:
@@ -335,6 +338,42 @@ def write_scene(room, path, level, modules, width, length):
   path.parent.mkdir(parents=True, exist_ok=True)
   if not stage.Flatten(addSourceFileComment=False).Export(str(path)):
     raise OSError(f"Cannot export {path}.")
+
+
+def write_building_transport(stage, room, transport, width, level):
+  """Project the declared exterior approach and actual east-wall door opening."""
+  route = UsdGeom.Xform.Define(stage, "/AirCooledRoom/BuildingTransport").GetPrim()
+  complete = transport["clearance_complete"]
+  if type(complete) is not bool:
+    raise ValueError("Transport clearance_complete must be boolean.")
+  route.SetCustomDataByKey("transportRouteId", "east-delivery")
+  route.SetCustomDataByKey("direction", "x")
+  route.SetCustomDataByKey("clearanceComplete", complete)
+
+  def volume(name, role, bounds):
+    if len(bounds) != 2 or any(len(point) != 3 for point in bounds):
+      raise ValueError(f"{name}: transport bounds require two XYZ points.")
+    low, high = bounds
+    if not all(type(a) in (int, float) and type(b) in (int, float)
+               and math.isfinite(a) and math.isfinite(b) and a < b for a, b in zip(low, high, strict=True)):
+      raise ValueError(f"{name}: transport bounds must be finite and increasing.")
+    if low[0] < width:
+      raise ValueError(f"{name}: the transport approach must be outside the east wall.")
+    cube = UsdGeom.Cube.Define(stage, f"{route.GetPath()}/{name}")
+    cube.GetPrim().SetCustomDataByKey("role", role)
+    cube.CreatePurposeAttr(UsdGeom.Tokens.guide)
+    cube.CreateSizeAttr(1)
+    cube.AddTranslateOp().Set(Gf.Vec3d(*((a + b) / 2 for a, b in zip(low, high, strict=True))))
+    cube.AddScaleOp(UsdGeom.XformOp.PrecisionDouble).Set(Gf.Vec3d(*(b - a for a, b in zip(low, high, strict=True))))
+
+  volume("BuildingEntrance", "entrance", transport["entrance_bounds_m"])
+  for identity, bounds in sorted(transport["corridors"].items()):
+    volume("Corridor_" + _prim_name(identity), "transport-corridor", bounds)
+  for identity, bounds in sorted(transport.get("doors", {}).items()):
+    volume("Door_" + _prim_name(identity), "transport-door", bounds)
+  low, high = room.layout["door"]["opening_y_m"]
+  lintel, = [box for owner, box in room.objects["Walls"] if owner == "EastWall" and box.identity == "Lintel"]
+  volume("RoomEntry", "main-room-entry", [(width, low, level), (lintel.maximum[0], high, lintel.origin[2])])
 
 
 def build_air_room(context: BuildContext) -> TargetResult:

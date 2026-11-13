@@ -174,7 +174,17 @@ def compile_architecture(root, source, config, frame, zones, levels, floor, unit
     if not package.strip() or not selected or selected - rooms.keys():
       raise ValueError(f"Architecture work package {package!r} requires known room IDs.")
     work_packages[package] = sorted(selected)
+  spatial_use = config.get("space_uses", {})
+  complete = config.get("space_uses_complete", False)
+  if (not isinstance(spatial_use, dict) or spatial_use.keys() - rooms.keys() or type(complete) is not bool
+      or any(use not in ("main-computer-room", "auxiliary-area", "water-use-area", "other")
+             for use in spatial_use.values())):
+    raise ValueError("Architecture space_uses must classify known rooms and declare completeness as a boolean.")
+  if complete and spatial_use.keys() != rooms.keys():
+    raise ValueError("A complete space-use inventory must classify every compiled room.")
+  for identity, use in spatial_use.items():
+    rooms[identity]["space_use"] = use
   return {"schema_version": 1, "state": "assumed", "basis": config["basis"], "frame": frame,
           "top_m": top, "partition_x_m": partition, "compartment_door_y_m": compartment_doors,
           "families": families, "rooms": rooms, "walls": walls, "doors": doors, "shafts": shafts, "stairs": stairs,
-          "work_packages": work_packages}
+          "work_packages": work_packages, "space_uses_complete": complete}
