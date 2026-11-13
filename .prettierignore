@@ -7,6 +7,9 @@ uv.lock
 **/*.sdl.json
 **/src/hvac.json
 
+# The reference study binds this snapshot by byte digest.
+examples/hvac-cold-station/assets/reference/cold-station-acceptance.json
+
 # Build outputs
 build/
 !spec/build/

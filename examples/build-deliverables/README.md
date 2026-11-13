@@ -65,17 +65,17 @@ print(run.items)         # 运行产物路径集合
 
 ## 参数速查
 
-| 操作         | 入口／参数                                  | 默认值与约束                                       |
-| ------------ | ------------------------------------------- | -------------------------------------------------- |
-| 项目根目录   | 命令行 `-p`／`--path`，Python 首个路径参数 | 必须已初始化且依赖锁有效                           |
-| 构建目标     | 可重复 `--target`／`targets=(...)`          | 省略时读取项目 `build.default_targets`               |
-| 构建配置 | `--profile`／`profile`                      | 物料清单用 `feasibility`，图纸用 `review`，物理模型用 `engineering` |
-| 构建范围     | `--scope` 接收 JSON，`scope` 接收字典                | 各目标的字段不同，建议分别调用                 |
-| 物料清单范围    | `include`、`identities`、`snapshot`               | 采购、竣工和维护配置需要固定外部快照          |
-| 图纸范围   | `view`、`overlay`、`approval`、`results`            | 默认 `schematic`，工程配置还要求有效的人工审核记录     |
-| 工况文件     | `test --scenario` 或 `evaluate` 的 `scenario` 参数     | 必须是项目 `assets/` 内的固定 JSON 文件                    |
-| 求解器       | `--backend`／`backend`                        | 默认 `scipy`，可选 `openmodelica`，后者需另装 `omc`           |
-| 输出目录     | 项目 `[layout].build`                       | 默认 `build/`，没有单独 `--output` 或 `--format`      |
+| 操作         | 入口／参数                                         | 默认值与约束                                                        |
+| ------------ | -------------------------------------------------- | ------------------------------------------------------------------- |
+| 项目根目录   | 命令行 `-p`／`--path`，Python 首个路径参数         | 必须已初始化且依赖锁有效                                            |
+| 构建目标     | 可重复 `--target`／`targets=(...)`                 | 省略时读取项目 `build.default_targets`                              |
+| 构建配置     | `--profile`／`profile`                             | 物料清单用 `feasibility`，图纸用 `review`，物理模型用 `engineering` |
+| 构建范围     | `--scope` 接收 JSON，`scope` 接收字典              | 各目标的字段不同，建议分别调用                                      |
+| 物料清单范围 | `include`、`identities`、`snapshot`                | 采购、竣工和维护配置需要固定外部快照                                |
+| 图纸范围     | `view`、`overlay`、`approval`、`results`           | 默认 `schematic`，工程配置还要求有效的人工审核记录                  |
+| 工况文件     | `test --scenario` 或 `evaluate` 的 `scenario` 参数 | 必须是项目 `assets/` 内的固定 JSON 文件                             |
+| 求解器       | `--backend`／`backend`                             | 默认 `scipy`，可选 `openmodelica`，后者需另装 `omc`                 |
+| 输出目录     | 项目 `[layout].build`                              | 默认 `build/`，没有单独 `--output` 或 `--format`                    |
 
 单个操作的退出码分别为通过 `0`、失败 `1`、错误 `2`、无法判断 `3`。物料清单、图纸和动态求解分别给出通过结论，图纸的审阅配置通过表示草稿已通过自动检查。
 

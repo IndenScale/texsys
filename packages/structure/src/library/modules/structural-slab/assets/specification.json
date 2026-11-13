@@ -1,10 +1,6 @@
 {
   "basis": "texsys 结构专业库方案样件",
-  "envelope_m": [
-    1.2,
-    1.2,
-    0.2
-  ],
+  "envelope_m": [1.2, 1.2, 0.2],
   "frame": {
     "origin": "包络最小角",
     "units": "m",
@@ -12,16 +8,8 @@
   },
   "interfaces": {
     "bearing_surface": {
-      "normal": [
-        0,
-        0,
-        1
-      ],
-      "position_m": [
-        0.6,
-        0.6,
-        0.2
-      ]
+      "normal": [0, 0, 1],
+      "position_m": [0.6, 0.6, 0.2]
     }
   },
   "limitations": "尺寸与配筋用于方案表达及构造校核，承载、抗震、锚固和施工详图需按具体项目确定。",

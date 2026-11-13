@@ -10,10 +10,10 @@
 
 ## 公开入口
 
-| Python API | CLI | 用途 |
-| --- | --- | --- |
+| Python API                                   | CLI                                                  | 用途                                             |
+| -------------------------------------------- | ---------------------------------------------------- | ------------------------------------------------ |
 | `inspect_engineering(path, adapter_id=None)` | `texsys engineering inspect --adapter ID -p PROJECT` | 读取适配器、当前输入、运行历史、结果适用性与诊断 |
-| `run_engineering(path, adapter_id)` | `texsys engineering run ID -p PROJECT` | 执行声明范围的检查，保存输入与工具身份及结果 |
+| `run_engineering(path, adapter_id)`          | `texsys engineering run ID -p PROJECT`               | 执行声明范围的检查，保存输入与工具身份及结果     |
 
 上述 API 从 `texsys.api` 导出。CLI 统一通过 `uv run --locked texsys` 调用，输出 JSON；退出码 0 表示检查通过，1 表示工程不满足，2 表示输入／执行错误，3 表示无法判定。具体诊断与工程状态保留在结果中。
 
@@ -25,16 +25,16 @@
 
 `run` 超时为 600 秒，`inspect` 为 120 秒；错误和超时返回诊断。专业代码的标准输出进入日志，结果使用 JSON 协议。当前没有通用任务取消与恢复机制。
 
-| 字段 | 含义 |
-| --- | --- |
-| `execution` | 执行完成或执行错误 |
-| `result.assessment` | 工程判定 `pass`、`fail`、`indeterminate` |
-| `result.verification` | 可选的算例回归符合性，与工程判定独立 |
+| 字段                      | 含义                                         |
+| ------------------------- | -------------------------------------------- |
+| `execution`               | 执行完成或执行错误                           |
+| `result.assessment`       | 工程判定 `pass`、`fail`、`indeterminate`     |
+| `result.verification`     | 可选的算例回归符合性，与工程判定独立         |
 | `result.solver_execution` | 求解是否实际执行；不能用诊断完成代替求解完成 |
-| `result.checks` | 判据、对象、实际值、限值、单位、来源及状态 |
-| `result.extraction` | 提取量及其来源条件 |
-| `inputs_consistent` | 运行期间输入、依赖与工具是否一致 |
-| `current`、`freshness` | 结果对当前输入和工具是否仍然适用 |
+| `result.checks`           | 判据、对象、实际值、限值、单位、来源及状态   |
+| `result.extraction`       | 提取量及其来源条件                           |
+| `inputs_consistent`       | 运行期间输入、依赖与工具是否一致             |
+| `current`、`freshness`    | 结果对当前输入和工具是否仍然适用             |
 
 总体 `pass` 不能掩盖失败、无法判定或没有通过项的检查集合。执行异常保留错误与诊断；失败不丢弃可用计算结果。
 

@@ -4,13 +4,13 @@
 
 ## 分别维护的源
 
-| 层次 | 内容 | 维护位置 |
-| --- | --- | --- |
-| 设计组件 | 图框、标题栏、纸幅、线宽、文字样式、视图与文字区域 | `sheet` 包模板，或项目显式引用的模板 JSON |
-| 项目元数据 | 项目、图名、图号、修订、阶段与标题栏文字 | 项目 `assets/sheets/*.json` |
-| 工程文字 | 总说明、适用条件、显式编号条款与页脚 | 项目 UTF-8 `.txt` 文件 |
-| 图页装配 | 模板、元数据、文字与 SVG 视图的引用 | 项目 `*.sheet.json` |
-| 派生图页 | 自包含 SVG 与来源报告 | 项目 `build/drawings/sheets/` |
+| 层次       | 内容                                               | 维护位置                                  |
+| ---------- | -------------------------------------------------- | ----------------------------------------- |
+| 设计组件   | 图框、标题栏、纸幅、线宽、文字样式、视图与文字区域 | `sheet` 包模板，或项目显式引用的模板 JSON |
+| 项目元数据 | 项目、图名、图号、修订、阶段与标题栏文字           | 项目 `assets/sheets/*.json`               |
+| 工程文字   | 总说明、适用条件、显式编号条款与页脚               | 项目 UTF-8 `.txt` 文件                    |
+| 图页装配   | 模板、元数据、文字与 SVG 视图的引用                | 项目 `*.sheet.json`                       |
+| 派生图页   | 自包含 SVG 与来源报告                              | 项目 `build/drawings/sheets/`             |
 
 原理图的连接、设备与行为仍由其专业生成器维护；平面的定位、尺寸与轴网仍来自空间源。图页模板不复制这些事实，文字维护也不要求修改专业生成器。生成文件的手工修改不反向写回装配源。
 
@@ -72,9 +72,14 @@ uv run --locked texsys build -p examples/hvac-air-cooled-room --target drawing-r
   "schema_version": 1,
   "paper_mm": [420, 297],
   "components": [
-    {"id": "frame", "component": "sheet:frame", "box": [10, 10, 400, 277]},
-    {"id": "notes", "component": "assets/sheets/components/notes.json", "box": [15, 15, 390, 225], "binding": "notes"},
-    {"id": "footer", "component": "sheet:footer", "box": [15, 244, 390, 15], "binding": "footer"}
+    { "id": "frame", "component": "sheet:frame", "box": [10, 10, 400, 277] },
+    {
+      "id": "notes",
+      "component": "assets/sheets/components/notes.json",
+      "box": [15, 15, 390, 225],
+      "binding": "notes"
+    },
+    { "id": "footer", "component": "sheet:footer", "box": [15, 244, 390, 15], "binding": "footer" }
   ]
 }
 ```

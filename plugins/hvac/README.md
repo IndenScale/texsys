@@ -14,7 +14,7 @@
 | `packages/hvac-linter/`    | `hvac-linter`    | 领域字段、设备型号、安装顺序及 SDL 实例身份一致性检查         |
 | `packages/hvac-formatter/` | `hvac-formatter` | `hvac.json` 规范化、设备表与连接拓扑投影                      |
 | `packages/hvac-checks/`    | `hvac-checks`    | 容量、通风温升和 Magnus 露点近似的 Python 设计校核            |
-| `packages/hvac-bom/`       | `hvac-bom`       | 暖通来源适配、专业规则与视图，组合通用 `texsys-bom` 内核     |
+| `packages/hvac-bom/`       | `hvac-bom`       | 暖通来源适配、专业规则与视图，组合通用 `texsys-bom` 内核      |
 | `packages/hvac-diagram/`   | `hvac-diagram`   | 系统图／原理图投影、概念符号与行为标注，组合通用绘图／ELK 包  |
 
 六个包都有独立 Python 包配置和 `texsys.toml`，可被示例通过 `lock`／`sync` 固定。原冷站设备性能数据属于设备族包；独立出图示例的行为值是 SDL 中显式、带来源的概念绑定，不能视为厂商性能库。

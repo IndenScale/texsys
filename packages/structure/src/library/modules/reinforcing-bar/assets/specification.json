@@ -1,10 +1,6 @@
 {
   "basis": "texsys 结构专业库方案样件",
-  "envelope_m": [
-    0.016,
-    1.2,
-    0.016
-  ],
+  "envelope_m": [0.016, 1.2, 0.016],
   "frame": {
     "origin": "包络最小角",
     "units": "m",

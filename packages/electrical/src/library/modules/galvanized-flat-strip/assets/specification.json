@@ -3,28 +3,12 @@
   "state": "assumed",
   "interfaces": {
     "end_a": {
-      "position_m": [
-        0,
-        0,
-        0
-      ],
-      "normal": [
-        -1,
-        0,
-        0
-      ]
+      "position_m": [0, 0, 0],
+      "normal": [-1, 0, 0]
     },
     "end_b": {
-      "position_m": [
-        1,
-        0,
-        0
-      ],
-      "normal": [
-        1,
-        0,
-        0
-      ]
+      "position_m": [1, 0, 0],
+      "normal": [1, 0, 0]
     }
   },
   "properties": {

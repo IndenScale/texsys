@@ -51,4 +51,4 @@ ddr/NNNN-short-title.md
 | [0016](0016-studio-explorer-and-activity-context-menus.md)              | 按右键命中位置管理资源管理器视图、活动入口和工作台布局                 | 已接受 |
 | [0017](0017-studio-status-bar.md)                                       | 分离工作区与活动编辑器状态，提供问题和任务入口及可配置的状态栏         | 已接受 |
 | [0018](0018-studio-status-bar-editor-and-workbench-actions.md)          | 补齐状态栏的通用 IDE 入口和编辑器操作，工程状态在其后扩展              | 已接受 |
-| [0019](0019-studio-status-bar-branch-picker-and-connection.md)         | 从状态栏直接创建和签出 Git 分支、标签，连接中断时提供重试              | 已接受 |
+| [0019](0019-studio-status-bar-branch-picker-and-connection.md)          | 从状态栏直接创建和签出 Git 分支、标签，连接中断时提供重试              | 已接受 |
