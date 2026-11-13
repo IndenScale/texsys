@@ -5,6 +5,7 @@ from itertools import pairwise
 import math
 from pathlib import Path
 
+from texsys.evidence import canonical_digest
 from texsys.formal import _load_json
 from texsys.usd_brep import _prim_name
 from texsys_fire_protection import Barrier, _crossings
@@ -289,7 +290,10 @@ def write_egress_usd(report, path):
   stage = Usd.Stage.CreateInMemory()
   UsdGeom.SetStageMetersPerUnit(stage, 1)
   UsdGeom.SetStageUpAxis(stage, "Z")
-  stage.SetDefaultPrim(UsdGeom.Xform.Define(stage, "/Egress").GetPrim())
+  root = UsdGeom.Xform.Define(stage, "/Egress").GetPrim()
+  stage.SetDefaultPrim(root)
+  root.SetCustomDataByKey("frame", report["frame"])
+  root.SetCustomDataByKey("egressReportDigest", canonical_digest(report))
   for name, bounds in report["stair_envelopes"].items():
     envelope = UsdGeom.Cube.Define(stage, f"/Egress/StairEnvelope_{_prim_name(name)}")
     envelope.CreateSizeAttr(1)
