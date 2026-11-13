@@ -193,5 +193,57 @@ def write_building_usd(report: dict, path: Path) -> None:
       cube.GetPrim().SetCustomDataByKey("identity", f"{level}/{identity}")
       color = (0.20, 0.54, 0.67) if zone["role"] == "unit" else (0.72, 0.44, 0.25)
       cube.CreateDisplayColorAttr([Gf.Vec3f(*color)])
+  if circulation := architecture.get("circulation"):
+    write_circulation_usd(stage, architecture, circulation)
   if not stage.GetRootLayer().Export(str(path)):
     raise OSError(f"Unable to export {path}.")
+
+
+def write_circulation_usd(stage, architecture, circulation):
+  """Project classified entrances and areas from the compiled architecture."""
+  from pxr import Gf, UsdGeom, Vt
+
+  parent = str(stage.GetDefaultPrim().GetPath()) + "/Circulation"
+  root = UsdGeom.Xform.Define(stage, parent).GetPrim()
+
+  def volume(group, identity, low, high):
+    cube = UsdGeom.Cube.Define(stage, f"{parent}/{group}/{_prim_name(identity)}")
+    cube.CreateSizeAttr(1)
+    cube.CreatePurposeAttr(UsdGeom.Tokens.guide)
+    cube.AddTranslateOp().Set(Gf.Vec3d(*((a + b) / 2 for a, b in zip(low, high, strict=True))))
+    cube.AddScaleOp(UsdGeom.XformOp.PrecisionDouble).Set(Gf.Vec3d(*(b - a for a, b in zip(low, high, strict=True))))
+    cube.GetPrim().SetCustomDataByKey("identity", identity)
+    return cube.GetPrim()
+
+  for identity, uses in sorted(circulation.get("entrances", {}).items()):
+    door = architecture["doors"][identity]
+    wall = architecture["walls"][door["host"]]
+    span, z = door["opening"]["along_m"], door["opening"]["vertical_m"]
+    axis = wall["axis"]
+    low, high = [0, 0, z[0]], [0, 0, z[1]]
+    low[1 - axis], high[1 - axis] = span
+    half = wall["thickness_m"] / 2
+    low[axis], high[axis] = wall["station_m"] - half, wall["station_m"] + half
+    prim = volume("Entrances", identity, low, high)
+    prim.SetCustomDataByKey("entranceUses", Vt.StringArray(sorted(uses)))
+
+  for identity, mode in sorted(circulation.get("operation_areas", {}).items()):
+    room = architecture["rooms"][identity]
+    prim = volume("OperationAreas", identity, room["minimum_m"], room["maximum_m"])
+    prim.SetCustomDataByKey("operationMode", mode)
+
+  for identity, record in sorted(circulation.get("changing_rooms", {}).items()):
+    room = architecture["rooms"][identity]
+    x0, y0, x1, y1 = record["usable_bounds_xy_m"]
+    prim = volume("ChangingRooms", identity, [x0, y0, room["minimum_m"][2]], [x1, y1, room["maximum_m"][2]])
+    prim.SetCustomDataByKey("maximumShiftPeople", record["maximum_shift_people"])
+
+  for identity, kinds in sorted(circulation.get("interference_sources", {}).items()):
+    room = architecture["rooms"][identity]
+    prim = volume("InterferenceSources", identity, room["minimum_m"], room["maximum_m"])
+    prim.SetCustomDataByKey("interferenceKinds", Vt.StringArray(sorted(kinds)))
+
+  for name, group in (("entrances", "Entrances"), ("operation_areas", "OperationAreas"),
+                      ("changing_rooms", "ChangingRooms"), ("interference_sources", "InterferenceSources")):
+    if name in circulation:
+      root.SetCustomDataByKey(f"{group}Declared", True)

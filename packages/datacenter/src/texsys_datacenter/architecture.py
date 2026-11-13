@@ -2,6 +2,7 @@
 
 from dataclasses import asdict
 from itertools import pairwise
+import math
 
 from texsys.formal import _load_json, resolve_sdl_imports
 from texsys.library import library_entries
@@ -184,7 +185,47 @@ def compile_architecture(root, source, config, frame, zones, levels, floor, unit
     raise ValueError("A complete space-use inventory must classify every compiled room.")
   for identity, use in spatial_use.items():
     rooms[identity]["space_use"] = use
+  circulation = compile_circulation(config.get("circulation", {}), rooms, doors)
+  interference = config.get("interference_sources")
+  if interference is not None:
+    if not isinstance(interference, dict) or interference.keys() - rooms.keys():
+      raise ValueError("Architecture interference_sources must map known room IDs.")
+    for identity, kinds in interference.items():
+      values = _identifiers(kinds, f"interference source {identity}")
+      if not values or values - {"vibration", "electromagnetic"}:
+        raise ValueError(f"{identity}: interference source requires known kinds.")
+    circulation = {**circulation, "interference_sources": interference}
   return {"schema_version": 1, "state": "assumed", "basis": config["basis"], "frame": frame,
           "top_m": top, "partition_x_m": partition, "compartment_door_y_m": compartment_doors,
           "families": families, "rooms": rooms, "walls": walls, "doors": doors, "shafts": shafts, "stairs": stairs,
-          "work_packages": work_packages, "space_uses_complete": complete}
+          "work_packages": work_packages, "space_uses_complete": complete, "circulation": circulation}
+
+
+def compile_circulation(config, rooms, doors):
+  keys = {"entrances", "operation_areas", "changing_rooms"}
+  if not isinstance(config, dict) or config.keys() - keys:
+    raise ValueError("Architecture circulation accepts entrances, operation_areas and changing_rooms.")
+  for key, inventory in config.items():
+    if not isinstance(inventory, dict) or inventory.keys() - (doors if key == "entrances" else rooms).keys():
+      raise ValueError(f"Circulation {key} must map known architecture IDs.")
+
+  for identity, uses in config.get("entrances", {}).items():
+    roles = _identifiers(uses, f"entrance {identity}")
+    if doors[identity]["type"] != "discharge" or not roles or roles - {"personnel", "equipment-material"}:
+      raise ValueError(f"{identity}: entrance uses require a building exterior opening and known purposes.")
+
+  for identity, operation in config.get("operation_areas", {}).items():
+    if operation not in ("staffed", "unstaffed"):
+      raise ValueError(f"{identity}: expected staffed or unstaffed operation.")
+
+  for identity, record in config.get("changing_rooms", {}).items():
+    if not isinstance(record, dict) or record.keys() != {"usable_bounds_xy_m", "maximum_shift_people"}:
+      raise ValueError(f"{identity}: changing room requires usable XY bounds and maximum shift occupancy.")
+    bounds, count = record["usable_bounds_xy_m"], record["maximum_shift_people"]
+    if (not isinstance(bounds, list) or len(bounds) != 4 or type(count) is not int or count <= 0
+        or any(type(value) not in (int, float) or not math.isfinite(value) for value in bounds)):
+      raise ValueError(f"{identity}: changing room requires finite bounds and positive shift occupancy.")
+    low, high = rooms[identity]["minimum_m"], rooms[identity]["maximum_m"]
+    if any(not low[i] <= bounds[i] < bounds[i + 2] <= high[i] for i in (0, 1)):
+      raise ValueError(f"{identity}: usable floor area lies outside the changing room.")
+  return config
