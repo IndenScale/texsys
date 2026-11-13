@@ -1,6 +1,6 @@
 # texsys
 
-[![GitHub Actions CI](https://github.com/IndenScale/texsys/actions/workflows/ci.yml/badge.svg?branch=codex%2Fengineering-change-poc)](https://github.com/IndenScale/texsys/actions/workflows/ci.yml) · [源码发布](https://github.com/IndenScale/texsys/releases) · [可执行示例](examples/README.md) · [工程 POC 台账](docs/engineering-poc.md)
+[![GitHub Actions CI](https://github.com/IndenScale/texsys/actions/workflows/ci.yml/badge.svg)](https://github.com/IndenScale/texsys/actions/workflows/ci.yml) · [源码发布](https://github.com/IndenScale/texsys/releases) · [可执行示例](examples/README.md) · [工程 POC 台账](docs/engineering-poc.md)
 
 让复杂系统像软件一样被持续开发、验证和演化。texsys 从数据中心开始，把系统模型、工程检查和交付物放进同一个可重跑的工作流：修改源文件 → 查看 Git 差异 → 构建与检查 → 审查结果和证据。
 
