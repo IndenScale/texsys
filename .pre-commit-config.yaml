@@ -2,14 +2,14 @@ repos:
   - repo: local
     hooks:
       - id: private-reference-files
-        name: Reject original reference files in Git
+        name: Reject private files in Git
         entry: python3 src/texsys/distribution.py --staged
         language: system
         stages: [pre-commit]
         always_run: true
         pass_filenames: false
       - id: private-reference-history
-        name: Reject original reference files before pushing Git history
+        name: Reject private files before pushing Git history
         entry: python3 src/texsys/distribution.py --push
         language: system
         stages: [pre-push]

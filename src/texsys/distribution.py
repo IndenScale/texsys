@@ -14,9 +14,21 @@ REFERENCE_EXTENSIONS = frozenset({
 })
 
 
-def private_reference(path: str) -> bool:
+CREDENTIAL_NAMES = frozenset({
+  ".env", ".netrc", ".npmrc", ".pypirc", "studio-ai.json", "credentials.json", "service-account.json",
+  "id_rsa", "id_dsa", "id_ecdsa", "id_ed25519",
+})
+CREDENTIAL_EXTENSIONS = frozenset({".pem", ".key", ".p12", ".pfx", ".ppk"})
+
+
+def distribution_block_reason(path: str) -> str | None:
   file = PurePosixPath(path.casefold())
-  return "refs" in file.parts or file.suffix in REFERENCE_EXTENSIONS
+  if (".ssh" in file.parts or file.name in CREDENTIAL_NAMES or file.suffix in CREDENTIAL_EXTENSIONS
+      or (file.name.startswith(".env.") and file.name != ".env.example")):
+    return "本机凭证或配置文件"
+  if "refs" in file.parts or file.suffix in REFERENCE_EXTENSIONS:
+    return "原始参考资料"
+  return None
 
 
 def main() -> int:
@@ -33,10 +45,12 @@ def main() -> int:
     arguments = ("log", "--full-history", "-m", "--format=", "--name-only", "--no-renames",
                  "--diff-filter=ACMRT", "-z", revision, "--")
   names = subprocess.check_output(["git", *arguments]).split(b"\0")
-  blocked = sorted({os.fsdecode(name) for name in names if name and private_reference(os.fsdecode(name))})
-  for path in blocked:
-    print(f"原始参考资料禁止提交或分发，请存放在本地 refs/：{path!r}", file=sys.stderr)
-  return int(bool(blocked))
+  blocked = False
+  for path in sorted({os.fsdecode(name) for name in names if name}):
+    if reason := distribution_block_reason(path):
+      print(f"{reason}禁止提交或分发：{path!r}", file=sys.stderr)
+      blocked = True
+  return int(blocked)
 
 
 if __name__ == "__main__":

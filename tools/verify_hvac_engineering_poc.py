@@ -62,7 +62,7 @@ def main():
   log = []
   summary = {"status": "running", "created_at": datetime.now(timezone.utc).isoformat(),
              "adapter": ADAPTER, "scope": "概念冷站正常负荷阶跃与证据机制验证，不代表真实工程或设备选型签核。",
-             "original_example": str(example), "original_source_sha256": original_source_digest}
+             "original_example": example.relative_to(REPO).as_posix(), "original_source_sha256": original_source_digest}
 
   def cli(*arguments, project=root, expected=0):
     command = [sys.executable, "-m", "texsys", *arguments, "-p", str(project)]

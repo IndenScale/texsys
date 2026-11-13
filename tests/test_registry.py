@@ -103,17 +103,21 @@ def test_reproducible_pack_and_two_consumers_without_author_sources(tmp_path):
   assert dependency_status(one)["synchronized"]
 
 
-def test_original_drawing_cannot_be_packed_or_imported(tmp_path):
+@pytest.mark.parametrize(("filename", "member", "reason"), [
+  ("original.DXF", "assets/refs/site.txt", "原始参考资料"),
+  ("studio-ai.json", "assets/.env.local", "本机凭证或配置文件"),
+])
+def test_private_file_cannot_be_packed_or_imported(tmp_path, filename, member, reason):
   source = capability(tmp_path / "equipment", "equipment")
-  (source / "assets/original.DXF").write_bytes(b"drawing")
-  with pytest.raises(ProjectError, match="原始参考资料"):
+  (source / "assets" / filename).write_text("test fixture")
+  with pytest.raises(ProjectError, match=reason):
     pack_package(source, tmp_path / "packed")
   assert not list((tmp_path / "packed").glob("*.texpkg"))
 
   archive = tmp_path / "external.texpkg"
   with zipfile.ZipFile(archive, "w") as bundle:
-    bundle.writestr("assets/refs/site.txt", "raw reference")
-  with pytest.raises(ProjectError, match="原始参考资料"):
+    bundle.writestr(member, "test fixture")
+  with pytest.raises(ProjectError, match=reason):
     publish_package(archive, tmp_path / "registry")
 
 

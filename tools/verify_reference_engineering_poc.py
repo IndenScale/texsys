@@ -85,9 +85,9 @@ def main():
   summary = {
     "status": "running", "workflow_verification": "running",
     "created_at": datetime.now(timezone.utc).isoformat(), "adapter": ADAPTER,
-    "scope": "终验报告声明配置的条件 0D 容量审查与证据机制验收；不是物理仿真、真实性能通过或工程接受。",
+    "scope": "合成冷站的条件 0D 容量审查和证据机制验收。",
     "success_meaning": "status=pass 仅表示预期的未定、失败、失效与输入恢复均已验证；不是任何方案的真实性能通过。",
-    "original_example": str(example), "all_project_operations_in_isolated_copies": True,
+    "original_example": example.relative_to(REPO).as_posix(), "all_project_operations_in_isolated_copies": True,
     "replay_script": {"path": Path(__file__).resolve().relative_to(REPO).as_posix(), "sha256": digest(Path(__file__))},
   }
 
@@ -160,7 +160,7 @@ def main():
             "The baseline study must bind the current reported-configuration snapshot by its exact digest.")
     write_json(output / "reference-provenance.json", {"study_source": STUDY, "study_sha256": digest(root / STUDY),
                "reference_binding": original_reference, "snapshot_sha256": digest(root / SNAPSHOT),
-               "snapshot": read_json(root / SNAPSHOT), "state_note": "保留报告引用、位置及事实状态；转录事实不升级为实测性能。"})
+               "snapshot": read_json(root / SNAPSHOT), "state_note": "保留合成来源摘要、配置位置及假设状态。"})
     cli("lock")
     summary["git_baseline"] = git_baseline(root)
     original_study = (root / STUDY).read_text(encoding="utf-8")
@@ -170,7 +170,7 @@ def main():
     require(all(inputs[identity]["value"] == .6 for identity in FRACTIONS)
             and inputs["reference.available-chillers"]["value"] == 2, "Expected the .6/.6 utilization with two available chillers.")
     baseline = run()
-    verify_run(baseline, "indeterminate", (117, 150, 33))
+    verify_run(baseline, "indeterminate", (144, 180, 36))
     summary["baseline"] = run_summary(baseline)
 
     change(1)
@@ -178,7 +178,7 @@ def main():
     require(stale["latest"]["run_id"] == baseline["run_id"] and stale["latest"]["freshness"] == "inputs-changed",
             "Changed assumptions retained applicability of the previous result.")
     failed = run(expected=1)
-    verify_run(failed, "fail", (195, 150, -45))
+    verify_run(failed, "fail", (240, 180, -60))
     margin = next(item for item in failed["result"]["checks"] if item["id"] == "reference:capacity-margin")
     require(margin["status"] == "fail" and margin["limit"] == 0 and margin["operator"] == ">=", "Capacity shortfall lacks an explicit failed margin check.")
     summary["failed"] = run_summary(failed)
@@ -186,7 +186,7 @@ def main():
     (root / STUDY).write_text(original_study, encoding="utf-8")
     require(not git_diff(root, edits / "restored.diff", STUDY), "Restored assumptions differ from the Git baseline.")
     repaired = run()
-    verify_run(repaired, "indeterminate", (117, 150, 33))
+    verify_run(repaired, "indeterminate", (144, 180, 36))
     require(repaired["run_id"] not in {baseline["run_id"], failed["run_id"]}, "Restored assumptions reused a historical run identity.")
     checks_before = {item["id"]: (item["status"], item.get("actual")) for item in baseline["result"]["checks"]}
     checks_after = {item["id"]: (item["status"], item.get("actual")) for item in repaired["result"]["checks"]}
@@ -203,7 +203,7 @@ def main():
     document = json.loads(before)
     fact = document["configuration"]["per_chiller_capacity_kw"]
     original_fact = dict(fact)
-    require(fact["value"] == 75, "Expected the reported per-chiller capacity fact to be 75 kW.")
+    require(fact["value"] == 90, "Expected the synthetic per-chiller capacity to be 90 kW.")
     fact["value"] += 1
     after = json.dumps(document, ensure_ascii=False, allow_nan=False, indent=2) + "\n"
     (edits / "reference-mismatch.before.json").write_text(before, encoding="utf-8")
@@ -212,7 +212,7 @@ def main():
     source_edit = {"operation": "direct-reference-edit", "project": "project-reference-mismatch", "isolated_copy": True,
       "file": SNAPSHOT, "pointer": FACT_POINTER, "before": original_fact, "after": fact,
       "unchanged_reference_binding": original_reference, "before_sha256": digest(edits / "reference-mismatch.before.json"),
-      "after_sha256": digest(snapshot), "reason": "故意改写独立副本中的报告转录值，保留旧引用摘要以验证来源绑定拒绝路径；不改原始资料。",
+      "after_sha256": digest(snapshot), "reason": "改写独立副本中的合成配置值并保留旧引用摘要，以验证来源绑定检查。",
       "diff": git_diff(untrusted, edits / "reference-mismatch.diff", SNAPSHOT)}
     write_json(edits / "reference-mismatch.json", source_edit)
     operation(source_edit)

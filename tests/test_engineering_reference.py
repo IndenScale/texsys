@@ -32,12 +32,12 @@ def reference(tmp_path):
   initialize_project(root)
   added = ProjectCliRunner().invoke(None, ["add", REPO / "packages/hvac-checks", "-p", root])
   assert added.exit_code == 0, added.output
-  values = {"chiller_count": (2, "1"), "per_chiller_capacity_kw": (75, "kW"),
-            "air_load_count": (7, "1"), "per_air_load_kw": (15, "kW"),
-            "liquid_load_count": (2, "1"), "per_liquid_load_kw": (45, "kW"),
-            "reported_total_capacity_kw": (150, "kW")}
-  snapshot = {"schema_version": 1, "id": "sanitized-acceptance-report", "sources": [
-    {"id": "acceptance", "sha256": "ab" * 32, "label": "Sanitized report declaration",
+  values = {"chiller_count": (2, "1"), "per_chiller_capacity_kw": (90, "kW"),
+            "air_load_count": (6, "1"), "per_air_load_kw": (20, "kW"),
+            "liquid_load_count": (3, "1"), "per_liquid_load_kw": (40, "kW"),
+            "reported_total_capacity_kw": (180, "kW")}
+  snapshot = {"schema_version": 1, "id": "synthetic-capacity-declaration", "sources": [
+    {"id": "acceptance", "sha256": "ab" * 32, "label": "Synthetic report declaration",
      "original_path": "/unavailable/original-acceptance.pdf"}],
     "configuration": {key: {"value": value, "unit": unit, "state": "assumed", "source_id": "acceptance",
                              "location": "Report, configuration table", "meaning": f"Declared {key}, not measured performance"}
@@ -86,9 +86,9 @@ def test_source_changes_never_promote_report_declarations_to_verified_performanc
   result = baseline["result"]
   assert result["assessment"] == "indeterminate" and result["arithmetic_execution"] == "completed"
   assert result["solver_execution"] == "not-run" and result["analysis_method"] == "0D conditional capacity arithmetic"
-  assert _check(baseline, "conditional-load")["actual"] == 117
-  assert _check(baseline, "available-capacity")["actual"] == 150
-  assert _check(baseline, "capacity-margin")["actual"] == 33
+  assert _check(baseline, "conditional-load")["actual"] == 144
+  assert _check(baseline, "available-capacity")["actual"] == 180
+  assert _check(baseline, "capacity-margin")["actual"] == 36
   assert _check(baseline, "reported-total")["status"] == "pass"
   assert _check(baseline, "field-verification")["status"] == "indeterminate"
   assert len(result["extraction"]) == 4 and not result["source_content_verified"]
@@ -105,20 +105,20 @@ def test_source_changes_never_promote_report_declarations_to_verified_performanc
   assert inspect_engineering(root, ADAPTER)["latest"]["freshness"] == "inputs-changed"
   failed = run_engineering(root, ADAPTER)
   assert failed["result"]["assessment"] == "fail" and failed["execution"] == "completed"
-  assert _check(failed, "conditional-load")["actual"] == 195
-  assert _check(failed, "capacity-margin")["actual"] == -45
+  assert _check(failed, "conditional-load")["actual"] == 240
+  assert _check(failed, "capacity-margin")["actual"] == -60
   assert _check(failed, "capacity-margin")["status"] == "fail"
   _write_assumptions(root, air_load_fraction=.6, liquid_load_fraction=.6)
   repaired = run_engineering(root, ADAPTER)
   assert repaired["result"]["assessment"] == "indeterminate" and repaired["current"]
-  assert _check(repaired, "capacity-margin")["actual"] == 33
+  assert _check(repaired, "capacity-margin")["actual"] == 36
 
 
 def test_digest_mismatch_cannot_silently_use_new_facts_and_rebinding_still_checks_source_consistency(reference):
   root = reference
   old = run_engineering(root, ADAPTER)
   snapshot = _read(root, SNAPSHOT)
-  snapshot["configuration"]["per_chiller_capacity_kw"]["value"] = 76
+  snapshot["configuration"]["per_chiller_capacity_kw"]["value"] = 91
   write_json(root / SNAPSHOT, snapshot)
   state = inspect_engineering(root, ADAPTER)
   assert state["inputs"] == [] and state["latest"]["freshness"] == "inputs-changed"
@@ -130,7 +130,7 @@ def test_digest_mismatch_cannot_silently_use_new_facts_and_rebinding_still_check
   _rebind_snapshot(root, snapshot)
   changed = run_engineering(root, ADAPTER)
   assert changed["result"]["assessment"] == "fail"
-  assert _check(changed, "reported-total")["actual"] == 152 and _check(changed, "reported-total")["limit"] == 150
+  assert _check(changed, "reported-total")["actual"] == 182 and _check(changed, "reported-total")["limit"] == 180
   assert _check(changed, "reported-total")["status"] == "fail"
   history = inspect_engineering(root, ADAPTER)["runs"]
   assert next(item for item in history if item["run_id"] == old["run_id"])["freshness"] == "inputs-changed"
@@ -195,14 +195,14 @@ def test_zero_availability_and_stricter_requirement(reference):
   _write_assumptions(reference, available_chillers=0)
   zero = run_engineering(reference, ADAPTER)
   assert zero["result"]["assessment"] == "fail" and zero["result"]["arithmetic_execution"] == "completed"
-  assert _check(zero, "available-capacity")["actual"] == 0 and _check(zero, "capacity-margin")["actual"] == -117
+  assert _check(zero, "available-capacity")["actual"] == 0 and _check(zero, "capacity-margin")["actual"] == -144
   _write_assumptions(reference, available_chillers=2)
   study = _read(reference, STUDY)
-  study["requirements"]["min_margin_kw"]["value"] = 34
+  study["requirements"]["min_margin_kw"]["value"] = 37
   write_json(reference / STUDY, study)
   stricter = run_engineering(reference, ADAPTER)
   assert stricter["result"]["assessment"] == "fail"
-  assert _check(stricter, "capacity-margin")["actual"] == 33 and _check(stricter, "capacity-margin")["limit"] == 34
+  assert _check(stricter, "capacity-margin")["actual"] == 36 and _check(stricter, "capacity-margin")["limit"] == 37
 
 
 def test_source_author_claim_cannot_upgrade_field_verification(reference):
@@ -227,5 +227,5 @@ def test_repository_reference_fixture_is_reproducible_without_original_documents
   generic = (root / "src/hvac.json").read_bytes(), (root / "src/system.sdl.json").read_bytes()
   run = run_engineering(root, ADAPTER)
   assert run["result"]["assessment"] == "indeterminate" and run["result"]["arithmetic_execution"] == "completed"
-  assert _check(run, "conditional-load")["actual"] == 117 and _check(run, "capacity-margin")["actual"] == 33
+  assert _check(run, "conditional-load")["actual"] == 144 and _check(run, "capacity-margin")["actual"] == 36
   assert ((root / "src/hvac.json").read_bytes(), (root / "src/system.sdl.json").read_bytes()) == generic

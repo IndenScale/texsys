@@ -64,13 +64,13 @@ POC 不提供工程变更专用 HTTP 路由，也不实现 DevOps 合并门禁�
 
 范围检查核对实际 40→80 kW 负荷、300 s 阶跃、900 s 时段、正常控制、7°C 设定、25°C 环境、温度约束和数值精度。结果承接所有断言、模型范围及质量／压力／瞬时能量／积分能量检查；偏离声明工况不能被同名场景或预期值背书。采样极值和首次超限均保留实际采样时刻，不声称连续轨迹的精确越限时间。
 
-120→60→120 kW 是可重跑的通过、温度越限、修复案例。未知容量不补默认值：适配器完成诊断后返回 `assessment:indeterminate`、`solver_execution:not-run`。无法初始化的方案保存执行错误。两者都返回非零退出码。模型仍为集总概念模型，参数为假设；微信图纸中的 18/24°C 设计工况与此例不同，真实资料审查见 [冷站资料核读](../../docs/cold-station-reference-review.md)，不能直接迁入此例并宣称现场校准。
+120→60→120 kW 是可重跑的通过、温度越限、修复案例。未知容量不补默认值：适配器完成诊断后返回 `assessment:indeterminate`、`solver_execution:not-run`。无法初始化的方案保存执行错误。两者都返回非零退出码。模型仍为集总概念模型，参数为假设；真实项目需独立核实设备数据、工况与现场表现。
 
 公开重跑入口为 `uv run --locked tools/verify_hvac_engineering_poc.py`。脚本使用独立副本，记录源文件修改、真实 Git diff、反例和恢复。
 
-## 真实资料容量审查的当前范围
+## 来源快照容量审查的当前范围
 
-`hvac:reference-capacity` 在既有 `hvac-cold-station` 项目中读取 `assets/reference/cold-station-acceptance.json`，用 `src/reference-capacity.study.json` 的全文件摘要绑定源快照。原始报告不参与运行时外部文件读取；冻结的脱敏事实参与项目输入修订。该项目原有通用设备布局模型保持独立，不虚构从报告设备到通用 SDL 实例的映射。
+`hvac:reference-capacity` 在既有 `hvac-cold-station` 项目中读取 `assets/reference/cold-station-acceptance.json`，用 `src/reference-capacity.study.json` 的全文件摘要绑定源快照。公开示例使用合成来源快照，实际项目按资料授权准备输入。通用设备布局使用独立模型。
 
 快照参数保留源 ID、原件 SHA-256、位置、含义、单位和状态；源 ID 必须唯一且引用可解析。缺失、无数值状态、量纲不符、错误整数数量、越界路径或摘要失配不能获得默认计算值。摘要匹配只证明消费了绑定的快照，不证明原件真实性或设备实测能力。
 

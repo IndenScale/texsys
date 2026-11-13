@@ -1,0 +1,9 @@
+{
+  "chiller_count": 2,
+  "per_chiller_capacity_kw": 90,
+  "reported_total_capacity_kw": 180,
+  "air_load_count": 6,
+  "per_air_load_kw": 20,
+  "liquid_load_count": 3,
+  "per_liquid_load_kw": 40
+}

@@ -15,7 +15,7 @@ uv run --locked texsys --version
 如需使用 Studio 的 Git 历史和分支功能，可通过 Git 检出同一标签，并在检出的目录执行相同的安装步骤：
 
 ```bash
-git clone --branch v0.1.0 https://github.com/IndenScale/texsys.git
+git clone --branch v0.1.1 https://github.com/IndenScale/texsys.git
 cd texsys
 uv sync --locked
 npm ci --ignore-scripts --no-audit --no-fund

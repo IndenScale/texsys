@@ -16,7 +16,7 @@ node serve.mjs
 
 默认预览地址为 `http://127.0.0.1:8787`。可通过 `MOVEMENT_PORT` 设置静态预览端口。此服务仅提供生成的静态文件，不启动 Tex Studio；不得为 Studio 另开实例。浏览器验证使用现有 Google Chrome。
 
-构建输出为被 Git 忽略的 `dist/`，可部署到支持目录索引的静态托管服务。`.openai/hosting.json` 记录 Sites 项目身份，更新时应复用，不重复创建。`build.mjs` 的 `origin` 是 canonical、站点地图和分享元数据的基准域名，换域名时同步修改。
+构建输出为被 Git 忽略的 `dist/`，可部署到支持目录索引的静态托管服务。维护者在本地 `.openai/hosting.json` 保存已有 Sites 项目绑定。`build.mjs` 的 `origin` 是 canonical、站点地图和分享元数据的基准域名，换域名时同步修改。
 
 ## 内容组织
 

@@ -2,26 +2,26 @@
   "schema_version": 1,
   "reference": {
     "path": "assets/reference/cold-station-acceptance.json",
-    "digest": "sha256:674ff566261d95e8e5c9c7930ee1aae230f1c23e8708b0658173034cb779e2f7"
+    "digest": "sha256:05ea4e7dc661c18c73658187bc1fb0a41d6cae8f0a92c1003182a844b0350e97"
   },
   "assumptions": {
     "air_load_fraction": {
       "value": 0.6,
       "unit": "1",
       "state": "assumed",
-      "source": "POC审查者选定的运行假设，并非报告工况或现场同时率。"
+      "source": "教学示例设定的同时运行比例。"
     },
     "liquid_load_fraction": {
       "value": 0.6,
       "unit": "1",
       "state": "assumed",
-      "source": "POC审查者选定的运行假设，并非报告工况或现场同时率。"
+      "source": "教学示例设定的同时运行比例。"
     },
     "available_chillers": {
       "value": 2,
       "unit": "1",
       "state": "assumed",
-      "source": "暂按报告所列两台冷机均可用且无降额；不是冗余或实际工况承诺。"
+      "source": "教学示例设定两台冷机均可用。"
     }
   },
   "requirements": {
@@ -34,7 +34,7 @@
   },
   "scope": {
     "kind": "conditional-0d-capacity-review",
-    "thermal_boundary": "暂将两类机柜的报告kW值作为同一冷源边界内的名义热负荷；边界需专业确认。",
+    "thermal_boundary": "将两类合成负载的名义热量计入同一冷源边界。",
     "excluded": [
       "设备工况降额",
       "备用冗余与故障",

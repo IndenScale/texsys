@@ -4,6 +4,26 @@
 # 本地参考与敏感资料：原始图纸、客户文档、原始讨论及内部策略不入库
 # 工程参考资料见 docs/references.md；敏感资料的来源与校验和随本地资料保存
 refs/
+.env
+.env.*
+!.env.example
+studio-ai.json
+.netrc
+.npmrc
+.pypirc
+credentials.json
+service-account.json
+*.pem
+*.key
+*.p12
+*.pfx
+**/.openai/hosting.json
+.ssh/
+id_rsa
+id_dsa
+id_ecdsa
+id_ed25519
+*.ppk
 
 # 代理/编辑器临时附件
 .kimi-attachments/

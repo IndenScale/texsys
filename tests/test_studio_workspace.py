@@ -166,20 +166,25 @@ def test_git_detects_same_status_content_changes_and_rejects_stale_actions(repo)
   assert git(repo, "diff", "--cached") == b""
 
 
-def test_original_drawing_cannot_be_staged_committed_or_sent_to_ai(repo):
-  drawing = repo / "original.DWG"
-  drawing.write_bytes(b"AC1032")
+@pytest.mark.parametrize(("filename", "reason"), [
+  ("original.DWG", "原始参考资料"),
+  (".env.production", "本机凭证或配置文件"),
+  ("studio-ai.json", "本机凭证或配置文件"),
+])
+def test_private_file_cannot_be_staged_committed_or_sent_to_ai(repo, filename, reason):
+  private_file = repo / filename
+  private_file.write_text("test fixture")
   (repo / "model.txt").write_text("updated\n")
-  with pytest.raises(ProjectError, match="原始参考资料"):
+  with pytest.raises(ProjectError, match=reason):
     operation(repo, "stage_all")
   assert git(repo, "diff", "--cached") == b""
 
-  git(repo, "add", "-f", drawing.name)
-  with pytest.raises(ProjectError, match="原始参考资料"):
-    operation(repo, "commit", message="drawing")
-  with pytest.raises(ProjectError, match="原始参考资料"):
+  git(repo, "add", "-f", private_file.name)
+  with pytest.raises(ProjectError, match=reason):
+    operation(repo, "commit", message="private file")
+  with pytest.raises(ProjectError, match=reason):
     staged_commit_diff(repo, "build", source_status(repo, "build")["snapshot"])
-  operation(repo, "unstage", path=drawing.name)
+  operation(repo, "unstage", path=private_file.name)
   operation(repo, "stage", path="model.txt")
   operation(repo, "commit", message="model only")
   assert git(repo, "show", "HEAD:model.txt") == b"updated\n"

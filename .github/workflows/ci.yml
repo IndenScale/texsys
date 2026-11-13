@@ -16,7 +16,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Reject original reference files in Git history
+      - name: Reject private files in Git history
         run: python3 src/texsys/distribution.py --revision HEAD
 
       - name: Install uv
