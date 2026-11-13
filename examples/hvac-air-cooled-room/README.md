@@ -44,7 +44,7 @@ uv run --locked texsys lock --check -p examples/hvac-air-cooled-room
 uv run --locked texsys build -p examples/hvac-air-cooled-room
 ```
 
-构建目标为 `hvac:air-room`，输出位于 `build/hvac/air-room/`。
+默认构建先执行 `hvac:air-room`，输出位于 `build/hvac/air-room/`；再由 `drawing-room` 将平面、图框和项目说明编译为 `build/drawings/sheets/room.svg`。
 
 - `room.usda` 是以米为单位、Z 轴向上的三维场景。轴线、钢构、地板板块、支座、机柜、冷却单元和分区保留独立对象，可在 USD 工具中展开检查。
 - `module-library.usda` 集中展示 12 个本地模块和锁定的 8 个结构库模块的三维几何，各对象保留对应的 SDL 入口和模块版本。
@@ -52,3 +52,20 @@ uv run --locked texsys build -p examples/hvac-air-cooled-room
 - `checks.json` 汇总数量、设备包络和通道检查、SDL 风路完整性及三种工况的风量和显冷量预算。构建证据另见 `build/build.json`。
 
 每柜 3 kW、附加热负荷 2 kW 时，计算总热负荷 50 kW。按送风 22 °C、回风 32 °C，所需风量约 4.14 m³/s。16 块送风板的名义风量合计 4.48 m³/s，任一冷却单元退出时仍有 60 kW 名义显冷量和 4.5 m³/s 名义送风能力。该检查采用房间级热平衡和额定量比较。实际配风、静压损失、机柜进风温度、结构承载及地板防静电性能须分别复核。
+
+## 图页组件与项目文字
+
+本项目与冷站示例复用 `sheet:a3-landscape` 图框组件，同时独立维护项目内容：
+
+- [room.sheet.json](assets/sheets/room.sheet.json)：图页装配，引用既有 `build/hvac/air-room/floor-plan.svg`。
+- [title.json](assets/sheets/title.json)：本项目的图号、图名、修订与标题栏字段。
+- [general-notes.txt](assets/sheets/general-notes.txt)：本项目的设计总说明。
+- [footer.txt](assets/sheets/footer.txt)：页脚文字，可通过 `{{drawing_number}}`、`{{revision}}` 绑定标题栏元数据。
+
+这些文件使用通用文本编辑器维护，图框及纸面文字样式由独立模板定义。执行默认构建即可组合；只构建该图页时使用：
+
+```bash
+uv run --locked texsys build -p examples/hvac-air-cooled-room --target drawing-room
+```
+
+命名目标显式依赖 `hvac:air-room`，从当前构建链消费平面。生成的 `build/drawings/sheets/room-sheet.json` 记录图页来源；SVG 可直接在 Studio 普通文件预览中打开。平面在图页中采用 `fit`，标题栏明确“示意，不按比例”；已有尺寸文字和源模型仍是尺寸依据，不能从缩放后的图面量取。标题栏“待复核”只是文本，不代表校核、批准或签章。合同与限制见 [图页组合](../../spec/build/05-sheet-composition.md)。

@@ -26,6 +26,7 @@ members = [
     "texsys-hvac-graphics",
     "texsys-hvac-linter",
     "texsys-plumbing",
+    "texsys-sheet",
     "texsys-spatial",
     "texsys-structure",
     "texsys-studio-hvac",
@@ -721,6 +722,7 @@ dev = [
     { name = "texsys-hvac-formatter" },
     { name = "texsys-hvac-graphics" },
     { name = "texsys-hvac-linter" },
+    { name = "texsys-sheet" },
     { name = "texsys-studio-hvac" },
 ]
 docs-lint = [
@@ -755,6 +757,7 @@ dev = [
     { name = "texsys-hvac-formatter", editable = "packages/hvac-formatter" },
     { name = "texsys-hvac-graphics", editable = "packages/hvac-graphics" },
     { name = "texsys-hvac-linter", editable = "packages/hvac-linter" },
+    { name = "texsys-sheet", editable = "packages/sheet" },
     { name = "texsys-studio-hvac", editable = "packages/studio-hvac" },
 ]
 docs-lint = [
@@ -1006,6 +1009,17 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [{ name = "scipy", specifier = ">=1.15,<2" }]
+
+[[package]]
+name = "texsys-sheet"
+version = "0.1.0"
+source = { editable = "packages/sheet" }
+dependencies = [
+    { name = "texsys" },
+]
+
+[package.metadata]
+requires-dist = [{ name = "texsys", editable = "." }]
 
 [[package]]
 name = "texsys-spatial"

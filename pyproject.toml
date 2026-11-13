@@ -28,6 +28,7 @@ dev = [
   "texsys-datacenter",
   "texsys-bom",
   "texsys-diagram",
+  "texsys-sheet",
   "texsys-diagram-elk",
   "texsys-hvac-graphics",
   "texsys-hvac-diagram",
@@ -56,6 +57,7 @@ members = ["packages/*"]
 texsys-datacenter = { workspace = true }
 texsys-bom = { workspace = true }
 texsys-diagram = { workspace = true }
+texsys-sheet = { workspace = true }
 texsys-diagram-elk = { workspace = true }
 texsys-hvac-graphics = { workspace = true }
 texsys-hvac-diagram = { workspace = true }

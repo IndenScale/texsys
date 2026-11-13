@@ -1,5 +1,5 @@
 schema_version = 1
-manifest_digest = "sha256:0599c1cd6255c618ce24b3517a58ca0dea1c1868b1ecff20677e67aab46a4e1c"
+manifest_digest = "sha256:758fd66e123d112834bf648f206128a8578afff1fd591f14fe0ba1829c77240e"
 
 [[packages]]
 name = "bom"
@@ -72,6 +72,15 @@ path = "../../packages/hvac-graphics"
 digest = "sha256:f3125866096b42d3f9b41b3e1caad05837de5dbb017f41a78bce16ba209347e1"
 direct = false
 dependencies = ["diagram", "diagram-elk"]
+
+[[packages]]
+name = "sheet"
+version = "0.1.0"
+source = "path"
+path = "../../packages/sheet"
+digest = "sha256:c37cf646ab151b2311381bb2018d4ea533f56f46d2358427b8a922df922985e8"
+direct = true
+dependencies = []
 
 [[packages]]
 name = "spatial"

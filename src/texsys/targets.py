@@ -100,6 +100,7 @@ class ResolvedTarget:
   resolution_source: str
   instance_id: str | None = None
   output: str | None = None
+  additional_dependencies: tuple[str, ...] = ()
 
   @property
   def id(self) -> str:
@@ -107,7 +108,7 @@ class ResolvedTarget:
 
   @property
   def dependencies(self) -> tuple[str, ...]:
-    return self.definition.dependencies
+    return tuple(dict.fromkeys((*self.definition.dependencies, *self.additional_dependencies)))
 
 
 @dataclass(frozen=True)
@@ -179,8 +180,9 @@ def _named_targets(manifest, build, definitions):
     label = f"build.targets.{identifier}"
     if identifier in definitions or not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_-]*", identifier):
       raise ProjectError(f"{label} must have a unique project target name using letters, digits, hyphens or underscores.")
-    if not isinstance(entry, dict) or entry.keys() - {"using", "profile", "scope", "output"}:
-      raise ProjectError(f"{label} must be a table with using, output and optional profile and scope.")
+    if not isinstance(entry, dict) or entry.keys() - {"using", "profile", "scope", "output", "dependencies"}:
+      raise ProjectError(f"{label} must be a table with using, output and optional profile, scope and dependencies.")
+    _string_list(entry.get("dependencies", []), f"{label}.dependencies")
     generator = entry.get("using")
     if not isinstance(generator, str) or generator not in definitions:
       raise ProjectError(f"{label}.using must name a registered build target.")
@@ -240,8 +242,10 @@ def resolve_targets(
     definition, config, output = instance if instance else (definitions.get(identifier), {}, None)
     if definition is None:
       raise ProjectError(f"Unknown build target: {identifier}")
+    additional_dependencies = tuple(config.get("dependencies", ()))
+    dependencies = tuple(dict.fromkeys((*definition.dependencies, *additional_dependencies)))
     visiting.append(identifier)
-    for dependency in definition.dependencies:
+    for dependency in dependencies:
       visit(dependency, f"dependency of {identifier}")
     visiting.pop()
 
@@ -260,7 +264,8 @@ def resolve_targets(
       raise ProjectError(f"Scope for target {identifier} must be a TOML table.")
     selected_scope = dict(scope if scope is not None else configured_scope)
     resolved.append(ResolvedTarget(definition, selected_profile, selected_scope, target_source,
-                                   instance_id=identifier if instance else None, output=output))
+                                   instance_id=identifier if instance else None, output=output,
+                                   additional_dependencies=additional_dependencies))
     visited.add(identifier)
 
   for item in requested_items:

@@ -1,0 +1,10 @@
+{
+  "schema_version": 1,
+  "template": "sheet:a3-notes",
+  "metadata": "assets/sheets/notes-title.json",
+  "texts": {
+    "notes": "assets/sheets/general-notes.txt",
+    "footer": "assets/sheets/footer.txt"
+  },
+  "views": {}
+}

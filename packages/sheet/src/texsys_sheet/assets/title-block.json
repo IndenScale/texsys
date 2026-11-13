@@ -1,0 +1,119 @@
+{
+  "schema_version": 1,
+  "kind": "title-block",
+  "line_width_mm": 0.25,
+  "font_size_mm": 2.8,
+  "label_size_mm": 1.8,
+  "cells": [
+    {
+      "box": [
+        0,
+        0,
+        180,
+        10
+      ],
+      "field": "project",
+      "label": "项目名称"
+    },
+    {
+      "box": [
+        0,
+        10,
+        180,
+        10
+      ],
+      "field": "title",
+      "label": "图纸名称"
+    },
+    {
+      "box": [
+        0,
+        20,
+        90,
+        10
+      ],
+      "field": "drawing_number",
+      "label": "图号"
+    },
+    {
+      "box": [
+        90,
+        20,
+        30,
+        10
+      ],
+      "field": "revision",
+      "label": "修订"
+    },
+    {
+      "box": [
+        120,
+        20,
+        60,
+        10
+      ],
+      "field": "date",
+      "label": "日期"
+    },
+    {
+      "box": [
+        0,
+        30,
+        90,
+        10
+      ],
+      "field": "stage",
+      "label": "设计阶段"
+    },
+    {
+      "box": [
+        90,
+        30,
+        60,
+        10
+      ],
+      "field": "scale",
+      "label": "比例"
+    },
+    {
+      "box": [
+        150,
+        30,
+        30,
+        10
+      ],
+      "field": "sheet",
+      "label": "图页"
+    },
+    {
+      "box": [
+        0,
+        40,
+        60,
+        10
+      ],
+      "field": "designed_by",
+      "label": "设计"
+    },
+    {
+      "box": [
+        60,
+        40,
+        60,
+        10
+      ],
+      "field": "checked_by",
+      "label": "校核"
+    },
+    {
+      "box": [
+        120,
+        40,
+        60,
+        10
+      ],
+      "field": "approved_by",
+      "label": "审核"
+    }
+  ]
+}

@@ -146,6 +146,75 @@ def test_default_targets_resolve_dependencies_once_in_order(tmp_path: Path, monk
   assert [item.definition.id for item in result.targets] == ["demo:c", "demo:b", "demo:a"]
 
 
+def test_named_dependencies_seed_verified_outputs_invalidate_cache_and_block_failure(tmp_path, monkeypatch):
+  root = copied_project(tmp_path)
+  root.joinpath("texsys.toml").write_text(root.joinpath("texsys.toml").read_text() + '''
+[build.targets.view]
+using = "demo:view"
+output = "build/view.svg"
+[build.targets.sheet]
+using = "demo:sheet"
+output = "build/sheet.svg"
+dependencies = ["view"]
+''')
+  source = root / "assets/view.txt"
+  source.write_text("first")
+  content = root / "assets/title.txt"
+  content.write_text("framed")
+  calls = []
+
+  def view(context):
+    calls.append(context.instance_id)
+    content = source.read_text()
+    if content == "invalid":
+      return TargetResult("fail")
+    output = context.build_path / context.output
+    output.write_text(content)
+    return TargetResult(artifacts=(Artifact("view", output.relative_to(root).as_posix()),))
+
+  def sheet(context):
+    calls.append(context.instance_id)
+    output = context.build_path / context.output
+    output.write_text(content.read_text() + ":" + (context.build_path / "view.svg").read_text())
+    return TargetResult(artifacts=(Artifact("sheet", output.relative_to(root).as_posix()),))
+
+  package = FakePackage((
+    TargetDefinition("demo:view", "fake", "1", view, input_patterns=("assets/view.txt",), named_output=True),
+    TargetDefinition("demo:sheet", "fake", "1", sheet, input_patterns=("assets/title.txt",), named_output=True),
+  ))
+  monkeypatch.setattr("texsys.execution.project_packages", lambda root: (package,))
+  first = read_build(build_project(root, ("sheet",)))
+  assert first["status"] == "pass"
+  assert first["targets"][-1]["dependencies"] == ["view"]
+  assert calls == ["view", "sheet"]
+  public = root / "build/sheet.svg"
+  assert public.read_text() == "framed:first"
+
+  # Cached dependency snapshots, not arbitrary public files, feed the composer.
+  (root / "build/view.svg").write_text("tampered")
+  public.unlink()
+  second = read_build(build_project(root, ("sheet",)))
+  assert [row["execution"] for row in second["targets"]] == ["cached", "cached"]
+  assert public.read_text() == "framed:first"
+  (root / "build/view.svg").write_text("tampered")
+  content.write_text("retitled")
+  retitled = read_build(build_project(root, ("sheet",)))
+  assert [row["execution"] for row in retitled["targets"]] == ["cached", "executed"]
+  assert public.read_text() == "retitled:first"
+  source.write_text("second")
+  changed = read_build(build_project(root, ("sheet",)))
+  assert [row["execution"] for row in changed["targets"]] == ["executed", "executed"]
+  assert public.read_text() == "retitled:second"
+
+  source.write_text("invalid")
+  rejected = read_build(build_project(root, ("sheet",)))
+  assert rejected["status"] == "fail"
+  assert rejected["targets"][-1]["execution"] == "blocked"
+  assert rejected["targets"][-1]["blocked_by"] == ["view"]
+  assert public.read_text() == "retitled:second"
+  assert calls == ["view", "sheet", "sheet", "view", "sheet", "view"]
+
+
 def test_stage_binding_resolves_default_targets(tmp_path: Path, monkeypatch) -> None:
   root = copied_project(tmp_path)
   root.joinpath("texsys.toml").write_text(

@@ -1,0 +1,1 @@
+方案草稿 · 源文件与本次构建记录共同确定适用范围 · {{drawing_number}} / {{revision}}

@@ -9,7 +9,7 @@ assets = "assets"
 build = "build"
 
 [build]
-default_targets = ["hvac:equipment-bom", "hvac:physical-model", "system-schematic", "system-topology", "hvac:project-layout"]
+default_targets = ["hvac:equipment-bom", "hvac:physical-model", "system-schematic", "system-topology", "hvac:project-layout", "drawing-system", "drawing-notes"]
 
 [build.targets.system-schematic]
 using = "hvac:system-schematic"
@@ -19,7 +19,19 @@ output = "build/drawings/schematics/system.json"
 using = "hvac:system-topology"
 output = "build/drawings/topology/system.json"
 
+[build.targets.drawing-system]
+using = "sheet:compose"
+scope = { source = "assets/sheets/system.sheet.json" }
+dependencies = ["system-schematic"]
+output = "build/drawings/sheets/system.svg"
+
+[build.targets.drawing-notes]
+using = "sheet:compose"
+scope = { source = "assets/sheets/notes.sheet.json" }
+output = "build/drawings/sheets/general-notes.svg"
+
 [dependencies]
+sheet = { path = "../../packages/sheet", version = "0.1.0" }
 hvac-diagram = { path = "../../packages/hvac-diagram", version = "0.1.0" }
 hvac-dynamics = { path = "../../packages/hvac-dynamics", version = "0.1.0" }
 hvac-bom = { path = "../../packages/hvac-bom", version = "0.1.0" }

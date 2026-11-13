@@ -1,0 +1,51 @@
+{
+  "schema_version": 1,
+  "paper_mm": [
+    420,
+    297
+  ],
+  "components": [
+    {
+      "id": "frame",
+      "component": "sheet:frame",
+      "box": [
+        20,
+        10,
+        390,
+        277
+      ]
+    },
+    {
+      "id": "notes",
+      "component": "sheet:notes",
+      "box": [
+        25,
+        20,
+        380,
+        207
+      ],
+      "binding": "notes"
+    },
+    {
+      "id": "title",
+      "component": "sheet:title-block",
+      "box": [
+        230,
+        237,
+        180,
+        50
+      ]
+    },
+    {
+      "id": "footer",
+      "component": "sheet:footer",
+      "box": [
+        25,
+        243,
+        195,
+        36
+      ],
+      "binding": "footer"
+    }
+  ]
+}

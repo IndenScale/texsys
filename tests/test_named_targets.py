@@ -60,6 +60,41 @@ def test_named_targets_resolve_independent_scopes_and_keep_registered_dependenci
     resolve_targets((Package(),), manifest)
 
 
+def test_named_target_dependencies_extend_the_generator_and_reject_invalid_graphs():
+  model = TargetDefinition("example:model", "example", "1", lambda context: None)
+  drawing = replace(model, id="example:drawing", named_output=True)
+  sheet = replace(drawing, id="example:sheet", dependencies=(model.id,))
+
+  class Package:
+    def targets(self):
+      return (model, drawing, sheet)
+
+  entries = {
+    "view": {"using": drawing.id, "output": "build/view.svg"},
+    "sheet": {"using": sheet.id, "output": "build/sheet.svg",
+              "dependencies": ["view", model.id, "view"]},
+  }
+  manifest = {"build": {"default_targets": ["sheet"], "targets": entries}}
+  selection = resolve_targets((Package(),), manifest)
+  assert [target.id for target in selection.resolved] == [model.id, "view", "sheet"]
+  assert selection.resolved[-1].dependencies == (model.id, "view")
+  assert selection.resolved[0].resolution_source == "dependency of sheet"
+
+  entries["sheet"]["dependencies"] = []
+  assert resolve_targets((Package(),), manifest).resolved[-1].dependencies == (model.id,)
+  for invalid in ("view", [None], [""], {"view": True}):
+    entries["sheet"]["dependencies"] = invalid
+    with pytest.raises(ProjectError, match="dependencies must be an array"):
+      resolve_targets((Package(),), manifest)
+  entries["sheet"]["dependencies"] = ["missing"]
+  with pytest.raises(ProjectError, match="Unknown build target: missing"):
+    resolve_targets((Package(),), manifest)
+  entries["sheet"]["dependencies"] = ["view"]
+  entries["view"]["dependencies"] = ["sheet"]
+  with pytest.raises(ProjectError, match="dependency cycle: sheet -> view -> sheet"):
+    resolve_targets((Package(),), manifest)
+
+
 def test_floor_plans_project_declared_room_level_and_cross_level_work_package(tmp_path):
   root = copy_project(tmp_path, "datacenter-hybrid-unit")
   zone_target = "plan-zone-l01-unit-01-01"

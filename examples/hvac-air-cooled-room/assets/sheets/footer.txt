@@ -1,0 +1,1 @@
+方案草稿 · 设备位置和尺寸以声明式源模型为准 · {{drawing_number}} / {{revision}}

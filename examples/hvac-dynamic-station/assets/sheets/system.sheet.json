@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "template": "sheet:a3-landscape",
+  "metadata": "assets/sheets/title.json",
+  "texts": {
+    "notes": "assets/sheets/general-notes.txt",
+    "footer": "assets/sheets/footer.txt"
+  },
+  "views": {
+    "main": {
+      "path": "build/drawings/schematics/system.svg",
+      "scale": "fit"
+    }
+  }
+}
