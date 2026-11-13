@@ -10,7 +10,15 @@ def write_plan(room, path, width, length, grid):
   right, bottom = left + width * scale, top + length * scale
   page_width, page_height = right + 320, bottom + 104
   layout = room.layout
-  body = [f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {page_width:g} {page_height:g}">']
+  frame = escape(layout["frame"]["id"], quote=True)
+  elevation = layout["raised_floor"]["finished_elevation_m"]
+  routes = layout.get("equipment_transport_routes")
+  route_inventory = ' data-routes-complete="true"' if routes is not None else ""
+  body = [f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {page_width:g} {page_height:g}"'
+          f' data-frame="{frame}" data-coordinate-unit="m" data-units-per-meter="{scale:.15g}"'
+          f' data-origin-x="{left}" data-origin-y="{bottom:.15g}" data-level-id="{frame}"'
+          f' data-finished-floor-m="{elevation:.15g}" data-racks-complete="true"'
+          f' data-obstructions-complete="true"{route_inventory}>']
   body.append("""
 <style>
   text {font-family: "PingFang SC","Noto Sans CJK SC","Microsoft Yahei",sans-serif;fill:#1c2e43}
@@ -27,13 +35,13 @@ def write_plan(room, path, width, length, grid):
 </defs>""")
 
   def rect(x, y, w, h, fill, extra=""):
-    body.append(f'<rect x="{x:.3f}" y="{y:.3f}" width="{w:.3f}" height="{h:.3f}" fill="{fill}" {extra}/>')
+    body.append(f'<rect x="{x:.15g}" y="{y:.15g}" width="{w:.15g}" height="{h:.15g}" fill="{fill}" {extra}/>')
 
   def text(x, y, value, size=13, extra=""):
     body.append(f'<text x="{x:.3f}" y="{y:.3f}" font-size="{size}" {extra}>{escape(str(value))}</text>')
 
   def line(x1, y1, x2, y2, extra=""):
-    body.append(f'<line x1="{x1:.3f}" y1="{y1:.3f}" x2="{x2:.3f}" y2="{y2:.3f}" {extra}/>')
+    body.append(f'<line x1="{x1:.15g}" y1="{y1:.15g}" x2="{x2:.15g}" y2="{y2:.15g}" {extra}/>')
 
   def circle(x, y, label):
     body.append(f'<circle cx="{x:.3f}" cy="{y:.3f}" r="11" fill="#f6fafc" stroke="#48759a"/>')
@@ -54,7 +62,8 @@ def write_plan(room, path, width, length, grid):
   text(32, 31, "TEXSYS  /  HVAC DESIGN EXAMPLE", 12, 'letter-spacing="2.1" font-weight="600"')
   text(32, 67, "风冷机房 · 设备与送风平面", 27, 'font-weight="650"')
   text(33, 92, f"{layout['frame']['id']}  /  {width:g} × {length:g} m  /  完成面 {layout['raised_floor']['finished_elevation_m']:+.2f} m", 13, 'class="muted"')
-  rect(left, top, width * scale, length * scale, "#fbfcfd")
+  rect(left, top, width * scale, length * scale, "#fbfcfd",
+       f'data-role="main-computer-room" data-object-id="{frame}"')
   for key in ("HotNorth", "HotSouth"):
     plan_rect(layout["zones"][key]["bounds_m"], "#f8e1d6")
   plan_rect(layout["zones"]["ColdAisle"]["bounds_m"], "#d9eff4")
@@ -70,19 +79,35 @@ def write_plan(room, path, width, length, grid):
 
   for key, value in grid.x.items():
     x, _ = xy(value, 0)
-    line(x, top - 17, x, bottom + 30, 'class="axis"')
+    line(x, top - 17, x, bottom + 30, f'class="axis" data-axis="x" data-object-id="{escape(key, quote=True)}"')
     circle(x, bottom + 43, key)
   for key, value in grid.y.items():
     _, y = xy(0, value)
-    line(left - 32, y, right + 12, y, 'class="axis"')
+    line(left - 32, y, right + 12, y, f'class="axis" data-axis="y" data-object-id="{escape(key, quote=True)}"')
     circle(left - 44, y, key)
 
-  for column in (box for owner, box in room.objects["Steel"] if owner.startswith("COL-") and box.identity == "BasePlate"):
-    box_rect(column, "#3a5372", 'stroke="#203b58"')
+  for owner, column in room.objects["Steel"]:
+    if not owner.startswith("COL-") or column.maximum[2] <= elevation:
+      continue
+    x0, y0 = max(0, column.origin[0]), max(0, column.origin[1])
+    x1, y1 = min(width, column.maximum[0]), min(length, column.maximum[1])
+    if x0 < x1 and y0 < y1:
+      identity = escape(f"{owner}/{column.identity}", quote=True)
+      plan_rect((x0, y0, x1, y1), "#3a5372",
+                f'stroke="#203b58" data-role="obstruction" data-object-id="{identity}"')
+  fronts = {name: row["front"].lower() for row in layout["rack_rows"] for name in row["members"]}
+  maintenance = layout.get("rack_maintenance_faces", {})
   for name, box in room.equipment.items():
     x, y = xy(box.origin[0] + box.size[0] / 2, box.origin[1] + box.size[1] / 2)
     is_cooling = name in layout["cooling_units"]
-    box_rect(box, "#277c88" if is_cooling else "#293d54", 'stroke="#eff7fc" stroke-width="1"')
+    role = "obstruction" if is_cooling else "rack"
+    data = f'data-role="{role}" data-object-id="{escape(name, quote=True)}"'
+    if not is_cooling:
+      data += f' data-front="{fronts[name]}"'
+      if name in maintenance:
+        faces = escape(" ".join(maintenance[name]), quote=True)
+        data += f' data-maintenance-faces="{faces}"'
+    box_rect(box, "#277c88" if is_cooling else "#293d54", f'stroke="#eff7fc" stroke-width="1" {data}')
     text(x, y + 4, name, 9, 'text-anchor="middle" class="light" font-weight="600"')
     if is_cooling:
       text(x, y + 20, "↓ 下送风", 9, 'text-anchor="middle" class="light"')
@@ -93,6 +118,13 @@ def write_plan(room, path, width, length, grid):
       x, y = xy(box.origin[0] + box.size[0] / 2, box.origin[1] + offset)
       direction = 1 if row["front"] == "+Y" else -1
       line(x, y + direction * 3, x, y + direction * 20, 'stroke="#b35435" marker-end="url(#arrow)"')
+  for identity, route in (routes or {}).items():
+    direction = route["direction"]
+    if direction not in ("x", "y"):
+      raise ValueError(f"{identity}: equipment transport direction must be x or y.")
+    plan_rect(route["bounds_m"], "none", f'stroke="#536779" stroke-dasharray="5 3" data-role="route"'
+              f' data-object-id="{escape(identity, quote=True)}" data-purpose="equipment-transport"'
+              f' data-direction="{direction}"')
   for key, label in (("ColdAisle", "冷通道  /  地板送风"), ("HotNorth", "热通道  /  上部回风"),
                      ("HotSouth", "热通道  /  上部回风")):
     x0, y0, x1, y1 = layout["zones"][key]["bounds_m"]

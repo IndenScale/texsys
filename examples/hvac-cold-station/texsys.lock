@@ -42,7 +42,7 @@ name = "hvac-equipment"
 version = "0.1.0"
 source = "path"
 path = "../../packages/hvac-equipment"
-digest = "sha256:b94461d332dce051db6c46c8b861d8f880d24330eff8b22deb10f096e2db6a30"
+digest = "sha256:d28a8a0f31ef243ec159a2c4fab87d31d4da24c748ffa38418ade6ee394b1a6c"
 direct = true
 dependencies = ["spatial", "structure"]
 

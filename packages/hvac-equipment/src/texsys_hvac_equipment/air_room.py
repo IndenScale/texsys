@@ -268,7 +268,7 @@ def air_checks(room):
                nominal_grille_airflow_m3_s=round(grille_flow, 4), status_basis=basis["status"])
 
 
-def write_scene(room, path, level, modules):
+def write_scene(room, path, level, modules, width, length):
   from texsys_hvac_equipment.room_modules import place_rack_modules
 
   stage = Usd.Stage.CreateInMemory()
@@ -276,8 +276,27 @@ def write_scene(room, path, level, modules):
   stage.SetDefaultPrim(root)
   UsdGeom.SetStageUpAxis(stage, UsdGeom.Tokens.z)
   UsdGeom.SetStageMetersPerUnit(stage, 1)
-  root.SetCustomDataByKey("frame", room.layout["frame"]["id"])
+  frame = room.layout["frame"]["id"]
+  root.SetCustomDataByKey("frame", frame)
+  root.SetCustomDataByKey("roomId", frame)
   root.SetCustomDataByKey("raisedFloorFinish", room.layout["raised_floor"]["solid_finish"])
+
+  def clearance_volume(name, role, bottom, top):
+    cube = UsdGeom.Cube.Define(stage, f"/AirCooledRoom/Clearance/{name}")
+    cube.GetPrim().SetCustomDataByKey("role", role)
+    cube.CreatePurposeAttr(UsdGeom.Tokens.guide)
+    cube.CreateSizeAttr(1.0)
+    cube.AddTranslateOp().Set(Gf.Vec3d(width / 2, length / 2, (bottom + top) / 2))
+    cube.AddScaleOp(UsdGeom.XformOp.PrecisionDouble).Set(Gf.Vec3d(width, length, top - bottom))
+
+  clearance_volume("FinishedFloor", "finished-floor", level - .01, level)
+  if clearance := room.layout.get("headroom"):
+    upper = clearance["upper_elevation_m"]
+    complete = clearance["overhead_complete"]
+    if type(complete) is not bool or type(upper) not in (int, float) or not math.isfinite(upper) or upper <= level:
+      raise ValueError("Headroom requires an upper elevation above the finished floor and a completeness declaration.")
+    clearance_volume("UpperBoundary", "clearance-upper", upper, upper + .01)
+    root.SetCustomDataByKey("clearanceComplete", complete)
 
   def anchor(parent, name, identity):
     prim = UsdGeom.Xform.Define(stage, f"{parent}/{_prim_name(name)}").GetPrim()
@@ -298,6 +317,8 @@ def write_scene(room, path, level, modules):
       cube.CreateDisplayColorAttr([Gf.Vec3f(*PALETTE[group])])
       cube.AddTranslateOp().Set(Gf.Vec3d(*(a + b / 2 for a, b in zip(box.origin, box.size))))
       cube.AddScaleOp().Set(Gf.Vec3f(*box.size))
+      if group == "Steel" and owner.startswith("BEAM-"):
+        cube.GetPrim().SetCustomDataByKey("role", "overhead-obstruction")
 
   zones = anchor("/AirCooledRoom", "Zones", None)
   for name, zone in room.layout["zones"].items():
@@ -376,7 +397,7 @@ def build_air_room(context: BuildContext) -> TargetResult:
     directory.mkdir(parents=True, exist_ok=True)
     write_module_library(modules, library_scene)
     products.append(("room-module-library", library_scene))
-  write_scene(room, scene, level, modules)
+  write_scene(room, scene, level, modules, width, length)
   write_plan(room, plan, width, length, grid)
   counts = {
     "racks": sum(len(row["members"]) for row in room.layout["rack_rows"]),
