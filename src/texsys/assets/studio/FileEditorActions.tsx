@@ -3,7 +3,7 @@ import { EditorActionButton } from "./EditorActionButton";
 import { NavigatorMenu, type NavigatorMenuItem } from "./NavigatorMenu";
 import { t, useLocale } from "./i18n";
 import { Icon } from "./ui";
-import type { FilePreviewKind } from "./workspace-model";
+import { formatDefaultPresentation, type FilePreviewKind } from "./workspace-model";
 import "./file-editor-actions.css";
 
 export type FilePresentation = "source" | "preview" | "markdown-editor";
@@ -14,6 +14,7 @@ const previewLabels: Record<FilePreviewKind, string> = {
   scene: "场景预览",
   svg: "SVG 预览",
   drawio: "Draw.io 预览",
+  html: "HTML 预览",
 };
 
 export function FileOpenWith({
@@ -40,8 +41,8 @@ export function FileOpenWith({
   if (openers.length === 1) return null;
   const selected = openers.find(({ mode }) => mode === presentation) ?? openers[0];
   const defaultOpener =
-    openers.find(({ mode }) => mode === defaultPresentation) ??
-    openers[kind && kind !== "markdown" ? 1 : 0];
+    openers.find(({ mode }) => mode === defaultPresentation)?.mode ??
+    formatDefaultPresentation(kind);
   const items: NavigatorMenuItem[] = openers.map(({ mode, label }) => ({
     label,
     checked: selected.mode === mode,
@@ -54,7 +55,7 @@ export function FileOpenWith({
       separator: true,
       submenu: openers.map(({ mode, label }) => ({
         label,
-        checked: defaultOpener.mode === mode,
+        checked: defaultOpener === mode,
         run: () => onSetDefault(mode),
       })),
     });

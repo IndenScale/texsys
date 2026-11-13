@@ -1,5 +1,9 @@
 import type { TextFormat, TextFormatChange } from "./sdk";
-import type { FilePreviewKind, SearchMatch } from "./workspace-model";
+import {
+  formatDefaultPresentation,
+  type FilePreviewKind,
+  type SearchMatch,
+} from "./workspace-model";
 import type { PreviewViewport } from "./preview-viewport";
 
 export type EditorPresentation = "source" | "preview" | "markdown-editor";
@@ -156,7 +160,7 @@ export function resolvedEditorPresentation(
   requested?: EditorPresentation,
 ): EditorPresentation {
   if (!kind || (requested === "markdown-editor" && kind !== "markdown")) return "source";
-  return requested ?? (kind === "markdown" ? "source" : "preview");
+  return requested ?? formatDefaultPresentation(kind);
 }
 
 /** Capture the preference once. Reopening an existing view retains its explicit opener. */

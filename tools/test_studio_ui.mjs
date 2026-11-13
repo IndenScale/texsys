@@ -1008,6 +1008,8 @@ test("file opening defaults only select renderers supported by the current file"
   assert.equal(fileEditorDefault("schematic.json", "diagram", {}), "preview");
   assert.equal(fileEditorDefault("system.drawio", "drawio", {}), "preview");
   assert.equal(fileEditorDefault("system.drawio", "drawio", { drawio: "source" }), "source");
+  assert.equal(fileEditorDefault("system.html", "html", {}), "source");
+  assert.equal(fileEditorDefault("system.html", "html", { html: "preview" }), "preview");
   assert.equal(fileEditorDefault("data.json", undefined, {}), "source");
   const associations = { md: "markdown-editor", json: "preview", usda: "source" };
   assert.equal(fileEditorDefault("Guide.MD", "markdown", associations), "markdown-editor");
@@ -1491,7 +1493,9 @@ test("Markdown, USD, SVG, Draw.io and explicit diagram formats select a preview 
   assert.equal(filePreviewKind({ path: "build/plans/room.SVG" }), "svg");
   assert.equal(filePreviewKind({ path: "copied/loop.DRAWIO" }), "drawio");
   assert.equal(filePreviewKind({ path: "large.drawio", reason: "Too large" }), undefined);
-  assert.equal(filePreviewKind({ path: "build/drawings/schematics/system.html" }), undefined);
+  assert.equal(filePreviewKind({ path: "build/drawings/schematics/system.html" }), "html");
+  assert.equal(filePreviewKind({ path: "notes.HTM" }), "html");
+  assert.equal(filePreviewKind({ path: "large.html", reason: "Too large" }), undefined);
   assert.equal(filePreviewKind({ path: "build/bom.csv" }), undefined);
   for (const name of ["bom.json", "system-check.json", "build.json", "ordinary.json"])
     assert.equal(
@@ -1706,8 +1710,22 @@ test("mounted artifact previews preserve their viewport when file geometry chang
   assert.equal(container.querySelector("svg").getAttribute("viewBox"), box);
 
   const diagram = {
+    deliverable: "schematic",
     pages: [{ id: "first" }, { id: "second" }],
-    nodes: [{ id: "pump", page: "second", x: 100, y: 100 }],
+    nodes: [
+      {
+        id: "pump",
+        label: "P-CHW-01",
+        page: "second",
+        x: 100,
+        y: 100,
+        graphic: {
+          label_anchor: { x: 71, y: 100 },
+          annotation_anchor: { x: 71, y: 118 },
+        },
+        engineering_labels: ["关断扬程 22 m", "额定流量 0.005 m3/s"],
+      },
+    ],
   };
   await render({ kind: "diagram", version: "v1", content: JSON.stringify(diagram) });
   await act(() => {
@@ -1735,6 +1753,16 @@ test("mounted artifact previews preserve their viewport when file geometry chang
     container.querySelector(".project-preview-node").getAttribute("transform"),
     "translate(300,100)",
   );
+  const annotations = () => container.querySelectorAll(".project-preview-annotation");
+  assert.deepEqual(
+    Array.from(annotations(), (item) => item.textContent),
+    ["关断扬程 22 m", "额定流量 0.005 m3/s"],
+  );
+  diagram.deliverable = "system-diagram";
+  diagram.nodes[0].graphic.label_anchor.y = 112;
+  await render({ kind: "diagram", version: "v3", content: JSON.stringify(diagram) });
+  assert.equal(container.querySelector(".project-preview-node text").textContent, "P-CHW-01");
+  assert.equal(annotations().length, 0);
 
   const drawio = `<mxfile compressed="false"><diagram id="schematic" name="Schematic">
     <mxGraphModel pageWidth="600" pageHeight="400"><root>

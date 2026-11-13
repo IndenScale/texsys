@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from "react";
 import { DrawingPreview, svgDrawingBounds } from "./DrawingPreview";
 import { DrawioPreview } from "./DrawioPreview";
+import { HtmlPreview } from "./HtmlPreview";
 import type { FilePreviewKind } from "./workspace-model";
 import { ScenePreview } from "./ScenePreview";
 import { MarkdownPreview } from "./MarkdownPreview";
@@ -50,6 +51,7 @@ export function FilePreviewContent({
 }) {
   if (kind === "markdown")
     return <MarkdownPreview content={content} path={path} onOpenFile={openFile} />;
+  if (kind === "html") return <HtmlPreview content={content} path={path} />;
   if (kind === "scene")
     return (
       <ScenePreview
@@ -196,6 +198,7 @@ function DiagramPreview({
   onViewportChange: (viewport: DrawingViewport) => void;
 }) {
   const diagram = record(data);
+  const showEngineeringLabels = diagram.deliverable === "schematic";
   const pages = records(diagram.pages).map((page) => ({
     id: String(page.id),
     label: displayValue(page.title ?? page.id),
@@ -314,7 +317,8 @@ function DiagramPreview({
             <text x={anchor.x} y={anchor.y} textAnchor="middle">
               {displayValue(node.label ?? semanticRef)}
             </text>
-            {Array.isArray(node.engineering_labels) &&
+            {showEngineeringLabels &&
+              Array.isArray(node.engineering_labels) &&
               node.engineering_labels.map((label, i) => (
                 <text
                   className="project-preview-annotation"

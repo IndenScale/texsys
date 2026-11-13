@@ -1,5 +1,5 @@
 import { useSyncExternalStore } from "react";
-import type { FilePreviewKind } from "./workspace-model";
+import { formatDefaultPresentation, type FilePreviewKind } from "./workspace-model";
 
 type WordWrap = "on" | "off";
 export type FileEditorMode = "source" | "preview" | "markdown-editor";
@@ -79,7 +79,7 @@ export function fileEditorDefault(
   const extension = fileEditorExtension(path);
   const requested = Object.hasOwn(associations, extension) ? associations[extension] : undefined;
   if (supportsFileEditor(kind, requested)) return requested;
-  return kind && kind !== "markdown" ? "preview" : "source";
+  return formatDefaultPresentation(kind);
 }
 
 function readPreferences(raw: string | null): UserPreferences {

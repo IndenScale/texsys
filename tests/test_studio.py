@@ -337,8 +337,20 @@ def test_local_api_requires_session_and_rejects_cross_origin_and_escape(runtime,
   thread.start()
   url = f"http://127.0.0.1:{server.server_port}"
   try:
-    page = urlopen(url).read().decode()
+    with urlopen(url) as response:
+      page = response.read().decode()
+      host_policy = response.headers["Content-Security-Policy"]
     token = re.search(r'name="tex-studio-token" content="([^"]+)"', page)[1]
+    assert "script-src 'self'" in host_policy
+    assert (f"frame-src {url}/api/html-preview "
+            f"http://localhost:{server.server_port}/api/html-preview") in host_policy
+    with urlopen(url + "/api/html-preview?content=ignored") as response:
+      shell = response.read().decode()
+      shell_policy = response.headers["Content-Security-Policy"]
+    assert "texsys:html-preview-ready" in shell and token not in shell and "ignored" not in shell
+    assert "sandbox allow-scripts" in shell_policy and "allow-same-origin" not in shell_policy
+    assert "connect-src 'none'" in shell_policy and "frame-src 'none'" in shell_policy
+    assert f"frame-ancestors {url} http://localhost:{server.server_port}" in shell_policy
     with pytest.raises(HTTPError) as error:
       urlopen(url + "/api/state")
     assert error.value.code == 403

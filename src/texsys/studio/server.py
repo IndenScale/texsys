@@ -19,7 +19,7 @@ from .extensions import (StudioExtensions, check_compatibility as extension_comp
 from .runtime import Conflict, StudioRuntime
 from .scene import ScenePreview
 from .preview import ProjectPreview
-from .files import file_operation, project_file, project_files, search_project
+from .files import MAX_PREVIEW_BYTES, file_operation, project_file, project_files, search_project
 from .search import replacement
 from .source_control import (repository, source_branches, source_commit_diff, source_diff, source_history,
                              source_operation, source_status, staged_commit_diff, switch_source_branch,
@@ -35,6 +35,36 @@ FRONTEND_ASSETS = {
   "/studio-codicon.ttf": "font/ttf",
   "/favicon.svg": "image/svg+xml",
 }
+HTML_PREVIEW_PATH = "/api/html-preview"
+HTML_PREVIEW_SHELL = '''<!doctype html><html lang="en"><head><meta charset="utf-8">
+<title>HTML preview</title></head><body><script>
+if (parent !== window) {
+  const studioOrigin = new URL(location.href).origin;
+  function showPreview(event) {
+    if (event.source !== parent || event.origin !== studioOrigin) return;
+    const request = event.data;
+    if (request?.type !== "texsys:html-preview" || typeof request.content !== "string") return;
+    window.removeEventListener("message", showPreview);
+    document.open();
+    if (new TextEncoder().encode(request.content).byteLength <= __MAX_PREVIEW_BYTES__) {
+      document.write(request.content);
+    } else {
+      document.write('<!doctype html><meta charset="utf-8"><p>HTML 预览内容超过 1 MiB。</p>');
+    }
+    document.close();
+  }
+  window.addEventListener("message", showPreview);
+  parent.postMessage({ type: "texsys:html-preview-ready" }, studioOrigin);
+}
+</script></body></html>'''.replace("__MAX_PREVIEW_BYTES__", str(MAX_PREVIEW_BYTES)).encode()
+
+
+def _studio_origins(port):
+  return (f"http://127.0.0.1:{port}", f"http://localhost:{port}")
+
+
+def _html_frame_policy(port):
+  return "frame-src " + " ".join(origin + HTML_PREVIEW_PATH for origin in _studio_origins(port))
 
 
 class StudioServer(ThreadingHTTPServer):
@@ -130,7 +160,7 @@ def create_server(runtime: StudioRuntime, port=8710, frontend=None, token=None, 
     def log_message(self, *_):
       pass
 
-    def _send(self, status, content, content_type="application/json; charset=utf-8"):
+    def _send(self, status, content, content_type="application/json; charset=utf-8", *, policy=None):
       data = content if isinstance(content, bytes) else json.dumps(content, ensure_ascii=False, allow_nan=False).encode()
       self.send_response(status)
       self.send_header("Content-Type", content_type)
@@ -139,8 +169,11 @@ def create_server(runtime: StudioRuntime, port=8710, frontend=None, token=None, 
       self.send_header("X-Content-Type-Options", "nosniff")
       self.send_header("Referrer-Policy", "no-referrer")
       port = self.server.server_port
-      self.send_header("Content-Security-Policy", "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; "
-                       f"img-src 'self' data:; connect-src 'self' ws://127.0.0.1:{port} ws://localhost:{port}; frame-ancestors 'none'")
+      if policy is None:
+        policy = ("default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; "
+                  f"img-src 'self' data:; connect-src 'self' ws://127.0.0.1:{port} ws://localhost:{port}; "
+                  f"frame-ancestors 'none'; {_html_frame_policy(port)}")
+      self.send_header("Content-Security-Policy", policy)
       self.end_headers()
       self.wfile.write(data)
 
@@ -161,6 +194,16 @@ def create_server(runtime: StudioRuntime, port=8710, frontend=None, token=None, 
       parsed = urlparse(self.path)
       if not self._host_allowed():
         self._send(403, {"error": "Invalid local host."})
+        return
+      if parsed.path == HTML_PREVIEW_PATH:
+        # The shell contains no project data and receives the current editor buffer
+        # only from the enclosing Studio. The response keeps its policy when rewritten.
+        origins = " ".join(_studio_origins(public_port or self.server.server_port))
+        policy = ("default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; "
+                  "img-src data: blob:; font-src data:; media-src data: blob:; connect-src 'none'; "
+                  "frame-src 'none'; worker-src 'none'; base-uri 'none'; form-action 'none'; "
+                  f"frame-ancestors {origins}; sandbox allow-scripts")
+        self._send(200, HTML_PREVIEW_SHELL, "text/html; charset=utf-8", policy=policy)
         return
       if self.path == "/api/terminal/ws":
         origins = ({f"http://127.0.0.1:{public_port}", f"http://localhost:{public_port}"}
@@ -425,6 +468,7 @@ def serve_hmr(root: Path, port=8710, open_browser=False, *, host="127.0.0.1"):
   (frontend / "index.html").write_text(
     '<!doctype html><html lang="zh-CN"><head><meta charset="utf-8">'
     '<meta name="viewport" content="width=device-width,initial-scale=1">'
+    f'<meta http-equiv="Content-Security-Policy" content="{_html_frame_policy(port)}">'
     f'<meta name="tex-studio-token" content="{token}">'
     '<title>Tex Studio</title>'
     '<link rel="icon" type="image/svg+xml" href="/favicon.svg"></head>'
