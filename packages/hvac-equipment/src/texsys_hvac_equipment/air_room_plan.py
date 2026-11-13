@@ -13,12 +13,16 @@ def write_plan(room, path, width, length, grid):
   frame = escape(layout["frame"]["id"], quote=True)
   elevation = layout["raised_floor"]["finished_elevation_m"]
   routes = layout.get("equipment_transport_routes")
-  route_inventory = ' data-routes-complete="true"' if routes is not None else ""
+  cross_aisles = layout.get("rack_cross_aisles")
+  joints = layout.get("deformation_joints")
+  inventories = "".join(f' data-{name}-complete="true"' for name, records in (
+    ("routes", routes), ("cross-aisles", cross_aisles), ("deformation-joints", joints),
+  ) if records is not None)
   body = [f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {page_width:g} {page_height:g}"'
           f' data-frame="{frame}" data-coordinate-unit="m" data-units-per-meter="{scale:.15g}"'
           f' data-origin-x="{left}" data-origin-y="{bottom:.15g}" data-level-id="{frame}"'
           f' data-finished-floor-m="{elevation:.15g}" data-racks-complete="true"'
-          f' data-obstructions-complete="true"{route_inventory}>']
+          f' data-obstructions-complete="true"{inventories}>']
   body.append("""
 <style>
   text {font-family: "PingFang SC","Noto Sans CJK SC","Microsoft Yahei",sans-serif;fill:#1c2e43}
@@ -95,7 +99,7 @@ def write_plan(room, path, width, length, grid):
       identity = escape(f"{owner}/{column.identity}", quote=True)
       plan_rect((x0, y0, x1, y1), "#3a5372",
                 f'stroke="#203b58" data-role="obstruction" data-object-id="{identity}"')
-  fronts = {name: row["front"].lower() for row in layout["rack_rows"] for name in row["members"]}
+  rows = {name: row for row in layout["rack_rows"] for name in row["members"]}
   maintenance = layout.get("rack_maintenance_faces", {})
   for name, box in room.equipment.items():
     x, y = xy(box.origin[0] + box.size[0] / 2, box.origin[1] + box.size[1] / 2)
@@ -103,7 +107,9 @@ def write_plan(room, path, width, length, grid):
     role = "obstruction" if is_cooling else "rack"
     data = f'data-role="{role}" data-object-id="{escape(name, quote=True)}"'
     if not is_cooling:
-      data += f' data-front="{fronts[name]}"'
+      row = rows[name]
+      row_id = escape(row["id"], quote=True)
+      data += f' data-front="{row["front"].lower()}" data-row="{row_id}" data-row-axis="x"'
       if name in maintenance:
         faces = escape(" ".join(maintenance[name]), quote=True)
         data += f' data-maintenance-faces="{faces}"'
@@ -125,6 +131,18 @@ def write_plan(room, path, width, length, grid):
     plan_rect(route["bounds_m"], "none", f'stroke="#536779" stroke-dasharray="5 3" data-role="route"'
               f' data-object-id="{escape(identity, quote=True)}" data-purpose="equipment-transport"'
               f' data-direction="{direction}"')
+  for identity, aisle in (cross_aisles or {}).items():
+    if (direction := aisle["direction"]) not in ("x", "y"):
+      raise ValueError(f"{identity}: rack cross aisle direction must be x or y.")
+    object_id = escape(identity, quote=True)
+    plan_rect(aisle["bounds_m"], "none", f'stroke="#536779" stroke-dasharray="5 3" data-role="cross-aisle"'
+              f' data-object-id="{object_id}" data-direction="{direction}"')
+    for region in aisle.get("local_narrowings_m", []):
+      plan_rect(region, "none", f'stroke="#536779" stroke-dasharray="2 2" data-role="local-narrowing"'
+                f' data-aisle-id="{object_id}"')
+  for identity, bounds in (joints or {}).items():
+    plan_rect(bounds, "none", f'stroke="#913f31" stroke-dasharray="7 3" data-role="deformation-joint"'
+              f' data-object-id="{escape(identity, quote=True)}"')
   for key, label in (("ColdAisle", "冷通道  /  地板送风"), ("HotNorth", "热通道  /  上部回风"),
                      ("HotSouth", "热通道  /  上部回风")):
     x0, y0, x1, y1 = layout["zones"][key]["bounds_m"]
