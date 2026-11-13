@@ -59,6 +59,7 @@ def test_builtin_design_packages_are_discoverable() -> None:
     "hvac-formatter": "0.1.0",
     "hvac-linter": "0.1.0",
     "hvac-checks": "0.1.0",
+    "sheet": "0.1.0",
   }
 
 

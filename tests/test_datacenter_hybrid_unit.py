@@ -32,7 +32,7 @@ def hybrid_unit(tmp_path):
 
 def test_hybrid_unit_closes_power_cooling_and_floor_on_same_racks(hybrid_unit):
   result = build(hybrid_unit)
-  assert result.status == "pass"
+  assert result.status == "pass", result.diagnostics
   report = json.loads((hybrid_unit / OUTPUT / "unit-study.json").read_text())
   assert report["heat_budget_kw"] == {
     "it": 400, "liquid_it": 300, "air_it": 100, "other_room": 10, "total_air": 110,
@@ -867,7 +867,8 @@ def test_hydraulic_dispatch_matches_single_loop_pressure_balance():
 
 
 def test_building_dispatches_water_under_pump_and_head_constraints(hybrid_unit):
-  assert build(hybrid_unit).status == "pass"
+  result = build(hybrid_unit)
+  assert result.status == "pass", result.diagnostics
   cases = json.loads((hybrid_unit / OUTPUT / "building-study.json").read_text())["scenarios"]
   fallback = cases["full-supply-a-out"]["fws"]
   bank = fallback["hydraulics"]["banks"]["HeatRejection-B"]
