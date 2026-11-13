@@ -34,6 +34,8 @@ def evaluate_cooling_equipment(root, source, unit, floor, building, branches, ou
   UsdGeom.SetStageUpAxis(stage, "Z")
   scene = UsdGeom.Xform.Define(stage, "/CoolingEquipment")
   stage.SetDefaultPrim(scene.GetPrim())
+  scene.GetPrim().SetCustomDataByKey("frame", building["frame"])
+  scene.GetPrim().SetCustomDataByKey("coolingEquipmentComplete", True)
   modules, placements, conflicts = {}, {}, []
   for device, placement in sorted(equipment.items()):
     entry = placement["entry"]
@@ -59,6 +61,7 @@ def evaluate_cooling_equipment(root, source, unit, floor, building, branches, ou
         node = module.place(stage, f"/CoolingEquipment/{_prim_name(identity)}", world)
         node.GetPrim().CreateAttribute("texsys:identity", Sdf.ValueTypeNames.String).Set(identity)
         node.GetPrim().SetCustomDataByKey("texsys:definition", placement["entry"])
+        node.GetPrim().SetCustomDataByKey("role", "precision-air-unit" if device in unit["air_units"] else "cdu")
         transform = node.ComputeLocalToWorldTransform(Usd.TimeCode.Default())
         placements[identity] = {"entry": placement["entry"], "origin_m": world,
                                 "ports_m": {port: tuple(transform.Transform(point))
