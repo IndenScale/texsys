@@ -14,7 +14,7 @@ def build_project(root, **options):
   document = json.loads(report.read_text())
   artifacts = {root / item["path"] for item in document["artifacts"]}
   diagnostics = "\n".join(
-    f"{target['id']}: {item['rule']}: {item['message']}"
+    f"{target['id']}: {json.dumps(item, ensure_ascii=False, sort_keys=True)}"
     for target in [{"id": "build", "diagnostics": document["diagnostics"]}, *document["targets"]]
     for item in target["diagnostics"]
   )
