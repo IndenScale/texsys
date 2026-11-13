@@ -386,17 +386,28 @@ def _dispatch_pressure(upper, matrix, ceilings, bounds, margins):
     else:
       higher = middle
   scale = max(float(max(upper)), 1.0)
+  limits = np.array([limit for _, limit in bounds])
+  active = limits > 0
+  # Keep unavailable branches exactly zero and out of the numerical Jacobian.
+  # Relative three-point differences limit cancellation in head near balance.
+  matrix = matrix[:, active]
   row_scale = np.maximum(ceilings, np.maximum(np.max(np.abs(matrix), axis=1) * scale, 1e-9))
   a, b = matrix * scale / row_scale[:, None], ceilings / row_scale
+
+  def expand(x):
+    heat = np.zeros(len(limits))
+    heat[active] = x * scale
+    return heat
+
   solved = minimize(
-    lambda x: -float(sum(x)), lower * upper / scale, jac=lambda x: -np.ones(len(x)),
-    method="SLSQP", bounds=[(0, limit / scale) for _, limit in bounds],
+    lambda x: -float(sum(x)), lower * (1 - 1e-4) * upper[active] / scale, jac="3-point",
+    method="SLSQP", bounds=[(0, limit / scale) for limit in limits[active]],
     constraints=({"type": "ineq", "fun": lambda x: b - a @ x, "jac": lambda _: -a},
-                 {"type": "ineq", "fun": lambda x: margins(x * scale) / _PRESSURE_SCALE}),
+                 {"type": "ineq", "fun": lambda x: margins(expand(x)) / _PRESSURE_SCALE}),
     options={"ftol": 1e-11, "maxiter": 200},
   )
-  heat = np.clip(solved.x * scale, 0, [limit for _, limit in bounds])
-  if (not solved.success or not np.all(np.isfinite(heat)) or any(b - a @ (heat / scale) < -1e-8)
+  heat = np.clip(expand(solved.x), 0, limits)
+  if (not solved.success or not np.all(np.isfinite(heat)) or any(b - a @ (heat[active] / scale) < -1e-8)
       or any(margins(heat) < -_PRESSURE_TOL_PA)):
     raise ValueError(f"FWS pressure-constrained dispatch did not converge to a feasible point: {solved.message}")
   return heat
