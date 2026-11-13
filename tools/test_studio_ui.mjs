@@ -1195,6 +1195,174 @@ const {
   savedFileDocument,
   FileReadRequests,
 } = load("src/texsys/assets/studio/workspace-model.ts");
+test("background file reads wait for the first open or explicit reload to finish", () => {
+  const path = "build/drawings/schematics/system-check.json";
+  const reads = new FileReadRequests();
+  const opening = reads.begin(path);
+  assert.equal(reads.beginRefresh(path), undefined);
+  assert.equal(opening.isCurrent(), true);
+  assert.equal(opening.signal.aborted, false);
+  assert.equal(reads.pending(path), true);
+  const document = opening.update({ loading: true }, () => ({ loading: false, content: "{}" }));
+  opening.finish();
+  assert.equal(reads.pending(path), false);
+  assert.equal(opening.isCurrent(), true, "finishing must retain queued React update ownership");
+  assert.equal(document.loading, false);
+  const refresh = reads.beginRefresh(path);
+  assert.ok(refresh);
+  assert.equal(reads.beginRefresh(path), undefined, "slow polls cannot overlap");
+  const reload = reads.begin(path);
+  assert.equal(refresh.signal.aborted, true);
+  assert.equal(reads.beginRefresh(path), undefined);
+  refresh.finish();
+  assert.equal(reads.pending(path), true, "an old completion cannot finish the current reload");
+  reload.finish();
+  assert.ok(reads.beginRefresh(path));
+});
+test("closing and superseding file reads abort transport without cancelling newer reads", () => {
+  const reads = new FileReadRequests();
+  const first = reads.begin("README.md");
+  const second = reads.begin("README.md");
+  const other = reads.begin("texsys.toml");
+  assert.equal(first.signal.aborted, true);
+  first.cancel();
+  assert.equal(second.signal.aborted, false);
+  reads.invalidate("README.md");
+  assert.equal(second.signal.aborted, true);
+  assert.equal(reads.pending("README.md"), false);
+  assert.equal(other.signal.aborted, false);
+  const reopened = reads.begin("README.md");
+  second.cancel();
+  assert.equal(reopened.signal.aborted, false);
+  reopened.finish();
+  assert.ok(reads.beginRefresh("README.md"), "a settled failed read remains retryable");
+});
+
+// Execute the production effect with controlled I/O and time, without loading Monaco.
+async function workspaceEffect(marker, scope) {
+  const { readFileSync } = await import("node:fs");
+  const ts = await import("typescript");
+  const source = ts.createSourceFile(
+    "CoreWorkspace.tsx",
+    readFileSync("src/texsys/assets/studio/CoreWorkspace.tsx", "utf8"),
+    ts.ScriptTarget.Latest,
+    true,
+    ts.ScriptKind.TSX,
+  );
+  const effects = [];
+  const visit = (node) => {
+    if (
+      ts.isCallExpression(node) &&
+      node.expression.getText(source) === "useEffect" &&
+      node.arguments[0]?.getText(source).includes(marker)
+    )
+      effects.push(node.arguments[0].getText(source));
+    ts.forEachChild(node, visit);
+  };
+  visit(source);
+  assert.equal(effects.length, 1);
+  const { outputText } = ts.transpileModule(`(${effects[0]})`, {
+    compilerOptions: { target: ts.ScriptTarget.ES2022 },
+  });
+  return new Function(...Object.keys(scope), `return ${outputText}`)(...Object.values(scope));
+}
+
+test("visible file polling pauses while hidden and resumes with only one timer", async (t) => {
+  const document = new EventTarget();
+  document.visibilityState = "visible";
+  const path = "build/drawings/schematics/system-check.json";
+  const documentsRef = {
+    current: [{ path, content: "{}", saved: "{}", version: "one", loading: true }],
+  };
+  const reads = new FileReadRequests();
+  const opening = reads.begin(path);
+  const requests = [];
+  const effect = await workspaceEffect("JSON.parse(visibleFilePaths)", {
+    document,
+    visibleFilePaths: JSON.stringify([path]),
+    documentsRef,
+    fileWriteInFlight: { current: false },
+    fileReads: { current: reads },
+    isDocumentDirty: (item) => item.content !== item.saved,
+    fileDocumentSnapshot,
+    refreshedFileDocument,
+    setDocuments: (update) => (documentsRef.current = update(documentsRef.current)),
+    api: (_url, _body, signal) =>
+      new Promise((resolve, reject) => {
+        requests.push({ signal, resolve: () => resolve({ path, content: "{}", version: "one" }) });
+        signal.addEventListener("abort", () => reject(new Error("aborted")), { once: true });
+      }),
+  });
+  t.mock.timers.enable({ apis: ["setTimeout"] });
+  const flush = async () => {
+    for (let i = 0; i < 5; i++) await Promise.resolve();
+  };
+  const visibility = (state) => {
+    document.visibilityState = state;
+    document.dispatchEvent(new Event("visibilitychange"));
+  };
+  const cleanup = effect();
+  t.after(cleanup);
+  await flush();
+  assert.equal(requests.length, 0, "first-open response owns the document until it finishes");
+  opening.finish();
+  documentsRef.current[0].loading = false;
+  t.mock.timers.tick(2000);
+  assert.equal(requests.length, 1);
+  visibility("hidden");
+  t.mock.timers.tick(10000);
+  assert.equal(requests.length, 1);
+  visibility("visible");
+  visibility("visible");
+  assert.equal(requests.length, 1, "visibility changes do not overlap a pending request");
+  requests[0].resolve();
+  await flush();
+  t.mock.timers.tick(2000);
+  assert.equal(requests.length, 2, "one completed poll creates exactly one next timer");
+  requests[1].resolve();
+  await flush();
+  visibility("hidden");
+  t.mock.timers.tick(10000);
+  assert.equal(requests.length, 2);
+  visibility("visible");
+  assert.equal(requests.length, 3, "returning to the page immediately checks disk changes");
+  cleanup();
+  assert.equal(requests[2].signal.aborted, true);
+  await flush();
+  t.mock.timers.tick(10000);
+  visibility("visible");
+  assert.equal(requests.length, 3, "unmounted effects cannot restart polling");
+});
+
+test("SCM periodic reads stop while hidden but explicit focus refresh remains available", async (t) => {
+  const document = { visibilityState: "hidden" };
+  const window = new EventTarget();
+  let gitReads = 0;
+  let listingReads = 0;
+  const effect = await workspaceEffect("const terminalCompleted", {
+    document,
+    window,
+    readFiles: () => listingReads++,
+    readGit: () => gitReads++,
+    activity: "scm",
+    busy: false,
+  });
+  t.mock.timers.enable({ apis: ["setInterval"] });
+  const cleanup = effect();
+  t.after(cleanup);
+  t.mock.timers.tick(10000);
+  assert.equal(gitReads, 0);
+  document.visibilityState = "visible";
+  t.mock.timers.tick(5000);
+  assert.equal(gitReads, 1);
+  window.dispatchEvent(new Event("focus"));
+  assert.equal(gitReads, 2);
+  assert.equal(listingReads, 1);
+  cleanup();
+  t.mock.timers.tick(5000);
+  assert.equal(gitReads, 2);
+});
+
 test("late file poll success and failure cannot replace newer file metadata", async () => {
   const path = "build/hvac/schematic/system.json";
   const response = (run) => ({

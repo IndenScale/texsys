@@ -107,7 +107,7 @@ class ProjectPreview:
       raise ProjectError("Preview artifact digest does not match the build manifest.")
     return file
 
-  def _describe(self, report: dict, record: dict, validity: dict, fallback: bool = False, *, allow_unpreviewed=False) -> dict:
+  def _describe(self, report: dict, record: dict, validity: dict, fallback: bool = False, *, allow_unpreviewed=False, verify_location=True) -> dict:
     preview = record.get("preview")
     if not isinstance(preview, dict) or preview.get("kind") not in PREVIEW_KINDS:
       if not allow_unpreviewed:
@@ -124,43 +124,48 @@ class ProjectPreview:
             "status": target.get("status", report.get("status", "indeterminate")),
             "execution": target.get("execution", "executed"), "fallback": fallback, "available": True,
             "diagnostics": target.get("diagnostics", []), "open_items": target.get("open_items", [])}
-    try:
-      self._location(report, record)
-    except (OSError, ValueError, ProjectError) as error:
-      item.update(available=False, current=False, freshness="artifact-invalid", error=str(error))
+    if verify_location:
+      try:
+        self._location(report, record)
+      except (OSError, ValueError, ProjectError) as error:
+        item.update(available=False, current=False, freshness="artifact-invalid", error=str(error))
     return item
 
-  def read(self, root: str = "", *, _published_files=False) -> dict:
-    diagnostics = []
-    try:
-      latest = self._report()
-    except (OSError, ValueError, ProjectError) as error:
-      latest = None
-      diagnostics.append({"message": str(error)})
-    project = inspect_project(self.root)
-    result: dict[str, Any] = {"schema_version": 1,
-      "project": {"name": project.name if project else self.root.name, "root": root or None},
-      "build": None, "artifacts": [], "diagnostics": diagnostics}
+  def _select(self, latest: dict | None, root: str = "", *, file_metadata=False, relative: str | None = None) -> dict:
+    result = {"build": None, "artifacts": []}
     seen: dict[tuple[str, str], dict] = {}
     latest_targets = {item.get("id"): item for item in latest["targets"]} if latest else {}
     invalid_current = set()
-    for index, report in enumerate(self._history(latest)):
-      validity = _freshness(self.root, report) if report is latest else {"current": False, "freshness": "historical"}
+    reports = self._history(latest)
+    identities = None
+    if relative is not None:
+      # Select identities before reading snapshot bytes. Include their other
+      # paths so a newer publication can still supersede an older path.
+      reports = list(reports)
+      identities = {(record.get("target"), record.get("id")) for report in reports
+                    for record in report["artifacts"] if record.get("path") == relative
+                    and all(isinstance(record.get(key), str) for key in ("target", "id"))}
+    for index, report in enumerate(reports):
+      validity = {"current": False, "freshness": "historical"}
+      if report is latest:
+        validity = {"current": False, "freshness": "unchecked"} if file_metadata else _freshness(self.root, report)
       if latest and index == 0:
         result["build"] = {"run_id": report["run_id"], "status": report.get("status"), **validity,
                            "targets": report["targets"], "diagnostics": report.get("diagnostics", [])}
       for record in report["artifacts"]:
+        identity = (record.get("target"), record.get("id"))
+        if not all(isinstance(value, str) and value for value in identity):
+          continue
+        if identities is not None and identity not in identities:
+          continue
         metadata = record.get("preview") if isinstance(record, dict) else None
         if not isinstance(metadata, dict) or metadata.get("kind") not in PREVIEW_KINDS:
-          if not _published_files:
+          if not file_metadata:
             continue
           metadata = {}
         if root and metadata.get("root") != root:
           continue
-        identity = (record.get("target"), record.get("id"))
-        if not all(isinstance(value, str) and value for value in identity):
-          continue
-        if _published_files and record.get("published") is False:
+        if file_metadata and record.get("published") is False:
           if report is latest:
             invalid_current.add(identity)
           continue
@@ -175,7 +180,10 @@ class ProjectPreview:
             continue
         if identity in seen and seen[identity]["available"]:
           continue
-        item = self._describe(report, record, validity, fallback=report is not latest, allow_unpreviewed=_published_files)
+        # Ordinary generated text has no preview identity to verify. Its own
+        # bytes are read by the file API, independently of immutable snapshots.
+        item = self._describe(report, record, validity, fallback=report is not latest,
+                              allow_unpreviewed=file_metadata, verify_location=not file_metadata or bool(metadata))
         if report is latest and not item["available"]:
           invalid_current.add(identity)
         if identity in seen and not item["available"]:
@@ -187,9 +195,22 @@ class ProjectPreview:
           and all(target.get("status") == "pass" for target in report["targets"])
           and all(item["available"] for item in seen.values())):
         break
-    result["artifacts"] = list(seen.values())
+    result["artifacts"] = [item for item in seen.values() if relative is None or item["path"] == relative]
+    return result
+
+  def read(self, root: str = "") -> dict:
+    diagnostics = []
+    try:
+      latest = self._report()
+    except (OSError, ValueError, ProjectError) as error:
+      latest = None
+      diagnostics.append({"message": str(error)})
+    project = inspect_project(self.root)
+    result: dict[str, Any] = {"schema_version": 1,
+      "project": {"name": project.name if project else self.root.name, "root": root or None},
+      "diagnostics": diagnostics, **self._select(latest, root)}
     if not root:
-      roots = sorted({item["root"] for item in seen.values() if isinstance(item["root"], str)})
+      roots = sorted({item["root"] for item in result["artifacts"] if isinstance(item["root"], str)})
       result["project"]["root"] = roots[0] if len(roots) == 1 else None
       result["project"]["roots"] = roots
     result["revision"] = canonical_digest({"build": result["build"], "artifacts": result["artifacts"]})
@@ -203,25 +224,33 @@ class ProjectPreview:
       raise ProjectError("Internal build storage is not an Explorer document.")
     return file
 
-  def file_entries(self, relative: str | None = None) -> list[dict]:
+  def file_entries(self, relative: str | None = None, *, previews_only=False) -> list[dict]:
     """Expose declared canonical files, preserving the bytes the user opens.
 
     Snapshot selection only supplies a possible preview identity. It never
-    substitutes another path or another version for the selected file.
+    substitutes another path or another version for the selected file. File
+    access does not verify engineering applicability; that remains the full
+    preview API's responsibility. Unchecked applicability is never current.
     """
     manifest = (self.build / "build.json").relative_to(self.root).as_posix()
-    candidates: dict[str, list[dict]] = {manifest: []}
+    candidates: dict[str, list[dict]] = {} if previews_only else {manifest: []}
     try:
       latest = self._report()
     except (OSError, ValueError, ProjectError):
       latest = None
-    selected = self.read(_published_files=True)["artifacts"] if latest else []
+    matching = ([record for record in latest["artifacts"] if record.get("path") == relative]
+                if latest and relative is not None else [])
+    ordinary = matching and all(record.get("published") is not False and
+                                (not isinstance(record.get("preview"), dict)
+                                 or record["preview"].get("kind") not in PREVIEW_KINDS) for record in matching)
+    selected = (self._select(latest, file_metadata=True, relative=relative)["artifacts"]
+                if latest and relative != manifest and not ordinary else [])
     for item in selected:
-      if isinstance(item.get("path"), str):
+      if isinstance(item.get("path"), str) and (not previews_only or item["kind"] in PREVIEW_KINDS):
         candidates.setdefault(item["path"], []).append(item)
     # A missing/bad immutable snapshot must not hide the actual current file.
     # Keep it readable, but do not borrow a different path's preview identity.
-    for record in latest["artifacts"] if latest else ():
+    for record in latest["artifacts"] if latest and not previews_only else ():
       if isinstance(record.get("path"), str):
         candidates.setdefault(record["path"], [])
     entries = []

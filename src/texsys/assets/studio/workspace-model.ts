@@ -169,24 +169,43 @@ export function commitGraph(commits: GitCommit[]) {
 
 /** All readers of one document share the latest request, including deferred state updates. */
 export class FileReadRequests {
-  private latest = new Map<string, symbol>();
+  private latest = new Map<
+    string,
+    { token: symbol; controller: AbortController; pending: boolean }
+  >();
 
   begin(path: string) {
     const token = Symbol(path);
-    this.latest.set(path, token);
-    const isCurrent = () => this.latest.get(path) === token;
+    this.invalidate(path);
+    const request = { token, controller: new AbortController(), pending: true };
+    this.latest.set(path, request);
+    const isCurrent = () => this.latest.get(path)?.token === token;
     return {
       isCurrent,
+      signal: request.controller.signal,
+      finish: () => {
+        request.pending = false;
+      },
       update: <T>(previous: T, apply: (previous: T) => T) =>
         isCurrent() ? apply(previous) : previous,
       cancel: () => {
-        if (isCurrent()) this.latest.delete(path);
+        if (isCurrent()) this.invalidate(path);
       },
     };
   }
 
+  pending(path: string) {
+    return this.latest.get(path)?.pending === true;
+  }
+
+  /** A refresh never displaces an unfinished open, reload, or another refresh. */
+  beginRefresh(path: string) {
+    return this.pending(path) ? undefined : this.begin(path);
+  }
+
   // Keep completed tokens until superseded or closed: React may apply their updates later.
   invalidate(path: string) {
+    this.latest.get(path)?.controller.abort();
     this.latest.delete(path);
   }
 }

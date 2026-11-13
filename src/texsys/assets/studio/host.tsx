@@ -487,10 +487,15 @@ function Studio({
     if (emptyWorkspace) return;
     mounted.current = true;
     void refresh();
-    const timer = setInterval(() => void refresh(), 2500);
+    const refreshVisible = () => {
+      if (document.visibilityState !== "hidden") void refresh();
+    };
+    const timer = setInterval(refreshVisible, 2500);
+    document.addEventListener("visibilitychange", refreshVisible);
     return () => {
       mounted.current = false;
       clearInterval(timer);
+      document.removeEventListener("visibilitychange", refreshVisible);
     };
   }, [emptyWorkspace, refresh]);
   useEffect(() => {

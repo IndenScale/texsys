@@ -10,6 +10,7 @@ from texsys.evidence import write_json
 from texsys.project import ProjectError, initialize_project
 from texsys.studio import files
 from texsys.studio.files import file_operation, project_file, project_files, workspace_path
+from texsys.studio.preview import ProjectPreview
 from texsys.studio.search import replacement, search_project
 from texsys.studio.runtime import Conflict
 
@@ -172,6 +173,84 @@ def test_bad_manifest_does_not_hide_or_disable_public_files(project):
   document = project_file(project, "build/build.json", "build")
   assert document["content"] == "{ invalid manifest" and not document.get("readonly")
   assert json.loads(project_file(project, item[1], "build")["content"])["title"] == "drawing"
+
+
+def test_file_loading_never_checks_engineering_freshness_or_unrelated_snapshots(project, monkeypatch):
+  first, second = drawing(project, "build/one.json", "one"), drawing(project, "build/two.json", "two")
+  plain = "build/system-check.json"
+  (project / plain).write_text('{"status":"pass"}')
+  report = preview_record(project, "one", (first, second, ("check", plain, None)))
+
+  def unexpected_freshness(*_):
+    pytest.fail("File access must not run project engineering applicability checks")
+
+  monkeypatch.setattr("texsys.studio.preview._freshness", unexpected_freshness)
+  location = ProjectPreview._location
+  checked = []
+
+  def checked_location(self, build, record):
+    checked.append(record["id"])
+    return location(self, build, record)
+
+  monkeypatch.setattr(ProjectPreview, "_location", checked_location)
+  assert project_file(project, plain, "build")["content"] == '{"status":"pass"}'
+  assert project_file(project, "build/build.json", "build")["previewable"]
+  assert checked == []
+  document = project_file(project, first[1], "build")
+  assert checked == ["one"]
+  assert document["artifact"]["current"] is False
+  assert document["artifact"]["freshness"] == "unchecked"
+
+  # Ordinary outputs need no immutable snapshot to be opened or listed.
+  (project / report["artifacts"][2]["stored_path"]).unlink()
+  listing = project_files(project, "build")
+  assert plain in {entry["path"] for entry in listing["files"]}
+  assert "check" not in checked
+  assert all(entry["artifact"]["freshness"] == "unchecked"
+             for entry in listing["files"] if "artifact" in entry)
+
+
+def test_scoped_metadata_keeps_cross_path_supersession_and_invalid_snapshot_fallback(project):
+  old = drawing(project, "build/old.json", "drawing")
+  preview_record(project, "one", (old,))
+  new = drawing(project, "build/new.json", "drawing")
+  report = preview_record(project, "two", (new,), previous="one", status="error")
+  assert "artifact" not in project_file(project, old[1], "build")
+  assert project_file(project, new[1], "build")["artifact"]["run_id"] == "two"
+
+  # A failed target with a broken new snapshot may still expose its old valid
+  # publication, but only on the original path and with matching current bytes.
+  (project / report["artifacts"][0]["stored_path"]).write_text("corrupt")
+  previous = project_file(project, old[1], "build")["artifact"]
+  assert previous["run_id"] == "one" and previous["fallback"]
+  assert previous["freshness"] == "historical" and previous["current"] is False
+  assert "artifact" not in project_file(project, new[1], "build")
+
+
+def test_file_metadata_tolerates_invalid_artifact_identity(project):
+  item = drawing(project)
+  report = preview_record(project, "one", (item,))
+  report["artifacts"][0]["id"] = ["invalid"]
+  save_record(project, report)
+  document = project_file(project, item[1], "build")
+  assert json.loads(document["content"])["title"] == "drawing"
+  assert "artifact" not in document
+
+
+def test_listing_does_not_follow_directory_aliases_and_hides_nested_private_builds(project):
+  output = "outputs/generated"
+  for path in ("outputs/generated/public.txt", "outputs/generated/runs/private.txt",
+               "outputs/generated/.cache/private.txt", "src/nested/source.txt"):
+    file = project / path
+    file.parent.mkdir(parents=True, exist_ok=True)
+    file.write_text(path)
+  (project / "alias").symlink_to(project / "src", target_is_directory=True)
+  (project / "src/alias").symlink_to(project / output, target_is_directory=True)
+  result = project_files(project, output)
+  paths = {entry["path"] for entry in result["files"]}
+  assert "outputs/generated/public.txt" in paths and "src/nested/source.txt" in paths
+  assert not any("alias" in path or "private.txt" in path for path in paths)
+  assert not any("alias" in path or path.endswith(("runs", ".cache")) for path in result["directories"])
 
 
 def test_missing_canonical_file_is_not_replaced_with_snapshot_bytes(project):

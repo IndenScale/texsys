@@ -4,6 +4,7 @@ import hashlib
 import os
 import re
 from pathlib import Path
+from stat import S_ISREG
 import tempfile
 
 from texsys.project import ProjectError
@@ -19,7 +20,10 @@ MAX_SEARCH_BYTES = 32 * 1024 * 1024
 
 
 def private_build_path(root: Path, file: Path, build: str) -> bool:
-  output = (root / build).resolve()
+  return _private_build_path(file, (root / build).resolve())
+
+
+def _private_build_path(file: Path, output: Path) -> bool:
   if not file.is_relative_to(output):
     return False
   parts = file.relative_to(output).parts
@@ -39,9 +43,10 @@ def workspace_path(root: Path, relative: str, build: str, *, missing=False) -> P
   if any((root.joinpath(*path.parts[:i])).is_symlink() for i in range(1, len(path.parts) + 1)):
     raise ProjectError("不允许通过符号链接访问项目文件。")
   candidate = candidate.resolve()
+  output = (root / build).resolve()
   if (candidate == root or not candidate.is_relative_to(root)
-      or candidate == (root / build).resolve()
-      or private_build_path(root, candidate, build)
+      or candidate == output
+      or _private_build_path(candidate, output)
       or is_ai_config_path(candidate)
       or (not missing and not candidate.exists())):
     raise ProjectError("Project file not found.")
@@ -58,27 +63,31 @@ def _file_path(root: Path, relative: str, build: str) -> Path:
 def project_files(root: Path, build: str) -> dict:
   root = root.resolve()
   output = (root / build).resolve()
-  metadata = {entry["path"]: entry for entry in ProjectPreview(root, build).file_entries()}
+  metadata = {entry["path"]: entry for entry in ProjectPreview(root, build).file_entries(previews_only=True)}
   entries, folders = [], []
   for parent, directories, names in os.walk(root, followlinks=False):
     directories[:] = sorted(name for name in directories if name not in SKIP_DIRECTORIES
                             and not (Path(parent) / name).is_symlink()
-                            and not private_build_path(root, (Path(parent) / name).resolve(), build))
+                            # The root is canonical and symlink directories are
+                            # excluded before descent, so these paths need no
+                            # repeated realpath walk across the shared volume.
+                            and not _private_build_path(Path(parent) / name, output))
     folders.extend((Path(parent) / name).relative_to(root).as_posix() for name in directories)
     if len(folders) >= MAX_FILES:
       return {"files": entries, "directories": folders[:MAX_FILES], "truncated": True}
     for name in sorted(names):
       file = Path(parent) / name
-      if (name == ".DS_Store" or file.is_symlink() or not file.is_file() or is_ai_config_path(file)
-          or private_build_path(root, file, build)):
+      if name == ".DS_Store" or _private_build_path(file, output):
         continue
       try:
-        size = file.stat().st_size
+        info = file.stat(follow_symlinks=False)
+        if not S_ISREG(info.st_mode) or is_ai_config_path(file):
+          continue
       except OSError:
         continue
       relative = file.relative_to(root)
       entry = {**metadata.get(relative.as_posix(), {}), "path": relative.as_posix(), "name": name,
-               "parent": "" if relative.parent == Path(".") else relative.parent.as_posix(), "size": size}
+               "parent": "" if relative.parent == Path(".") else relative.parent.as_posix(), "size": info.st_size}
       if file.is_relative_to(output):
         entry["generated"] = True
       entries.append(entry)
@@ -94,8 +103,12 @@ def version(content: bytes) -> str:
 def file_version(file: Path) -> str:
   stat = file.stat()
   if stat.st_size > MAX_PREVIEW_BYTES:
-    return "stat:" + hashlib.sha256(repr((stat.st_ino, stat.st_size, stat.st_mtime_ns, stat.st_ctime_ns)).encode()).hexdigest()
+    return _stat_version(stat)
   return version(file.read_bytes())
+
+
+def _stat_version(stat) -> str:
+  return "stat:" + hashlib.sha256(repr((stat.st_ino, stat.st_size, stat.st_mtime_ns, stat.st_ctime_ns)).encode()).hexdigest()
 
 
 _UTF8_BOM = b"\xef\xbb\xbf"
@@ -136,23 +149,26 @@ def _encode_text(text, request, original_format=None, original_bytes=None):
 
 
 def project_file(root: Path, relative: str, build: str) -> dict:
+  root = root.resolve()
   file = _file_path(root, relative, build)
   metadata = {}
-  if file.is_relative_to((root.resolve() / build).resolve()):
+  if file.is_relative_to((root / build).resolve()):
     metadata["generated"] = True
     declarations = ProjectPreview(root, build).file_entries(relative)
     if declarations:
       metadata.update({key: value for key, value in declarations[0].items()
                        if key in {"artifact", "preview", "preview_error"}})
-  size = file.stat().st_size
-  result = {"path": file.relative_to(root.resolve()).as_posix(), "size": size, "previewable": False, "version": file_version(file), **metadata}
+  info = file.stat()
+  size = info.st_size
+  result = {"path": file.relative_to(root).as_posix(), "size": size, "previewable": False, "version": _stat_version(info), **metadata}
   if size > MAX_PREVIEW_BYTES:
     return {**result, "reason": "文件超过 1 MiB，暂不提供文本编辑。"}
   with file.open("rb") as stream:
     content = stream.read(MAX_PREVIEW_BYTES + 1)
   if len(content) > MAX_PREVIEW_BYTES:
     return {**result, "reason": "文件超过 1 MiB，暂不提供文本编辑。"}
-  if result.get("artifact") and version(content) != result["artifact"]["digest"]:
+  result["version"] = version(content)
+  if result.get("artifact") and result["version"] != result["artifact"]["digest"]:
     result.pop("artifact")
     result["preview_error"] = "文件在读取期间发生变化，无法关联构建预览；请刷新。"
   try:
@@ -162,7 +178,7 @@ def project_file(root: Path, relative: str, build: str) -> dict:
   except UnicodeError:
     return {**result, "reason": "该文件不能以 UTF-8 文本编辑。"}
   return {**result, "previewable": True, "content": text.replace("\r\n", "\n").replace("\r", "\n"),
-          "textFormat": _text_format(content), "version": version(content)}
+          "textFormat": _text_format(content)}
 
 
 def file_operation(root: Path, build: str, request: dict) -> dict:

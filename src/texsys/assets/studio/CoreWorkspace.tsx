@@ -829,7 +829,7 @@ export function CoreWorkspaceProvider({
     };
     window.addEventListener("texsys:terminal:completed", terminalCompleted);
     const timer = setInterval(() => {
-      if (activity === "scm" && !busy) void readGit();
+      if (document.visibilityState !== "hidden" && activity === "scm" && !busy) void readGit();
     }, 5000);
     return () => {
       window.removeEventListener("focus", focus);
@@ -965,6 +965,9 @@ export function CoreWorkspaceProvider({
       }
       return;
     }
+    // A second view or click shares an opening document. Background refreshes
+    // must not replace this request before its first response reaches the editor.
+    if ((!existing || existing.loading) && fileReads.current.pending(path)) return;
     const read = fileReads.current.begin(path);
     setDocuments((previous) =>
       previous.some((item) => item.path === path)
@@ -975,15 +978,23 @@ export function CoreWorkspaceProvider({
           ],
     );
     try {
-      const file = await api<FilePreview>(`/api/file?path=${encodeURIComponent(path)}`);
+      const file = await api<FilePreview>(
+        `/api/file?path=${encodeURIComponent(path)}`,
+        undefined,
+        read.signal,
+      );
       if (!read.isCurrent()) return;
       const snapshot = fileDocumentSnapshot(path, file);
       setEditorGroups((groups) =>
-        initializeEditorView(
+        groups.reduce(
+          (current, group) =>
+            initializeEditorView(
+              current,
+              group.id,
+              path,
+              fileEditorDefault(path, filePreviewKind({ path, ...snapshot }), fileAssociations),
+            ),
           groups,
-          groupId,
-          path,
-          fileEditorDefault(path, filePreviewKind({ path, ...snapshot }), fileAssociations),
         ),
       );
       rememberRecentFile(state.project.path, path);
@@ -1005,6 +1016,8 @@ export function CoreWorkspaceProvider({
           ),
         ),
       );
+    } finally {
+      read.finish();
     }
   };
   useEffect(() => {
@@ -1192,7 +1205,11 @@ export function CoreWorkspaceProvider({
     if (!original || original.untitled || original.extension) return;
     const read = fileReads.current.begin(path);
     try {
-      const file = await api<FilePreview>(`/api/file?path=${encodeURIComponent(path)}`);
+      const file = await api<FilePreview>(
+        `/api/file?path=${encodeURIComponent(path)}`,
+        undefined,
+        read.signal,
+      );
       if (!read.isCurrent()) return;
       if (!file.previewable && isDocumentDirty(original))
         throw new Error(file.reason ?? t("磁盘版本无法作为文本读取。"));
@@ -1222,6 +1239,8 @@ export function CoreWorkspaceProvider({
           ),
         );
       notify(String(error), true);
+    } finally {
+      read.finish();
     }
   };
   const visibleFilePaths = JSON.stringify([
@@ -1239,15 +1258,22 @@ export function CoreWorkspaceProvider({
   useEffect(() => {
     const paths: string[] = JSON.parse(visibleFilePaths);
     let closed = false;
+    let polling = false;
     const cancelReads = new Map<string, () => void>();
     let timer: ReturnType<typeof setTimeout>;
     const pollPath = async (path: string) => {
       const original = documentsRef.current.find((item) => item.path === path);
-      if (fileWriteInFlight.current || !original || isDocumentDirty(original)) return;
-      const read = fileReads.current.begin(path);
+      if (fileWriteInFlight.current || !original || original.loading || isDocumentDirty(original))
+        return;
+      const read = fileReads.current.beginRefresh(path);
+      if (!read) return;
       cancelReads.set(path, read.cancel);
       try {
-        const file = await api<FilePreview>(`/api/file?path=${encodeURIComponent(path)}`);
+        const file = await api<FilePreview>(
+          `/api/file?path=${encodeURIComponent(path)}`,
+          undefined,
+          read.signal,
+        );
         if (closed || !read.isCurrent()) return;
         fileDocumentSnapshot(path, file);
         setDocuments((previous) =>
@@ -1268,15 +1294,31 @@ export function CoreWorkspaceProvider({
               ),
             ),
           );
+      } finally {
+        read.finish();
       }
     };
+    const pageVisible = () => document.visibilityState !== "hidden";
     const poll = async () => {
-      await Promise.all(paths.map(pollPath));
-      if (!closed) timer = setTimeout(() => void poll(), 2000);
+      if (closed || polling || !pageVisible()) return;
+      clearTimeout(timer);
+      polling = true;
+      try {
+        await Promise.all(paths.map(pollPath));
+      } finally {
+        polling = false;
+        if (!closed && pageVisible()) timer = setTimeout(() => void poll(), 2000);
+      }
     };
+    const visibilityChanged = () => {
+      clearTimeout(timer);
+      void poll();
+    };
+    document.addEventListener("visibilitychange", visibilityChanged);
     void poll();
     return () => {
       closed = true;
+      document.removeEventListener("visibilitychange", visibilityChanged);
       for (const cancel of cancelReads.values()) cancel();
       clearTimeout(timer);
     };
