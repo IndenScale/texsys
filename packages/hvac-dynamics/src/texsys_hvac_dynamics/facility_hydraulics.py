@@ -409,7 +409,9 @@ def _dispatch_pressure(upper, matrix, ceilings, bounds, margins):
   # Retry a failed line search from inside the feasible pressure boundary.
   # Omit fixed variables and use relative, three-point pressure derivatives.
   active = limits > 0
-  reduced = a[:, active]
+  reduced = matrix[:, active] * scale
+  retry_row_scale = np.maximum(ceilings, np.maximum(np.max(np.abs(reduced), axis=1), 1e-9))
+  reduced, retry_ceiling = reduced / retry_row_scale[:, None], ceilings / retry_row_scale
 
   def expand(x):
     heat = np.zeros(len(limits))
@@ -419,12 +421,12 @@ def _dispatch_pressure(upper, matrix, ceilings, bounds, margins):
   retry = minimize(
     lambda x: -float(sum(x)), lower * (1 - 1e-4) * upper[active] / scale, jac="3-point",
     method="SLSQP", bounds=[(0, limit / scale) for limit in limits[active]],
-    constraints=({"type": "ineq", "fun": lambda x: b - reduced @ x, "jac": lambda _: -reduced},
+    constraints=({"type": "ineq", "fun": lambda x: retry_ceiling - reduced @ x, "jac": lambda _: -reduced},
                  {"type": "ineq", "fun": lambda x: margins(expand(x)) / _PRESSURE_SCALE}),
     options=options,
   )
   heat = np.clip(expand(retry.x), 0, limits)
-  if not retry.success or not feasible(heat):
+  if not retry.success or not feasible(heat) or np.any(retry_ceiling - reduced @ (heat[active] / scale) < -1e-8):
     raise ValueError("FWS pressure-constrained dispatch did not converge to a feasible point: "
                      f"{solved.message}; retry: {retry.message}")
   return heat
