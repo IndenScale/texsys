@@ -5,8 +5,9 @@
   "parameters": {
     "bay_span_m": "m",
     "clear_height_m": "m",
-    "fire_resistance_hours": "h"
+    "fire_resistance_hours": "h",
+    "fire_resistance_grade": "级"
   },
-  "method": "8 m 跨标准框架，四柱两梁；耐火等级二级对应 GB 50174 6.1.1/13.2.1。",
+  "method": "8 m 跨标准框架，四柱两梁；耐火等级二级对应 GB 50174 13.2.1。",
   "limitations": "概念脱敏；实际截面、节点与抗震由结构专业校核。"
 }

@@ -1,17 +1,27 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "standard": {
     "name": "GB 50174-2017 数据中心设计规范",
     "package": "texsys-gb50174-2017",
     "version": "0.164.0",
     "state": "assumed",
-    "source": "规范条文摘录用于概念参考设计；正式适用性由项目专业复核"
+    "source": "规范条文摘录用于概念参考设计；正式适用性由项目专业复核",
+    "rules_note": "rules 为规范包 chapter/appendix 数据中的规则键；citation 为对应条文短引与定位"
   },
   "grade": {
     "value": "A",
     "clause": "3.1.2",
+    "rules": [
+      "3.1.2.grade-a"
+    ],
     "basis": "电子信息系统中断造成重大经济损失，按 A 级设计",
-    "state": "assumed"
+    "state": "assumed",
+    "citation": {
+      "rule": "3.1.2.grade-a",
+      "quote": "电子信息系统运行中断将造成重大的经济损失",
+      "locator": "第 3.1.2 条，A级业务影响",
+      "pdf_page": 9
+    }
   },
   "scale": {
     "it_load_kw": 1920,
@@ -30,6 +40,17 @@
       "requirement": "基础设施按容错配置，任一组件退出不中断电子信息设备运行",
       "decision": "供电 2N，冷却 N+1，IT 方舱内 CDU 与精密空调 2N",
       "check": "power-redundancy",
+      "rules": [
+        "3.2.1.accident-power",
+        "3.2.1.maintenance-power"
+      ],
+      "citation": {
+        "rule": "3.2.1.accident-power",
+        "quote": "基础设施应在一次意外事故后",
+        "locator": "第 3.2.1 条，A级事故工况电子信息设备供电",
+        "pdf_page": 10,
+        "provision": "requirement"
+      },
       "state": "assumed"
     },
     {
@@ -39,6 +60,16 @@
       "requirement": "数据中心由主机房、辅助区、支持区组成",
       "decision": "主楼含主机房（IT 方舱）与辅助区（配电/UPS/电池间）；室外支持区含冷却方舱、发电机方舱与冷却塔",
       "check": "functional-zones",
+      "rules": [
+        "4.2.1.functional-zones"
+      ],
+      "citation": {
+        "rule": "4.2.1.functional-zones",
+        "quote": "宜由主机房、辅助区、支持区、行政管理区等功能区组成",
+        "locator": "第 4.2.1 条，建议功能区组成",
+        "pdf_page": 12,
+        "provision": "recommendation"
+      },
       "state": "assumed"
     },
     {
@@ -48,94 +79,224 @@
       "requirement": "冷通道或机柜进风区域温度 18–27 °C",
       "decision": "冷通道送风 22 °C，机柜进风设计点 24 °C",
       "check": "inlet-temperature",
-      "parameters": { "inlet_min_c": 18, "inlet_max_c": 27, "design_inlet_c": 24 },
-      "state": "assumed"
-    },
-    {
-      "id": "GB-6.1.1",
-      "clause": "6.1.1",
-      "title": "建筑耐火等级",
-      "requirement": "主机房建筑耐火等级不低于二级",
-      "decision": "主楼钢框架按二级耐火等级设计，钢构件涂防火涂料",
-      "check": "building-fire-resistance",
-      "parameters": { "min_fire_resistance_grade": 2 },
+      "parameters": {
+        "inlet_min_c": 18,
+        "inlet_max_c": 27,
+        "design_inlet_c": 24
+      },
+      "rules": [
+        "5.1.1.rack-environment",
+        "A.environment.inlet-temperature"
+      ],
+      "citation": {
+        "rule": "A.environment.inlet-temperature",
+        "quote": "冷通道或机柜进风区域的温度",
+        "locator": "附录 A 表 A，环境要求，冷通道或机柜进风区域的温度（印刷页 40）",
+        "pdf_page": 50,
+        "provision": "requirement"
+      },
       "state": "assumed"
     },
     {
       "id": "GB-6.1.3",
       "clause": "6.1.3",
       "title": "主机房净高",
-      "requirement": "主机房净高满足设备安装与管线敷设",
+      "requirement": "新建主机房净高不宜小于 3.0 m，本项目按不小于 3.0 m 验收",
       "decision": "主楼净高 4.5 m（概念值，含活动地板与管线空间）",
       "check": "clear-height",
-      "parameters": { "min_clear_height_m": 3.0, "design_clear_height_m": 4.5 },
+      "parameters": {
+        "min_clear_height_m": 3.0,
+        "design_clear_height_m": 4.5
+      },
+      "rules": [
+        "6.1.3.height"
+      ],
+      "citation": {
+        "rule": "6.1.3.height",
+        "quote": "主机房净高不宜小于3.0m",
+        "locator": "第 6.1.3 条，新建主机房净高数值要求",
+        "pdf_page": 14,
+        "provision": "recommendation"
+      },
       "state": "assumed"
     },
     {
       "id": "GB-7.5.2",
       "clause": "7.5.2",
       "title": "制冷容量余量",
-      "requirement": "制冷设备容量满足计算负荷并留有余量",
+      "requirement": "A 级冷冻机组、水泵、冷却塔 N+X 冗余（X=1～N），容量满足计算负荷并留有余量",
       "decision": "冷水机组 N+1，运行容量 ≥ IT 负荷 × 1.2",
       "check": "cooling-capacity",
-      "parameters": { "capacity_factor": 1.2 },
+      "parameters": {
+        "capacity_factor": 1.2
+      },
+      "rules": [
+        "7.5.2.cooling-selection",
+        "A.hvac.central-plant-redundancy"
+      ],
+      "citation": {
+        "rule": "A.hvac.central-plant-redundancy",
+        "quote": "冷冻机组、冷冻水泵、冷却水泵、冷却塔",
+        "locator": "附录 A 表 A，冷冻机组、冷冻水泵、冷却水泵、冷却塔（印刷页 42）",
+        "pdf_page": 52,
+        "provision": "requirement"
+      },
       "state": "assumed"
     },
     {
       "id": "GB-8.1.1",
       "clause": "8.1.1",
       "title": "A 级供电",
-      "requirement": "双重电源供电，备用电源满足全部负荷",
+      "requirement": "A 级应由双重电源供电，备用电源满足全部负荷",
       "decision": "两路独立 10 kV 市电 + 柴油发电机 N+1 备用",
       "check": "dual-utility",
+      "rules": [
+        "8.1.1.graded-supply",
+        "A.power.normal-supply"
+      ],
+      "citation": {
+        "rule": "A.power.normal-supply",
+        "quote": "供电电源",
+        "locator": "表 A 电气，供电电源（印刷页 43）",
+        "pdf_page": 53,
+        "provision": "requirement"
+      },
       "state": "assumed"
     },
     {
       "id": "GB-8.1.7",
       "clause": "8.1.7",
       "title": "UPS 配置",
-      "requirement": "A 级 UPS 按 2N 配置",
-      "decision": "A/B 两路各 2500 kVA（5×500 kVA 模块）UPS，每路电池 600 kWh，后备 15 min",
+      "requirement": "A 级 UPS 宜 2N 或 M（N+1），基本容量留有余量；电池后备不少于 15 min（柴油发电机后备时）",
+      "decision": "A/B 两路各 2500 kVA（5×500 kVA 模块）UPS，每路电池 600 kWh，后备约 18.8 min",
       "check": "ups-redundancy",
-      "parameters": { "ups_redundancy": "2N", "battery_autonomy_min": 15 },
+      "parameters": {
+        "ups_redundancy": "2N",
+        "battery_autonomy_min": 15
+      },
+      "rules": [
+        "8.1.7.ups-supply",
+        "8.1.7.capacity",
+        "A.power.ups-configuration",
+        "A.power.battery-duration"
+      ],
+      "citation": {
+        "rule": "A.power.battery-duration",
+        "quote": "不间断电源系统电池最少备用时间",
+        "locator": "表 A 电气，不间断电源系统电池最少备用时间",
+        "pdf_page": 36,
+        "provision": "requirement"
+      },
       "state": "assumed"
     },
     {
       "id": "GB-8.1.15",
       "clause": "8.1.15",
       "title": "现场储油",
-      "requirement": "A 级柴油发电机现场储油满足 12 h 满负荷运行",
-      "decision": "A/B 各设一组发电机方舱（2×3000 kW，N+1），每组储油 9000 L，满负荷约 15 h",
+      "requirement": "柴油发电机应设置现场储油装置，A 级储油宜满足 12 h 用油，本项目按不少于 12 h 验收",
+      "decision": "A/B 各设一组发电机方舱（2×3000 kW，N+1），每组储油 9000 L，合计 18000 L，N+1 运行约 18.9 h",
       "check": "fuel-storage",
-      "parameters": { "min_fuel_hours": 12 },
+      "parameters": {
+        "min_fuel_hours": 12
+      },
+      "rules": [
+        "8.1.15.on-site-fuel",
+        "8.1.15.fuel-duration",
+        "A.power.fuel-duration"
+      ],
+      "citation": {
+        "rule": "A.power.fuel-duration",
+        "quote": "柴油发电机燃料存储量",
+        "locator": "表 A 电气，柴油发电机燃料存储量",
+        "pdf_page": 36,
+        "provision": "recommendation"
+      },
       "state": "assumed"
     },
     {
-      "id": "GB-13.1.4",
-      "clause": "13.1.4",
+      "id": "GB-13.1.2",
+      "clause": "13.1.2",
       "title": "灭火系统",
-      "requirement": "A 级主机房设自动报警与气体灭火",
-      "decision": "每个 IT 方舱设气体灭火柜与极早期烟感；主楼设自动报警",
+      "requirement": "A 级主机房宜设置气体灭火系统，也可设置细水雾灭火系统；本项目按气体灭火验收",
+      "decision": "每个 IT 方舱设全氟己酮气体灭火柜与极早期烟感；主楼设自动报警",
       "check": "fire-suppression",
+      "rules": [
+        "13.1.2.suppression",
+        "A.fire.main-gas"
+      ],
+      "citation": {
+        "rule": "13.1.2.suppression",
+        "quote": "A级数据中心的主机房宜设置气体灭火系统，也可设置细水雾灭火系统",
+        "locator": "第 13.1.2 条，A级主机房灭火系统",
+        "pdf_page": 31,
+        "provision": "recommendation"
+      },
       "state": "assumed"
     },
     {
-      "id": "GB-13.2.2",
-      "clause": "13.2.2",
+      "id": "GB-13.2.1",
+      "clause": "13.2.1",
+      "title": "建筑耐火等级",
+      "requirement": "数据中心的耐火等级不应低于二级",
+      "decision": "主楼钢框架按二级耐火等级设计，钢构件涂防火涂料 2.0 h",
+      "check": "building-fire-resistance",
+      "parameters": {
+        "max_fire_resistance_grade": 2
+      },
+      "rules": [
+        "13.2.1.fire-resistance-grade"
+      ],
+      "citation": {
+        "rule": "13.2.1.fire-resistance-grade",
+        "quote": "数据中心的耐火等级不应低于二级",
+        "locator": "第 13.2.1 条，建筑耐火等级",
+        "pdf_page": 31,
+        "provision": "requirement"
+      },
+      "state": "assumed"
+    },
+    {
+      "id": "GB-13.2.4",
+      "clause": "13.2.4",
       "title": "防火分隔",
-      "requirement": "主机房与其他区域隔墙耐火极限 ≥ 2.0 h，楼板 ≥ 1.5 h",
+      "requirement": "主机房与其他区域之间采用耐火极限不低于 2.0 h 的防火隔墙和 1.5 h 的楼板隔开",
       "decision": "主机房与辅助区之间设 2.0 h 防火隔墙；楼板 1.5 h",
       "check": "fire-separation",
-      "parameters": { "min_wall_fire_hours": 2.0, "min_slab_fire_hours": 1.5 },
+      "parameters": {
+        "min_wall_fire_hours": 2.0,
+        "min_slab_fire_hours": 1.5
+      },
+      "rules": [
+        "13.2.4.wall",
+        "13.2.4.slab"
+      ],
+      "citation": {
+        "rule": "13.2.4.wall",
+        "quote": "不低于2．0h的防火隔墙",
+        "locator": "第 13.2.4 条，合建防火隔墙",
+        "pdf_page": 32,
+        "provision": "requirement"
+      },
       "state": "assumed"
     },
     {
-      "id": "GB-A.8",
+      "id": "GB-A.power",
       "clause": "附录 A 电气",
       "title": "A 级电气技术要求",
-      "requirement": "供电电源、UPS、发电机按附录 A A 级表项",
+      "requirement": "变压器应满足容错要求；后备柴油发电机基本容量应包括 UPS 基本容量与空调制冷设备基本容量",
       "decision": "变压器 2×3150 kVA，发电机 2 组×（2×3000 kW N+1），UPS 2N；设施负荷约 2729 kW",
       "check": "power-capacity",
+      "rules": [
+        "A.power.transformer-configuration",
+        "A.power.generator-capacity"
+      ],
+      "citation": {
+        "rule": "A.power.generator-capacity",
+        "quote": "后备柴油发电机的基本容量",
+        "locator": "表 A 电气，后备柴油发电机的基本容量",
+        "pdf_page": 36,
+        "provision": "requirement"
+      },
       "state": "assumed"
     }
   ]

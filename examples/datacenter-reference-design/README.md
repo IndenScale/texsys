@@ -23,7 +23,7 @@ datacenter-reference 器件/单元库 → structure / architecture / hvac-equipm
 
 ## 文件
 
-- `src/design-basis.json`：A 级分级依据、规模假设与 12 条 GB 50174 要求（3.2.1、4.2.1、5.1.1、6.1.1、6.1.3、7.5.2、8.1.1、8.1.7、8.1.15、13.1.4、13.2.2、附录 A 电气），每条绑定一个校核。
+- `src/design-basis.json`：A 级分级依据、规模假设与 12 条 GB 50174 要求（3.2.1、4.2.1、5.1.1、6.1.3、7.5.2、8.1.1、8.1.7、8.1.15、13.1.2、13.2.1、13.2.4、附录 A 电气），每条绑定一个校核，并以 `rules` 记录规范包 texsys-gb50174-2017 的规则键、以 `citation` 保存条文短引与定位；阈值与规范包 A 级结构化限值一致。
 - `src/system.sdl.json`：系统装配（`tools/assemble.py` 生成并提交为源文件）。
 - `src/placement.study.json`：功能分区、设施负荷分解（2729 kW）与概念坐标。
 - `src/wbs.json`：WBS 节点与实例归属。
@@ -36,7 +36,7 @@ uv run --locked texsys lock --check -p examples/datacenter-reference-design
 uv run --locked texsys build -p examples/datacenter-reference-design
 ```
 
-`build/datacenter-reference/design-checks.json` 逐条给出判定与证据。预期 12 条全部通过：单路 UPS 0.9 功率因数可用 2250 kW ≥ 1920 kW，电池后备约 18.8 min ≥ 15 min；冷机 N+1 可用 2400 kW ≥ 2304 kW；储油约 18.9 h ≥ 12 h；变压器单台可用 2835 kW ≥ 设施负荷 2729 kW。上游独立性沿 SDL 连接与方舱边界映射追溯，A/B 路分别回到各自的市电与发电机方舱。
+`build/datacenter-reference/design-checks.json` 逐条给出判定与证据。预期 12 条全部通过：单路 UPS 0.9 功率因数可用 2250 kW ≥ 1920 kW，电池后备约 18.8 min ≥ 15 min；冷机 N+1 可用 2400 kW ≥ 2304 kW；储油约 18.9 h ≥ 12 h；变压器单台可用 2835 kW ≥ 设施负荷 2729 kW；钢框架耐火等级二级（级数 ≤ 2）。上游独立性沿 SDL 连接与方舱边界映射追溯，A/B 路分别回到各自的市电与发电机方舱。
 
 `build/datacenter-reference/bom.json` 交付 512 条 BOM 条目、34 个族分组，按 WBS-01 主机房、WBS-02 供配电、WBS-03 冷源、WBS-04 建筑构造汇总。选型状态 `candidate`，参数状态 `assumed`。
 
@@ -44,4 +44,4 @@ uv run --locked texsys build -p examples/datacenter-reference-design
 
 ## 边界
 
-全部参数为公开产品水平脱敏的概念假设，几何为包络与接口位姿。校核通过仅表示装配与给定设计依据一致，不构成真实工程接受：短路保护选择性、水力平衡、气流组织、储油消防、抗震与地基、现场调试等留待专业深化。规范条文摘录的正式适用性由项目专业复核。
+全部参数为公开产品水平脱敏的概念假设，几何为包络与接口位姿。校核通过仅表示装配与给定设计依据一致，不构成真实工程接受：短路保护选择性、水力平衡、气流组织、储油消防、抗震与地基、现场调试等留待专业深化。规范条文摘录的正式适用性由项目专业复核。包测试 `test_standard_basis.py` 在相邻规范工作区存在时逐条校验规则键、条文短引与 A 级阈值；工作区不在场（如独立 CI 检出）时跳过，不阻断构建。

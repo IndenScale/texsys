@@ -103,6 +103,12 @@
             "unit": "h",
             "state": "assumed",
             "source": "Texsys 数据中心参考设计库概念假设（公开产品水平脱敏）"
+          },
+          "fire_resistance_grade": {
+            "value": 2,
+            "unit": "级",
+            "state": "assumed",
+            "source": "Texsys 数据中心参考设计库概念假设（公开产品水平脱敏）"
           }
         }
       }

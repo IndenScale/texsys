@@ -459,6 +459,7 @@ def steel_frame_bay() -> dict:
       "bay_span_m": binding(8, "m"),
       "clear_height_m": binding(4.5, "m"),
       "fire_resistance_hours": binding(2.0, "h"),
+      "fire_resistance_grade": binding(2, "级"),
     },
     "properties": {
       "mass_kg": 6500,
@@ -468,7 +469,7 @@ def steel_frame_bay() -> dict:
       "steel_grade": "Q355B（概念）",
     },
     "model": "single-bay-steel-frame",
-    "method": "8 m 跨标准框架，四柱两梁；耐火等级二级对应 GB 50174 6.1.1/13.2.1。",
+    "method": "8 m 跨标准框架，四柱两梁；耐火等级二级对应 GB 50174 13.2.1。",
     "limitations": "概念脱敏；实际截面、节点与抗震由结构专业校核。",
   }
 
@@ -497,7 +498,7 @@ def fire_partition_wall() -> dict:
       "material": "蒸压加气混凝土板（概念）",
     },
     "model": "fire-rated-partition",
-    "method": "主机房与辅助区分隔，耐火极限 ≥ 2.0 h（GB 50174 13.2.2）。",
+    "method": "主机房与辅助区分隔，耐火极限 ≥ 2.0 h（GB 50174 13.2.4）。",
     "limitations": "概念脱敏；实际接缝封堵与管线穿越由项目校核。",
   }
 

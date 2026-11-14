@@ -23,7 +23,14 @@ class DatacenterReferencePackage(TexsysPackage):
 
   def build_checks(self, context) -> TargetResult:
     project = inspect_project(context.root)
-    report = evaluate_design_checks(context.root / project.source, context.root)
+    source = context.root / project.source
+    missing = [name for name in ("system.sdl.json", "design-basis.json")
+               if not (source / name).is_file()]
+    if missing:
+      return TargetResult("indeterminate", open_items=tuple(
+        {"id": f"missing-{name}", "impact": f"Design checks require src/{name}."}
+        for name in missing))
+    report = evaluate_design_checks(source, context.root)
     path = context.build_path / "datacenter-reference/design-checks.json"
     write_json(path, report)
     diagnostics = tuple({"check": c["id"], "message": c["message"]}

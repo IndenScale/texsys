@@ -6,6 +6,6 @@
     "fire_resistance_hours": "h",
     "thickness_mm": "mm"
   },
-  "method": "主机房与辅助区分隔，耐火极限 ≥ 2.0 h（GB 50174 13.2.2）。",
+  "method": "主机房与辅助区分隔，耐火极限 ≥ 2.0 h（GB 50174 13.2.4）。",
   "limitations": "概念脱敏；实际接缝封堵与管线穿越由项目校核。"
 }

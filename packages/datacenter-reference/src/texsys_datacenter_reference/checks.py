@@ -263,24 +263,25 @@ def evaluate_design_checks(source: Path, root: Path) -> dict[str, Any]:
       fuel_storage_l=storage_l, consumption_lph=round(consumption, 1),
       fuel_hours=hours, required_hours=min_hours)
 
-  # GB-13.2.2: fire separation walls and slab.
-  min_wall = float(requirements.get("GB-13.2.2", {}).get("parameters", {}).get("min_wall_fire_hours", 2.0))
-  min_slab = float(requirements.get("GB-13.2.2", {}).get("parameters", {}).get("min_slab_fire_hours", 1.5))
+  # GB-13.2.4: fire separation walls and slab.
+  min_wall = float(requirements.get("GB-13.2.4", {}).get("parameters", {}).get("min_wall_fire_hours", 2.0))
+  min_slab = float(requirements.get("GB-13.2.4", {}).get("parameters", {}).get("min_slab_fire_hours", 1.5))
   wall_hours = [_param(w, "fire_resistance_hours") for w in walls]
   slab_hours = float(design.placement.get("slab_fire_resistance_hours", 0))
   ok = bool(walls) and all(h >= min_wall for h in wall_hours) and slab_hours >= min_slab
-  add("GB-13.2.2", "pass" if ok else "fail",
+  add("GB-13.2.4", "pass" if ok else "fail",
       f"防火隔墙 {len(walls)} 道，耐火 {wall_hours} h；楼板 {slab_hours} h。",
       wall_hours=wall_hours, slab_hours=slab_hours, min_wall_hours=min_wall, min_slab_hours=min_slab)
 
-  # GB-6.1.1 / 13.2.1: building fire resistance grade.
-  min_grade = float(requirements.get("GB-6.1.1", {}).get("parameters", {}).get("min_fire_resistance_grade", 2))
-  grades = [float(i.specification.get("properties", {}).get("fire", {}).get("fire_resistance_grade", 0))
+  # GB-13.2.1: building fire resistance grade (grade number must not exceed 2).
+  max_grade = float(requirements.get("GB-13.2.1", {}).get("parameters", {}).get("max_fire_resistance_grade", 2))
+  grades = [_param(i, "fire_resistance_grade",
+                   float(i.specification.get("properties", {}).get("fire", {}).get("fire_resistance_grade", 0)))
             for i in frames]
-  ok = bool(frames) and all(g >= min_grade for g in grades)
-  add("GB-6.1.1", "pass" if ok else "fail",
-      f"钢框架耐火等级 {grades} ≥ {min_grade}。" if ok else "钢框架耐火等级不足。",
-      fire_resistance_grades=grades)
+  ok = bool(frames) and all(0 < g <= max_grade for g in grades)
+  add("GB-13.2.1", "pass" if ok else "fail",
+      f"钢框架耐火等级 {grades}，不低于二级（级数 ≤ {max_grade:g}）。" if ok else "钢框架耐火等级低于二级或缺失。",
+      fire_resistance_grades=grades, max_grade=max_grade)
 
   # GB-6.1.3: clear height.
   min_height = float(requirements.get("GB-6.1.3", {}).get("parameters", {}).get("min_clear_height_m", 3.0))
@@ -290,12 +291,12 @@ def evaluate_design_checks(source: Path, root: Path) -> dict[str, Any]:
       f"框架净高 {heights} m ≥ {min_height} m。" if ok else "净高不足。",
       clear_heights_m=heights)
 
-  # GB-13.1.4: suppression in every IT container.
+  # GB-13.1.2: suppression in every IT container.
   suppressed = all(
     c.specification.get("properties", {}).get("fire", {}).get("suppression")
     for c in containers)
   ok = bool(containers) and suppressed
-  add("GB-13.1.4", "pass" if ok else "fail",
+  add("GB-13.1.2", "pass" if ok else "fail",
       f"{len(containers)} 个 IT 方舱均设气体灭火。" if ok else "存在未设灭火的 IT 方舱。",
       container_count=len(containers))
 
@@ -318,13 +319,13 @@ def evaluate_design_checks(source: Path, root: Path) -> dict[str, Any]:
       if ok else f"未分区实例：{unassigned}；IT 方舱分区正确={host_ok}。",
       unassigned=unassigned)
 
-  # GB-A.8: transformers and N+1 gensets cover the declared facility load.
+  # GB-A.power: transformers and N+1 gensets cover the declared facility load.
   transformers = [i for i in _all(design.instances) if i.family == "dry-type-transformer"]
   tx_kva = [_param(t, "rated_kva") for t in transformers]
   tx_ok = len(tx_kva) >= 2 and all(kva * power_factor >= facility_kw for kva in tx_kva)
   genset_ok = bool(genset_leaves) and running * prime_kw >= facility_kw
   ok = tx_ok and genset_ok
-  add("GB-A.8", "pass" if ok else "fail",
+  add("GB-A.power", "pass" if ok else "fail",
       f"变压器 {tx_kva} kVA（0.9 功率因数可用 {[round(k * power_factor) for k in tx_kva]} kW）；"
       f"发电机 N+1 可用 {running * prime_kw:.0f} kW；设施负荷 {facility_kw} kW。",
       transformer_kva=tx_kva, genset_available_kw=running * prime_kw,
