@@ -69,7 +69,7 @@ name = "spatial"
 version = "0.1.0"
 source = "path"
 path = "../../packages/spatial"
-digest = "sha256:4e2f16cec10fdc1abd9119e5664a0d0d08f7a29433dc44c162374819f85c4090"
+digest = "sha256:acf7bd01d4091dc6ad3cebd97e27a8ed880e34b15caa9f7f71ade9cf9d6b683f"
 direct = false
 dependencies = []
 
