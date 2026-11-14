@@ -1,0 +1,25 @@
+#usda 1.0
+(
+    defaultPrim = "Module"
+    metersPerUnit = 1
+    upAxis = "Z"
+)
+
+def Xform "Module"
+{
+    def Scope "Geometry"
+    {
+        def Cube "Envelope"
+        {
+            color3f[] primvars:displayColor = [(0.6, 0.6, 0.62)]
+            double size = 1
+            double3 xformOp:scale = (0.6, 0.6, 0.04)
+            double3 xformOp:translate = (0.3, 0.3, 0.02)
+            uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
+        }
+    }
+
+    def Scope "Ports"
+    {
+    }
+}

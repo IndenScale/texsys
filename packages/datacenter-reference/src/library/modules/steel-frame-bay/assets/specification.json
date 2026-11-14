@@ -1,0 +1,143 @@
+{
+  "schema_version": 1,
+  "state": "assumed",
+  "basis": "Texsys 数据中心参考设计库概念假设（公开产品水平脱敏）",
+  "envelope_m": [
+    8.0,
+    8.0,
+    4.5
+  ],
+  "frame": {
+    "origin": "module-minimum-corner",
+    "units": "m",
+    "up_axis": "Z"
+  },
+  "interfaces": {
+    "bearing_1": {
+      "position_m": [
+        1.6,
+        0,
+        2.25
+      ],
+      "normal": [
+        0,
+        -1,
+        0
+      ]
+    },
+    "bearing_2": {
+      "position_m": [
+        3.2,
+        0,
+        2.25
+      ],
+      "normal": [
+        0,
+        -1,
+        0
+      ]
+    },
+    "bearing_3": {
+      "position_m": [
+        4.8,
+        0,
+        2.25
+      ],
+      "normal": [
+        0,
+        -1,
+        0
+      ]
+    },
+    "bearing_4": {
+      "position_m": [
+        6.4,
+        0,
+        2.25
+      ],
+      "normal": [
+        0,
+        -1,
+        0
+      ]
+    }
+  },
+  "boundary": {
+    "bearing_1": [
+      "Column1.bearing_a"
+    ],
+    "bearing_2": [
+      "Column2.bearing_a"
+    ],
+    "bearing_3": [
+      "Column3.bearing_a"
+    ],
+    "bearing_4": [
+      "Column4.bearing_a"
+    ]
+  },
+  "instance_layout_m": {
+    "Column1": [
+      0,
+      0,
+      0
+    ],
+    "Column2": [
+      7.6,
+      0,
+      0
+    ],
+    "Column3": [
+      0,
+      7.6,
+      0
+    ],
+    "Column4": [
+      7.6,
+      7.6,
+      0
+    ],
+    "Beam1": [
+      0,
+      0,
+      4.1
+    ],
+    "Beam2": [
+      0,
+      7.6,
+      4.1
+    ]
+  },
+  "properties": {
+    "geometry_parts": {
+      "Envelope": {
+        "origin_m": [
+          0,
+          0,
+          0
+        ],
+        "size_m": [
+          8.0,
+          8.0,
+          4.5
+        ],
+        "color": [
+          0.5,
+          0.5,
+          0.55
+        ]
+      }
+    },
+    "mass_kg": 6500,
+    "fire": {
+      "class": "钢构件防火涂料 2.0 h（概念）",
+      "fire_resistance_hours": 2.0,
+      "fire_resistance_grade": 2
+    },
+    "weathering": {
+      "installation": "indoor",
+      "ip": null
+    },
+    "steel_grade": "Q355B（概念）"
+  }
+}

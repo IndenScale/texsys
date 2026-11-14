@@ -26,6 +26,7 @@ dev = [
   "pytest>=8",
   "ruff>=0.8",
   "texsys-datacenter",
+  "texsys-datacenter-reference",
   "texsys-bom",
   "texsys-diagram",
   "texsys-sheet",
@@ -55,6 +56,7 @@ members = ["packages/*"]
 
 [tool.uv.sources]
 texsys-datacenter = { workspace = true }
+texsys-datacenter-reference = { workspace = true }
 texsys-bom = { workspace = true }
 texsys-diagram = { workspace = true }
 texsys-sheet = { workspace = true }

@@ -1,0 +1,108 @@
+{
+  "schema_version": 1,
+  "state": "assumed",
+  "basis": "Texsys 数据中心参考设计库概念假设（公开产品水平脱敏）",
+  "envelope_m": [
+    4.0,
+    1.8,
+    2.2
+  ],
+  "frame": {
+    "origin": "module-minimum-corner",
+    "units": "m",
+    "up_axis": "Z"
+  },
+  "interfaces": {
+    "chw_return": {
+      "position_m": [
+        0.3,
+        0.2,
+        1.0
+      ],
+      "normal": [
+        -1,
+        0,
+        0
+      ]
+    },
+    "chw_supply": {
+      "position_m": [
+        0.3,
+        1.6,
+        1.0
+      ],
+      "normal": [
+        -1,
+        0,
+        0
+      ]
+    },
+    "cw_in": {
+      "position_m": [
+        3.7,
+        0.2,
+        1.0
+      ],
+      "normal": [
+        1,
+        0,
+        0
+      ]
+    },
+    "cw_out": {
+      "position_m": [
+        3.7,
+        1.6,
+        1.0
+      ],
+      "normal": [
+        1,
+        0,
+        0
+      ]
+    },
+    "power": {
+      "position_m": [
+        2.0,
+        0.9,
+        2.2
+      ],
+      "normal": [
+        0,
+        0,
+        1
+      ]
+    }
+  },
+  "properties": {
+    "geometry_parts": {
+      "Envelope": {
+        "origin_m": [
+          0,
+          0,
+          0
+        ],
+        "size_m": [
+          4.0,
+          1.8,
+          2.2
+        ],
+        "color": [
+          0.25,
+          0.4,
+          0.55
+        ]
+      }
+    },
+    "mass_kg": 8500,
+    "fire": {
+      "class": "不燃",
+      "fire_resistance_hours": null
+    },
+    "weathering": {
+      "installation": "indoor",
+      "ip": "IP54"
+    },
+    "refrigerant": "R134a（概念）"
+  }
+}

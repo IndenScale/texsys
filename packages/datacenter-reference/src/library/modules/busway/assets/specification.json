@@ -1,0 +1,107 @@
+{
+  "schema_version": 1,
+  "state": "assumed",
+  "basis": "Texsys 数据中心参考设计库概念假设（公开产品水平脱敏）",
+  "envelope_m": [
+    0.2,
+    0.15,
+    3.0
+  ],
+  "frame": {
+    "origin": "module-minimum-corner",
+    "units": "m",
+    "up_axis": "Z"
+  },
+  "interfaces": {
+    "in": {
+      "position_m": [
+        0.1,
+        0.075,
+        0.0
+      ],
+      "normal": [
+        0,
+        0,
+        -1
+      ]
+    },
+    "tap_1": {
+      "position_m": [
+        0.1,
+        0.075,
+        0.75
+      ],
+      "normal": [
+        0,
+        0,
+        1
+      ]
+    },
+    "tap_2": {
+      "position_m": [
+        0.1,
+        0.075,
+        1.5
+      ],
+      "normal": [
+        0,
+        0,
+        1
+      ]
+    },
+    "tap_3": {
+      "position_m": [
+        0.1,
+        0.075,
+        2.25
+      ],
+      "normal": [
+        0,
+        0,
+        1
+      ]
+    },
+    "tap_4": {
+      "position_m": [
+        0.1,
+        0.075,
+        3.0
+      ],
+      "normal": [
+        0,
+        0,
+        1
+      ]
+    }
+  },
+  "properties": {
+    "geometry_parts": {
+      "Envelope": {
+        "origin_m": [
+          0,
+          0,
+          0
+        ],
+        "size_m": [
+          0.2,
+          0.15,
+          3.0
+        ],
+        "color": [
+          0.55,
+          0.5,
+          0.35
+        ]
+      }
+    },
+    "mass_kg": 45,
+    "fire": {
+      "class": "金属外壳不燃",
+      "fire_resistance_hours": null
+    },
+    "weathering": {
+      "installation": "indoor",
+      "ip": "IP54"
+    }
+  }
+}

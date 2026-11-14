@@ -1,0 +1,11 @@
+{
+  "schema_version": 1,
+  "state": "assumed",
+  "model": "busway-segment-with-taps",
+  "parameters": {
+    "rated_a": "A",
+    "segment_length_m": "m"
+  },
+  "method": "一段母线四个插接口；额定电流用于机柜列配电容量筛查。",
+  "limitations": "概念脱敏；实际温升、短路动稳定与插接箱保护由项目校核。"
+}

@@ -1,0 +1,40 @@
+{
+  "schema_version": 1,
+  "root": "BatteryCabinet",
+  "components": {
+    "BatteryCabinet": {
+      "ports": {
+        "dc": {
+          "direction": "out",
+          "kind": "dc-power",
+          "max_connections": 1
+        }
+      },
+      "behavior": {
+        "reference": "assets/behavior.json",
+        "state": "assumed",
+        "source": "Texsys 数据中心参考设计库概念假设（公开产品水平脱敏）",
+        "parameters": {
+          "energy_kwh": {
+            "value": 120,
+            "unit": "kWh",
+            "state": "assumed",
+            "source": "Texsys 数据中心参考设计库概念假设（公开产品水平脱敏）"
+          },
+          "voltage_v": {
+            "value": 480,
+            "unit": "V",
+            "state": "assumed",
+            "source": "Texsys 数据中心参考设计库概念假设（公开产品水平脱敏）"
+          },
+          "autonomy_min": {
+            "value": 15,
+            "unit": "min",
+            "state": "assumed",
+            "source": "Texsys 数据中心参考设计库概念假设（公开产品水平脱敏）"
+          }
+        }
+      }
+    }
+  }
+}

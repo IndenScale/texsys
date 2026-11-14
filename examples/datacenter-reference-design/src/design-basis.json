@@ -1,0 +1,142 @@
+{
+  "schema_version": 1,
+  "standard": {
+    "name": "GB 50174-2017 数据中心设计规范",
+    "package": "texsys-gb50174-2017",
+    "version": "0.164.0",
+    "state": "assumed",
+    "source": "规范条文摘录用于概念参考设计；正式适用性由项目专业复核"
+  },
+  "grade": {
+    "value": "A",
+    "clause": "3.1.2",
+    "basis": "电子信息系统中断造成重大经济损失，按 A 级设计",
+    "state": "assumed"
+  },
+  "scale": {
+    "it_load_kw": 1920,
+    "rack_count": 128,
+    "rack_load_kw": 15,
+    "container_count": 16,
+    "racks_per_container": 8,
+    "state": "assumed",
+    "source": "参考设计规模假设，脱敏概念算例"
+  },
+  "requirements": [
+    {
+      "id": "GB-3.2.1",
+      "clause": "3.2.1",
+      "title": "A 级性能：单点故障不中断",
+      "requirement": "基础设施按容错配置，任一组件退出不中断电子信息设备运行",
+      "decision": "供电 2N，冷却 N+1，IT 方舱内 CDU 与精密空调 2N",
+      "check": "power-redundancy",
+      "state": "assumed"
+    },
+    {
+      "id": "GB-4.2.1",
+      "clause": "4.2.1",
+      "title": "功能组成",
+      "requirement": "数据中心由主机房、辅助区、支持区组成",
+      "decision": "主楼含主机房（IT 方舱）与辅助区（配电/UPS/电池间）；室外支持区含冷却方舱、发电机方舱与冷却塔",
+      "check": "functional-zones",
+      "state": "assumed"
+    },
+    {
+      "id": "GB-5.1.1",
+      "clause": "5.1.1",
+      "title": "机柜进风温度",
+      "requirement": "冷通道或机柜进风区域温度 18–27 °C",
+      "decision": "冷通道送风 22 °C，机柜进风设计点 24 °C",
+      "check": "inlet-temperature",
+      "parameters": { "inlet_min_c": 18, "inlet_max_c": 27, "design_inlet_c": 24 },
+      "state": "assumed"
+    },
+    {
+      "id": "GB-6.1.1",
+      "clause": "6.1.1",
+      "title": "建筑耐火等级",
+      "requirement": "主机房建筑耐火等级不低于二级",
+      "decision": "主楼钢框架按二级耐火等级设计，钢构件涂防火涂料",
+      "check": "building-fire-resistance",
+      "parameters": { "min_fire_resistance_grade": 2 },
+      "state": "assumed"
+    },
+    {
+      "id": "GB-6.1.3",
+      "clause": "6.1.3",
+      "title": "主机房净高",
+      "requirement": "主机房净高满足设备安装与管线敷设",
+      "decision": "主楼净高 4.5 m（概念值，含活动地板与管线空间）",
+      "check": "clear-height",
+      "parameters": { "min_clear_height_m": 3.0, "design_clear_height_m": 4.5 },
+      "state": "assumed"
+    },
+    {
+      "id": "GB-7.5.2",
+      "clause": "7.5.2",
+      "title": "制冷容量余量",
+      "requirement": "制冷设备容量满足计算负荷并留有余量",
+      "decision": "冷水机组 N+1，运行容量 ≥ IT 负荷 × 1.2",
+      "check": "cooling-capacity",
+      "parameters": { "capacity_factor": 1.2 },
+      "state": "assumed"
+    },
+    {
+      "id": "GB-8.1.1",
+      "clause": "8.1.1",
+      "title": "A 级供电",
+      "requirement": "双重电源供电，备用电源满足全部负荷",
+      "decision": "两路独立 10 kV 市电 + 柴油发电机 N+1 备用",
+      "check": "dual-utility",
+      "state": "assumed"
+    },
+    {
+      "id": "GB-8.1.7",
+      "clause": "8.1.7",
+      "title": "UPS 配置",
+      "requirement": "A 级 UPS 按 2N 配置",
+      "decision": "A/B 两路各 2500 kVA（5×500 kVA 模块）UPS，每路电池 600 kWh，后备 15 min",
+      "check": "ups-redundancy",
+      "parameters": { "ups_redundancy": "2N", "battery_autonomy_min": 15 },
+      "state": "assumed"
+    },
+    {
+      "id": "GB-8.1.15",
+      "clause": "8.1.15",
+      "title": "现场储油",
+      "requirement": "A 级柴油发电机现场储油满足 12 h 满负荷运行",
+      "decision": "A/B 各设一组发电机方舱（2×3000 kW，N+1），每组储油 9000 L，满负荷约 15 h",
+      "check": "fuel-storage",
+      "parameters": { "min_fuel_hours": 12 },
+      "state": "assumed"
+    },
+    {
+      "id": "GB-13.1.4",
+      "clause": "13.1.4",
+      "title": "灭火系统",
+      "requirement": "A 级主机房设自动报警与气体灭火",
+      "decision": "每个 IT 方舱设气体灭火柜与极早期烟感；主楼设自动报警",
+      "check": "fire-suppression",
+      "state": "assumed"
+    },
+    {
+      "id": "GB-13.2.2",
+      "clause": "13.2.2",
+      "title": "防火分隔",
+      "requirement": "主机房与其他区域隔墙耐火极限 ≥ 2.0 h，楼板 ≥ 1.5 h",
+      "decision": "主机房与辅助区之间设 2.0 h 防火隔墙；楼板 1.5 h",
+      "check": "fire-separation",
+      "parameters": { "min_wall_fire_hours": 2.0, "min_slab_fire_hours": 1.5 },
+      "state": "assumed"
+    },
+    {
+      "id": "GB-A.8",
+      "clause": "附录 A 电气",
+      "title": "A 级电气技术要求",
+      "requirement": "供电电源、UPS、发电机按附录 A A 级表项",
+      "decision": "变压器 2×3150 kVA，发电机 2 组×（2×3000 kW N+1），UPS 2N；设施负荷约 2729 kW",
+      "check": "power-capacity",
+      "state": "assumed"
+    }
+  ]
+}

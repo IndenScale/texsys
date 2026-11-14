@@ -1,0 +1,64 @@
+schema_version = 1
+name = "机柜 PDU"
+version = "0.1.0"
+entry = "rack-pdu.sdl.json"
+
+[assets.geometry]
+kind = "geometry"
+path = "assets/geometry.usda"
+source = "Texsys 数据中心参考设计库概念假设（公开产品水平脱敏）"
+fidelity = "设备包络与接口位姿"
+
+[assets.symbol]
+kind = "symbol"
+path = "assets/symbol.svg"
+source = "Texsys 数据中心参考设计库概念假设（公开产品水平脱敏）"
+fidelity = "功能符号与端口锚点"
+
+[assets.specification]
+kind = "specification"
+path = "assets/specification.json"
+source = "Texsys 数据中心参考设计库概念假设（公开产品水平脱敏）"
+fidelity = "坐标、接口、防火与耐候属性"
+
+[assets.behavior]
+kind = "behavior"
+path = "assets/behavior.json"
+source = "Texsys 数据中心参考设计库概念假设（公开产品水平脱敏）"
+fidelity = "metered-rack-pdu"
+
+[port_bindings.in]
+geometry = "/Module/Ports/in"
+symbol = "port-in"
+
+[port_bindings.out_1]
+geometry = "/Module/Ports/out_1"
+symbol = "port-out_1"
+
+[port_bindings.out_2]
+geometry = "/Module/Ports/out_2"
+symbol = "port-out_2"
+
+[port_bindings.out_3]
+geometry = "/Module/Ports/out_3"
+symbol = "port-out_3"
+
+[port_bindings.out_4]
+geometry = "/Module/Ports/out_4"
+symbol = "port-out_4"
+
+[port_bindings.out_5]
+geometry = "/Module/Ports/out_5"
+symbol = "port-out_5"
+
+[port_bindings.out_6]
+geometry = "/Module/Ports/out_6"
+symbol = "port-out_6"
+
+[port_bindings.out_7]
+geometry = "/Module/Ports/out_7"
+symbol = "port-out_7"
+
+[port_bindings.out_8]
+geometry = "/Module/Ports/out_8"
+symbol = "port-out_8"

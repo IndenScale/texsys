@@ -1,0 +1,12 @@
+{
+  "schema_version": 1,
+  "state": "assumed",
+  "model": "double-conversion-ups-module",
+  "parameters": {
+    "rated_kva": "kVA",
+    "efficiency": null,
+    "overload_125_pct_min": "min"
+  },
+  "method": "在线双变换；额定 kVA 与效率用于容量和热负荷计算，电池端口接电池柜。",
+  "limitations": "概念脱敏；实际并机环流、电池管理与切换瞬态由项目校核。"
+}

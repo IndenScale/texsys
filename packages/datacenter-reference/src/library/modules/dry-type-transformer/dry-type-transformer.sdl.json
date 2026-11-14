@@ -1,0 +1,63 @@
+{
+  "schema_version": 1,
+  "root": "DryTypeTransformer",
+  "components": {
+    "DryTypeTransformer": {
+      "ports": {
+        "primary": {
+          "direction": "in",
+          "kind": "ac-power",
+          "max_connections": 1
+        },
+        "secondary": {
+          "direction": "out",
+          "kind": "ac-power",
+          "max_connections": 1
+        }
+      },
+      "behavior": {
+        "reference": "assets/behavior.json",
+        "state": "assumed",
+        "source": "Texsys 数据中心参考设计库概念假设（公开产品水平脱敏）",
+        "parameters": {
+          "rated_kva": {
+            "value": 3150,
+            "unit": "kVA",
+            "state": "assumed",
+            "source": "Texsys 数据中心参考设计库概念假设（公开产品水平脱敏）"
+          },
+          "primary_kv": {
+            "value": 10,
+            "unit": "kV",
+            "state": "assumed",
+            "source": "Texsys 数据中心参考设计库概念假设（公开产品水平脱敏）"
+          },
+          "secondary_kv": {
+            "value": 0.4,
+            "unit": "kV",
+            "state": "assumed",
+            "source": "Texsys 数据中心参考设计库概念假设（公开产品水平脱敏）"
+          },
+          "impedance_pct": {
+            "value": 6,
+            "unit": "%",
+            "state": "assumed",
+            "source": "Texsys 数据中心参考设计库概念假设（公开产品水平脱敏）"
+          },
+          "no_load_loss_kw": {
+            "value": 3.2,
+            "unit": "kW",
+            "state": "assumed",
+            "source": "Texsys 数据中心参考设计库概念假设（公开产品水平脱敏）"
+          },
+          "load_loss_kw": {
+            "value": 22,
+            "unit": "kW",
+            "state": "assumed",
+            "source": "Texsys 数据中心参考设计库概念假设（公开产品水平脱敏）"
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,199 @@
+{
+  "schema_version": 2,
+  "root": "GeneratorContainer",
+  "imports": {
+    "Genset": "library/modules/diesel-generator/diesel-generator.sdl.json"
+  },
+  "components": {
+    "GenBus": {
+      "ports": {
+        "in_1": {
+          "direction": "in",
+          "kind": "ac-power",
+          "max_connections": 1
+        },
+        "in_2": {
+          "direction": "in",
+          "kind": "ac-power",
+          "max_connections": 1
+        },
+        "out": {
+          "direction": "out",
+          "kind": "ac-power",
+          "max_connections": 1
+        }
+      }
+    },
+    "FuelHeader": {
+      "ports": {
+        "in": {
+          "direction": "in",
+          "kind": "fuel",
+          "max_connections": 1
+        },
+        "out_1": {
+          "direction": "out",
+          "kind": "fuel",
+          "max_connections": 1
+        },
+        "out_2": {
+          "direction": "out",
+          "kind": "fuel",
+          "max_connections": 1
+        }
+      }
+    },
+    "ControlSplit": {
+      "ports": {
+        "in": {
+          "direction": "in",
+          "kind": "signal",
+          "max_connections": 1
+        },
+        "out_1": {
+          "direction": "out",
+          "kind": "signal",
+          "max_connections": 1
+        },
+        "out_2": {
+          "direction": "out",
+          "kind": "signal",
+          "max_connections": 1
+        }
+      }
+    },
+    "GeneratorContainer": {
+      "ports": {
+        "out": {
+          "direction": "out",
+          "kind": "ac-power",
+          "max_connections": 1
+        },
+        "fuel_in": {
+          "direction": "in",
+          "kind": "fuel",
+          "max_connections": 1
+        },
+        "control": {
+          "direction": "in",
+          "kind": "signal",
+          "max_connections": 1
+        },
+        "exhaust": {
+          "direction": "out",
+          "kind": "exhaust",
+          "max_connections": 2
+        }
+      },
+      "instances": {
+        "Genset1": {
+          "component": "Genset"
+        },
+        "Genset2": {
+          "component": "Genset"
+        },
+        "GenBus1": {
+          "component": "GenBus"
+        },
+        "FuelHeader1": {
+          "component": "FuelHeader"
+        },
+        "ControlSplit1": {
+          "component": "ControlSplit"
+        }
+      },
+      "connections": [
+        {
+          "from": "Genset1.ac_out",
+          "id": "link-001",
+          "to": "GenBus1.in_1"
+        },
+        {
+          "from": "Genset2.ac_out",
+          "id": "link-002",
+          "to": "GenBus1.in_2"
+        },
+        {
+          "from": "FuelHeader1.out_1",
+          "id": "link-003",
+          "to": "Genset1.fuel_in"
+        },
+        {
+          "from": "FuelHeader1.out_2",
+          "id": "link-004",
+          "to": "Genset2.fuel_in"
+        },
+        {
+          "from": "ControlSplit1.out_1",
+          "id": "link-005",
+          "to": "Genset1.control"
+        },
+        {
+          "from": "ControlSplit1.out_2",
+          "id": "link-006",
+          "to": "Genset2.control"
+        }
+      ],
+      "nets": {
+        "AcOutput": {
+          "kind": "ac-power",
+          "connections": [
+            "link-001",
+            "link-002"
+          ]
+        },
+        "Fuel": {
+          "kind": "fuel",
+          "connections": [
+            "link-003",
+            "link-004"
+          ]
+        },
+        "Control": {
+          "kind": "signal",
+          "connections": [
+            "link-005",
+            "link-006"
+          ]
+        }
+      },
+      "behavior": {
+        "reference": "assets/behavior.json",
+        "state": "assumed",
+        "source": "Texsys 数据中心参考设计库概念假设（公开产品水平脱敏）",
+        "parameters": {
+          "prime_kw_total": {
+            "value": 6000,
+            "unit": "kW",
+            "state": "assumed",
+            "source": "Texsys 数据中心参考设计库概念假设（公开产品水平脱敏）"
+          },
+          "genset_count": {
+            "value": 2,
+            "unit": "台",
+            "state": "assumed",
+            "source": "Texsys 数据中心参考设计库概念假设（公开产品水平脱敏）"
+          },
+          "fuel_storage_l": {
+            "value": 9000,
+            "unit": "L",
+            "state": "assumed",
+            "source": "Texsys 数据中心参考设计库概念假设（公开产品水平脱敏）"
+          },
+          "fuel_storage_hours": {
+            "value": 12,
+            "unit": "h",
+            "state": "assumed",
+            "source": "Texsys 数据中心参考设计库概念假设（公开产品水平脱敏）"
+          },
+          "fire_resistance_hours": {
+            "value": 1.0,
+            "unit": "h",
+            "state": "assumed",
+            "source": "Texsys 数据中心参考设计库概念假设（公开产品水平脱敏）"
+          }
+        }
+      }
+    }
+  }
+}

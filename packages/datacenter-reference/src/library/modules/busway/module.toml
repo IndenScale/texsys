@@ -1,0 +1,48 @@
+schema_version = 1
+name = "密集型母线槽"
+version = "0.1.0"
+entry = "busway.sdl.json"
+
+[assets.geometry]
+kind = "geometry"
+path = "assets/geometry.usda"
+source = "Texsys 数据中心参考设计库概念假设（公开产品水平脱敏）"
+fidelity = "设备包络与接口位姿"
+
+[assets.symbol]
+kind = "symbol"
+path = "assets/symbol.svg"
+source = "Texsys 数据中心参考设计库概念假设（公开产品水平脱敏）"
+fidelity = "功能符号与端口锚点"
+
+[assets.specification]
+kind = "specification"
+path = "assets/specification.json"
+source = "Texsys 数据中心参考设计库概念假设（公开产品水平脱敏）"
+fidelity = "坐标、接口、防火与耐候属性"
+
+[assets.behavior]
+kind = "behavior"
+path = "assets/behavior.json"
+source = "Texsys 数据中心参考设计库概念假设（公开产品水平脱敏）"
+fidelity = "busway-segment-with-taps"
+
+[port_bindings.in]
+geometry = "/Module/Ports/in"
+symbol = "port-in"
+
+[port_bindings.tap_1]
+geometry = "/Module/Ports/tap_1"
+symbol = "port-tap_1"
+
+[port_bindings.tap_2]
+geometry = "/Module/Ports/tap_2"
+symbol = "port-tap_2"
+
+[port_bindings.tap_3]
+geometry = "/Module/Ports/tap_3"
+symbol = "port-tap_3"
+
+[port_bindings.tap_4]
+geometry = "/Module/Ports/tap_4"
+symbol = "port-tap_4"

@@ -1,0 +1,138 @@
+{
+  "schema_version": 1,
+  "state": "assumed",
+  "basis": "Texsys 数据中心参考设计库概念假设（公开产品水平脱敏）",
+  "envelope_m": [
+    12.0,
+    2.4,
+    2.9
+  ],
+  "frame": {
+    "origin": "module-minimum-corner",
+    "units": "m",
+    "up_axis": "Z"
+  },
+  "interfaces": {
+    "out": {
+      "position_m": [
+        2.4,
+        0,
+        1.45
+      ],
+      "normal": [
+        0,
+        -1,
+        0
+      ]
+    },
+    "fuel_in": {
+      "position_m": [
+        4.8,
+        0,
+        1.45
+      ],
+      "normal": [
+        0,
+        -1,
+        0
+      ]
+    },
+    "control": {
+      "position_m": [
+        7.2,
+        0,
+        1.45
+      ],
+      "normal": [
+        0,
+        -1,
+        0
+      ]
+    },
+    "exhaust": {
+      "position_m": [
+        9.6,
+        0,
+        1.45
+      ],
+      "normal": [
+        0,
+        -1,
+        0
+      ]
+    }
+  },
+  "boundary": {
+    "out": [
+      "GenBus1.out"
+    ],
+    "fuel_in": [
+      "FuelHeader1.in"
+    ],
+    "control": [
+      "ControlSplit1.in"
+    ],
+    "exhaust": [
+      "Genset1.exhaust",
+      "Genset2.exhaust"
+    ]
+  },
+  "instance_layout_m": {
+    "Genset1": [
+      0.2,
+      0.2,
+      0
+    ],
+    "Genset2": [
+      6.2,
+      0.2,
+      0
+    ],
+    "GenBus1": [
+      0.2,
+      1.8,
+      1.8
+    ],
+    "FuelHeader1": [
+      5.9,
+      1.8,
+      0.5
+    ],
+    "ControlSplit1": [
+      11.5,
+      1.8,
+      1.5
+    ]
+  },
+  "properties": {
+    "geometry_parts": {
+      "Envelope": {
+        "origin_m": [
+          0,
+          0,
+          0
+        ],
+        "size_m": [
+          12.0,
+          2.4,
+          2.9
+        ],
+        "color": [
+          0.33,
+          0.45,
+          0.36
+        ]
+      }
+    },
+    "mass_kg": 40000,
+    "fire": {
+      "class": "方舱围护不燃，储油区防火堤",
+      "fire_resistance_hours": 1.0
+    },
+    "weathering": {
+      "installation": "outdoor",
+      "ip": "IP23",
+      "noise_dba_at_1m": 75
+    }
+  }
+}

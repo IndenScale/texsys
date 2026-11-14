@@ -1,0 +1,44 @@
+{
+  "schema_version": 1,
+  "root": "UpsModule",
+  "components": {
+    "UpsModule": {
+      "ports": {
+        "ac_in": {
+          "direction": "in",
+          "kind": "ac-power",
+          "max_connections": 1
+        },
+        "ac_out": {
+          "direction": "out",
+          "kind": "ac-power",
+          "max_connections": 1
+        },
+        "battery": {
+          "direction": "in",
+          "kind": "dc-power",
+          "max_connections": 1
+        }
+      },
+      "behavior": {
+        "reference": "assets/behavior.json",
+        "state": "assumed",
+        "source": "Texsys 数据中心参考设计库概念假设（公开产品水平脱敏）",
+        "parameters": {
+          "rated_kva": {
+            "value": 500,
+            "unit": "kVA",
+            "state": "assumed",
+            "source": "Texsys 数据中心参考设计库概念假设（公开产品水平脱敏）"
+          },
+          "overload_125_pct_min": {
+            "value": 10,
+            "unit": "min",
+            "state": "assumed",
+            "source": "Texsys 数据中心参考设计库概念假设（公开产品水平脱敏）"
+          }
+        }
+      }
+    }
+  }
+}

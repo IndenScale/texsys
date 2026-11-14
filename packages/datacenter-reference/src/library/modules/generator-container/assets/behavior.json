@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "state": "assumed",
+  "model": "containerized-standby-power",
+  "parameters": {
+    "prime_kw_total": "kW",
+    "genset_count": "台",
+    "fuel_storage_l": "L",
+    "fuel_storage_hours": "h",
+    "fire_resistance_hours": "h"
+  },
+  "method": "2×3000 kW 机组 N+1 并机输出；日用油箱与埋地罐合计 9000 L，满负荷约 15 h（GB 50174 8.1.15）。",
+  "limitations": "概念脱敏；实际并机同步、排烟与储油消防由项目校核。"
+}

@@ -1,0 +1,83 @@
+{
+  "schema_version": 1,
+  "state": "assumed",
+  "basis": "Texsys 数据中心参考设计库概念假设（公开产品水平脱敏）",
+  "envelope_m": [
+    1.2,
+    0.5,
+    0.8
+  ],
+  "frame": {
+    "origin": "module-minimum-corner",
+    "units": "m",
+    "up_axis": "Z"
+  },
+  "interfaces": {
+    "in": {
+      "position_m": [
+        0.1,
+        0.25,
+        0.4
+      ],
+      "normal": [
+        -1,
+        0,
+        0
+      ]
+    },
+    "out": {
+      "position_m": [
+        1.1,
+        0.25,
+        0.4
+      ],
+      "normal": [
+        1,
+        0,
+        0
+      ]
+    },
+    "power": {
+      "position_m": [
+        0.6,
+        0.25,
+        0.8
+      ],
+      "normal": [
+        0,
+        0,
+        1
+      ]
+    }
+  },
+  "properties": {
+    "geometry_parts": {
+      "Envelope": {
+        "origin_m": [
+          0,
+          0,
+          0
+        ],
+        "size_m": [
+          1.2,
+          0.5,
+          0.8
+        ],
+        "color": [
+          0.3,
+          0.35,
+          0.5
+        ]
+      }
+    },
+    "mass_kg": 450,
+    "fire": {
+      "class": "不燃",
+      "fire_resistance_hours": null
+    },
+    "weathering": {
+      "installation": "indoor",
+      "ip": "IP55"
+    }
+  }
+}

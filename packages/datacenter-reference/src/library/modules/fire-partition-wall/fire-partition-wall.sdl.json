@@ -1,0 +1,38 @@
+{
+  "schema_version": 2,
+  "root": "FirePartitionWall",
+  "imports": {
+    "WallPanel": "@architecture/library/modules/wall-panel/wall-panel.sdl.json"
+  },
+  "components": {
+    "FirePartitionWall": {
+      "ports": {},
+      "instances": {
+        "Panel": {
+          "component": "WallPanel"
+        }
+      },
+      "connections": [],
+      "nets": {},
+      "behavior": {
+        "reference": "assets/behavior.json",
+        "state": "assumed",
+        "source": "Texsys 数据中心参考设计库概念假设（公开产品水平脱敏）",
+        "parameters": {
+          "fire_resistance_hours": {
+            "value": 2.0,
+            "unit": "h",
+            "state": "assumed",
+            "source": "Texsys 数据中心参考设计库概念假设（公开产品水平脱敏）"
+          },
+          "thickness_mm": {
+            "value": 200,
+            "unit": "mm",
+            "state": "assumed",
+            "source": "Texsys 数据中心参考设计库概念假设（公开产品水平脱敏）"
+          }
+        }
+      }
+    }
+  }
+}

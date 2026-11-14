@@ -1,0 +1,306 @@
+{
+  "schema_version": 2,
+  "root": "PowerContainer",
+  "imports": {
+    "Transformer": "library/modules/dry-type-transformer/dry-type-transformer.sdl.json",
+    "Switchboard": "library/modules/lv-switchboard/lv-switchboard.sdl.json",
+    "ATS": "library/modules/ats/ats.sdl.json",
+    "UpsModule": "library/modules/ups-module/ups-module.sdl.json",
+    "Battery": "library/modules/battery-cabinet/battery-cabinet.sdl.json"
+  },
+  "components": {
+    "UpsBus": {
+      "ports": {
+        "in": {
+          "direction": "in",
+          "kind": "ac-power",
+          "max_connections": 1
+        },
+        "out_1": {
+          "direction": "out",
+          "kind": "ac-power",
+          "max_connections": 1
+        },
+        "out_2": {
+          "direction": "out",
+          "kind": "ac-power",
+          "max_connections": 1
+        },
+        "out_3": {
+          "direction": "out",
+          "kind": "ac-power",
+          "max_connections": 1
+        },
+        "out_4": {
+          "direction": "out",
+          "kind": "ac-power",
+          "max_connections": 1
+        },
+        "out_5": {
+          "direction": "out",
+          "kind": "ac-power",
+          "max_connections": 1
+        }
+      }
+    },
+    "OutputBus": {
+      "ports": {
+        "in_1": {
+          "direction": "in",
+          "kind": "ac-power",
+          "max_connections": 1
+        },
+        "in_2": {
+          "direction": "in",
+          "kind": "ac-power",
+          "max_connections": 1
+        },
+        "in_3": {
+          "direction": "in",
+          "kind": "ac-power",
+          "max_connections": 1
+        },
+        "in_4": {
+          "direction": "in",
+          "kind": "ac-power",
+          "max_connections": 1
+        },
+        "in_5": {
+          "direction": "in",
+          "kind": "ac-power",
+          "max_connections": 1
+        },
+        "out": {
+          "direction": "out",
+          "kind": "ac-power",
+          "max_connections": 8
+        }
+      }
+    },
+    "PowerContainer": {
+      "ports": {
+        "utility_in": {
+          "direction": "in",
+          "kind": "ac-power",
+          "max_connections": 1
+        },
+        "genset_in": {
+          "direction": "in",
+          "kind": "ac-power",
+          "max_connections": 1
+        },
+        "out": {
+          "direction": "out",
+          "kind": "ac-power",
+          "max_connections": 8
+        }
+      },
+      "instances": {
+        "Transformer": {
+          "component": "Transformer"
+        },
+        "Switchboard": {
+          "component": "Switchboard"
+        },
+        "Ats": {
+          "component": "ATS"
+        },
+        "UpsBus1": {
+          "component": "UpsBus"
+        },
+        "OutputBus1": {
+          "component": "OutputBus"
+        },
+        "Ups1": {
+          "component": "UpsModule"
+        },
+        "Battery1": {
+          "component": "Battery"
+        },
+        "Ups2": {
+          "component": "UpsModule"
+        },
+        "Battery2": {
+          "component": "Battery"
+        },
+        "Ups3": {
+          "component": "UpsModule"
+        },
+        "Battery3": {
+          "component": "Battery"
+        },
+        "Ups4": {
+          "component": "UpsModule"
+        },
+        "Battery4": {
+          "component": "Battery"
+        },
+        "Ups5": {
+          "component": "UpsModule"
+        },
+        "Battery5": {
+          "component": "Battery"
+        }
+      },
+      "connections": [
+        {
+          "from": "Transformer.secondary",
+          "id": "link-001",
+          "to": "Switchboard.in"
+        },
+        {
+          "from": "Switchboard.out_1",
+          "id": "link-002",
+          "to": "Ats.source_a"
+        },
+        {
+          "from": "Ats.out",
+          "id": "link-003",
+          "to": "UpsBus1.in"
+        },
+        {
+          "from": "UpsBus1.out_1",
+          "id": "link-004",
+          "to": "Ups1.ac_in"
+        },
+        {
+          "from": "Ups1.ac_out",
+          "id": "link-005",
+          "to": "OutputBus1.in_1"
+        },
+        {
+          "from": "Battery1.dc",
+          "id": "link-006",
+          "to": "Ups1.battery"
+        },
+        {
+          "from": "UpsBus1.out_2",
+          "id": "link-007",
+          "to": "Ups2.ac_in"
+        },
+        {
+          "from": "Ups2.ac_out",
+          "id": "link-008",
+          "to": "OutputBus1.in_2"
+        },
+        {
+          "from": "Battery2.dc",
+          "id": "link-009",
+          "to": "Ups2.battery"
+        },
+        {
+          "from": "UpsBus1.out_3",
+          "id": "link-010",
+          "to": "Ups3.ac_in"
+        },
+        {
+          "from": "Ups3.ac_out",
+          "id": "link-011",
+          "to": "OutputBus1.in_3"
+        },
+        {
+          "from": "Battery3.dc",
+          "id": "link-012",
+          "to": "Ups3.battery"
+        },
+        {
+          "from": "UpsBus1.out_4",
+          "id": "link-013",
+          "to": "Ups4.ac_in"
+        },
+        {
+          "from": "Ups4.ac_out",
+          "id": "link-014",
+          "to": "OutputBus1.in_4"
+        },
+        {
+          "from": "Battery4.dc",
+          "id": "link-015",
+          "to": "Ups4.battery"
+        },
+        {
+          "from": "UpsBus1.out_5",
+          "id": "link-016",
+          "to": "Ups5.ac_in"
+        },
+        {
+          "from": "Ups5.ac_out",
+          "id": "link-017",
+          "to": "OutputBus1.in_5"
+        },
+        {
+          "from": "Battery5.dc",
+          "id": "link-018",
+          "to": "Ups5.battery"
+        }
+      ],
+      "nets": {
+        "AcPath": {
+          "kind": "ac-power",
+          "connections": [
+            "link-001",
+            "link-002",
+            "link-003",
+            "link-004",
+            "link-005",
+            "link-007",
+            "link-008",
+            "link-010",
+            "link-011",
+            "link-013",
+            "link-014",
+            "link-016",
+            "link-017"
+          ]
+        },
+        "DcPath": {
+          "kind": "dc-power",
+          "connections": [
+            "link-006",
+            "link-009",
+            "link-012",
+            "link-015",
+            "link-018"
+          ]
+        }
+      },
+      "behavior": {
+        "reference": "assets/behavior.json",
+        "state": "assumed",
+        "source": "Texsys 数据中心参考设计库概念假设（公开产品水平脱敏）",
+        "parameters": {
+          "rated_kva": {
+            "value": 2500,
+            "unit": "kVA",
+            "state": "assumed",
+            "source": "Texsys 数据中心参考设计库概念假设（公开产品水平脱敏）"
+          },
+          "ups_modules": {
+            "value": 5,
+            "unit": "台",
+            "state": "assumed",
+            "source": "Texsys 数据中心参考设计库概念假设（公开产品水平脱敏）"
+          },
+          "battery_energy_kwh": {
+            "value": 600,
+            "unit": "kWh",
+            "state": "assumed",
+            "source": "Texsys 数据中心参考设计库概念假设（公开产品水平脱敏）"
+          },
+          "battery_autonomy_min": {
+            "value": 15,
+            "unit": "min",
+            "state": "assumed",
+            "source": "Texsys 数据中心参考设计库概念假设（公开产品水平脱敏）"
+          },
+          "fire_resistance_hours": {
+            "value": 1.0,
+            "unit": "h",
+            "state": "assumed",
+            "source": "Texsys 数据中心参考设计库概念假设（公开产品水平脱敏）"
+          }
+        }
+      }
+    }
+  }
+}

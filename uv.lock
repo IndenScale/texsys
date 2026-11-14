@@ -13,6 +13,7 @@ members = [
     "texsys-bom",
     "texsys-controls",
     "texsys-datacenter",
+    "texsys-datacenter-reference",
     "texsys-diagram",
     "texsys-diagram-elk",
     "texsys-electrical",
@@ -712,6 +713,7 @@ dev = [
     { name = "ruff" },
     { name = "texsys-bom" },
     { name = "texsys-datacenter" },
+    { name = "texsys-datacenter-reference" },
     { name = "texsys-diagram" },
     { name = "texsys-diagram-elk" },
     { name = "texsys-hvac-bom" },
@@ -747,6 +749,7 @@ dev = [
     { name = "ruff", specifier = ">=0.8" },
     { name = "texsys-bom", editable = "packages/bom" },
     { name = "texsys-datacenter", editable = "packages/datacenter" },
+    { name = "texsys-datacenter-reference", editable = "packages/datacenter-reference" },
     { name = "texsys-diagram", editable = "packages/diagram" },
     { name = "texsys-diagram-elk", editable = "packages/diagram-elk" },
     { name = "texsys-hvac-bom", editable = "packages/hvac-bom" },
@@ -818,6 +821,21 @@ requires-dist = [
     { name = "texsys-plumbing", editable = "packages/plumbing" },
     { name = "texsys-spatial", editable = "packages/spatial" },
     { name = "texsys-structure", editable = "packages/structure" },
+]
+
+[[package]]
+name = "texsys-datacenter-reference"
+version = "0.1.0"
+source = { editable = "packages/datacenter-reference" }
+dependencies = [
+    { name = "texsys" },
+    { name = "texsys-bom" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "texsys", editable = "." },
+    { name = "texsys-bom", editable = "packages/bom" },
 ]
 
 [[package]]

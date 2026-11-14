@@ -1,0 +1,167 @@
+{
+  "schema_version": 1,
+  "state": "assumed",
+  "basis": "Texsys 数据中心参考设计库概念假设（公开产品水平脱敏）",
+  "envelope_m": [
+    6.0,
+    2.4,
+    2.9
+  ],
+  "frame": {
+    "origin": "module-minimum-corner",
+    "units": "m",
+    "up_axis": "Z"
+  },
+  "interfaces": {
+    "power_a": {
+      "position_m": [
+        0.8571428571428571,
+        0,
+        1.45
+      ],
+      "normal": [
+        0,
+        -1,
+        0
+      ]
+    },
+    "power_b": {
+      "position_m": [
+        1.7142857142857142,
+        0,
+        1.45
+      ],
+      "normal": [
+        0,
+        -1,
+        0
+      ]
+    },
+    "fws_return": {
+      "position_m": [
+        2.5714285714285716,
+        0,
+        1.45
+      ],
+      "normal": [
+        0,
+        -1,
+        0
+      ]
+    },
+    "fws_supply": {
+      "position_m": [
+        3.4285714285714284,
+        0,
+        1.45
+      ],
+      "normal": [
+        0,
+        -1,
+        0
+      ]
+    },
+    "cw_in": {
+      "position_m": [
+        4.285714285714286,
+        0,
+        1.45
+      ],
+      "normal": [
+        0,
+        -1,
+        0
+      ]
+    },
+    "cw_out": {
+      "position_m": [
+        5.142857142857143,
+        0,
+        1.45
+      ],
+      "normal": [
+        0,
+        -1,
+        0
+      ]
+    }
+  },
+  "boundary": {
+    "power_a": [
+      "Feed.in_a"
+    ],
+    "power_b": [
+      "Feed.in_b"
+    ],
+    "fws_return": [
+      "Pump1.in",
+      "Pump2.in"
+    ],
+    "fws_supply": [
+      "Chiller.chw_supply"
+    ],
+    "cw_in": [
+      "Chiller.cw_in"
+    ],
+    "cw_out": [
+      "Chiller.cw_out"
+    ]
+  },
+  "instance_layout_m": {
+    "Chiller": [
+      0.2,
+      0.3,
+      0
+    ],
+    "Pump1": [
+      4.5,
+      0.3,
+      0
+    ],
+    "Pump2": [
+      4.5,
+      1.3,
+      0
+    ],
+    "Feed": [
+      5.5,
+      0.9,
+      1.8
+    ],
+    "Header": [
+      4.0,
+      0.8,
+      0.5
+    ]
+  },
+  "properties": {
+    "geometry_parts": {
+      "Envelope": {
+        "origin_m": [
+          0,
+          0,
+          0
+        ],
+        "size_m": [
+          6.0,
+          2.4,
+          2.9
+        ],
+        "color": [
+          0.28,
+          0.42,
+          0.5
+        ]
+      }
+    },
+    "mass_kg": 11000,
+    "fire": {
+      "class": "方舱围护不燃",
+      "fire_resistance_hours": 1.0
+    },
+    "weathering": {
+      "installation": "outdoor",
+      "ip": "IP54"
+    }
+  }
+}

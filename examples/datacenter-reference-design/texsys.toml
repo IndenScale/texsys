@@ -1,0 +1,15 @@
+schema_version = 1
+
+[project]
+name = "datacenter-reference-design"
+
+[layout]
+source = "src"
+assets = "assets"
+build = "build"
+
+[build]
+default_targets = ["dcr:design-checks", "dcr:bom"]
+
+[dependencies]
+datacenter-reference = { path = "../../packages/datacenter-reference", version = "0.1.0" }

@@ -1,0 +1,61 @@
+{
+  "schema_version": 1,
+  "root": "DieselGenerator",
+  "components": {
+    "DieselGenerator": {
+      "ports": {
+        "ac_out": {
+          "direction": "out",
+          "kind": "ac-power",
+          "max_connections": 1
+        },
+        "fuel_in": {
+          "direction": "in",
+          "kind": "fuel",
+          "max_connections": 1
+        },
+        "exhaust": {
+          "direction": "out",
+          "kind": "exhaust",
+          "max_connections": 1
+        },
+        "control": {
+          "direction": "in",
+          "kind": "signal",
+          "max_connections": 1
+        }
+      },
+      "behavior": {
+        "reference": "assets/behavior.json",
+        "state": "assumed",
+        "source": "Texsys 数据中心参考设计库概念假设（公开产品水平脱敏）",
+        "parameters": {
+          "prime_kw": {
+            "value": 3000,
+            "unit": "kW",
+            "state": "assumed",
+            "source": "Texsys 数据中心参考设计库概念假设（公开产品水平脱敏）"
+          },
+          "standby_kw": {
+            "value": 3300,
+            "unit": "kW",
+            "state": "assumed",
+            "source": "Texsys 数据中心参考设计库概念假设（公开产品水平脱敏）"
+          },
+          "fuel_consumption_lph": {
+            "value": 620,
+            "unit": "L/h",
+            "state": "assumed",
+            "source": "Texsys 数据中心参考设计库概念假设（公开产品水平脱敏）"
+          },
+          "voltage_v": {
+            "value": 400,
+            "unit": "V",
+            "state": "assumed",
+            "source": "Texsys 数据中心参考设计库概念假设（公开产品水平脱敏）"
+          }
+        }
+      }
+    }
+  }
+}

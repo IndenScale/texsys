@@ -1,0 +1,40 @@
+schema_version = 1
+name = "模块化 UPS 功率模块"
+version = "0.1.0"
+entry = "ups-module.sdl.json"
+
+[assets.geometry]
+kind = "geometry"
+path = "assets/geometry.usda"
+source = "Texsys 数据中心参考设计库概念假设（公开产品水平脱敏）"
+fidelity = "设备包络与接口位姿"
+
+[assets.symbol]
+kind = "symbol"
+path = "assets/symbol.svg"
+source = "Texsys 数据中心参考设计库概念假设（公开产品水平脱敏）"
+fidelity = "功能符号与端口锚点"
+
+[assets.specification]
+kind = "specification"
+path = "assets/specification.json"
+source = "Texsys 数据中心参考设计库概念假设（公开产品水平脱敏）"
+fidelity = "坐标、接口、防火与耐候属性"
+
+[assets.behavior]
+kind = "behavior"
+path = "assets/behavior.json"
+source = "Texsys 数据中心参考设计库概念假设（公开产品水平脱敏）"
+fidelity = "double-conversion-ups-module"
+
+[port_bindings.ac_in]
+geometry = "/Module/Ports/ac_in"
+symbol = "port-ac_in"
+
+[port_bindings.ac_out]
+geometry = "/Module/Ports/ac_out"
+symbol = "port-ac_out"
+
+[port_bindings.battery]
+geometry = "/Module/Ports/battery"
+symbol = "port-battery"

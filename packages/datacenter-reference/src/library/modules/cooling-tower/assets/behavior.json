@@ -1,0 +1,12 @@
+{
+  "schema_version": 1,
+  "state": "assumed",
+  "model": "induced-draft-cooling-tower",
+  "parameters": {
+    "heat_rejection_kw": "kW",
+    "approach_c": "degC",
+    "fan_kw": "kW"
+  },
+  "method": "排热量与逼近度用于冷却水温和冷源连续性筛查。",
+  "limitations": "概念脱敏；实际飘水、结冰与噪声由项目校核。"
+}

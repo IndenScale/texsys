@@ -1,0 +1,12 @@
+{
+  "schema_version": 1,
+  "state": "assumed",
+  "model": "battery-string",
+  "parameters": {
+    "energy_kwh": "kWh",
+    "voltage_v": "V",
+    "autonomy_min": "min"
+  },
+  "method": "能量与电压用于后备时间筛查；15 min 对应 A 级 UPS 电池后备概念值。",
+  "limitations": "概念脱敏；实际热失控防护、通风与消防联动由项目校核。"
+}

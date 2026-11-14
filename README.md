@@ -57,7 +57,7 @@ uv run --locked tools/verify_hvac_engineering_poc.py
 uv run --locked texsys engineering run hvac:capacity-change -p examples/hvac-dynamic-station
 ```
 
-根据退出码和项目构建目录中的证据定位问题。工程不满足、执行错误或无法判定均返回非零；`texsys build` 只运行选定目标。更多案例见 [混合冷却数据中心](examples/datacenter-hybrid-unit/README.md) 和 [交付物构建](examples/build-deliverables/README.md)。
+根据退出码和项目构建目录中的证据定位问题。工程不满足、执行错误或无法判定均返回非零；`texsys build` 只运行选定目标。更多案例见 [混合冷却数据中心](examples/datacenter-hybrid-unit/README.md)、[数据中心参考设计](examples/datacenter-reference-design/README.md) 和 [交付物构建](examples/build-deliverables/README.md)。
 
 ## 开发与验证
 

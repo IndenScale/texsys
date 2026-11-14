@@ -1,0 +1,111 @@
+{
+  "schema_version": 2,
+  "root": "SteelFrameBay",
+  "imports": {
+    "SteelSupport": "@structure/library/modules/steel-support/steel-support.sdl.json"
+  },
+  "components": {
+    "SteelFrameBay": {
+      "ports": {
+        "bearing_1": {
+          "direction": "inout",
+          "kind": "structural-bearing",
+          "max_connections": 1
+        },
+        "bearing_2": {
+          "direction": "inout",
+          "kind": "structural-bearing",
+          "max_connections": 1
+        },
+        "bearing_3": {
+          "direction": "inout",
+          "kind": "structural-bearing",
+          "max_connections": 1
+        },
+        "bearing_4": {
+          "direction": "inout",
+          "kind": "structural-bearing",
+          "max_connections": 1
+        }
+      },
+      "instances": {
+        "Column1": {
+          "component": "SteelSupport"
+        },
+        "Column2": {
+          "component": "SteelSupport"
+        },
+        "Column3": {
+          "component": "SteelSupport"
+        },
+        "Column4": {
+          "component": "SteelSupport"
+        },
+        "Beam1": {
+          "component": "SteelSupport"
+        },
+        "Beam2": {
+          "component": "SteelSupport"
+        }
+      },
+      "connections": [
+        {
+          "from": "Column1.bearing_b",
+          "id": "link-001",
+          "to": "Beam1.bearing_a"
+        },
+        {
+          "from": "Column2.bearing_b",
+          "id": "link-002",
+          "to": "Beam1.bearing_b"
+        },
+        {
+          "from": "Column3.bearing_b",
+          "id": "link-003",
+          "to": "Beam2.bearing_a"
+        },
+        {
+          "from": "Column4.bearing_b",
+          "id": "link-004",
+          "to": "Beam2.bearing_b"
+        }
+      ],
+      "nets": {
+        "Frame": {
+          "kind": "structural-bearing",
+          "connections": [
+            "link-001",
+            "link-002",
+            "link-003",
+            "link-004"
+          ]
+        }
+      },
+      "behavior": {
+        "reference": "assets/behavior.json",
+        "state": "assumed",
+        "source": "Texsys 数据中心参考设计库概念假设（公开产品水平脱敏）",
+        "parameters": {
+          "bay_span_m": {
+            "value": 8,
+            "unit": "m",
+            "state": "assumed",
+            "source": "Texsys 数据中心参考设计库概念假设（公开产品水平脱敏）"
+          },
+          "clear_height_m": {
+            "value": 4.5,
+            "unit": "m",
+            "state": "assumed",
+            "source": "Texsys 数据中心参考设计库概念假设（公开产品水平脱敏）"
+          },
+          "fire_resistance_hours": {
+            "value": 2.0,
+            "unit": "h",
+            "state": "assumed",
+            "source": "Texsys 数据中心参考设计库概念假设（公开产品水平脱敏）"
+          }
+        }
+      }
+    }
+  }
+}

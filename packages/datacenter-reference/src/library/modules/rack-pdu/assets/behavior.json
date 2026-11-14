@@ -1,0 +1,11 @@
+{
+  "schema_version": 1,
+  "state": "assumed",
+  "model": "metered-rack-pdu",
+  "parameters": {
+    "rated_a": "A",
+    "outlets": null
+  },
+  "method": "一路输入八路输出（示意）；额定电流用于逐柜配电容量筛查。",
+  "limitations": "概念脱敏；实际支路计量、谐波与漏电保护由项目校核。"
+}

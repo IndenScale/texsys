@@ -1,0 +1,55 @@
+{
+  "schema_version": 1,
+  "root": "CoolingTower",
+  "components": {
+    "CoolingTower": {
+      "ports": {
+        "cw_in": {
+          "direction": "in",
+          "kind": "cw",
+          "max_connections": 1
+        },
+        "cw_out": {
+          "direction": "out",
+          "kind": "cw",
+          "max_connections": 1
+        },
+        "makeup": {
+          "direction": "in",
+          "kind": "makeup-water",
+          "max_connections": 1
+        },
+        "fan_power": {
+          "direction": "in",
+          "kind": "ac-power",
+          "max_connections": 1
+        }
+      },
+      "behavior": {
+        "reference": "assets/behavior.json",
+        "state": "assumed",
+        "source": "Texsys 数据中心参考设计库概念假设（公开产品水平脱敏）",
+        "parameters": {
+          "heat_rejection_kw": {
+            "value": 1500,
+            "unit": "kW",
+            "state": "assumed",
+            "source": "Texsys 数据中心参考设计库概念假设（公开产品水平脱敏）"
+          },
+          "approach_c": {
+            "value": 4,
+            "unit": "degC",
+            "state": "assumed",
+            "source": "Texsys 数据中心参考设计库概念假设（公开产品水平脱敏）"
+          },
+          "fan_kw": {
+            "value": 30,
+            "unit": "kW",
+            "state": "assumed",
+            "source": "Texsys 数据中心参考设计库概念假设（公开产品水平脱敏）"
+          }
+        }
+      }
+    }
+  }
+}

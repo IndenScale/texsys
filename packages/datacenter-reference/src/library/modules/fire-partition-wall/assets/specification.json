@@ -1,0 +1,55 @@
+{
+  "schema_version": 1,
+  "state": "assumed",
+  "basis": "Texsys 数据中心参考设计库概念假设（公开产品水平脱敏）",
+  "envelope_m": [
+    6.0,
+    0.2,
+    4.5
+  ],
+  "frame": {
+    "origin": "module-minimum-corner",
+    "units": "m",
+    "up_axis": "Z"
+  },
+  "interfaces": {},
+  "boundary": {},
+  "instance_layout_m": {
+    "Panel": [
+      0,
+      0,
+      0
+    ]
+  },
+  "properties": {
+    "geometry_parts": {
+      "Envelope": {
+        "origin_m": [
+          0,
+          0,
+          0
+        ],
+        "size_m": [
+          6.0,
+          0.2,
+          4.5
+        ],
+        "color": [
+          0.65,
+          0.6,
+          0.55
+        ]
+      }
+    },
+    "mass_kg": 2600,
+    "fire": {
+      "class": "A 级不燃",
+      "fire_resistance_hours": 2.0
+    },
+    "weathering": {
+      "installation": "indoor",
+      "ip": null
+    },
+    "material": "蒸压加气混凝土板（概念）"
+  }
+}

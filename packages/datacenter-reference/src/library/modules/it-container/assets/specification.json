@@ -1,0 +1,247 @@
+{
+  "schema_version": 1,
+  "state": "assumed",
+  "basis": "Texsys 数据中心参考设计库概念假设（公开产品水平脱敏）",
+  "envelope_m": [
+    6.0,
+    2.4,
+    2.9
+  ],
+  "frame": {
+    "origin": "module-minimum-corner",
+    "units": "m",
+    "up_axis": "Z"
+  },
+  "interfaces": {
+    "power_a": {
+      "position_m": [
+        1.0,
+        0,
+        1.45
+      ],
+      "normal": [
+        0,
+        -1,
+        0
+      ]
+    },
+    "power_b": {
+      "position_m": [
+        2.0,
+        0,
+        1.45
+      ],
+      "normal": [
+        0,
+        -1,
+        0
+      ]
+    },
+    "fws_supply": {
+      "position_m": [
+        3.0,
+        0,
+        1.45
+      ],
+      "normal": [
+        0,
+        -1,
+        0
+      ]
+    },
+    "fws_return": {
+      "position_m": [
+        4.0,
+        0,
+        1.45
+      ],
+      "normal": [
+        0,
+        -1,
+        0
+      ]
+    },
+    "alarm": {
+      "position_m": [
+        5.0,
+        0,
+        1.45
+      ],
+      "normal": [
+        0,
+        -1,
+        0
+      ]
+    }
+  },
+  "boundary": {
+    "power_a": [
+      "FeedA.in"
+    ],
+    "power_b": [
+      "FeedB.in"
+    ],
+    "fws_supply": [
+      "CduA.facility_in",
+      "CduB.facility_in"
+    ],
+    "fws_return": [
+      "CduA.facility_out",
+      "CduB.facility_out"
+    ],
+    "alarm": [
+      "FirePanel1.alarm"
+    ]
+  },
+  "instance_layout_m": {
+    "Rack01": [
+      0.2,
+      0.15,
+      0
+    ],
+    "Rack02": [
+      1.05,
+      0.15,
+      0
+    ],
+    "Rack03": [
+      1.9,
+      0.15,
+      0
+    ],
+    "Rack04": [
+      2.75,
+      0.15,
+      0
+    ],
+    "Rack05": [
+      0.2,
+      1.4,
+      0
+    ],
+    "Rack06": [
+      1.05,
+      1.4,
+      0
+    ],
+    "Rack07": [
+      1.9,
+      1.4,
+      0
+    ],
+    "Rack08": [
+      2.75,
+      1.4,
+      0
+    ],
+    "CduA": [
+      4.0,
+      0.15,
+      0
+    ],
+    "CduB": [
+      4.0,
+      1.35,
+      0
+    ],
+    "PaA1": [
+      4.9,
+      0.15,
+      0
+    ],
+    "PaA2": [
+      4.9,
+      0.75,
+      0
+    ],
+    "PaB1": [
+      4.9,
+      1.35,
+      0
+    ],
+    "PaB2": [
+      4.9,
+      1.95,
+      0
+    ],
+    "PduA": [
+      5.6,
+      0.15,
+      0
+    ],
+    "PduB": [
+      5.6,
+      1.35,
+      0
+    ],
+    "FirePanel1": [
+      5.6,
+      0.75,
+      0
+    ],
+    "FeedA": [
+      5.6,
+      0.45,
+      1.8
+    ],
+    "FeedB": [
+      5.6,
+      1.05,
+      1.8
+    ],
+    "SupplyA": [
+      3.7,
+      0.15,
+      2.3
+    ],
+    "ReturnA": [
+      3.7,
+      0.45,
+      2.3
+    ],
+    "SupplyB": [
+      3.7,
+      1.35,
+      2.3
+    ],
+    "ReturnB": [
+      3.7,
+      1.65,
+      2.3
+    ]
+  },
+  "properties": {
+    "geometry_parts": {
+      "Envelope": {
+        "origin_m": [
+          0,
+          0,
+          0
+        ],
+        "size_m": [
+          6.0,
+          2.4,
+          2.9
+        ],
+        "color": [
+          0.3,
+          0.38,
+          0.45
+        ]
+      }
+    },
+    "mass_kg": 12000,
+    "fire": {
+      "class": "方舱围护不燃，舱内气体灭火",
+      "fire_resistance_hours": 1.0,
+      "suppression": "全氟己酮（概念）",
+      "detection": "极早期烟感"
+    },
+    "weathering": {
+      "installation": "indoor",
+      "ip": "IP54"
+    },
+    "racks_per_container": 8,
+    "rack_load_kw": 15
+  }
+}

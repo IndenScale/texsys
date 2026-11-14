@@ -1,0 +1,11 @@
+{
+  "schema_version": 1,
+  "state": "assumed",
+  "model": "two-source-transfer-switch",
+  "parameters": {
+    "rated_a": "A",
+    "transfer_time_s": "s"
+  },
+  "method": "常用/备用两路输入一路输出；切换时间用于供电连续性筛查。",
+  "limitations": "概念脱敏；实际 PC/CB 级选型、旁路隔离与发电机启动联锁由项目校核。"
+}

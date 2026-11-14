@@ -1,0 +1,13 @@
+{
+  "schema_version": 1,
+  "state": "assumed",
+  "model": "centrifugal-pump-fixed-speed",
+  "parameters": {
+    "flow_m3h": "m3/h",
+    "head_m": "m",
+    "power_kw": "kW",
+    "efficiency": null
+  },
+  "method": "额定流量与扬程用于冷却水水力筛查；效率用于泵功率估算。",
+  "limitations": "概念脱敏；实际汽蚀余量、并联工况与变频由项目校核。"
+}

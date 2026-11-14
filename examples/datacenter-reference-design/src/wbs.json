@@ -1,0 +1,32 @@
+{
+  "schema_version": 1,
+  "nodes": {
+    "WBS-01": "主机房：IT 方舱、活动地板与建筑构造",
+    "WBS-02": "供配电：市电、配电方舱、母线、备用发电机与控制",
+    "WBS-03": "冷源：冷却方舱、冷却塔、冷却水泵与补水",
+    "WBS-04": "建筑构造：钢框架与防火隔墙"
+  },
+  "assignment": {
+    "IT01": "WBS-01", "IT02": "WBS-01", "IT03": "WBS-01", "IT04": "WBS-01",
+    "IT05": "WBS-01", "IT06": "WBS-01", "IT07": "WBS-01", "IT08": "WBS-01",
+    "IT09": "WBS-01", "IT10": "WBS-01", "IT11": "WBS-01", "IT12": "WBS-01",
+    "IT13": "WBS-01", "IT14": "WBS-01", "IT15": "WBS-01", "IT16": "WBS-01",
+    "Floor01": "WBS-01", "Floor02": "WBS-01", "Floor03": "WBS-01", "Floor04": "WBS-01",
+    "Floor05": "WBS-01", "Floor06": "WBS-01", "Floor07": "WBS-01", "Floor08": "WBS-01",
+    "Floor09": "WBS-01", "Floor10": "WBS-01", "Floor11": "WBS-01", "Floor12": "WBS-01",
+    "Floor13": "WBS-01", "Floor14": "WBS-01", "Floor15": "WBS-01", "Floor16": "WBS-01",
+    "Frame01": "WBS-04", "Frame02": "WBS-04", "Frame03": "WBS-04", "Frame04": "WBS-04",
+    "Frame05": "WBS-04", "Frame06": "WBS-04", "Frame07": "WBS-04", "Frame08": "WBS-04",
+    "Wall01": "WBS-04", "Wall02": "WBS-04", "Wall03": "WBS-04", "Wall04": "WBS-04",
+    "UtilityA": "WBS-02", "UtilityB": "WBS-02",
+    "PowerPathA": "WBS-02", "PowerPathB": "WBS-02",
+    "BuswayA1": "WBS-02", "BuswayA2": "WBS-02", "BuswayA3": "WBS-02", "BuswayA4": "WBS-02",
+    "BuswayB1": "WBS-02", "BuswayB2": "WBS-02", "BuswayB3": "WBS-02", "BuswayB4": "WBS-02",
+    "GenContainerA": "WBS-02", "GenContainerB": "WBS-02",
+    "AuxFeed": "WBS-02", "ControlPanel": "WBS-02",
+    "CoolContainer1": "WBS-03", "CoolContainer2": "WBS-03", "CoolContainer3": "WBS-03",
+    "CwPump1": "WBS-03", "CwPump2": "WBS-03", "CwPump3": "WBS-03",
+    "Tower1": "WBS-03", "Tower2": "WBS-03", "Tower3": "WBS-03",
+    "FwsSupplyHeader": "WBS-03", "FwsReturnHeader": "WBS-03", "MakeupWaterSource": "WBS-03"
+  }
+}

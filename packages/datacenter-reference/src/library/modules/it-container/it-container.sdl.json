@@ -1,0 +1,1047 @@
+{
+  "schema_version": 2,
+  "root": "ItContainer",
+  "imports": {
+    "Rack": "@hvac-equipment/library/modules/liquid-cooled-rack/liquid-cooled-rack.sdl.json",
+    "CDU": "@hvac-equipment/library/modules/coolant-distribution-unit/coolant-distribution-unit.sdl.json",
+    "PrecisionAir": "@hvac-equipment/library/modules/precision-air-unit/precision-air-unit.sdl.json"
+  },
+  "components": {
+    "PowerFeed": {
+      "ports": {
+        "in": {
+          "direction": "in",
+          "kind": "ac-power",
+          "max_connections": 1
+        },
+        "out_1": {
+          "direction": "out",
+          "kind": "ac-power",
+          "max_connections": 1
+        },
+        "out_2": {
+          "direction": "out",
+          "kind": "ac-power",
+          "max_connections": 1
+        },
+        "out_3": {
+          "direction": "out",
+          "kind": "ac-power",
+          "max_connections": 1
+        },
+        "out_4": {
+          "direction": "out",
+          "kind": "ac-power",
+          "max_connections": 1
+        },
+        "out_5": {
+          "direction": "out",
+          "kind": "ac-power",
+          "max_connections": 1
+        }
+      }
+    },
+    "RackPdu": {
+      "ports": {
+        "in": {
+          "direction": "in",
+          "kind": "ac-power",
+          "max_connections": 1
+        },
+        "out_1": {
+          "direction": "out",
+          "kind": "ac-power",
+          "max_connections": 1
+        },
+        "out_2": {
+          "direction": "out",
+          "kind": "ac-power",
+          "max_connections": 1
+        },
+        "out_3": {
+          "direction": "out",
+          "kind": "ac-power",
+          "max_connections": 1
+        },
+        "out_4": {
+          "direction": "out",
+          "kind": "ac-power",
+          "max_connections": 1
+        },
+        "out_5": {
+          "direction": "out",
+          "kind": "ac-power",
+          "max_connections": 1
+        },
+        "out_6": {
+          "direction": "out",
+          "kind": "ac-power",
+          "max_connections": 1
+        },
+        "out_7": {
+          "direction": "out",
+          "kind": "ac-power",
+          "max_connections": 1
+        },
+        "out_8": {
+          "direction": "out",
+          "kind": "ac-power",
+          "max_connections": 1
+        }
+      }
+    },
+    "TcsSupplyManifold": {
+      "ports": {
+        "in": {
+          "direction": "in",
+          "kind": "tcs",
+          "max_connections": 1
+        },
+        "out_1": {
+          "direction": "out",
+          "kind": "tcs",
+          "max_connections": 1
+        },
+        "out_2": {
+          "direction": "out",
+          "kind": "tcs",
+          "max_connections": 1
+        },
+        "out_3": {
+          "direction": "out",
+          "kind": "tcs",
+          "max_connections": 1
+        },
+        "out_4": {
+          "direction": "out",
+          "kind": "tcs",
+          "max_connections": 1
+        },
+        "out_5": {
+          "direction": "out",
+          "kind": "tcs",
+          "max_connections": 1
+        },
+        "out_6": {
+          "direction": "out",
+          "kind": "tcs",
+          "max_connections": 1
+        },
+        "out_7": {
+          "direction": "out",
+          "kind": "tcs",
+          "max_connections": 1
+        },
+        "out_8": {
+          "direction": "out",
+          "kind": "tcs",
+          "max_connections": 1
+        }
+      }
+    },
+    "TcsReturnManifold": {
+      "ports": {
+        "in_1": {
+          "direction": "in",
+          "kind": "tcs",
+          "max_connections": 1
+        },
+        "in_2": {
+          "direction": "in",
+          "kind": "tcs",
+          "max_connections": 1
+        },
+        "in_3": {
+          "direction": "in",
+          "kind": "tcs",
+          "max_connections": 1
+        },
+        "in_4": {
+          "direction": "in",
+          "kind": "tcs",
+          "max_connections": 1
+        },
+        "in_5": {
+          "direction": "in",
+          "kind": "tcs",
+          "max_connections": 1
+        },
+        "in_6": {
+          "direction": "in",
+          "kind": "tcs",
+          "max_connections": 1
+        },
+        "in_7": {
+          "direction": "in",
+          "kind": "tcs",
+          "max_connections": 1
+        },
+        "in_8": {
+          "direction": "in",
+          "kind": "tcs",
+          "max_connections": 1
+        },
+        "out": {
+          "direction": "out",
+          "kind": "tcs",
+          "max_connections": 1
+        }
+      }
+    },
+    "FirePanel": {
+      "ports": {
+        "power_a": {
+          "direction": "in",
+          "kind": "ac-power",
+          "max_connections": 1
+        },
+        "power_b": {
+          "direction": "in",
+          "kind": "ac-power",
+          "max_connections": 1
+        },
+        "alarm": {
+          "direction": "out",
+          "kind": "signal",
+          "max_connections": 1
+        },
+        "agent": {
+          "direction": "out",
+          "kind": "fire-agent",
+          "max_connections": 1
+        }
+      }
+    },
+    "ItContainer": {
+      "ports": {
+        "power_a": {
+          "direction": "in",
+          "kind": "ac-power",
+          "max_connections": 1
+        },
+        "power_b": {
+          "direction": "in",
+          "kind": "ac-power",
+          "max_connections": 1
+        },
+        "fws_supply": {
+          "direction": "in",
+          "kind": "fws",
+          "max_connections": 2
+        },
+        "fws_return": {
+          "direction": "out",
+          "kind": "fws",
+          "max_connections": 2
+        },
+        "alarm": {
+          "direction": "out",
+          "kind": "signal",
+          "max_connections": 1
+        }
+      },
+      "instances": {
+        "FeedA": {
+          "component": "PowerFeed"
+        },
+        "FeedB": {
+          "component": "PowerFeed"
+        },
+        "PduA": {
+          "component": "RackPdu"
+        },
+        "PduB": {
+          "component": "RackPdu"
+        },
+        "CduA": {
+          "component": "CDU",
+          "parameters": {
+            "nameplate_capacity": {
+              "value": 120,
+              "unit": "kW",
+              "state": "assumed",
+              "source": "Texsys 数据中心参考设计库概念假设（公开产品水平脱敏）"
+            },
+            "electrical_input": {
+              "value": 8,
+              "unit": "kW",
+              "state": "assumed",
+              "source": "Texsys 数据中心参考设计库概念假设（公开产品水平脱敏）"
+            }
+          }
+        },
+        "CduB": {
+          "component": "CDU",
+          "parameters": {
+            "nameplate_capacity": {
+              "value": 120,
+              "unit": "kW",
+              "state": "assumed",
+              "source": "Texsys 数据中心参考设计库概念假设（公开产品水平脱敏）"
+            },
+            "electrical_input": {
+              "value": 8,
+              "unit": "kW",
+              "state": "assumed",
+              "source": "Texsys 数据中心参考设计库概念假设（公开产品水平脱敏）"
+            }
+          }
+        },
+        "PaA1": {
+          "component": "PrecisionAir",
+          "parameters": {
+            "sensible_capacity": {
+              "value": 30,
+              "unit": "kW",
+              "state": "assumed",
+              "source": "Texsys 数据中心参考设计库概念假设（公开产品水平脱敏）"
+            },
+            "supply_airflow": {
+              "value": 2.6,
+              "unit": "m3/s",
+              "state": "assumed",
+              "source": "Texsys 数据中心参考设计库概念假设（公开产品水平脱敏）"
+            },
+            "electrical_input": {
+              "value": 3,
+              "unit": "kW",
+              "state": "assumed",
+              "source": "Texsys 数据中心参考设计库概念假设（公开产品水平脱敏）"
+            }
+          }
+        },
+        "PaA2": {
+          "component": "PrecisionAir",
+          "parameters": {
+            "sensible_capacity": {
+              "value": 30,
+              "unit": "kW",
+              "state": "assumed",
+              "source": "Texsys 数据中心参考设计库概念假设（公开产品水平脱敏）"
+            },
+            "supply_airflow": {
+              "value": 2.6,
+              "unit": "m3/s",
+              "state": "assumed",
+              "source": "Texsys 数据中心参考设计库概念假设（公开产品水平脱敏）"
+            },
+            "electrical_input": {
+              "value": 3,
+              "unit": "kW",
+              "state": "assumed",
+              "source": "Texsys 数据中心参考设计库概念假设（公开产品水平脱敏）"
+            }
+          }
+        },
+        "PaB1": {
+          "component": "PrecisionAir",
+          "parameters": {
+            "sensible_capacity": {
+              "value": 30,
+              "unit": "kW",
+              "state": "assumed",
+              "source": "Texsys 数据中心参考设计库概念假设（公开产品水平脱敏）"
+            },
+            "supply_airflow": {
+              "value": 2.6,
+              "unit": "m3/s",
+              "state": "assumed",
+              "source": "Texsys 数据中心参考设计库概念假设（公开产品水平脱敏）"
+            },
+            "electrical_input": {
+              "value": 3,
+              "unit": "kW",
+              "state": "assumed",
+              "source": "Texsys 数据中心参考设计库概念假设（公开产品水平脱敏）"
+            }
+          }
+        },
+        "PaB2": {
+          "component": "PrecisionAir",
+          "parameters": {
+            "sensible_capacity": {
+              "value": 30,
+              "unit": "kW",
+              "state": "assumed",
+              "source": "Texsys 数据中心参考设计库概念假设（公开产品水平脱敏）"
+            },
+            "supply_airflow": {
+              "value": 2.6,
+              "unit": "m3/s",
+              "state": "assumed",
+              "source": "Texsys 数据中心参考设计库概念假设（公开产品水平脱敏）"
+            },
+            "electrical_input": {
+              "value": 3,
+              "unit": "kW",
+              "state": "assumed",
+              "source": "Texsys 数据中心参考设计库概念假设（公开产品水平脱敏）"
+            }
+          }
+        },
+        "SupplyA": {
+          "component": "TcsSupplyManifold"
+        },
+        "ReturnA": {
+          "component": "TcsReturnManifold"
+        },
+        "SupplyB": {
+          "component": "TcsSupplyManifold"
+        },
+        "ReturnB": {
+          "component": "TcsReturnManifold"
+        },
+        "FirePanel1": {
+          "component": "FirePanel"
+        },
+        "Rack01": {
+          "component": "Rack"
+        },
+        "Rack02": {
+          "component": "Rack"
+        },
+        "Rack03": {
+          "component": "Rack"
+        },
+        "Rack04": {
+          "component": "Rack"
+        },
+        "Rack05": {
+          "component": "Rack"
+        },
+        "Rack06": {
+          "component": "Rack"
+        },
+        "Rack07": {
+          "component": "Rack"
+        },
+        "Rack08": {
+          "component": "Rack"
+        }
+      },
+      "connections": [
+        {
+          "from": "FeedA.out_1",
+          "id": "link-001",
+          "to": "PduA.in"
+        },
+        {
+          "from": "FeedA.out_2",
+          "id": "link-002",
+          "to": "CduA.power"
+        },
+        {
+          "from": "FeedA.out_3",
+          "id": "link-003",
+          "to": "PaA1.power"
+        },
+        {
+          "from": "FeedA.out_4",
+          "id": "link-004",
+          "to": "PaA2.power"
+        },
+        {
+          "from": "FeedA.out_5",
+          "id": "link-005",
+          "to": "FirePanel1.power_a"
+        },
+        {
+          "from": "FeedB.out_1",
+          "id": "link-006",
+          "to": "PduB.in"
+        },
+        {
+          "from": "FeedB.out_2",
+          "id": "link-007",
+          "to": "CduB.power"
+        },
+        {
+          "from": "FeedB.out_3",
+          "id": "link-008",
+          "to": "PaB1.power"
+        },
+        {
+          "from": "FeedB.out_4",
+          "id": "link-009",
+          "to": "PaB2.power"
+        },
+        {
+          "from": "FeedB.out_5",
+          "id": "link-010",
+          "to": "FirePanel1.power_b"
+        },
+        {
+          "from": "PduA.out_1",
+          "id": "link-011",
+          "to": "Rack01.power_a"
+        },
+        {
+          "from": "PduB.out_1",
+          "id": "link-012",
+          "to": "Rack01.power_b"
+        },
+        {
+          "from": "PduA.out_2",
+          "id": "link-013",
+          "to": "Rack02.power_a"
+        },
+        {
+          "from": "PduB.out_2",
+          "id": "link-014",
+          "to": "Rack02.power_b"
+        },
+        {
+          "from": "PduA.out_3",
+          "id": "link-015",
+          "to": "Rack03.power_a"
+        },
+        {
+          "from": "PduB.out_3",
+          "id": "link-016",
+          "to": "Rack03.power_b"
+        },
+        {
+          "from": "PduA.out_4",
+          "id": "link-017",
+          "to": "Rack04.power_a"
+        },
+        {
+          "from": "PduB.out_4",
+          "id": "link-018",
+          "to": "Rack04.power_b"
+        },
+        {
+          "from": "PduA.out_5",
+          "id": "link-019",
+          "to": "Rack05.power_a"
+        },
+        {
+          "from": "PduB.out_5",
+          "id": "link-020",
+          "to": "Rack05.power_b"
+        },
+        {
+          "from": "PduA.out_6",
+          "id": "link-021",
+          "to": "Rack06.power_a"
+        },
+        {
+          "from": "PduB.out_6",
+          "id": "link-022",
+          "to": "Rack06.power_b"
+        },
+        {
+          "from": "PduA.out_7",
+          "id": "link-023",
+          "to": "Rack07.power_a"
+        },
+        {
+          "from": "PduB.out_7",
+          "id": "link-024",
+          "to": "Rack07.power_b"
+        },
+        {
+          "from": "PduA.out_8",
+          "id": "link-025",
+          "to": "Rack08.power_a"
+        },
+        {
+          "from": "PduB.out_8",
+          "id": "link-026",
+          "to": "Rack08.power_b"
+        },
+        {
+          "from": "CduA.tcs_supply",
+          "id": "link-027",
+          "to": "SupplyA.in"
+        },
+        {
+          "from": "SupplyA.out_1",
+          "id": "link-028",
+          "to": "Rack01.tcs_in_a"
+        },
+        {
+          "from": "Rack01.tcs_out_a",
+          "id": "link-029",
+          "to": "ReturnA.in_1"
+        },
+        {
+          "from": "SupplyA.out_2",
+          "id": "link-030",
+          "to": "Rack02.tcs_in_a"
+        },
+        {
+          "from": "Rack02.tcs_out_a",
+          "id": "link-031",
+          "to": "ReturnA.in_2"
+        },
+        {
+          "from": "SupplyA.out_3",
+          "id": "link-032",
+          "to": "Rack03.tcs_in_a"
+        },
+        {
+          "from": "Rack03.tcs_out_a",
+          "id": "link-033",
+          "to": "ReturnA.in_3"
+        },
+        {
+          "from": "SupplyA.out_4",
+          "id": "link-034",
+          "to": "Rack04.tcs_in_a"
+        },
+        {
+          "from": "Rack04.tcs_out_a",
+          "id": "link-035",
+          "to": "ReturnA.in_4"
+        },
+        {
+          "from": "SupplyA.out_5",
+          "id": "link-036",
+          "to": "Rack05.tcs_in_a"
+        },
+        {
+          "from": "Rack05.tcs_out_a",
+          "id": "link-037",
+          "to": "ReturnA.in_5"
+        },
+        {
+          "from": "SupplyA.out_6",
+          "id": "link-038",
+          "to": "Rack06.tcs_in_a"
+        },
+        {
+          "from": "Rack06.tcs_out_a",
+          "id": "link-039",
+          "to": "ReturnA.in_6"
+        },
+        {
+          "from": "SupplyA.out_7",
+          "id": "link-040",
+          "to": "Rack07.tcs_in_a"
+        },
+        {
+          "from": "Rack07.tcs_out_a",
+          "id": "link-041",
+          "to": "ReturnA.in_7"
+        },
+        {
+          "from": "SupplyA.out_8",
+          "id": "link-042",
+          "to": "Rack08.tcs_in_a"
+        },
+        {
+          "from": "Rack08.tcs_out_a",
+          "id": "link-043",
+          "to": "ReturnA.in_8"
+        },
+        {
+          "from": "ReturnA.out",
+          "id": "link-044",
+          "to": "CduA.tcs_return"
+        },
+        {
+          "from": "CduB.tcs_supply",
+          "id": "link-045",
+          "to": "SupplyB.in"
+        },
+        {
+          "from": "SupplyB.out_1",
+          "id": "link-046",
+          "to": "Rack01.tcs_in_b"
+        },
+        {
+          "from": "Rack01.tcs_out_b",
+          "id": "link-047",
+          "to": "ReturnB.in_1"
+        },
+        {
+          "from": "SupplyB.out_2",
+          "id": "link-048",
+          "to": "Rack02.tcs_in_b"
+        },
+        {
+          "from": "Rack02.tcs_out_b",
+          "id": "link-049",
+          "to": "ReturnB.in_2"
+        },
+        {
+          "from": "SupplyB.out_3",
+          "id": "link-050",
+          "to": "Rack03.tcs_in_b"
+        },
+        {
+          "from": "Rack03.tcs_out_b",
+          "id": "link-051",
+          "to": "ReturnB.in_3"
+        },
+        {
+          "from": "SupplyB.out_4",
+          "id": "link-052",
+          "to": "Rack04.tcs_in_b"
+        },
+        {
+          "from": "Rack04.tcs_out_b",
+          "id": "link-053",
+          "to": "ReturnB.in_4"
+        },
+        {
+          "from": "SupplyB.out_5",
+          "id": "link-054",
+          "to": "Rack05.tcs_in_b"
+        },
+        {
+          "from": "Rack05.tcs_out_b",
+          "id": "link-055",
+          "to": "ReturnB.in_5"
+        },
+        {
+          "from": "SupplyB.out_6",
+          "id": "link-056",
+          "to": "Rack06.tcs_in_b"
+        },
+        {
+          "from": "Rack06.tcs_out_b",
+          "id": "link-057",
+          "to": "ReturnB.in_6"
+        },
+        {
+          "from": "SupplyB.out_7",
+          "id": "link-058",
+          "to": "Rack07.tcs_in_b"
+        },
+        {
+          "from": "Rack07.tcs_out_b",
+          "id": "link-059",
+          "to": "ReturnB.in_7"
+        },
+        {
+          "from": "SupplyB.out_8",
+          "id": "link-060",
+          "to": "Rack08.tcs_in_b"
+        },
+        {
+          "from": "Rack08.tcs_out_b",
+          "id": "link-061",
+          "to": "ReturnB.in_8"
+        },
+        {
+          "from": "ReturnB.out",
+          "id": "link-062",
+          "to": "CduB.tcs_return"
+        },
+        {
+          "from": "PaA1.supply",
+          "id": "link-063",
+          "to": "Rack01.air_in_a"
+        },
+        {
+          "from": "Rack01.air_out_a",
+          "id": "link-064",
+          "to": "PaA1.return"
+        },
+        {
+          "from": "PaA1.supply",
+          "id": "link-065",
+          "to": "Rack02.air_in_a"
+        },
+        {
+          "from": "Rack02.air_out_a",
+          "id": "link-066",
+          "to": "PaA1.return"
+        },
+        {
+          "from": "PaA1.supply",
+          "id": "link-067",
+          "to": "Rack03.air_in_a"
+        },
+        {
+          "from": "Rack03.air_out_a",
+          "id": "link-068",
+          "to": "PaA1.return"
+        },
+        {
+          "from": "PaA1.supply",
+          "id": "link-069",
+          "to": "Rack04.air_in_a"
+        },
+        {
+          "from": "Rack04.air_out_a",
+          "id": "link-070",
+          "to": "PaA1.return"
+        },
+        {
+          "from": "PaA2.supply",
+          "id": "link-071",
+          "to": "Rack05.air_in_a"
+        },
+        {
+          "from": "Rack05.air_out_a",
+          "id": "link-072",
+          "to": "PaA2.return"
+        },
+        {
+          "from": "PaA2.supply",
+          "id": "link-073",
+          "to": "Rack06.air_in_a"
+        },
+        {
+          "from": "Rack06.air_out_a",
+          "id": "link-074",
+          "to": "PaA2.return"
+        },
+        {
+          "from": "PaA2.supply",
+          "id": "link-075",
+          "to": "Rack07.air_in_a"
+        },
+        {
+          "from": "Rack07.air_out_a",
+          "id": "link-076",
+          "to": "PaA2.return"
+        },
+        {
+          "from": "PaA2.supply",
+          "id": "link-077",
+          "to": "Rack08.air_in_a"
+        },
+        {
+          "from": "Rack08.air_out_a",
+          "id": "link-078",
+          "to": "PaA2.return"
+        },
+        {
+          "from": "PaB1.supply",
+          "id": "link-079",
+          "to": "Rack01.air_in_b"
+        },
+        {
+          "from": "Rack01.air_out_b",
+          "id": "link-080",
+          "to": "PaB1.return"
+        },
+        {
+          "from": "PaB1.supply",
+          "id": "link-081",
+          "to": "Rack02.air_in_b"
+        },
+        {
+          "from": "Rack02.air_out_b",
+          "id": "link-082",
+          "to": "PaB1.return"
+        },
+        {
+          "from": "PaB1.supply",
+          "id": "link-083",
+          "to": "Rack03.air_in_b"
+        },
+        {
+          "from": "Rack03.air_out_b",
+          "id": "link-084",
+          "to": "PaB1.return"
+        },
+        {
+          "from": "PaB1.supply",
+          "id": "link-085",
+          "to": "Rack04.air_in_b"
+        },
+        {
+          "from": "Rack04.air_out_b",
+          "id": "link-086",
+          "to": "PaB1.return"
+        },
+        {
+          "from": "PaB2.supply",
+          "id": "link-087",
+          "to": "Rack05.air_in_b"
+        },
+        {
+          "from": "Rack05.air_out_b",
+          "id": "link-088",
+          "to": "PaB2.return"
+        },
+        {
+          "from": "PaB2.supply",
+          "id": "link-089",
+          "to": "Rack06.air_in_b"
+        },
+        {
+          "from": "Rack06.air_out_b",
+          "id": "link-090",
+          "to": "PaB2.return"
+        },
+        {
+          "from": "PaB2.supply",
+          "id": "link-091",
+          "to": "Rack07.air_in_b"
+        },
+        {
+          "from": "Rack07.air_out_b",
+          "id": "link-092",
+          "to": "PaB2.return"
+        },
+        {
+          "from": "PaB2.supply",
+          "id": "link-093",
+          "to": "Rack08.air_in_b"
+        },
+        {
+          "from": "Rack08.air_out_b",
+          "id": "link-094",
+          "to": "PaB2.return"
+        }
+      ],
+      "nets": {
+        "PowerA": {
+          "kind": "ac-power",
+          "connections": [
+            "link-001",
+            "link-002",
+            "link-003",
+            "link-004",
+            "link-005",
+            "link-011",
+            "link-013",
+            "link-015",
+            "link-017",
+            "link-019",
+            "link-021",
+            "link-023",
+            "link-025"
+          ]
+        },
+        "PowerB": {
+          "kind": "ac-power",
+          "connections": [
+            "link-006",
+            "link-007",
+            "link-008",
+            "link-009",
+            "link-010",
+            "link-012",
+            "link-014",
+            "link-016",
+            "link-018",
+            "link-020",
+            "link-022",
+            "link-024",
+            "link-026"
+          ]
+        },
+        "TcsA": {
+          "kind": "tcs",
+          "connections": [
+            "link-027",
+            "link-028",
+            "link-029",
+            "link-030",
+            "link-031",
+            "link-032",
+            "link-033",
+            "link-034",
+            "link-035",
+            "link-036",
+            "link-037",
+            "link-038",
+            "link-039",
+            "link-040",
+            "link-041",
+            "link-042",
+            "link-043",
+            "link-044"
+          ]
+        },
+        "TcsB": {
+          "kind": "tcs",
+          "connections": [
+            "link-045",
+            "link-046",
+            "link-047",
+            "link-048",
+            "link-049",
+            "link-050",
+            "link-051",
+            "link-052",
+            "link-053",
+            "link-054",
+            "link-055",
+            "link-056",
+            "link-057",
+            "link-058",
+            "link-059",
+            "link-060",
+            "link-061",
+            "link-062"
+          ]
+        },
+        "AirA": {
+          "kind": "room-air",
+          "connections": [
+            "link-063",
+            "link-064",
+            "link-065",
+            "link-066",
+            "link-067",
+            "link-068",
+            "link-069",
+            "link-070",
+            "link-071",
+            "link-072",
+            "link-073",
+            "link-074",
+            "link-075",
+            "link-076",
+            "link-077",
+            "link-078"
+          ]
+        },
+        "AirB": {
+          "kind": "room-air",
+          "connections": [
+            "link-079",
+            "link-080",
+            "link-081",
+            "link-082",
+            "link-083",
+            "link-084",
+            "link-085",
+            "link-086",
+            "link-087",
+            "link-088",
+            "link-089",
+            "link-090",
+            "link-091",
+            "link-092",
+            "link-093",
+            "link-094"
+          ]
+        }
+      },
+      "behavior": {
+        "reference": "assets/behavior.json",
+        "state": "assumed",
+        "source": "Texsys 数据中心参考设计库概念假设（公开产品水平脱敏）",
+        "parameters": {
+          "it_load_kw": {
+            "value": 120,
+            "unit": "kW",
+            "state": "assumed",
+            "source": "Texsys 数据中心参考设计库概念假设（公开产品水平脱敏）"
+          },
+          "rack_count": {
+            "value": 8,
+            "unit": "台",
+            "state": "assumed",
+            "source": "Texsys 数据中心参考设计库概念假设（公开产品水平脱敏）"
+          },
+          "fire_resistance_hours": {
+            "value": 1.0,
+            "unit": "h",
+            "state": "assumed",
+            "source": "Texsys 数据中心参考设计库概念假设（公开产品水平脱敏）"
+          }
+        }
+      }
+    }
+  }
+}

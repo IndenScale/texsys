@@ -1,0 +1,56 @@
+schema_version = 1
+manifest_digest = "sha256:130e9ca7d30802f87b8531bf6713d847dc757a8500cd4f251f23e4c5d3f1d933"
+
+[[packages]]
+name = "architecture"
+version = "0.1.0"
+source = "path"
+path = "../../packages/architecture"
+digest = "sha256:1e3366c533e422c521bf8418bbfe0e72277498055716ad0ef15e490f97bef9af"
+direct = false
+dependencies = []
+
+[[packages]]
+name = "bom"
+version = "0.1.0"
+source = "path"
+path = "../../packages/bom"
+digest = "sha256:6db3a7a22f1ba224ab0acf83a53faaec69646a089ec12317fa6d73947e4102c2"
+direct = false
+dependencies = []
+
+[[packages]]
+name = "datacenter-reference"
+version = "0.1.0"
+source = "path"
+path = "../../packages/datacenter-reference"
+digest = "sha256:ae71c984c230174c38be08c9c259e34ff805eb3fe907908552786160478886d6"
+direct = true
+dependencies = ["architecture", "bom", "hvac-equipment", "structure"]
+
+[[packages]]
+name = "hvac-equipment"
+version = "0.1.0"
+source = "path"
+path = "../../packages/hvac-equipment"
+digest = "sha256:146a3d2569b9e383dda73593c6f802a2f3348b77ab7ce03c82970b29ec7f24c6"
+direct = false
+dependencies = ["spatial", "structure"]
+
+[[packages]]
+name = "spatial"
+version = "0.1.0"
+source = "path"
+path = "../../packages/spatial"
+digest = "sha256:acf7bd01d4091dc6ad3cebd97e27a8ed880e34b15caa9f7f71ade9cf9d6b683f"
+direct = false
+dependencies = []
+
+[[packages]]
+name = "structure"
+version = "0.1.0"
+source = "path"
+path = "../../packages/structure"
+digest = "sha256:369b63956ff45c7671c8a5c02bcf277fb26ce8619b0b6148a727f836df52e5f0"
+direct = false
+dependencies = ["spatial"]

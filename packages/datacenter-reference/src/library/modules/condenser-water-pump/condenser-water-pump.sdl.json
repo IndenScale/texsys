@@ -1,0 +1,50 @@
+{
+  "schema_version": 1,
+  "root": "CondenserWaterPump",
+  "components": {
+    "CondenserWaterPump": {
+      "ports": {
+        "in": {
+          "direction": "in",
+          "kind": "cw",
+          "max_connections": 1
+        },
+        "out": {
+          "direction": "out",
+          "kind": "cw",
+          "max_connections": 1
+        },
+        "power": {
+          "direction": "in",
+          "kind": "ac-power",
+          "max_connections": 1
+        }
+      },
+      "behavior": {
+        "reference": "assets/behavior.json",
+        "state": "assumed",
+        "source": "Texsys 数据中心参考设计库概念假设（公开产品水平脱敏）",
+        "parameters": {
+          "flow_m3h": {
+            "value": 260,
+            "unit": "m3/h",
+            "state": "assumed",
+            "source": "Texsys 数据中心参考设计库概念假设（公开产品水平脱敏）"
+          },
+          "head_m": {
+            "value": 25,
+            "unit": "m",
+            "state": "assumed",
+            "source": "Texsys 数据中心参考设计库概念假设（公开产品水平脱敏）"
+          },
+          "power_kw": {
+            "value": 22,
+            "unit": "kW",
+            "state": "assumed",
+            "source": "Texsys 数据中心参考设计库概念假设（公开产品水平脱敏）"
+          }
+        }
+      }
+    }
+  }
+}

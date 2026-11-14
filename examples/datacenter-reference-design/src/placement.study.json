@@ -1,0 +1,49 @@
+{
+  "schema_version": 1,
+  "state": "assumed",
+  "source": "参考设计布置与负荷假设，脱敏概念算例",
+  "slab_fire_resistance_hours": 1.5,
+  "facility_load_kw": 2729,
+  "facility_load_breakdown": {
+    "it_load_kw": 1920,
+    "ups_losses_kw": 80,
+    "cooling_plant_kw": 497,
+    "precision_air_fans_kw": 192,
+    "auxiliary_kw": 40,
+    "basis": "IT 1920 kW；UPS 效率 0.96；冷机 2 台运行 COP 5.5、冷冻/冷却泵各 2×22 kW、冷却塔风机 2×30 kW；精密空调风机 64×3 kW；照明与控制 40 kW"
+  },
+  "zones": {
+    "host": [
+      "IT01", "IT02", "IT03", "IT04", "IT05", "IT06", "IT07", "IT08",
+      "IT09", "IT10", "IT11", "IT12", "IT13", "IT14", "IT15", "IT16",
+      "Floor01", "Floor02", "Floor03", "Floor04", "Floor05", "Floor06", "Floor07", "Floor08",
+      "Floor09", "Floor10", "Floor11", "Floor12", "Floor13", "Floor14", "Floor15", "Floor16",
+      "Frame01", "Frame02", "Frame03", "Frame04", "Frame05", "Frame06", "Frame07", "Frame08",
+      "Wall01", "Wall02", "Wall03", "Wall04"
+    ],
+    "power": [
+      "PowerPathA", "PowerPathB",
+      "BuswayA1", "BuswayA2", "BuswayA3", "BuswayA4",
+      "BuswayB1", "BuswayB2", "BuswayB3", "BuswayB4"
+    ],
+    "cooling": [
+      "CoolContainer1", "CoolContainer2", "CoolContainer3",
+      "CwPump1", "CwPump2", "CwPump3",
+      "Tower1", "Tower2", "Tower3",
+      "FwsSupplyHeader", "FwsReturnHeader", "MakeupWaterSource"
+    ],
+    "standby": ["GenContainerA", "GenContainerB"],
+    "support": ["UtilityA", "UtilityB", "AuxFeed", "ControlPanel"]
+  },
+  "layout_m": {
+    "basis": "概念坐标：主机房 2 行 × 8 方舱，行距 8 m；配电与冷却方舱沿主机房北侧排列",
+    "it_row_pitch": 8.0,
+    "it_container_pitch": 6.6,
+    "container_origin": [0, 0, 0.4],
+    "power_origin": [0, 14, 0],
+    "cooling_origin": [16, 14, 0],
+    "genset_origin": [40, 14, 0],
+    "tower_origin": [16, 22, 0]
+  },
+  "limitations": "布置为概念占位；实际防火间距、运输通道、基础与噪声边界由项目校核。"
+}

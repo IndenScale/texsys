@@ -1,0 +1,189 @@
+{
+  "schema_version": 2,
+  "root": "CoolingContainer",
+  "imports": {
+    "Chiller": "library/modules/water-cooled-chiller/water-cooled-chiller.sdl.json",
+    "Pump": "library/modules/circulation-pump/circulation-pump.sdl.json"
+  },
+  "components": {
+    "PowerFeed": {
+      "ports": {
+        "in_a": {
+          "direction": "in",
+          "kind": "ac-power",
+          "max_connections": 1
+        },
+        "in_b": {
+          "direction": "in",
+          "kind": "ac-power",
+          "max_connections": 1
+        },
+        "out_1": {
+          "direction": "out",
+          "kind": "ac-power",
+          "max_connections": 1
+        },
+        "out_2": {
+          "direction": "out",
+          "kind": "ac-power",
+          "max_connections": 1
+        },
+        "out_3": {
+          "direction": "out",
+          "kind": "ac-power",
+          "max_connections": 1
+        }
+      }
+    },
+    "ChwReturnHeader": {
+      "ports": {
+        "in_1": {
+          "direction": "in",
+          "kind": "chw",
+          "max_connections": 1
+        },
+        "in_2": {
+          "direction": "in",
+          "kind": "chw",
+          "max_connections": 1
+        },
+        "out": {
+          "direction": "out",
+          "kind": "chw",
+          "max_connections": 1
+        }
+      }
+    },
+    "CoolingContainer": {
+      "ports": {
+        "power_a": {
+          "direction": "in",
+          "kind": "ac-power",
+          "max_connections": 1
+        },
+        "power_b": {
+          "direction": "in",
+          "kind": "ac-power",
+          "max_connections": 1
+        },
+        "fws_return": {
+          "direction": "in",
+          "kind": "fws",
+          "max_connections": 3
+        },
+        "fws_supply": {
+          "direction": "out",
+          "kind": "fws",
+          "max_connections": 3
+        },
+        "cw_in": {
+          "direction": "in",
+          "kind": "cw",
+          "max_connections": 1
+        },
+        "cw_out": {
+          "direction": "out",
+          "kind": "cw",
+          "max_connections": 1
+        }
+      },
+      "instances": {
+        "Chiller": {
+          "component": "Chiller"
+        },
+        "Pump1": {
+          "component": "Pump"
+        },
+        "Pump2": {
+          "component": "Pump"
+        },
+        "Feed": {
+          "component": "PowerFeed"
+        },
+        "Header": {
+          "component": "ChwReturnHeader"
+        }
+      },
+      "connections": [
+        {
+          "from": "Feed.out_1",
+          "id": "link-001",
+          "to": "Chiller.power"
+        },
+        {
+          "from": "Feed.out_2",
+          "id": "link-002",
+          "to": "Pump1.power"
+        },
+        {
+          "from": "Feed.out_3",
+          "id": "link-003",
+          "to": "Pump2.power"
+        },
+        {
+          "from": "Pump1.out",
+          "id": "link-004",
+          "to": "Header.in_1"
+        },
+        {
+          "from": "Pump2.out",
+          "id": "link-005",
+          "to": "Header.in_2"
+        },
+        {
+          "from": "Header.out",
+          "id": "link-006",
+          "to": "Chiller.chw_return"
+        }
+      ],
+      "nets": {
+        "ChwPath": {
+          "kind": "chw",
+          "connections": [
+            "link-004",
+            "link-005",
+            "link-006"
+          ]
+        },
+        "PowerA": {
+          "kind": "ac-power",
+          "connections": [
+            "link-001",
+            "link-002"
+          ]
+        },
+        "PowerB": {
+          "kind": "ac-power",
+          "connections": [
+            "link-003"
+          ]
+        }
+      },
+      "behavior": {
+        "reference": "assets/behavior.json",
+        "state": "assumed",
+        "source": "Texsys 数据中心参考设计库概念假设（公开产品水平脱敏）",
+        "parameters": {
+          "cooling_kw": {
+            "value": 1200,
+            "unit": "kW",
+            "state": "assumed",
+            "source": "Texsys 数据中心参考设计库概念假设（公开产品水平脱敏）"
+          },
+          "standby_pumps": {
+            "value": 1,
+            "unit": "台",
+            "state": "assumed",
+            "source": "Texsys 数据中心参考设计库概念假设（公开产品水平脱敏）"
+          },
+          "fire_resistance_hours": {
+            "value": 1.0,
+            "unit": "h",
+            "state": "assumed",
+            "source": "Texsys 数据中心参考设计库概念假设（公开产品水平脱敏）"
+          }
+        }
+      }
+    }
+  }
+}

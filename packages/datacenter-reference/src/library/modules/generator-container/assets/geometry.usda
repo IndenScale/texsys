@@ -1,0 +1,89 @@
+#usda 1.0
+(
+    defaultPrim = "Module"
+    metersPerUnit = 1
+    upAxis = "Z"
+)
+
+def Xform "Module"
+{
+    def Scope "Geometry"
+    {
+        def Cube "Envelope"
+        {
+            color3f[] primvars:displayColor = [(0.33, 0.45, 0.36)]
+            double size = 1
+            double3 xformOp:scale = (12.0, 2.4, 2.9)
+            double3 xformOp:translate = (6.0, 1.2, 1.45)
+            uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
+        }
+        def Cube "Genset1"
+        {
+            color3f[] primvars:displayColor = [(0.55, 0.58, 0.62)]
+            double size = 1
+            double3 xformOp:scale = (0.6, 0.6, 0.6)
+            double3 xformOp:translate = (0.5, 0.5, 0.3)
+            uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
+        }
+        def Cube "Genset2"
+        {
+            color3f[] primvars:displayColor = [(0.55, 0.58, 0.62)]
+            double size = 1
+            double3 xformOp:scale = (0.6, 0.6, 0.6)
+            double3 xformOp:translate = (6.5, 0.5, 0.3)
+            uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
+        }
+        def Cube "GenBus1"
+        {
+            color3f[] primvars:displayColor = [(0.55, 0.58, 0.62)]
+            double size = 1
+            double3 xformOp:scale = (0.6, 0.6, 0.6)
+            double3 xformOp:translate = (0.5, 2.1, 2.1)
+            uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
+        }
+        def Cube "FuelHeader1"
+        {
+            color3f[] primvars:displayColor = [(0.55, 0.58, 0.62)]
+            double size = 1
+            double3 xformOp:scale = (0.6, 0.6, 0.6)
+            double3 xformOp:translate = (6.2, 2.1, 0.8)
+            uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
+        }
+        def Cube "ControlSplit1"
+        {
+            color3f[] primvars:displayColor = [(0.55, 0.58, 0.62)]
+            double size = 1
+            double3 xformOp:scale = (0.6, 0.6, 0.6)
+            double3 xformOp:translate = (11.8, 2.1, 1.8)
+            uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
+        }
+    }
+
+    def Scope "Ports"
+    {
+        def Xform "out"
+        {
+            custom double3 texsys:normal = (0, -1, 0)
+            double3 xformOp:translate = (2.400, 0, 1.45)
+            uniform token[] xformOpOrder = ["xformOp:translate"]
+        }
+        def Xform "fuel_in"
+        {
+            custom double3 texsys:normal = (0, -1, 0)
+            double3 xformOp:translate = (4.800, 0, 1.45)
+            uniform token[] xformOpOrder = ["xformOp:translate"]
+        }
+        def Xform "control"
+        {
+            custom double3 texsys:normal = (0, -1, 0)
+            double3 xformOp:translate = (7.200, 0, 1.45)
+            uniform token[] xformOpOrder = ["xformOp:translate"]
+        }
+        def Xform "exhaust"
+        {
+            custom double3 texsys:normal = (0, -1, 0)
+            double3 xformOp:translate = (9.600, 0, 1.45)
+            uniform token[] xformOpOrder = ["xformOp:translate"]
+        }
+    }
+}

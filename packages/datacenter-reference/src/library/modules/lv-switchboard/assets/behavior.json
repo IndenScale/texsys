@@ -1,0 +1,11 @@
+{
+  "schema_version": 1,
+  "state": "assumed",
+  "model": "radial-feeder-switchboard",
+  "parameters": {
+    "rated_a": "A",
+    "breaking_ka": "kA"
+  },
+  "method": "进线一路，馈线四路；额定电流与分断能力用于容量和短路筛查。",
+  "limitations": "概念脱敏；实际母线温升、动热稳定与选择性配合由项目校核。"
+}

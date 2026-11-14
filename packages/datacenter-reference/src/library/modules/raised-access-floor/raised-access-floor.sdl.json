@@ -1,0 +1,40 @@
+{
+  "schema_version": 1,
+  "root": "RaisedAccessFloor",
+  "components": {
+    "RaisedAccessFloor": {
+      "ports": {},
+      "behavior": {
+        "reference": "assets/behavior.json",
+        "state": "assumed",
+        "source": "Texsys 数据中心参考设计库概念假设（公开产品水平脱敏）",
+        "parameters": {
+          "panel_size_mm": {
+            "value": 600,
+            "unit": "mm",
+            "state": "assumed",
+            "source": "Texsys 数据中心参考设计库概念假设（公开产品水平脱敏）"
+          },
+          "pedestal_height_m": {
+            "value": 0.4,
+            "unit": "m",
+            "state": "assumed",
+            "source": "Texsys 数据中心参考设计库概念假设（公开产品水平脱敏）"
+          },
+          "concentrated_load_kn": {
+            "value": 12,
+            "unit": "kN",
+            "state": "assumed",
+            "source": "Texsys 数据中心参考设计库概念假设（公开产品水平脱敏）"
+          },
+          "surface_resistance_ohm_log10": {
+            "value": 8,
+            "unit": "log10(Ω)",
+            "state": "assumed",
+            "source": "Texsys 数据中心参考设计库概念假设（公开产品水平脱敏）"
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "schema_version": 1,
+  "state": "assumed",
+  "model": "steady-water-cooled-chiller",
+  "parameters": {
+    "cooling_kw": "kW",
+    "cop": null,
+    "chw_flow_m3h": "m3/h",
+    "cw_flow_m3h": "m3/h"
+  },
+  "method": "额定制冷量与 COP 用于冷源容量和排热计算；冷冻水 7/12 °C，冷却水 32/37 °C。",
+  "limitations": "概念脱敏；实际部分负荷性能、喘振与防冻由项目校核。"
+}

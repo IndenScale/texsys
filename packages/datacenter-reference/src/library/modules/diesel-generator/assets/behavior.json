@@ -1,0 +1,13 @@
+{
+  "schema_version": 1,
+  "state": "assumed",
+  "model": "containerized-diesel-genset",
+  "parameters": {
+    "prime_kw": "kW",
+    "standby_kw": "kW",
+    "fuel_consumption_lph": "L/h",
+    "voltage_v": "V"
+  },
+  "method": "常用/备用功率与油耗用于备用容量和储油时长筛查。",
+  "limitations": "概念脱敏；实际瞬态响应、并机与排放由项目校核。"
+}

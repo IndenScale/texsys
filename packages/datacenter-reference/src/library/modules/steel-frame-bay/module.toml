@@ -1,0 +1,44 @@
+schema_version = 1
+name = "钢框架标准跨"
+version = "0.1.0"
+entry = "steel-frame-bay.sdl.json"
+
+[assets.geometry]
+kind = "geometry"
+path = "assets/geometry.usda"
+source = "Texsys 数据中心参考设计库概念假设（公开产品水平脱敏）"
+fidelity = "方舱包络、内部布置与接口位姿"
+
+[assets.symbol]
+kind = "symbol"
+path = "assets/symbol.svg"
+source = "Texsys 数据中心参考设计库概念假设（公开产品水平脱敏）"
+fidelity = "功能符号与端口锚点"
+
+[assets.specification]
+kind = "specification"
+path = "assets/specification.json"
+source = "Texsys 数据中心参考设计库概念假设（公开产品水平脱敏）"
+fidelity = "坐标、边界映射、防火与耐候属性"
+
+[assets.behavior]
+kind = "behavior"
+path = "assets/behavior.json"
+source = "Texsys 数据中心参考设计库概念假设（公开产品水平脱敏）"
+fidelity = "single-bay-steel-frame"
+
+[port_bindings.bearing_1]
+geometry = "/Module/Ports/bearing_1"
+symbol = "port-bearing_1"
+
+[port_bindings.bearing_2]
+geometry = "/Module/Ports/bearing_2"
+symbol = "port-bearing_2"
+
+[port_bindings.bearing_3]
+geometry = "/Module/Ports/bearing_3"
+symbol = "port-bearing_3"
+
+[port_bindings.bearing_4]
+geometry = "/Module/Ports/bearing_4"
+symbol = "port-bearing_4"

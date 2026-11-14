@@ -1,0 +1,20 @@
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "texsys-datacenter-reference"
+version = "0.1.0"
+description = "Data center reference design component library and design-basis checks for texsys"
+requires-python = ">=3.11"
+dependencies = ["texsys", "texsys-bom"]
+
+[project.entry-points."texsys.packages"]
+datacenter-reference = "texsys_datacenter_reference:package"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.uv.sources]
+texsys = { workspace = true }
+texsys-bom = { workspace = true }

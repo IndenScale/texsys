@@ -1,0 +1,40 @@
+schema_version = 1
+name = "端吸循环泵"
+version = "0.1.0"
+entry = "circulation-pump.sdl.json"
+
+[assets.geometry]
+kind = "geometry"
+path = "assets/geometry.usda"
+source = "Texsys 数据中心参考设计库概念假设（公开产品水平脱敏）"
+fidelity = "设备包络与接口位姿"
+
+[assets.symbol]
+kind = "symbol"
+path = "assets/symbol.svg"
+source = "Texsys 数据中心参考设计库概念假设（公开产品水平脱敏）"
+fidelity = "功能符号与端口锚点"
+
+[assets.specification]
+kind = "specification"
+path = "assets/specification.json"
+source = "Texsys 数据中心参考设计库概念假设（公开产品水平脱敏）"
+fidelity = "坐标、接口、防火与耐候属性"
+
+[assets.behavior]
+kind = "behavior"
+path = "assets/behavior.json"
+source = "Texsys 数据中心参考设计库概念假设（公开产品水平脱敏）"
+fidelity = "centrifugal-pump-fixed-speed"
+
+[port_bindings.in]
+geometry = "/Module/Ports/in"
+symbol = "port-in"
+
+[port_bindings.out]
+geometry = "/Module/Ports/out"
+symbol = "port-out"
+
+[port_bindings.power]
+geometry = "/Module/Ports/power"
+symbol = "port-power"

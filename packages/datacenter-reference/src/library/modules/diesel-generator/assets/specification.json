@@ -1,0 +1,96 @@
+{
+  "schema_version": 1,
+  "state": "assumed",
+  "basis": "Texsys 数据中心参考设计库概念假设（公开产品水平脱敏）",
+  "envelope_m": [
+    6.0,
+    2.4,
+    2.6
+  ],
+  "frame": {
+    "origin": "module-minimum-corner",
+    "units": "m",
+    "up_axis": "Z"
+  },
+  "interfaces": {
+    "ac_out": {
+      "position_m": [
+        5.8,
+        1.2,
+        1.0
+      ],
+      "normal": [
+        1,
+        0,
+        0
+      ]
+    },
+    "fuel_in": {
+      "position_m": [
+        0.2,
+        1.2,
+        0.5
+      ],
+      "normal": [
+        -1,
+        0,
+        0
+      ]
+    },
+    "exhaust": {
+      "position_m": [
+        3.0,
+        1.2,
+        2.6
+      ],
+      "normal": [
+        0,
+        0,
+        1
+      ]
+    },
+    "control": {
+      "position_m": [
+        0.2,
+        0.3,
+        1.5
+      ],
+      "normal": [
+        -1,
+        0,
+        0
+      ]
+    }
+  },
+  "properties": {
+    "geometry_parts": {
+      "Envelope": {
+        "origin_m": [
+          0,
+          0,
+          0
+        ],
+        "size_m": [
+          6.0,
+          2.4,
+          2.6
+        ],
+        "color": [
+          0.3,
+          0.45,
+          0.35
+        ]
+      }
+    },
+    "mass_kg": 18000,
+    "fire": {
+      "class": "集装箱不燃围护",
+      "fire_resistance_hours": null
+    },
+    "weathering": {
+      "installation": "outdoor-container",
+      "ip": "IP23",
+      "noise_dba_at_1m": 75
+    }
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "schema_version": 1,
+  "state": "assumed",
+  "model": "containerized-liquid-cooled-it-module",
+  "parameters": {
+    "it_load_kw": "kW",
+    "rack_count": "台",
+    "fire_resistance_hours": "h"
+  },
+  "method": "8 台 15 kW 液冷机柜，液侧 75% 由 2N CDU 承担，风侧 25% 由 2N 精密空调承担；A/B 双路配电。",
+  "limitations": "概念脱敏；实际气流组织、漏液检测与消防联动由项目校核。"
+}

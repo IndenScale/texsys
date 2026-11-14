@@ -1,0 +1,60 @@
+{
+  "schema_version": 1,
+  "state": "assumed",
+  "basis": "Texsys 数据中心参考设计库概念假设（公开产品水平脱敏）",
+  "envelope_m": [
+    0.8,
+    0.8,
+    2.0
+  ],
+  "frame": {
+    "origin": "module-minimum-corner",
+    "units": "m",
+    "up_axis": "Z"
+  },
+  "interfaces": {
+    "dc": {
+      "position_m": [
+        0.4,
+        0.4,
+        2.0
+      ],
+      "normal": [
+        0,
+        0,
+        1
+      ]
+    }
+  },
+  "properties": {
+    "geometry_parts": {
+      "Envelope": {
+        "origin_m": [
+          0,
+          0,
+          0
+        ],
+        "size_m": [
+          0.8,
+          0.8,
+          2.0
+        ],
+        "color": [
+          0.25,
+          0.35,
+          0.3
+        ]
+      }
+    },
+    "mass_kg": 1200,
+    "fire": {
+      "class": "磷酸铁锂，柜体阻燃 V-0",
+      "fire_resistance_hours": null
+    },
+    "weathering": {
+      "installation": "indoor",
+      "ip": "IP20"
+    },
+    "chemistry": "LFP"
+  }
+}

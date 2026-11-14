@@ -1,0 +1,48 @@
+schema_version = 1
+name = "IT 方舱"
+version = "0.1.0"
+entry = "it-container.sdl.json"
+
+[assets.geometry]
+kind = "geometry"
+path = "assets/geometry.usda"
+source = "Texsys 数据中心参考设计库概念假设（公开产品水平脱敏）"
+fidelity = "方舱包络、内部布置与接口位姿"
+
+[assets.symbol]
+kind = "symbol"
+path = "assets/symbol.svg"
+source = "Texsys 数据中心参考设计库概念假设（公开产品水平脱敏）"
+fidelity = "功能符号与端口锚点"
+
+[assets.specification]
+kind = "specification"
+path = "assets/specification.json"
+source = "Texsys 数据中心参考设计库概念假设（公开产品水平脱敏）"
+fidelity = "坐标、边界映射、防火与耐候属性"
+
+[assets.behavior]
+kind = "behavior"
+path = "assets/behavior.json"
+source = "Texsys 数据中心参考设计库概念假设（公开产品水平脱敏）"
+fidelity = "containerized-liquid-cooled-it-module"
+
+[port_bindings.power_a]
+geometry = "/Module/Ports/power_a"
+symbol = "port-power_a"
+
+[port_bindings.power_b]
+geometry = "/Module/Ports/power_b"
+symbol = "port-power_b"
+
+[port_bindings.fws_supply]
+geometry = "/Module/Ports/fws_supply"
+symbol = "port-fws_supply"
+
+[port_bindings.fws_return]
+geometry = "/Module/Ports/fws_return"
+symbol = "port-fws_return"
+
+[port_bindings.alarm]
+geometry = "/Module/Ports/alarm"
+symbol = "port-alarm"

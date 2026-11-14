@@ -1,0 +1,97 @@
+#usda 1.0
+(
+    defaultPrim = "Module"
+    metersPerUnit = 1
+    upAxis = "Z"
+)
+
+def Xform "Module"
+{
+    def Scope "Geometry"
+    {
+        def Cube "Envelope"
+        {
+            color3f[] primvars:displayColor = [(0.5, 0.5, 0.55)]
+            double size = 1
+            double3 xformOp:scale = (8.0, 8.0, 4.5)
+            double3 xformOp:translate = (4.0, 4.0, 2.25)
+            uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
+        }
+        def Cube "Column1"
+        {
+            color3f[] primvars:displayColor = [(0.55, 0.58, 0.62)]
+            double size = 1
+            double3 xformOp:scale = (0.6, 0.6, 0.6)
+            double3 xformOp:translate = (0.3, 0.3, 0.3)
+            uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
+        }
+        def Cube "Column2"
+        {
+            color3f[] primvars:displayColor = [(0.55, 0.58, 0.62)]
+            double size = 1
+            double3 xformOp:scale = (0.6, 0.6, 0.6)
+            double3 xformOp:translate = (7.8999999999999995, 0.3, 0.3)
+            uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
+        }
+        def Cube "Column3"
+        {
+            color3f[] primvars:displayColor = [(0.55, 0.58, 0.62)]
+            double size = 1
+            double3 xformOp:scale = (0.6, 0.6, 0.6)
+            double3 xformOp:translate = (0.3, 7.8999999999999995, 0.3)
+            uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
+        }
+        def Cube "Column4"
+        {
+            color3f[] primvars:displayColor = [(0.55, 0.58, 0.62)]
+            double size = 1
+            double3 xformOp:scale = (0.6, 0.6, 0.6)
+            double3 xformOp:translate = (7.8999999999999995, 7.8999999999999995, 0.3)
+            uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
+        }
+        def Cube "Beam1"
+        {
+            color3f[] primvars:displayColor = [(0.55, 0.58, 0.62)]
+            double size = 1
+            double3 xformOp:scale = (0.6, 0.6, 0.6)
+            double3 xformOp:translate = (0.3, 0.3, 4.3999999999999995)
+            uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
+        }
+        def Cube "Beam2"
+        {
+            color3f[] primvars:displayColor = [(0.55, 0.58, 0.62)]
+            double size = 1
+            double3 xformOp:scale = (0.6, 0.6, 0.6)
+            double3 xformOp:translate = (0.3, 7.8999999999999995, 4.3999999999999995)
+            uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
+        }
+    }
+
+    def Scope "Ports"
+    {
+        def Xform "bearing_1"
+        {
+            custom double3 texsys:normal = (0, -1, 0)
+            double3 xformOp:translate = (1.600, 0, 2.25)
+            uniform token[] xformOpOrder = ["xformOp:translate"]
+        }
+        def Xform "bearing_2"
+        {
+            custom double3 texsys:normal = (0, -1, 0)
+            double3 xformOp:translate = (3.200, 0, 2.25)
+            uniform token[] xformOpOrder = ["xformOp:translate"]
+        }
+        def Xform "bearing_3"
+        {
+            custom double3 texsys:normal = (0, -1, 0)
+            double3 xformOp:translate = (4.800, 0, 2.25)
+            uniform token[] xformOpOrder = ["xformOp:translate"]
+        }
+        def Xform "bearing_4"
+        {
+            custom double3 texsys:normal = (0, -1, 0)
+            double3 xformOp:translate = (6.400, 0, 2.25)
+            uniform token[] xformOpOrder = ["xformOp:translate"]
+        }
+    }
+}

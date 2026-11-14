@@ -1,0 +1,13 @@
+{
+  "schema_version": 1,
+  "state": "assumed",
+  "model": "steel-cementitious-access-floor-panel",
+  "parameters": {
+    "panel_size_mm": "mm",
+    "pedestal_height_m": "m",
+    "concentrated_load_kn": "kN",
+    "surface_resistance_ohm_log10": "log10(Ω)"
+  },
+  "method": "集中荷载与表面电阻用于承载和静电筛查（GB 50174 8.3）。",
+  "limitations": "概念脱敏；实际支架抗震、接地连续性与耐磨由项目校核。"
+}

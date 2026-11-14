@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "state": "assumed",
+  "model": "ideal-two-winding-transformer",
+  "parameters": {
+    "rated_kva": "kVA",
+    "primary_kv": "kV",
+    "secondary_kv": "kV",
+    "impedance_pct": "%",
+    "no_load_loss_kw": "kW",
+    "load_loss_kw": "kW"
+  },
+  "method": "额定容量与阻抗用于供电容量和短路筛查；损耗按空载与负载分量线性叠加。",
+  "limitations": "概念参数取自公开产品水平脱敏；实际温升、谐波降容与保护配合由项目校核。"
+}
