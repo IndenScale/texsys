@@ -7,7 +7,10 @@ name = "texsys-fire-protection"
 version = "0.1.0"
 description = "Fire barrier and service penetration coordination for texsys"
 requires-python = ">=3.11"
-dependencies = ["scipy>=1.15,<2"]
+dependencies = ["scipy>=1.15,<2", "texsys-spatial"]
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.uv.sources]
+texsys-spatial = { workspace = true }
