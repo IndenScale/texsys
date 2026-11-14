@@ -62,6 +62,7 @@ def _svg(building, sheets, scope):
   svg = Element("svg", {"xmlns": "http://www.w3.org/2000/svg",
                         "viewBox": f"{left - 2:g} {-bottom - depth - 4:g} {width + 4:g} {len(sheets) * sheet_height:g}",
                         "data-frame": building["frame"], "data-coordinate-unit": "m",
+                        "data-units-per-meter": "1",
                         "font-family": "sans-serif", "role": "img"})
   SubElement(svg, "title").text = f"{title} · 平面布置"
   SubElement(svg, "desc").text = (
@@ -69,7 +70,8 @@ def _svg(building, sheets, scope):
     else "概念建筑房间投影，XY 坐标单位为米，各楼层独立成图。"
   )
   for index, (level, footprints) in enumerate(sheets.items()):
-    sheet = SubElement(svg, "g", {"data-level-id": level, "transform": f"translate(0 {index * sheet_height:g})"})
+    sheet = SubElement(svg, "g", {"data-level-id": level, "data-elevation-m": str(building["levels_m"][level]),
+                                 "transform": f"translate(0 {index * sheet_height:g})"})
     SubElement(sheet, "text", {"x": f"{left:g}", "y": f"{-bottom - depth - 1:g}", "font-size": "1.4"}).text = (
       f"{level} · {building['levels_m'][level]:g} m"
     )
@@ -84,8 +86,9 @@ def _svg(building, sheets, scope):
       x, y, dx, dy = footprints[identity]
       group = SubElement(sheet, "g", {"data-zone-id" if zone_view else "data-room-id": identity})
       SubElement(group, "title").text = identity
-      SubElement(group, "rect", {"x": f"{x:g}", "y": f"{-y - dy:g}", "width": f"{dx:g}",
-                                 "height": f"{dy:g}", "fill": "#e8f1f6", "stroke": "#446781", "stroke-width": ".06"})
+      SubElement(group, "rect", {"data-role": "zone-footprint" if zone_view else "room-footprint",
+                                 "x": str(x), "y": str(-y - dy), "width": str(dx), "height": str(dy),
+                                 "fill": "#e8f1f6", "stroke": "#446781", "stroke-width": ".06"})
       SubElement(group, "text", {"x": f"{x + dx / 2:g}", "y": f"{-y - dy / 2:g}", "font-size": ".8",
                                  "text-anchor": "middle", "fill": "#193b50"}).text = identity.split("/", 1)[-1]
   return tostring(svg, encoding="utf-8", xml_declaration=True) + b"\n"

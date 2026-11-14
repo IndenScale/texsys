@@ -9,6 +9,10 @@ source = "src"
 assets = "assets"
 build = "build"
 
+[dependencies.spatial]
+path = "../spatial"
+version = "0.1.0"
+
 [package]
 kind = "capability"
 description = "防火协调、疏散与贯穿筛查"

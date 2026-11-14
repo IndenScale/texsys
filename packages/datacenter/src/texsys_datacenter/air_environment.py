@@ -3,6 +3,7 @@
 from dataclasses import replace
 from pathlib import Path
 
+from texsys.evidence import canonical_digest
 from texsys.formal import _load_json
 from texsys.usd_brep import _prim_name
 from texsys_hvac_dynamics.room_airflow import RackAirflow, SharedAirBranch, SupplyAirflow, room_airflow
@@ -184,10 +185,12 @@ def evaluate_air_environment(source: Path, unit: dict, floor: dict, building: di
     "design_screening": {"status": "revision-required" if conflicts or failed_design else "pass",
                          "cases": sorted(design_cases), "failed_cases": failed_design},
     "layout_case": config["layout_case"], "limits": limits, "layout": layout,
+    "rack_design_heat_kw": unit["rack_heat_kw"],
     "air_distribution_basis": "routed-ducts-and-open-hot-room-return" if distribution else "declared-branch-resistances",
     "plan_conflicts": conflicts, "cases": cases, "levels_m": building["levels_m"], "unit_origins_m": {
       name: zone["origin_m"] for name, zone in zones.items()
     },
+    "unit_sizes_m": {name: zone["size_m"] for name, zone in zones.items()},
     "pending": ["fan-curves-and-commissioned-balancing", "vertical-inlet-gradient-and-cfd",
                 "air-leakage-measurement-and-latent-loads", "duct-fittings-acoustics-and-shop-details"],
   }
@@ -199,7 +202,12 @@ def write_air_environment_usd(report, path):
   stage = Usd.Stage.CreateInMemory()
   UsdGeom.SetStageMetersPerUnit(stage, 1)
   UsdGeom.SetStageUpAxis(stage, "Z")
-  stage.SetDefaultPrim(UsdGeom.Xform.Define(stage, "/AirEnvironment").GetPrim())
+  root = UsdGeom.Xform.Define(stage, "/AirEnvironment").GetPrim()
+  stage.SetDefaultPrim(root)
+  root.SetCustomDataByKey("frame", report["frame"])
+  root.SetCustomDataByKey("airEnvironmentCase", report["layout_case"])
+  root.SetCustomDataByKey("airEnvironmentReportDigest", canonical_digest(report))
+  root.SetCustomDataByKey("rackInventoryComplete", True)
 
   def box(parent, name, bounds, height, color):
     x, y, xx, yy, z = bounds
@@ -224,12 +232,20 @@ def write_air_environment_usd(report, path):
       a, b, c, d = bounds
       return origin_x + a, origin_y + b, origin_x + c, origin_y + d, z
 
-    box(parent, "ColdAisle", at(report["layout"]["cold_aisle_m"]), .025, (.35, .67, .75))
+    aisle = box(parent, "ColdAisle", at(report["layout"]["cold_aisle_m"]), .025, (.35, .67, .75))
+    aisle.SetCustomDataByKey("role", "cold-aisle")
+    aisle.SetCustomDataByKey("unitId", identity)
     profile = case["profiles"][profile_id]
     for name, rack in report["layout"]["racks"].items():
       color = (.80, .23, .16) if name in profile["rack_failures"] else (.20, .45, .62)
       prim = box(parent, name, at(rack["bounds_m"]), rack["height_m"], color)
       prim.CreateAttribute("texsys:identity", Sdf.ValueTypeNames.String).Set(f"{identity}/{name}")
+      prim.SetCustomDataByKey("role", "rack")
+      prim.SetCustomDataByKey("unitId", identity)
+      prim.SetCustomDataByKey("rackId", name)
+      prim.SetCustomDataByKey("front", rack["front"])
+      x, y, height = rack["inlet_point_m"]
+      prim.SetCustomDataByKey("inletPointM", Gf.Vec3d(origin_x + x, origin_y + y, z + height))
       inlet = profile["racks"][name]["inlet_c"]
       if inlet is not None:
         prim.SetCustomDataByKey("inletC", inlet)

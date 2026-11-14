@@ -9,6 +9,7 @@ import xml.etree.ElementTree as ET
 from pxr import Gf, Sdf, Usd, UsdGeom
 
 from texsys.dependencies import _read_lock
+from texsys.evidence import canonical_digest
 from texsys.formal import _load_json
 from texsys.module_package import read_module_manifest
 from texsys.project import inspect_project
@@ -265,6 +266,7 @@ def evaluate_grounding(root: Path, source: Path, building: dict, floor: dict, un
     raise ValueError("Grounding study needs explicit continuity scenarios.")
   report = {
     "schema_version": 1, "state": config["state"], "basis": config["basis"], "formal_review": "pending",
+    "frame": building["frame"], "terminal_points_m": {name: nodes[name] for name in sorted(terminals)},
     "status": "pass" if all(case["status"] == case["expected"] for case in cases.values()) else "fail",
     "max_path_mohm": budget, "reference_nodes": sorted(references), "terminal_count": len(terminals),
     "modules": {key: {"definition": item.identity, "version": item.version} for key, item in modules.items()},
@@ -289,9 +291,16 @@ def write_grounding_usd(report: dict, modules: dict, path: Path):
   stage = Usd.Stage.CreateInMemory()
   UsdGeom.SetStageMetersPerUnit(stage, 1)
   UsdGeom.SetStageUpAxis(stage, "Z")
-  stage.SetDefaultPrim(UsdGeom.Xform.Define(stage, "/Grounding").GetPrim())
-  for group in ("Foundations", "SteelStrips", "CopperRoutes"):
+  root = UsdGeom.Xform.Define(stage, "/Grounding").GetPrim()
+  stage.SetDefaultPrim(root)
+  root.SetCustomDataByKey("frame", report["frame"])
+  root.SetCustomDataByKey("groundingReportDigest", canonical_digest(report))
+  for group in ("Foundations", "SteelStrips", "CopperRoutes", "BondTerminals"):
     UsdGeom.Scope.Define(stage, f"/Grounding/{group}")
+  for identity, point in report["terminal_points_m"].items():
+    anchor = UsdGeom.Xform.Define(stage, f"/Grounding/BondTerminals/{_prim_name(identity)}")
+    anchor.AddTranslateOp().Set(Gf.Vec3d(*point))
+    anchor.GetPrim().SetCustomDataByKey("identity", identity)
   for name, detail in sorted(report["foundations"].items()):
     parent = f"/Grounding/Foundations/{_prim_name(name)}"
     UsdGeom.Xform.Define(stage, parent)
