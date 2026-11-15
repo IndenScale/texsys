@@ -70,7 +70,7 @@ def test_aidc_deliverables_bind_to_the_same_geometry_and_recompute_the_fws_head(
   assert dossier["evidence_complete"]
   assert dossier["input_digest"] == _read(baseline.report)["input_digest"]
   assert dossier["engineering_acceptance"] == "pending-responsible-review"
-  assert len(list((root / "build/drawings/sheets").glob("*.svg"))) == 53
+  assert len(list((root / "build/drawings/sheets").glob("*.svg"))) == 58
   old_dossier = file_digest(root / "build/review/aidc-discipline-review.json")
   drawing = root / "build/drawings/sheets/fws-network.svg"
   old_route_drawing = file_digest(drawing)
@@ -79,6 +79,7 @@ def test_aidc_deliverables_bind_to_the_same_geometry_and_recompute_the_fws_head(
   _check_professional_delivery(root)
   _check_power_installation(root)
   _check_roof_delivery(root)
+  _check_storm_delivery(root)
   _check_fws_network_delivery(root)
   _check_building_delivery(root)
   _check_telecom_delivery(root)
@@ -476,6 +477,56 @@ def _check_roof_delivery(root):
   sleeve = water.find(f".//{SVG}rect[@data-pipe='{row['run']}']")
   assert -float(sleeve.get("y")) == pytest.approx(row["curb_top_m"], abs=1e-6)
   assert power.find(f".//{SVG}rect[@data-host='building_weather_surface_m']") is not None
+
+
+def _check_storm_delivery(root):
+  grade = _read(root / MODEL / "site-grading.json")
+  model = _read(root / MODEL / "site-storm.json")
+  test = _read(root / MODEL / "site-storm-study.json")
+  roof = _read(root / MODEL / "roof-drainage.json")
+  assert not grade["issues"] and not model["issues"] and not test["issues"]
+  assert grade["reserved_areas_m2"]["ponding"] == 0
+  assert sum(row["area_m2"] for row in grade["catchments"].values()) + sum(
+    grade["reserved_areas_m2"].values()
+  ) == pytest.approx(80*56)
+  earth = grade["earthwork"]
+  assert earth["fill_m3"]-earth["cut_m3"] == pytest.approx(earth["signed_m3"])
+  assert len(model["runs"]) == 9
+  assert model["nodes"]["ST-OUTFALL"]["point_m"][:2] == [80, 10]
+  assert model["detention"]["working_capacity_m3"] == pytest.approx(12*8*1.75)
+  assert model["roof_shoes"]["RW-S-W"]["points_m"][0] == roof["outlets"]["RW-S-W"]["handoff_m"]
+  assert min(model["covers_m"].values()) >= .60
+  drainage = test["cases"]["design"]
+  assert drainage["roof_total_l_s"] == pytest.approx(roof["total_runoff_l_s"])
+  assert drainage["run_peak_l_s"]["ST-M03"] == pytest.approx(
+    155*sum(row["effective_area_m2"] for row in grade["catchments"].values())/3600 + roof["total_runoff_l_s"]
+  )
+  detention = drainage["detention"]
+  assert detention["initial_storage_m3"]+detention["inflow_volume_m3"] == pytest.approx(
+    detention["released_volume_m3"]+detention["final_storage_m3"]
+  )
+  head = detention["peak_water_level_m"]-(-3.95+.10)
+  assert detention["peak_release_l_s"] == pytest.approx(1000*.62*pi*.15**2/4*sqrt(2*9.81*head))
+  assert list(model["catchment_paths"]["RW-N-W"])[0] == "ST-N01"
+  stage = Usd.Stage.Open(str(root / "build/scenes/aidc-site-storm-underground.usda"))
+  assert stage.GetPrimAtPath("/AIDC/Storm/Detention/Floor")
+  assert stage.GetPrimAtPath("/AIDC/Storm/OilVault/Floor")
+  assert stage.GetPrimAtPath("/AIDC/Storm/FlowControl")
+
+
+def test_aidc_storm_checks_storage_change_and_submerged_boundary(tmp_path):
+  root = _checkout(tmp_path)
+  config = root / "src/site-storm.json"
+  data = _read(config)
+  data["detention"]["working_depth_m"] = 1.10
+  data["outfall"]["tailwater_m"] = -4.20
+  write_json(config, data)
+  result, status = _run(root, "dcr:site-storm-check", "sheet-site-storm-hydrograph", "sheet-site-storm-profile")
+  assert result.status == "fail"
+  reasons = {row["rule"] for row in status["dcr:site-storm-check"]["diagnostics"]}
+  assert {"AIDC_STORM_STORAGE", "AIDC_STORM_TAILWATER"} <= reasons
+  for chart in ("sheet-site-storm-hydrograph", "sheet-site-storm-profile"):
+    assert status[chart]["status"] == "pass"
 
 
 def test_aidc_roof_geometry_recomputes_gravity_and_overload_retains_drainage_plan(tmp_path):

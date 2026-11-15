@@ -1,0 +1,42 @@
+{
+  "schema_version": 1,
+  "state": "assumed",
+  "basis": "AIDC-LOCAL 合成测点与场区竖向备选方案。局部标高承接屋面、场坪平台、门外坡道及市政接口。",
+  "survey": {
+    "x_m": [0, 20, 40, 60, 80],
+    "y_m": [0, 14, 28, 42, 56],
+    "levels_m": [
+      [0.12, 0.19, 0.23, 0.31, 0.33],
+      [0.07, 0.11, 0.17, 0.22, 0.24],
+      [0.05, 0.12, 0.15, 0.17, 0.21],
+      [-0.01, 0.02, 0.05, 0.12, 0.18],
+      [-0.05, -0.02, 0.02, 0.07, 0.10]
+    ]
+  },
+  "platforms": {
+    "POWER": {"extent_m": [8, 29.2, 24, 33.4], "grade_m": 0},
+    "COOLING": {"extent_m": [24.4, 29.2, 48, 42], "grade_m": 0},
+    "STANDBY": {"extent_m": [56.5, 29, 69.5, 41], "grade_m": 0}
+  },
+  "pavement": [[0, 4, 76, 9], [0, 9, 7.8, 24], [40.2, 9, 76, 29], [4, 26, 56, 46]],
+  "runoff_coefficients": {"hardstand": 0.90, "landscape": 0.43},
+  "design_fall": 0.0045,
+  "minimum_formation_fall": 0.001,
+  "platform_transition_grade": 0.1,
+  "maximum_ground_grade": 0.30,
+  "door_landing_tolerance_m": 0.015,
+  "oil_yard": {
+    "extent_m": [56, 28, 72, 42],
+    "inlet_xy_m": [70.5, 40.1],
+    "inlet_elevation_m": -0.12,
+    "perimeter_formation_m": 0.08,
+    "containment_crest_m": 0.18,
+    "sealed_storage": {
+      "extent_m": [69.8, 35, 72, 41.7],
+      "bottom_m": -3.08,
+      "ceiling_m": -0.75,
+      "working_depth_m": 1.90
+    },
+    "credible_spill_m3": 9
+  }
+}

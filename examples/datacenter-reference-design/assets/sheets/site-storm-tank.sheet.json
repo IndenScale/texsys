@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "template": "sheet:a3-landscape",
+  "metadata": "assets/sheets/site-storm-tank.title.json",
+  "texts": {
+    "notes": "assets/sheets/site-storm-tank.txt",
+    "footer": "assets/sheets/footer.txt"
+  },
+  "views": {
+    "main": {
+      "path": "build/drawings/views/site-storm-tank.svg",
+      "scale": "1:75"
+    }
+  }
+}

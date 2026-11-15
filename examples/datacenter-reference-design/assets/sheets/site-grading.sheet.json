@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "template": "sheet:a3-landscape",
+  "metadata": "assets/sheets/site-grading.title.json",
+  "texts": {
+    "notes": "assets/sheets/site-grading.txt",
+    "footer": "assets/sheets/footer.txt"
+  },
+  "views": {
+    "main": {
+      "path": "build/drawings/views/site-grading.svg",
+      "scale": "1:350"
+    }
+  }
+}

@@ -1,0 +1,3 @@
+采用与屋面排水同源的雨强，计算三种降雨历时。
+虚线为有效调蓄与候选东界排放限值。
+完整过程及工况汇总见 aidc-storm-hydrographs.csv 和 aidc-storm-duty.csv。

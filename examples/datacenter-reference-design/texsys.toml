@@ -12,7 +12,7 @@ build = "build"
 default_targets = ["review-package"]
 
 [dependencies]
-datacenter-reference = { path = "../../packages/datacenter-reference", version = "0.17.0" }
+datacenter-reference = { path = "../../packages/datacenter-reference", version = "0.18.0" }
 sheet = { path = "../../packages/sheet", version = "0.2.0" }
 
 [build.targets.review-package]
@@ -32,6 +32,14 @@ dependencies = [
   "dcr:roof-gravity-check",
   "dcr:roof-drainage-check",
   "dcr:roof-scene",
+  "dcr:site-grading-check",
+  "dcr:site-storm-check",
+  "dcr:site-storm-scene",
+  "sheet-site-grading",
+  "sheet-site-storm",
+  "sheet-site-storm-profile",
+  "sheet-site-storm-tank",
+  "sheet-site-storm-hydrograph",
   "sheet-roof-envelope",
   "sheet-roof-section",
   "sheet-roof-opening-detail",
@@ -691,3 +699,58 @@ using = "sheet:compose"
 dependencies = ["view-roof-rain"]
 scope = { source = "assets/sheets/roof-rain.sheet.json" }
 output = "build/drawings/sheets/roof-rain.svg"
+
+[build.targets.view-site-grading]
+using = "dcr:site-grading-view"
+output = "build/drawings/views/site-grading.svg"
+scope = { view = "grading" }
+
+[build.targets.sheet-site-grading]
+using = "sheet:compose"
+dependencies = ["view-site-grading"]
+scope = { source = "assets/sheets/site-grading.sheet.json" }
+output = "build/drawings/sheets/site-grading.svg"
+
+[build.targets.view-site-storm]
+using = "dcr:site-storm-view"
+output = "build/drawings/views/site-storm.svg"
+scope = { view = "storm" }
+
+[build.targets.sheet-site-storm]
+using = "sheet:compose"
+dependencies = ["view-site-storm"]
+scope = { source = "assets/sheets/site-storm.sheet.json" }
+output = "build/drawings/sheets/site-storm.svg"
+
+[build.targets.view-site-storm-profile]
+using = "dcr:site-storm-view"
+output = "build/drawings/views/site-storm-profile.svg"
+scope = { view = "profile", start = "RW-N-W" }
+
+[build.targets.sheet-site-storm-profile]
+using = "sheet:compose"
+dependencies = ["view-site-storm-profile"]
+scope = { source = "assets/sheets/site-storm-profile.sheet.json" }
+output = "build/drawings/sheets/site-storm-profile.svg"
+
+[build.targets.view-site-storm-tank]
+using = "dcr:site-storm-study-view"
+output = "build/drawings/views/site-storm-tank.svg"
+scope = { view = "detail" }
+
+[build.targets.sheet-site-storm-tank]
+using = "sheet:compose"
+dependencies = ["view-site-storm-tank"]
+scope = { source = "assets/sheets/site-storm-tank.sheet.json" }
+output = "build/drawings/sheets/site-storm-tank.svg"
+
+[build.targets.view-site-storm-hydrograph]
+using = "dcr:site-storm-study-view"
+output = "build/drawings/views/site-storm-hydrograph.svg"
+scope = { view = "hydrograph" }
+
+[build.targets.sheet-site-storm-hydrograph]
+using = "sheet:compose"
+dependencies = ["view-site-storm-hydrograph"]
+scope = { source = "assets/sheets/site-storm-hydrograph.sheet.json" }
+output = "build/drawings/sheets/site-storm-hydrograph.svg"

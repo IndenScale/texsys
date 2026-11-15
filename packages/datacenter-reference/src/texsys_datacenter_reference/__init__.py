@@ -42,6 +42,11 @@ from .roof import build_roof
 from .roof_coordination import build_roof_coordination, build_roof_scene
 from .roof_study import build_roof_actions, build_roof_drainage, build_roof_drainage_check, build_roof_gravity_check
 from .roof_views import build_roof_view
+from .site_grading import build_site_grading, build_site_grading_check
+from .site_storm import build_site_storm
+from .site_storm_scene import build_site_storm_scene
+from .site_storm_study import build_site_storm_check, build_site_storm_study
+from .site_storm_views import build_site_storm_view
 from .spatial_design import build_grid, build_layout, build_levels, build_site, spatial_inputs
 from .structure import build_gravity, build_structure
 from .structure_views import build_structure_view
@@ -59,7 +64,7 @@ from .wet_utility_views import build_wet_view
 
 class DatacenterReferencePackage(TexsysPackage):
   name = "datacenter-reference"
-  version = "0.17.0"
+  version = "0.18.0"
 
   def targets(self) -> tuple[TargetDefinition, ...]:
     return (
@@ -213,6 +218,24 @@ class DatacenterReferencePackage(TexsysPackage):
       TargetDefinition("dcr:roof-assembly", self.name, self.version, build_roof,
                        dependencies=("dcr:architecture", "dcr:structure-model", "dcr:fws-network", "dcr:power-routing"),
                        input_patterns=spatial_inputs("roof.json")),
+      TargetDefinition("dcr:site-grading", self.name, self.version, build_site_grading,
+                       dependencies=("dcr:roof-assembly",), input_patterns=spatial_inputs("site-grading.json", "site-storm.json")),
+      TargetDefinition("dcr:site-grading-check", self.name, self.version, build_site_grading_check,
+                       dependencies=("dcr:site-grading",), input_patterns=()),
+      TargetDefinition("dcr:site-storm", self.name, self.version, build_site_storm,
+                       dependencies=("dcr:site-grading", "dcr:wet-utilities"), input_patterns=spatial_inputs("site-storm.json")),
+      TargetDefinition("dcr:site-storm-study", self.name, self.version, build_site_storm_study,
+                       dependencies=("dcr:site-storm", "dcr:roof-drainage"), input_patterns=()),
+      TargetDefinition("dcr:site-storm-check", self.name, self.version, build_site_storm_check,
+                       dependencies=("dcr:site-storm-study",), input_patterns=()),
+      TargetDefinition("dcr:site-storm-scene", self.name, self.version, build_site_storm_scene,
+                       dependencies=("dcr:site-storm", "dcr:roof-scene"), input_patterns=()),
+      TargetDefinition("dcr:site-grading-view", self.name, self.version, build_site_storm_view,
+                       dependencies=("dcr:site-grading",), input_patterns=(), named_output=True),
+      TargetDefinition("dcr:site-storm-view", self.name, self.version, build_site_storm_view,
+                       dependencies=("dcr:site-storm",), input_patterns=(), named_output=True),
+      TargetDefinition("dcr:site-storm-study-view", self.name, self.version, build_site_storm_view,
+                       dependencies=("dcr:site-storm-study",), input_patterns=(), named_output=True),
       TargetDefinition("dcr:roof-actions", self.name, self.version, build_roof_actions,
                        dependencies=("dcr:roof-assembly",), input_patterns=spatial_inputs("structure-loads.json")),
       TargetDefinition("dcr:roof-gravity-check", self.name, self.version, build_roof_gravity_check,

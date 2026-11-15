@@ -10,10 +10,17 @@
         "build/drawings/sheets/coordination-sheet.json",
         "build/datacenter-reference/spatial/site.json",
         "build/drawings/sheets/wet-plan.svg",
-        "build/datacenter-reference/spatial/wet-utility-coordination.json"
+        "build/datacenter-reference/spatial/wet-utility-coordination.json",
+        "build/drawings/sheets/site-grading.svg",
+        "build/drawings/sheets/site-grading-sheet.json",
+        "build/datacenter-reference/spatial/site-grading.json",
+        "build/datacenter-reference/spatial/site-grading-check.json",
+        "build/scenes/aidc-site-coordinated.usda",
+        "build/schedules/aidc-site-grading.csv"
       ],
       "pending": [
-        "实测宗地红线、竖向测量与市政接驳条件"
+        "实测宗地红线、竖向测量与市政接驳条件",
+        "等高线与地形控制需实测，土类、岩土支护、回填压实及车辆接驳按实核证"
       ]
     },
     "architecture": {
@@ -76,11 +83,14 @@
         "build/schedules/aidc-fire-circuit-cases.csv",
         "build/schedules/aidc-fire-cause-effect.csv",
         "build/datacenter-reference/spatial/pod-coordination.json",
-        "build/schedules/aidc-roof-openings.csv"
+        "build/schedules/aidc-roof-openings.csv",
+        "build/datacenter-reference/spatial/site-grading-check.json",
+        "build/datacenter-reference/spatial/site-storm-study.json"
       ],
       "pending": [
         "厂家舱门、人群疏散与探测和声光现场验证、介质与喷放专项设计、控制柜型式、穿越构造和封堵产品",
-        "实际屋盖穿越的封堵系统和材料构造核证"
+        "实际屋盖穿越的封堵系统和材料构造核证",
+        "发电机区事故液体封闭围挡、坡道阈值和密闭池抽排处置现场核证"
       ]
     },
     "structure": {
@@ -294,12 +304,28 @@
         "build/drawings/sheets/roof-rain-sheet.json",
         "build/datacenter-reference/spatial/roof-drainage.json",
         "build/datacenter-reference/spatial/roof-drainage-check.json",
-        "build/schedules/aidc-roof-rainwater.csv"
+        "build/schedules/aidc-roof-rainwater.csv",
+        "build/drawings/sheets/site-storm.svg",
+        "build/drawings/sheets/site-storm-sheet.json",
+        "build/drawings/sheets/site-storm-profile.svg",
+        "build/drawings/sheets/site-storm-profile-sheet.json",
+        "build/drawings/sheets/site-storm-tank.svg",
+        "build/drawings/sheets/site-storm-tank-sheet.json",
+        "build/drawings/sheets/site-storm-hydrograph.svg",
+        "build/drawings/sheets/site-storm-hydrograph-sheet.json",
+        "build/datacenter-reference/spatial/site-storm.json",
+        "build/datacenter-reference/spatial/site-storm-study.json",
+        "build/datacenter-reference/spatial/site-storm-check.json",
+        "build/scenes/aidc-site-storm-underground.usda",
+        "build/schedules/aidc-storm-pipes.csv",
+        "build/schedules/aidc-storm-duty.csv",
+        "build/schedules/aidc-storm-hydrographs.csv"
       ],
       "pending": [
         "市政交接高程及动压、水质检测和排放许可；喷淋定期放空／清洗的排水峰值、水处理、雨污分流与完整建筑给排水",
         "倒流防护装置采购与实际空气间隙、满水试验、防冻、泵控制及检修旁路",
-        "实测雨强、厂家落水能力、极端雨况溢流与场区雨水系统接驳"
+        "实测雨强、厂家落水能力、极端雨况溢流与场区雨水系统接驳",
+        "雨强与排放许可实测、超标雨况溢流、场外管网反顶与停运、池体结构抗浮与检修"
       ]
     }
   }

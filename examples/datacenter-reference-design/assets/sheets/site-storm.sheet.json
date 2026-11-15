@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "template": "sheet:a3-landscape",
+  "metadata": "assets/sheets/site-storm.title.json",
+  "texts": {
+    "notes": "assets/sheets/site-storm.txt",
+    "footer": "assets/sheets/footer.txt"
+  },
+  "views": {
+    "main": {
+      "path": "build/drawings/views/site-storm.svg",
+      "scale": "1:350"
+    }
+  }
+}

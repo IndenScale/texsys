@@ -1,0 +1,64 @@
+{
+  "schema_version": 1,
+  "state": "assumed",
+  "basis": "候选场区重力雨水系统。屋面和洁净室外分区汇入独立调蓄设备，场区东界雨水交接；东界工艺排污口与发电机区密闭收集系统分别保持独立。",
+  "inlets": {
+    "RW-S-W": {"offset_y_m": -1.48, "rim_m": -0.125, "invert_m": -1.14},
+    "RW-S-E": {"offset_y_m": -1.48, "rim_m": -0.125, "invert_m": -1.36},
+    "RW-N-W": {"offset_y_m": 1.68, "rim_m": -0.125, "invert_m": -1.14},
+    "RW-N-E": {"offset_y_m": 1.68, "rim_m": -0.125, "invert_m": -1.36}
+  },
+  "junctions": {
+    "J-N": [54, 27.55, -1.48],
+    "J-S": [54, 4.65, -1.66],
+    "J-D1": [59, 4.65, -1.71],
+    "J-D2": [59, 10, -1.76],
+    "D-IN": [62, 10, -1.80],
+    "D-OUT": [74.45, 10, -4.28]
+  },
+  "outfall": {"station_y_m": 10, "invert_m": -4.36, "receiving_invert_m": -4.58, "tailwater_m": -4.42, "permitted_l_s": 58},
+  "detention": {
+    "extent_m": [62, 6, 74, 14],
+    "bottom_m": -3.95,
+    "ceiling_m": -0.65,
+    "working_depth_m": 1.75,
+    "outlet_center_above_floor_m": 0.10,
+    "outlet_diameter_m": 0.15,
+    "discharge_coefficient": 0.62,
+    "maximum_drain_hours": 5
+  },
+  "pipes": {
+    "branch": {"size": "DN300", "inside_m": 0.30, "outside_m": 0.323, "manning_n": 0.012},
+    "north_branch": {"size": "DN350", "inside_m": 0.34, "outside_m": 0.368, "manning_n": 0.012},
+    "secondary": {"size": "DN400", "inside_m": 0.40, "outside_m": 0.43, "manning_n": 0.012},
+    "north_secondary": {"size": "DN450", "inside_m": 0.45, "outside_m": 0.486, "manning_n": 0.012},
+    "trunk": {"size": "DN500", "inside_m": 0.50, "outside_m": 0.53, "manning_n": 0.012},
+    "outlet": {"size": "DN315", "inside_m": 0.31, "outside_m": 0.33, "manning_n": 0.012}
+  },
+  "runs": {
+    "ST-S01": ["RW-S-W", "RW-S-E", "branch"],
+    "ST-S02": ["RW-S-E", "J-S", "secondary"],
+    "ST-N01": ["RW-N-W", "RW-N-E", "north_branch"],
+    "ST-N02": ["RW-N-E", "J-N", "north_secondary"],
+    "ST-N03": ["J-N", "J-S", "north_secondary"],
+    "ST-M01": ["J-S", "J-D1", "trunk"],
+    "ST-M02": ["J-D1", "J-D2", "trunk"],
+    "ST-M03": ["J-D2", "D-IN", "trunk"],
+    "ST-E01": ["D-OUT", "ST-OUTFALL", "outlet"]
+  },
+  "criteria": {
+    "roof_shoe_inside_m": 0.115,
+    "receiver_width_m": 0.56,
+    "receiver_admission_l_s": 70.0,
+    "minimum_shoe_air_gap_m": 0.07,
+    "minimum_grade": 0.004,
+    "minimum_cover_m": 0.6,
+    "minimum_crossing_clearance_m": 0.25
+  },
+  "storms": {
+    "design": {"duration_min": 20, "roof_rainfall_factor": 1.0},
+    "longer": {"duration_min": 40, "roof_rainfall_factor": 0.68},
+    "shorter": {"duration_min": 10, "roof_rainfall_factor": 1.30}
+  },
+  "time_step_s": 10
+}
