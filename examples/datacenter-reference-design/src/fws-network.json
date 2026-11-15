@@ -75,15 +75,15 @@
       "spine_x_m": 6.0,
       "plant_header_y_m": 27.6,
       "tier_m": 5.8,
-      "outlet_offset_m": 0.55,
-      "bypass": {"east_x_m": 49.0, "south_y_m": 6.1}
+      "outlet_offset_m": 0.37,
+      "bypass": {"east_x_m": 49.0, "south_y_m": 5.25}
     },
     "return": {
       "spine_x_m": 6.65,
       "plant_header_y_m": 28.35,
       "tier_m": 6.3,
       "outlet_offset_m": 0.22,
-      "bypass": {"east_x_m": 50.3, "south_y_m": 5.4}
+      "bypass": {"east_x_m": 50.3, "south_y_m": 4.55}
     }
   }
 }

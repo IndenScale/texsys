@@ -55,7 +55,7 @@ def test_aidc_deliverables_bind_to_the_same_geometry_and_recompute_the_fws_head(
   prim = scene.GetPrimAtPath(selected["prim_path"])
   assert prim.GetAttribute("texsys:identity").Get() == "ReferenceDesign.IT01"
   transform = UsdGeom.XformCache().GetLocalToWorldTransform(prim)
-  assert tuple(transform.ExtractTranslation()) == pytest.approx((9, 8.8, .44))
+  assert tuple(transform.ExtractTranslation()) == pytest.approx((8.3, 7.26, .44))
   it = ET.parse(root / "build/drawings/views/it-hall.svg")
   rectangles = it.findall(f".//{SVG}rect[@data-instance]")
   assert len(rectangles) == 16
@@ -70,10 +70,11 @@ def test_aidc_deliverables_bind_to_the_same_geometry_and_recompute_the_fws_head(
   assert dossier["evidence_complete"]
   assert dossier["input_digest"] == _read(baseline.report)["input_digest"]
   assert dossier["engineering_acceptance"] == "pending-responsible-review"
-  assert len(list((root / "build/drawings/sheets").glob("*.svg"))) == 36
+  assert len(list((root / "build/drawings/sheets").glob("*.svg"))) == 38
   old_dossier = file_digest(root / "build/review/aidc-discipline-review.json")
   drawing = root / "build/drawings/sheets/fws-network.svg"
   old_route_drawing = file_digest(drawing)
+  original_volume = _read(root / MODEL / "fws-thermal-parameters.json")["extracted_volume_m3"]
 
   _check_professional_delivery(root)
   _check_fws_network_delivery(root)
@@ -84,6 +85,7 @@ def test_aidc_deliverables_bind_to_the_same_geometry_and_recompute_the_fws_head(
   _check_buffer_delivery(root)
   _check_cw_delivery(root)
   _check_wet_utility_delivery(root)
+  _check_pod_delivery(root)
   report = root / MODEL / "fws-network-study.json"
   before = _read(report)
   path = root / "src/fws-network.json"
@@ -106,7 +108,7 @@ def test_aidc_deliverables_bind_to_the_same_geometry_and_recompute_the_fws_head(
   assert after["cases"][affected]["common_header_kpa"] > before["cases"][affected]["common_header_kpa"]
   assert records["sheet-fws-isolation"]["execution"] == "executed"
   thermal = _read(root / MODEL / "fws-thermal-parameters.json")
-  assert thermal["extracted_volume_m3"] == pytest.approx(7.346129201434385 + 4*pi*.16**2/4)
+  assert thermal["extracted_volume_m3"] == pytest.approx(original_volume + 4*pi*.16**2/4)
   assert records["dcr:fws-transient"]["execution"] == "executed"
 
   # Restore exactly the original source bytes to exercise the original cache key.
@@ -126,7 +128,7 @@ def _check_fws_network_delivery(root):
   assert len(model["segments"]) == 133
   assert len(model["valves"]) == 44
   assert len(model["penetrations"]) == 32
-  assert sum(item["length_m"] for item in model["segments"].values()) == pytest.approx(686.078)
+  assert sum(item["length_m"] for item in model["segments"].values()) == pytest.approx(683.198)
   fig = ET.parse(root / "build/drawings/views/fws-system.svg")
   links = {item["id"] for role in model["ports"].values() for owner in role.values() for item in owner.values()}
   symbols = [item.get("data-sdl-link") for item in fig.findall(f".//{SVG}line[@data-sdl-link]")]
@@ -182,13 +184,13 @@ def _check_fws_network_delivery(root):
 
 def _check_building_delivery(root):
   architecture = _read(root / MODEL / "architecture.json")
-  assert {key: room["floor_area_m2"] for key, room in architecture["rooms"].items()} == pytest.approx({"FC-S": 252.8, "FC-N": 246.4})
+  assert {key: room["floor_area_m2"] for key, room in architecture["rooms"].items()} == pytest.approx({"FC-S": 300.8, "FC-N": 294.4})
   partition = architecture["walls"]["W-DIVIDE"]
   assert partition["minimum_m"] == pytest.approx([8, 15.9, .4])
   assert partition["maximum_m"] == pytest.approx([40, 16.1, 4.9])
   exit_record = architecture["doors"]["D-SW"]
   assert exit_record["ramp_slope"] == pytest.approx(.4/4.8)
-  assert exit_record["discharge_m"] == pytest.approx([.5, 11.8, 0])
+  assert exit_record["discharge_m"] == pytest.approx([.5, 11.54, 0])
   shape = ET.parse(root / "build/drawings/views/architecture-l01.svg")
   assert {item.get("data-door") for item in shape.findall(f".//{SVG}path[@data-door]")} == architecture["doors"].keys()
   egress = _read(root / MODEL / "egress-model.json")
@@ -224,7 +226,7 @@ def _check_telecom_delivery(root):
   assert (first["first_core"], first["last_core"]) == (1, 2)
   assert (last["first_core"], last["last_core"]) == (15, 16)
   cable = design["planes"]["A"]["cables"]["FO-A-IT01"]
-  centreline = (3.76-2.2) + (8.46-5.75) + (10-9.35) + (11.2-8.46) + (3.76-3.34)
+  centreline = (3.76-2.2) + (8.46-5.75) + (8.5-7.81) + (10.5-8.46) + (3.76-3.34)
   assert cable["routed_m"] == pytest.approx(centreline)
   report = _read(root / MODEL / "telecom-study.json")
   assert report["source_digest"] == file_digest(geometry)
@@ -269,7 +271,7 @@ def _check_fire_systems_delivery(root):
     assert len(reference["continuity"]) == len(ring["runs"])+1 == 38
     assert all(row["pass"] for row in reference["continuity"].values())
     assert all(row["line_trouble"] for key, row in reference["continuity"].items() if key != "configured")
-  assert study["loops"]["FC-S"]["cells"]["SD-FC-S-11"]["worst_plan_distance_m"] == pytest.approx(sqrt(4**2+(7.9/4)**2))
+  assert study["loops"]["FC-S"]["cells"]["SD-FC-S-11"]["worst_plan_distance_m"] == pytest.approx(sqrt(4**2+(9.4/4)**2))
   cases = study["cause_effect"]["cases"]
   assert len(cases) == 14 and all(row["pass"] for row in cases.values())
   assert [row["t_s"] for row in cases["dual_with_feedback"]["trace"]] == [0, 30]
@@ -293,7 +295,9 @@ def _check_transient_delivery(root):
   source = root / MODEL / "fws-thermal-parameters.json"
   report = _read(source)
   assert report["route_digest"] == file_digest(root / MODEL / "fws-network.json")
-  assert report["extracted_volume_m3"] == pytest.approx(7.346129201434385)
+  lengths = _read(root / MODEL / "fws-network.json")["segments"]
+  volume = sum(row["length_m"]*pi*row["hydraulic_section"]["inside_m"]**2/4 for row in lengths.values())
+  assert report["extracted_volume_m3"] == pytest.approx(volume)
   assert report["extracted_capacity_kj_k"] == pytest.approx(report["extracted_volume_m3"]*998*4.18)
   assert len(report["segments"]) == 133
   assert set(report["buffers"]) == {"BT-01", "BT-02", "BT-03"}
@@ -350,7 +354,7 @@ def _check_professional_delivery(root):
   assert members["G-1-2-B"]["supports"] == ["C-1-B", "C-2-B"]
   girder = calculation["checks"]["G-1-2-B"]["response"]["service"]
   span = 8
-  udl = 1.4 * 8 + members["G-1-2-B"]["physical_volume_m3"] * 77 / span
+  udl = 1.4 * 9.5 + members["G-1-2-B"]["physical_volume_m3"] * 77 / span
   assert girder["moment_kn_m"] == pytest.approx(udl * span**2 / 8)
   assert girder["reaction_start_kn"] == pytest.approx(udl * span / 2)
   assert calculation["equilibrium"]["service"]["residual_kn"] == pytest.approx(0, abs=1e-9)
@@ -591,11 +595,12 @@ def test_aidc_fire_systems_reject_missing_feedback_and_tray_conflict(tmp_path):
   assert cause["permission"] and not cause["expected_permission"] and not cause["pass"]
   geometry = root / "src/fire-systems.json"
   design = _read(geometry)
-  design["loop"]["panel_offset_y_m"] = 1.08
+  design["loop"]["panel_offset_y_m"] = 1.37
+  design["loop"]["side_inset_m"] = .48
   write_json(geometry, design)
   result, statuses = _run(root, "dcr:fire-systems-coordination")
   assert result.status == "fail" and statuses["dcr:telecom-coordination"]["status"] == "pass"
-  assert "FA-FC-S-27 envelope overlaps TA-R02-01" in result.diagnostics
+  assert "envelope overlaps TA-R02-01" in result.diagnostics
 
 
 def test_fws_transport_matches_a_single_loop_with_known_transit_and_buffer():
@@ -945,3 +950,69 @@ def test_site_wet_utility_profile_and_reserve_failures_retain_drawings(tmp_path)
   restored, records = _run(root)
   assert restored.status == "pass"
   assert records["review-package"]["execution"] == "cached"
+
+
+def _check_pod_delivery(root):
+  layout = _read(root / MODEL / "pod-layout.json")
+  first = layout["pods"]["IT01"]
+  equipment = first["local_equipment"]
+  assert len(layout["pods"]) == 16 and len(equipment) == 19
+  assert first["size_m"] == pytest.approx((7.4, 3.68, 2.9))
+  assert first["aisle"]["maximum_m"][1]-first["aisle"]["minimum_m"][1] == pytest.approx(1.12)
+  assert equipment["Rack01"]["dimensions_m"] == pytest.approx((.8, 1.2, 2.2))
+  assert equipment["Rack01"]["ports_m"]["tcs_in_a"] == pytest.approx((.11+.8-.15, .08+1.2-.16, 2.2))
+  assert equipment["Rack05"]["ports_m"]["tcs_in_a"] == pytest.approx((.11+.15, 2.4+.16, 2.2))
+  routes = _read(root / MODEL / "egress-model.json")["routes"]
+  assert routes["IT01"]["paths"][0]["pod_door"] == "D-N"
+  assert routes["IT05"]["paths"][0]["pod_door"] == "D-S"
+  assert routes["IT01"]["paths"][0]["access_m"][:2] == pytest.approx(first["doors"]["D-N"]["world_m"][:2])
+
+  stage = Usd.Stage.Open(str(root / "build/scenes/aidc-pods-coordinated.usda"))
+  assert not stage.GetPrimAtPath("/AIDC/Objects/IT01/Asset/Geometry/Envelope")
+  cabinet = stage.GetPrimAtPath("/AIDC/ITPods/IT01/Equipment/Rack01/Asset/Geometry/Cabinet")
+  world = UsdGeom.BBoxCache(Usd.TimeCode.Default(), ["default"]).ComputeWorldBound(cabinet).ComputeAlignedRange()
+  assert tuple(world.GetMin()) == pytest.approx((8.41, 7.34, .44))
+  assert tuple(world.GetMax()) == pytest.approx((9.21, 8.54, 2.64))
+  assert stage.GetPrimAtPath("/AIDC/FireSystems/Pods/IT01/NZ_IT01_1")
+  assert stage.GetPrimAtPath("/AIDC/WetUtilities/MH_EAST")
+  coordination = _read(root / MODEL / "pod-coordination.json")
+  assert coordination["equipment_count"] == 304 and not coordination["issues"]
+  plan = ET.parse(root / "build/drawings/views/pod-plan.svg")
+  assert {tag.get("data-equipment") for tag in plan.findall(f".//{SVG}rect[@data-equipment]")} == set(equipment)
+  section = ET.parse(root / "build/drawings/views/pod-section.svg")
+  assert {tag.get("data-equipment") for tag in section.findall(f".//{SVG}rect[@data-equipment]")} == {"Rack01", "Rack05"}
+  detail = ET.parse(root / "build/drawings/sheets/pod-plan.svg")
+  assert float(detail.find(f".//{SVG}image").get("width")) == pytest.approx(802/3)
+
+
+def test_pod_installation_changes_recompile_detail_and_reject_access_encroachment(tmp_path):
+  root = _checkout(tmp_path)
+  base, _ = _run(root)
+  assert base.status == "pass", base.diagnostics
+  source = root / "src/pod-layout.json"
+  original = source.read_bytes()
+  section = root / "build/drawings/sheets/pod-section.svg"
+  prior = file_digest(section)
+  config = _read(source)
+  config["installation_overrides"] = {"IT01": {"Rack01": {"minimum_m": [.09, .08, 0]}}}
+  write_json(source, config)
+  changed, statuses = _run(root)
+  assert changed.status == "pass", changed.diagnostics
+  assert file_digest(section) != prior
+  assert statuses["dcr:pod-coordination"]["execution"] == "executed"
+  assert statuses["sheet-it-hall"]["execution"] == "cached"
+  assert statuses["dcr:fws-network-study"]["execution"] == "cached"
+
+  config["installation_overrides"]["IT01"]["Rack01"]["minimum_m"][1] = .30
+  write_json(source, config)
+  failure, statuses = _run(root)
+  assert failure.status == "fail"
+  assert statuses["dcr:pod-coordination"]["status"] == "fail"
+  assert statuses["sheet-pod-section"]["status"] == "pass"
+  assert statuses["review-package"]["execution"] == "blocked"
+  issues = _read(root / MODEL / "pod-coordination.json")["issues"]
+  assert any(issue["rule"] == "AIDC_POD_ACCESS" and issue["objects"] == ["IT01", "Rack01", "AISLE"] for issue in issues)
+  source.write_bytes(original)
+  restored, statuses = _run(root)
+  assert restored.status == "pass"
+  assert statuses["review-package"]["execution"] == "cached"

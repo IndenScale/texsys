@@ -61,7 +61,8 @@
         "build/schedules/aidc-fire-equipment.csv",
         "build/schedules/aidc-fire-runs.csv",
         "build/schedules/aidc-fire-circuit-cases.csv",
-        "build/schedules/aidc-fire-cause-effect.csv"
+        "build/schedules/aidc-fire-cause-effect.csv",
+        "build/datacenter-reference/spatial/pod-coordination.json"
       ],
       "pending": [
         "厂家舱门、人群疏散与探测和声光现场验证、介质与喷放专项设计、控制柜型式、穿越构造和封堵产品"
@@ -91,10 +92,20 @@
       "required_artifacts": [
         "build/drawings/sheets/it-hall.svg",
         "build/drawings/sheets/it-hall-sheet.json",
-        "build/datacenter-reference/bom.json"
+        "build/datacenter-reference/bom.json",
+        "build/drawings/sheets/pod-plan.svg",
+        "build/drawings/sheets/pod-plan-sheet.json",
+        "build/drawings/sheets/pod-section.svg",
+        "build/drawings/sheets/pod-section-sheet.json",
+        "build/datacenter-reference/spatial/pod-layout.json",
+        "build/datacenter-reference/spatial/pod-coordination.json",
+        "build/scenes/aidc-it-pod-typical.usda",
+        "build/scenes/aidc-pods-coordinated.usda",
+        "build/schedules/aidc-pod-equipment.csv"
       ],
       "pending": [
-        "设备真实规格、机柜舱内完整布置及检修"
+        "设备真实规格、机柜舱内完整布置及检修",
+        "方舱批量供应制造图、基础及吊运、机柜二次侧配管和水力、机柜与门扇检修操作程序"
       ]
     },
     "telecom": {

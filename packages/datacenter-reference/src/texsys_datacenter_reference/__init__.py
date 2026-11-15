@@ -28,6 +28,8 @@ from .fws_thermal_parameters import build_thermal_parameters
 from .fws_transient import build_transient, build_transient_check
 from .fws_transient_views import build_transient_view
 from .plans import build_plan
+from .pod_layout import build_pod_coordination, build_pod_layout, build_pod_scene
+from .pod_views import build_pod_view
 from .power_views import build_power_view
 from .review import build_review_package
 from .spatial_design import build_grid, build_layout, build_levels, build_site, spatial_inputs
@@ -44,7 +46,7 @@ from .wet_utility_views import build_wet_view
 
 class DatacenterReferencePackage(TexsysPackage):
   name = "datacenter-reference"
-  version = "0.12.1"
+  version = "0.13.0"
 
   def targets(self) -> tuple[TargetDefinition, ...]:
     return (
@@ -68,7 +70,7 @@ class DatacenterReferencePackage(TexsysPackage):
                        input_patterns=spatial_inputs("*.sdl.json", "*/module.toml", "architecture.json",
                                                      "design-basis.json", "placement.study.json")),
       TargetDefinition("dcr:egress-model", self.name, self.version, build_egress_model,
-                       dependencies=("dcr:architecture", "dcr:structure-model"), input_patterns=()),
+                       dependencies=("dcr:architecture", "dcr:structure-model", "dcr:pod-layout"), input_patterns=()),
       TargetDefinition("dcr:fire-egress", self.name, self.version, build_egress_check, dependencies=("dcr:egress-model",),
                        input_patterns=spatial_inputs("design-basis.json")),
       TargetDefinition("dcr:fire-systems", self.name, self.version, build_fire_systems, dependencies=("dcr:architecture",),
@@ -82,6 +84,15 @@ class DatacenterReferencePackage(TexsysPackage):
                        dependencies=("dcr:fire-systems",), input_patterns=(), named_output=True),
       TargetDefinition("dcr:fire-effect-view", self.name, self.version, build_fire_systems_view,
                        dependencies=("dcr:fire-systems-study",), input_patterns=(), named_output=True),
+      TargetDefinition("dcr:pod-layout", self.name, self.version, build_pod_layout, dependencies=("dcr:layout",),
+                       input_patterns=spatial_inputs("*.sdl.json", "*/module.toml", "pod-layout.json",
+                                                     "design-basis.json", "placement.study.json")),
+      TargetDefinition("dcr:pod-scene", self.name, self.version, build_pod_scene,
+                       dependencies=("dcr:pod-layout",), input_patterns=()),
+      TargetDefinition("dcr:pod-view", self.name, self.version, build_pod_view,
+                       dependencies=("dcr:pod-layout",), input_patterns=(), named_output=True),
+      TargetDefinition("dcr:pod-coordination", self.name, self.version, build_pod_coordination,
+                       dependencies=("dcr:pod-layout", "dcr:wet-utility-coordination"), input_patterns=()),
       TargetDefinition("dcr:architecture-view", self.name, self.version, build_building_view,
                        dependencies=("dcr:architecture",), input_patterns=(), named_output=True),
       TargetDefinition("dcr:egress-view", self.name, self.version, build_building_view,

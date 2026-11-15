@@ -40,7 +40,7 @@ datacenter-reference 器件/单元库（本包）
 | 单元 | power-container | 配电方舱：变压器→开关柜→ATS→5×500 kVA UPS→输出，每模块 120 kWh 电池 |
 | 单元 | cooling-container | 冷却方舱：冷机 + 2 冷冻泵（1 用 1 备），对外 FWS 接口 |
 | 单元 | generator-container | 发电机方舱：2×3000 kW N+1 + 9000 L 储油 |
-| 构造 | steel-frame-bay | 8 m 跨钢框架（组合 structure 库） |
+| 构造 | steel-frame-bay | 8.0 × 9.5 m 钢框架标准跨（组合 structure 库） |
 | 构造 | fire-partition-wall | 2.0 h 防火隔墙（组合 architecture 库） |
 
 每个模块含 SDL 接口（端口、行为参数）、`module.toml` 资产绑定与四类资产：`geometry.usda`（包络）、`symbol.svg`（符号）、`specification.json`（接口、防火/耐候属性）、`behavior.json`（模型与适用边界）。方舱另含 `boundary` 边界映射，声明外部端口对应的内部实例端口。
@@ -83,3 +83,5 @@ uv run --locked texsys build -p examples/datacenter-reference-design
 项目可由 `dcr:cw-network`、`dcr:cw-coordination`、`dcr:cw-study` 与 `dcr:cw-check` 编译冷凝器侧闭式回路、综合场景、热／水力工况和独立工程判定。项目用同一套 SDL 法兰与路由输出暖通图纸，额定设备接口和计算假设的适用性由消费项目声明。
 
 版本 0.12 从宗地边界与冷却塔 SDL 接口编译市政补水、断流水箱、喷淋支管、间接排污及重力总管。平面、纵断面、系统图、管段表和空间校核从同一模型发布。消费项目提供压力、水质、排水接收条件与停水时长，按冷却水排热量计算喷淋及停水储备。
+
+版本 0.13 采用设备库包络生成方舱布置、三维装配和机柜服务净距。主机房疏散引用实际侧门，专业协调检查舱内灭火系统与机柜、CDU、空调及围护之间的干涉。典型舱平面、横剖面与设备落位表作为同一构建发布。

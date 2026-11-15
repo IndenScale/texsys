@@ -10,6 +10,7 @@ from texsys.targets import TargetResult
 from texsys_spatial import Space
 
 from .architecture import MODEL as ARCH_MODEL, space
+from .pod_layout import MODEL as POD_LAYOUT
 from .spatial_design import MODELS, artifact, missing_input, model_report, number, source_path, staged_json
 from .structure import MODEL as FRAME_MODEL
 
@@ -64,11 +65,12 @@ def _exit(tag, door, site, limits, obstacles):
           "grade_path_m": sum(math.dist(a, b) for a, b in pairwise(path))}
 
 
-def _path(pod, exit_record, y, floor, limits, obstacles):
-  x = pod.center_m[0]
+def _path(pod, pod_door, exit_record, y, floor, limits, obstacles):
+  door, spec = pod_door
+  x, opening, entrance = spec["world_m"]
   clear_lo, clear_hi = pod.minimum_m[1], pod.maximum_m[1]
-  outward = max(0., pod.minimum_m[2] - floor)
-  opening = clear_hi if pod.center_m[1] < y else clear_lo
+  outward = max(0., entrance-floor)
+  faces_aisle = math.isclose(opening, clear_hi if pod.center_m[1] < y else clear_lo)
   access = [x, opening, floor]
   turn = [x, y, floor]
   portal = exit_record["points_m"][0]
@@ -78,11 +80,12 @@ def _path(pod, exit_record, y, floor, limits, obstacles):
   swept_turn = Space((x-width/2, y-width/2, floor), (x+width/2, y+width/2, floor+height))
   blockers = sorted(set(_blocked(indoor, width, height, obstacles))
                     | {name for name, shape in obstacles.items() if swept_turn.intersects(shape)})
-  checks = {"opens-to-aisle": not clear_lo < y < clear_hi,
+  checks = {"opens-to-aisle": faces_aisle and not clear_lo < y < clear_hi,
+            "pod-opening": spec["clear_width_m"] >= width and spec["clear_height_m"] >= height,
             "floor-transition": outward <= limits["walking_floor_allowance_m"] + 1e-9,
             "building-distance": distance <= limits["design_travel_limit_m"],
             "unobstructed": not blockers, "exit-usable": exit_record["pass"]}
-  return {"exit": exit_record["door"], "access_m": access, "points_m": [*indoor, *exit_record["points_m"][1:]],
+  return {"exit": exit_record["door"], "pod_door": door, "access_m": access, "points_m": [*indoor, *exit_record["points_m"][1:]],
           "inside_to_exit_m": distance, "access_to_grade_m": distance + exit_record["grade_path_m"],
           "blockers": blockers, "checks": checks, "pass": all(checks.values())}
 
@@ -92,6 +95,7 @@ def build_egress_model(context):
   site = staged_json(context, f"{MODELS}/site.json")
   layout = staged_json(context, f"{MODELS}/layout.json")
   frame = staged_json(context, FRAME_MODEL)
+  pod_layout = staged_json(context, POD_LAYOUT)["pods"]
   limits = {key: number(arch["egress"][key], key) for key in ("design_travel_limit_m", "minimum_clear_width_m",
                                                             "minimum_clear_height_m", "maximum_ramp_slope",
                                                             "walking_floor_allowance_m")}
@@ -111,7 +115,8 @@ def build_egress_model(context):
     room, = candidates
     destinations[room].append(name)
     datum = arch["rooms"][room]
-    paths = [_path(pod, exits[door], datum["aisle_y_m"], datum["minimum_m"][2], limits, obstacles)
+    pod_door = min(pod_layout[name]["doors"].items(), key=lambda item: abs(item[1]["world_m"][1]-datum["aisle_y_m"]))
+    paths = [_path(pod, pod_door, exits[door], datum["aisle_y_m"], datum["minimum_m"][2], limits, obstacles)
              for door in datum["exits"]]
     valid = sorted((path["inside_to_exit_m"], path["exit"]) for path in paths if path["pass"])
     routes[name] = {"compartment": room, "paths": paths, "usable_exits": [door for _, door in valid],
@@ -127,7 +132,7 @@ def build_egress_model(context):
   for room, members in destinations.items():
     if not members:
       issues.append(_issue("AIDC_FIRE_COMPARTMENT_EMPTY", [room], f"{room} needs placed hall equipment."))
-  coverage = "Hall and discharge paths from assumed aisle-facing pod doors; pod internals and field data excluded."
+  coverage = "Hall and discharge path lengths from modeled aisle-facing pod doors; interior access is checked by pod coordination."
   report = model_report(context, "egress-model", {"architecture_digest": file_digest(context.build_path / ARCH_MODEL),
                         "limits": limits, "exits": exits, "compartment_occupancy": destinations,
                         "routes": routes, "issues": issues, "coverage": coverage})

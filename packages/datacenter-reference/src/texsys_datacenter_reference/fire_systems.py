@@ -50,8 +50,9 @@ def _equipment(name, obj, binding, config):
   cab_x, cab_y = x+ix+w/2, y+iy+depth/2
   line_y = (y+hi[1])/2
   stations = [x+(hi[0]-x)*fraction for fraction in (0.34, 0.70)]
-  if stations[0] <= cab_x:
-    raise ValueError(f"{name}: place agent distribution nozzles beyond the cabinet approach.")
+  if stations[0] < cab_x < stations[-1]:
+    raise ValueError(f"{name}: install the agent cabinet outside the nozzle run.")
+  stations.sort(reverse=cab_x > stations[-1])
   points = [(cab_x, cab_y, z+height), (cab_x, cab_y, plane), (cab_x, line_y, plane),
             *[(station, line_y, plane) for station in stations]]
   return {**binding, "cabinet": {"minimum_m": origin, "maximum_m": corner}, "host_bounds": {

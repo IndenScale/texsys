@@ -8,6 +8,7 @@ Outputs are committed source; re-run after editing the unit definitions.
 
 from __future__ import annotations
 
+import argparse
 import json
 from pathlib import Path
 
@@ -134,19 +135,31 @@ def it_container() -> dict:
   layout = {}
   for i in range(1, 9):
     row, col = divmod(i - 1, 4)
-    layout[f"Rack{i:02d}"] = [0.2 + col * 0.85, 0.15 + row * 1.25, 0]
-  layout.update({"CduA": [4.0, 0.15, 0], "CduB": [4.0, 1.35, 0],
-                 "PaA1": [4.9, 0.15, 0], "PaA2": [4.9, 0.75, 0],
-                 "PaB1": [4.9, 1.35, 0], "PaB2": [4.9, 1.95, 0],
-                 "PduA": [5.6, 0.15, 0], "PduB": [5.6, 1.35, 0],
-                 "FirePanel1": [5.6, 0.75, 0],
-                 "FeedA": [5.6, 0.45, 1.8], "FeedB": [5.6, 1.05, 1.8],
-                 "SupplyA": [3.7, 0.15, 2.3], "ReturnA": [3.7, 0.45, 2.3],
-                 "SupplyB": [3.7, 1.35, 2.3], "ReturnB": [3.7, 1.65, 2.3]})
+    layout[f"Rack{i:02d}"] = [[.11, .92, 4.27, 5.12][col], [.08, 2.40][row], 0]
+  layout.update({"CduA": [1.76, .08, 0], "CduB": [1.76, 2.80, 0],
+                 "PaA1": [2.38, .08, 0], "PaA2": [5.96, .08, 0],
+                 "PaB1": [2.38, 2.80, 0], "PaB2": [5.96, 2.80, 0],
+                 "PduA": [6.78, .15, 0], "PduB": [6.78, 3.09, 0],
+                 "FirePanel1": [6.84, 2.19, 1.36],
+                 "FeedA": [6.84, .36, 1.74], "FeedB": [6.84, 3.10, 1.74],
+                 "SupplyA": [1.9, .23, 2.42], "ReturnA": [1.9, .58, 2.52],
+                 "SupplyB": [1.9, 3.12, 2.42], "ReturnB": [1.9, 3.45, 2.52]})
   return {
     "title": "IT 方舱",
-    "envelope": [6.0, 2.4, 2.9],
+    "envelope": [7.4, 3.68, 2.9],
     "color": [0.3, 0.38, 0.45],
+    "ports_x": {"power_a": .64, "power_b": .98, "fws_supply": 2.81, "fws_return": 4.74, "alarm": 6.85},
+    "geometry_layout": {},
+    "construction": {
+      "wall_thickness_m": .08,
+      "roof_thickness_m": .08,
+      "doors": {"D-S": {"side": "south", "center_x_m": 3.7, "clear_width_m": 1.10, "clear_height_m": 2.17},
+                "D-N": {"side": "north", "center_x_m": 3.7, "clear_width_m": 1.10, "clear_height_m": 2.17}},
+      "working_aisle_bounds_m": [.11, 1.28, 6.75, 2.40],
+      "rotation_deg": {**{f"Rack{i:02d}": 180 for i in range(1, 5)}, "CduA": 180, "PaA1": 180, "PaA2": 180},
+      "local_equipment_size_m": {"PduA": [.42, .43, 1.62], "PduB": [.42, .43, 1.62],
+                                 "FirePanel1": [.35, .22, .39], "FeedA": [.32, .19, .34], "FeedB": [.32, .19, .34]},
+    },
     "imports": {
       "Rack": "@hvac-equipment/library/modules/liquid-cooled-rack/liquid-cooled-rack.sdl.json",
       "CDU": "@hvac-equipment/library/modules/coolant-distribution-unit/coolant-distribution-unit.sdl.json",
@@ -454,7 +467,7 @@ def steel_frame_bay() -> dict:
   connections = [conn(i + 1, a, b) for i, (a, b) in enumerate(pairs)]
   return {
     "title": "钢框架标准跨",
-    "envelope": [8.0, 8.0, 4.5],
+    "envelope": [8.0, 9.5, 4.5],
     "color": [0.5, 0.5, 0.55],
     "imports": {"SteelSupport": "@structure/library/modules/steel-support/steel-support.sdl.json"},
     "components": {},
@@ -464,8 +477,8 @@ def steel_frame_bay() -> dict:
     "nets": {"Frame": {"kind": "structural-bearing", "connections": [c["id"] for c in connections]}},
     "boundary": {f"bearing_{i}": [f"Column{i}.bearing_a"] for i in range(1, 5)},
     "layout": {"Column1": [0, 0, 0], "Column2": [7.6, 0, 0],
-               "Column3": [0, 7.6, 0], "Column4": [7.6, 7.6, 0],
-               "Beam1": [0, 0, 4.1], "Beam2": [0, 7.6, 4.1]},
+               "Column3": [0, 9.1, 0], "Column4": [7.6, 9.1, 0],
+               "Beam1": [0, 0, 4.1], "Beam2": [0, 9.1, 4.1]},
     "parameters": {
       "bay_span_m": binding(8, "m"),
       "clear_height_m": binding(4.5, "m"),
@@ -565,7 +578,7 @@ def build_geometry(name: str, unit: dict) -> str:
     '            uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]',
     '        }',
   ]
-  for inst, pos in unit["layout"].items():
+  for inst, pos in unit.get("geometry_layout", unit["layout"]).items():
     lines += [
       f'        def Cube "{inst}"', '        {',
       '            color3f[] primvars:displayColor = [(0.55, 0.58, 0.62)]',
@@ -578,7 +591,7 @@ def build_geometry(name: str, unit: dict) -> str:
   lines += ['    }', '', '    def Scope "Ports"', '    {']
   n = len(unit["ports"])
   for i, (pname, p) in enumerate(unit["ports"].items()):
-    x = ex * (i + 1) / (n + 1) if n else ex / 2
+    x = unit.get("ports_x", {}).get(pname, ex * (i + 1) / (n + 1))
     lines += [
       f'        def Xform "{pname}"', '        {',
       '            custom double3 texsys:normal = (0, -1, 0)',
@@ -615,12 +628,13 @@ def build_specification(name: str, unit: dict) -> dict:
     "envelope_m": unit["envelope"],
     "frame": {"origin": "module-minimum-corner", "units": "m", "up_axis": "Z"},
     "interfaces": {
-      pname: {"position_m": [ex * (i + 1) / (n + 1) if n else ex / 2, 0, ez / 2],
+      pname: {"position_m": [unit.get("ports_x", {}).get(pname, ex * (i + 1) / (n + 1)), 0, ez / 2],
               "normal": [0, -1, 0]}
       for i, pname in enumerate(unit["ports"])
     },
     "boundary": unit["boundary"],
     "instance_layout_m": unit["layout"],
+    **({"construction": unit["construction"]} if "construction" in unit else {}),
     "properties": {
       "geometry_parts": {
         "Envelope": {"origin_m": [0, 0, 0], "size_m": unit["envelope"], "color": unit["color"]}
@@ -660,7 +674,11 @@ def build_module_toml(name: str, unit: dict) -> str:
 
 
 def main() -> None:
-  for name, unit in UNITS.items():
+  parser = argparse.ArgumentParser()
+  parser.add_argument("modules", nargs="*", metavar="module")
+  args = parser.parse_args()
+  for name in args.modules or UNITS:
+    unit = UNITS[name]
     directory = ROOT / name
     assets = directory / "assets"
     assets.mkdir(parents=True, exist_ok=True)

@@ -2,11 +2,11 @@
   "schema_version": 1,
   "state": "assumed",
   "basis": "主机房按既有防火分区设置两条闭合报警回路。每舱灭火柜、探测头、喷头和支管为概念布置，并以已有 SDL 舱内控制器为接口。气体用量、喷放能力、压力泄放与产品选型待后续专项设计。",
-  "loop": {"side_inset_m": 0.74, "below_roof_m": 0.59, "conduit_od_m": 0.036,
+  "loop": {"side_inset_m": 0.14, "below_roof_m": 0.59, "conduit_od_m": 0.036,
            "station_height_m": 1.25, "panel_height_m": 1.65, "exit_offset_m": 1.08, "panel_offset_y_m": 0.77,
            "drop_spacing_m": 0.22, "detector_radius_m": 4.65},
   "pod": {"panel_family": "FirePanel", "cabinet_size_m": [0.48, 0.52, 1.5],
-          "cabinet_inset_m": [0.30, 0.30], "pipe_drop_m": 0.33, "pipe_od_m": 0.032,
+          "cabinet_inset_m": [6.76, 0.91], "pipe_drop_m": 0.33, "pipe_od_m": 0.032,
           "supervision_x_offset_m": 3.52},
   "omitted_hall_detectors": []
 }

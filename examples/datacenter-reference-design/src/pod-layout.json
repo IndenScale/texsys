@@ -1,0 +1,10 @@
+{
+  "schema_version": 1,
+  "state": "assumed",
+  "basis": "用 SDL 绑定的机柜、CDU 与精密空调设备包络编译方舱内布置。外壳门位、工作通道与设备朝向来自方舱规格；净距为候选设计输入。",
+  "minimum_aisle_width_m": 1.10,
+  "minimum_aisle_headroom_m": 2.10,
+  "minimum_equipment_service_depth_m": 0.80,
+  "typical_pod": "IT01",
+  "installation_overrides": {}
+}

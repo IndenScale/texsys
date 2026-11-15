@@ -10,8 +10,8 @@
   "wall_fire_hours": 2.0,
   "floor_thickness_m": 0.18,
   "compartments": {
-    "FC-S": {"aisle_offset_m": 3.8, "west_exit": "D-SW", "east_exit": "D-SE"},
-    "FC-N": {"aisle_offset_m": 3.8, "west_exit": "D-NW", "east_exit": "D-NE"}
+    "FC-S": {"aisle_offset_m": 5.04, "west_exit": "D-SW", "east_exit": "D-SE"},
+    "FC-N": {"aisle_offset_m": 5.0, "west_exit": "D-NW", "east_exit": "D-NE"}
   },
   "doors": {
     "D-SW": {"clear_width_m": 1.5, "clear_height_m": 2.2, "leaf_count": 2, "available": true},
