@@ -71,18 +71,37 @@ class Circuit:
     self.transit = self.volume/self.flow
     self.physical_inflow = self._sum(self.downstream, self.flow)
     virtual_inflow = self._sum(self.boundary_outlet, self.boundary_flow)
-    self.inflow = self.physical_inflow+virtual_inflow
-    outflow = self._sum(self.upstream, self.flow) + self._sum(self.boundary_inlet, self.boundary_flow)
+    buffers = route.get("buffers", {})
+    buffer_flows = case.get("buffers", {})
+    self.buffer_ids = [key for key in buffers if buffer_flows[key]["flow_m3_s"] > _FLOW_EPSILON]
+    self.buffer_flow = np.array([buffer_flows[key]["flow_m3_s"] for key in self.buffer_ids])
+    self.buffer_inlet = np.array([node[buffers[key]["from"]] for key in self.buffer_ids], dtype=int)
+    self.buffer_outlet = np.array([node[buffers[key]["to"]] for key in self.buffer_ids], dtype=int)
+    self.buffer_volume = np.array([parameters["buffers"][key]["working_volume_m3"] for key in self.buffer_ids])
+    self.buffer_initial = np.array([self.setpoint if normal["buffers"][key]["flow_m3_s"] > _FLOW_EPSILON else settings["standby_supply_c"]
+                                    for key in self.buffer_ids], dtype=float)
+    self.prebuffer_inflow = self.physical_inflow+virtual_inflow
+    buffer_discharge = self._sum(self.buffer_outlet, self.buffer_flow)
+    self.inflow = self.prebuffer_inflow+buffer_discharge
+    outflow = (self._sum(self.upstream, self.flow) + self._sum(self.boundary_inlet, self.boundary_flow)
+               + self._sum(self.buffer_inlet, self.buffer_flow))
     self.mass_residual_m3_s = float(abs(self.inflow-outflow).max())
     if self.mass_residual_m3_s > 1e-10:
       raise ValueError(f"Prescribed thermal flows must conserve nodal mass: {self.mass_residual_m3_s:g} m3/s.")
     if min(self.physical_inflow[self.boundary_inlet]) <= 0 or any(virtual_inflow[self.boundary_inlet] > 0):
       raise ValueError("A CDU or cooling source must receive flow from installed boundary pipes.")
+    if any(self.prebuffer_inflow[self.buffer_inlet] <= 0) or any(buffer_discharge[self.buffer_inlet] > 0):
+      raise ValueError("Each buffer needs a supplied inlet independent of other buffer outlets.")
 
   def _sum(self, nodes, values):
     return np.bincount(nodes, weights=values, minlength=self.node_count)
 
-  def mix(self, outlet_temperature, standby, availability, *, buffer_state=None, buffer_factor=None):
+  def buffer_factors(self, step):
+    turnover = self.buffer_flow*step/self.buffer_volume
+    exchanged = -np.expm1(-turnover)
+    return exchanged, exchanged/turnover
+
+  def mix(self, outlet_temperature, standby, availability, buffer_state, buffer_factor):
     incoming = self._sum(self.downstream, self.flow*outlet_temperature)
     boundary_temperature = incoming[self.boundary_inlet]/self.physical_inflow[self.boundary_inlet]
     first_plant = len(self.terminal_ids)
@@ -92,14 +111,13 @@ class Circuit:
     extract = np.clip(self.plant_flow_heat_capacity*(boundary_temperature[first_plant:]-self.setpoint), 0., capacity)
     heat = np.concatenate((self.terminal_heat, -extract))
     virtual_enthalpy = self.boundary_flow*boundary_temperature + heat/self.rho_cp
-    if buffer_state is not None:
-      exchanged, average = buffer_factor
-      source_flow = self.boundary_flow[first_plant:]
-      feed = virtual_enthalpy[first_plant:]/source_flow
-      delta = buffer_state-feed
-      virtual_enthalpy[first_plant:] = source_flow*(feed + delta*average)
-      buffer_state -= delta*exchanged
     mixed = incoming + self._sum(self.boundary_outlet, virtual_enthalpy)
+    if self.buffer_ids:
+      exchanged, average = buffer_factor
+      feed = mixed[self.buffer_inlet]/self.prebuffer_inflow[self.buffer_inlet]
+      delta = buffer_state-feed
+      mixed += self._sum(self.buffer_outlet, self.buffer_flow*(feed+delta*average))
+      buffer_state -= delta*exchanged
     return mixed[self.upstream]/self.inflow[self.upstream], boundary_temperature[:first_plant], float(extract.sum())
 
   def run(self, settings, standby_id, target_step):
@@ -116,15 +134,8 @@ class Circuit:
     observations = np.empty((steps, len(self.terminal_ids)))
     removed = 0.
     times = (np.arange(steps)+.5)*step
-    buffer_volume = settings["plant_outlet_buffer_m3"]
-    buffer_state = np.full(len(self.plants), self.setpoint, dtype=float) if buffer_volume else None
-    factor, initial_buffer = None, None
-    if buffer_state is not None:
-      buffer_state[standby] = settings["standby_supply_c"]
-      initial_buffer = buffer_state.copy()
-      rate = self.boundary_flow[len(self.terminal_ids):]*step/buffer_volume
-      exchanged = -np.expm1(-rate)
-      factor = (exchanged, exchanged/rate)
+    buffer_state = self.buffer_initial.copy()
+    factor = self.buffer_factors(step)
     for k, t in enumerate(times):
       # Reconstruct the mean outlet enthalpy over this interval from the
       # exact overlap of its retarded interval with the stored inlet slabs.
@@ -147,7 +158,7 @@ class Circuit:
       mean_integral += history[start, index]*(residence-full*step)
       retained[index] = mean_integral/residence
     pipe_storage = float(self.rho_cp*self.volume @ (retained-self.initial))
-    buffer_storage = float((buffer_state-initial_buffer).sum()*self.rho_cp*buffer_volume) if buffer_volume else 0.
+    buffer_storage = float(self.rho_cp*self.buffer_volume @ (buffer_state-self.buffer_initial))
     stored = pipe_storage+buffer_storage
     thermal_input = duration*self.load_kw
     residual = thermal_input-removed-stored
@@ -175,9 +186,11 @@ def _settings(config):
     raise ValueError("Describe the assumed thermal switchover basis.")
   key_t = ("supply_setpoint_c", "standby_supply_c", "standby_return_c", "terminal_inlet_limit_c")
   values = dict(zip(key_t, vector([config[key] for key in key_t], 4, "facility temperatures in Celsius"), strict=True))
-  values.update({key: number(config[key], key, zero=key in {"standby_delay_s", "plant_outlet_buffer_m3"}) for key in
+  if "plant_outlet_buffer_m3" in config:
+    raise ValueError("Declare inline buffers with as-routed geometry in fws-network.json.")
+  values.update({key: number(config[key], key, zero=key == "standby_delay_s") for key in
                  ("standby_delay_s", "standby_ramp_s", "duration_s", "solver_step_s", "sample_interval_s",
-                  "peak_refinement_tolerance_c", "recovery_tolerance_c", "plant_outlet_buffer_m3")})
+                  "peak_refinement_tolerance_c", "recovery_tolerance_c")})
   if (values["terminal_inlet_limit_c"] <= values["supply_setpoint_c"]
       or values["standby_delay_s"]+values["standby_ramp_s"] >= values["duration_s"]):
     raise ValueError("Require inlet temperature headroom and a duration that includes full standby power.")
@@ -206,7 +219,7 @@ def _scenario(route, parameters, case, normal, plant, settings):
     terminals[name] = {**local, "coarse_peak_c": float(coarse_peaks[i]), "comparison_peak_c": envelope,
                        "refinement_delta_c": delta, "checks": checks, "pass": all(checks.values())}
   governing = max(terminals, key=lambda name: terminals[name]["comparison_peak_c"])
-  return {"unavailable_plant": plant, "active_plants": circuit.plants, "standby_plant": standby,
+  return {"unavailable_plant": plant, "active_plants": circuit.plants, "standby_plant": standby, "active_buffers": circuit.buffer_ids,
           "governing_terminal": governing, "terminals": terminals, "fine_energy": energy, "coarse_energy": coarse_energy,
           "trace": {"time_s": times[stations].tolist(),
                     "cdu_inlet_c": {name: temps[stations, i].tolist() for i, name in enumerate(circuit.terminal_ids)}},
@@ -224,7 +237,8 @@ def build_transient(context):
   hydraulic = staged_json(context, HYDRAULIC)
   normal = hydraulic["cases"]["normal"]
   baseline = Circuit(route, parameters, normal, normal, settings)
-  propagated, _, _ = baseline.mix(baseline.initial, None, 1.)
+  propagated, _, _ = baseline.mix(baseline.initial, None, 1., baseline.buffer_initial.copy(),
+                                  baseline.buffer_factors(settings["solver_step_s"]))
   initial_residual_c = float(np.abs(propagated-baseline.initial).max())
   if initial_residual_c > 1e-7:
     raise ValueError("The initial FWS temperatures must satisfy the normal-flow heat balance.")
@@ -232,11 +246,13 @@ def build_transient(context):
   for plant in sorted(normal["duty"]):
     key = f"plant-off:{plant}"
     cases[key] = _scenario(route, parameters, hydraulic["cases"][key], normal, plant, settings)
+  buffer_checks = {key: {**row, "pass": row["working_volume_m3"] >= row["minimum_volume_m3"]}
+                   for key, row in parameters["buffers"].items()}
+  passed = all(row["pass"] for row in (*cases.values(), *buffer_checks.values()))
   model = model_report(context, "fws-transient", {"basis": source["basis"], "state": source["state"], "settings": settings,
                        "source_digests": {path: file_digest(context.build_path / path) for path in (ROUTE, PARAMETERS, HYDRAULIC)},
-                       "equilibrium_max_initial_error_c": initial_residual_c, "scenarios": cases,
-                       "engineering_status": "pass" if all(row["pass"] for row in cases.values()) else "fail",
-                       "method": "fixed-flow-plug-transport/1"})
+                       "equilibrium_max_initial_error_c": initial_residual_c, "scenarios": cases, "buffers": buffer_checks,
+                       "engineering_status": "pass" if passed else "fail", "method": "fixed-flow-plug-transport/2"})
   table_path = context.build_path / "schedules/aidc-fws-transient-terminals.csv"
   table_path.parent.mkdir(parents=True, exist_ok=True)
   with table_path.open("w", encoding="utf-8", newline="") as stream:
@@ -255,5 +271,8 @@ def build_transient_check(context):
              "message": f"{name}/{terminal}: {', '.join(key for key, passed in row['checks'].items() if not passed)}; "
                         f"temperature envelope {row['comparison_peak_c']:.3f} °C."}
             for name, case in model["scenarios"].items() for terminal, row in case["terminals"].items() if not row["pass"]]
+  issues.extend({"rule": "AIDC_FWS_BUFFER_VOLUME", "status": "fail", "objects": [name, row["plant"]],
+                 "message": f"{name}: extracted working volume falls below the design basis."}
+                for name, row in model["buffers"].items() if not row["pass"])
   return model_report(context, "fws-transient-check", {"source_digest": file_digest(context.build_path / MODEL),
                       "case_count": len(model["scenarios"]), "issues": issues}, issues)

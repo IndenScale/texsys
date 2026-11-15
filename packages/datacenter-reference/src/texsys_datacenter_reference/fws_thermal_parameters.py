@@ -37,11 +37,14 @@ def build_thermal_parameters(context):
                     "normal_flow_m3_s": flow, "normal_residence_s": volume/abs(flow) if abs(flow) > 1e-11 else None,
                     "sdl_links": pipe["sdl_links"]}
   actual = sum(row["water_volume_m3"] for row in entries.values())
+  buffers = {key: {"working_volume_m3": row["working_volume_m3"], "minimum_volume_m3": row["minimum_volume_m3"],
+                  "water_capacity_kj_k": row["working_volume_m3"]*rho_cp, "plant": row["plant"],
+                  "sdl_supply_link": row["sdl_supply_link"]} for key, row in route.get("buffers", {}).items()}
   result = model_report(context, "fws-thermal-parameters", {
     "state": config["state"], "basis": config["basis"], "method": "straight-pipe-water-volume/1",
     "route_digest": file_digest(context.build_path / ROUTE), "hydraulics_digest": file_digest(context.build_path / HYDRAULIC),
     "fluid": fluid, "budget_volume_m3": budget, "extracted_volume_m3": actual,
-    "volume_difference_m3": actual-budget, "extracted_capacity_kj_k": actual*rho_cp, "segments": entries,
+    "volume_difference_m3": actual-budget, "extracted_capacity_kj_k": actual*rho_cp, "segments": entries, "buffers": buffers,
     "reporting_resolution": {"length_m": 0.001, "bore_mm": 0.1, "volume_l": 0.001, "time_s": 0.001},
   })
   schedule = context.build_path / "schedules/aidc-fws-thermal-parameters.csv"

@@ -18,6 +18,7 @@ _WATER_STYLE = """
 .outline{fill:#e9eef1;stroke:#334855;stroke-width:.09}
 .datum{fill:none;stroke:#465864;stroke-width:.065;stroke-dasharray:.4 .2}
 .valve{fill:white;stroke:#253845;stroke-width:.08}
+.buffer{fill:#e3eef6;stroke:#355e72;stroke-width:.12}
 """
 
 
@@ -87,6 +88,10 @@ def _overlay(context, model, view):
         line = _pipe_line(svg, key, record)
         if record["kind"] == "bypass":
           line.set("data-bypass", record["leg"])
+    if not isolated:
+      for tag, record in model.get("buffers", {}).items():
+        x, y, _ = record["center_m"]
+        _add(svg, "circle", cx=x, cy=-y, r=record["outside_diameter_m"]/2, data_buffer=tag, **{"class": "buffer"})
     if isolated:
       _isolation_tags(svg, model)
     else:
@@ -172,6 +177,7 @@ text{font-family:Arial,'PingFang SC',sans-serif;fill:#203441}
 .r{stroke:#913c2b;fill:none;stroke-width:1;stroke-dasharray:2.7 1.5}
 .equipment{stroke:#34444f;fill:#f4f7f8;stroke-width:.75}
 .dot-s{fill:#155478}.dot-r{fill:#913c2b}
+.store{stroke:#155478;fill:#eaf2f7;stroke-width:.65}
 """
   _label(svg, 154.5, 12, "设施水供回水系统", 6.8)
 
@@ -203,6 +209,10 @@ text{font-family:Arial,'PingFang SC',sans-serif;fill:#203441}
     equipment(name, x, 31, 68, 15)
     pipe(records["supply"], x-6, 38.5, 53, "supply", from_equipment=True)
     pipe(records["return"], x+6, 38.5, 62, "return", from_equipment=True)
+    for tag, record in model.get("buffers", {}).items():
+      if record["plant"] == name:
+        _add(svg, "circle", cx=x-6, cy=46, r=2.9, data_buffer=tag, **{"class": "store"})
+        _label(svg, x-16, 46.9, tag, 3.05)
     for station, height, cls in ((x-6, 53, "s"), (x+6, 62, "r")):
       _add(svg, "circle", cx=station, cy=height, r=1.25, **{"class": "dot-" + cls})
 

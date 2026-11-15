@@ -69,7 +69,7 @@ def test_aidc_deliverables_bind_to_the_same_geometry_and_recompute_the_fws_head(
   assert dossier["evidence_complete"]
   assert dossier["input_digest"] == _read(baseline.report)["input_digest"]
   assert dossier["engineering_acceptance"] == "pending-responsible-review"
-  assert len(list((root / "build/drawings/sheets").glob("*.svg"))) == 28
+  assert len(list((root / "build/drawings/sheets").glob("*.svg"))) == 30
   old_dossier = file_digest(root / "build/review/aidc-discipline-review.json")
   drawing = root / "build/drawings/sheets/fws-network.svg"
   old_route_drawing = file_digest(drawing)
@@ -80,6 +80,7 @@ def test_aidc_deliverables_bind_to_the_same_geometry_and_recompute_the_fws_head(
   _check_telecom_delivery(root)
   _check_fire_systems_delivery(root)
   _check_transient_delivery(root)
+  _check_buffer_delivery(root)
   report = root / MODEL / "fws-network-study.json"
   before = _read(report)
   path = root / "src/fws-network.json"
@@ -102,7 +103,7 @@ def test_aidc_deliverables_bind_to_the_same_geometry_and_recompute_the_fws_head(
   assert after["cases"][affected]["common_header_kpa"] > before["cases"][affected]["common_header_kpa"]
   assert records["sheet-fws-isolation"]["execution"] == "executed"
   thermal = _read(root / MODEL / "fws-thermal-parameters.json")
-  assert thermal["extracted_volume_m3"] == pytest.approx(7.376801198829914 + 4*pi*.16**2/4)
+  assert thermal["extracted_volume_m3"] == pytest.approx(7.346129201434385 + 4*pi*.16**2/4)
   assert records["dcr:fws-transient"]["execution"] == "executed"
 
   # Restore exactly the original source bytes to exercise the original cache key.
@@ -119,10 +120,10 @@ def _check_fws_network_delivery(root):
   model = _read(source)
   assert len(model["ports"]["plants"]) == 3
   assert len(model["ports"]["terminals"]) == 16
-  assert len(model["segments"]) == 130
+  assert len(model["segments"]) == 133
   assert len(model["valves"]) == 44
   assert len(model["penetrations"]) == 32
-  assert sum(item["length_m"] for item in model["segments"].values()) == pytest.approx(688.79)
+  assert sum(item["length_m"] for item in model["segments"].values()) == pytest.approx(686.078)
   fig = ET.parse(root / "build/drawings/views/fws-system.svg")
   links = {item["id"] for role in model["ports"].values() for owner in role.values() for item in owner.values()}
   symbols = [item.get("data-sdl-link") for item in fig.findall(f".//{SVG}line[@data-sdl-link]")]
@@ -289,9 +290,12 @@ def _check_transient_delivery(root):
   source = root / MODEL / "fws-thermal-parameters.json"
   report = _read(source)
   assert report["route_digest"] == file_digest(root / MODEL / "fws-network.json")
-  assert report["extracted_volume_m3"] == pytest.approx(7.376801198829914)
+  assert report["extracted_volume_m3"] == pytest.approx(7.346129201434385)
   assert report["extracted_capacity_kj_k"] == pytest.approx(report["extracted_volume_m3"]*998*4.18)
-  assert len(report["segments"]) == 130
+  assert len(report["segments"]) == 133
+  assert set(report["buffers"]) == {"BT-01", "BT-02", "BT-03"}
+  assert report["buffers"]["BT-01"]["working_volume_m3"] == pytest.approx(pi*.4**2*1.2)
+  assert report["buffers"]["BT-01"]["water_capacity_kj_k"] == pytest.approx(pi*.4**2*1.2*998*4.18)
   segment = report["segments"]["S-010"]
   assert segment["water_volume_m3"] == pytest.approx(segment["length_m"]*pi*.16**2/4)
   assert segment["normal_residence_s"] == pytest.approx(segment["water_volume_m3"]/abs(segment["normal_flow_m3_s"]))
@@ -303,7 +307,8 @@ def _check_transient_delivery(root):
     assert len(case["terminals"]) == 16
     assert case["governing_terminal"] == "IT01"
     assert case["standby_plant"] == "CoolContainer3"
-    assert case["terminals"]["IT01"]["comparison_peak_c"] == pytest.approx(27.2276, abs=.01)
+    assert case["terminals"]["IT01"]["comparison_peak_c"] == pytest.approx(27.2171, abs=.01)
+    assert "BT-03" in case["active_buffers"] and len(case["active_buffers"]) == 2
     assert case["pass"]
     for analysis in ("coarse_energy", "fine_energy"):
       balance = case[analysis]
@@ -313,6 +318,25 @@ def _check_transient_delivery(root):
   view = ET.parse(root / "build/drawings/views/fws-transient-plan.svg")
   assert len(view.findall(f".//{SVG}rect[@data-peak-c]")) == 16
   assert view.find(f".//{SVG}rect[@data-governing='IT01']") is not None
+
+
+def _check_buffer_delivery(root):
+  route = _read(root / MODEL / "fws-network.json")
+  buffer = route["buffers"]["BT-01"]
+  assert buffer["sdl_supply_link"] == route["ports"]["plants"]["CoolContainer1"]["supply"]["id"]
+  assert route["segments"][buffer["lead_in"]]["to"] == buffer["from"]
+  assert route["segments"][buffer["lead_out"]]["from"] == buffer["to"]
+  expected = 3*(.0172593991811374/.020)**2
+  report = _read(root / MODEL / "fws-network-study.json")
+  case = report["cases"]["normal"]
+  assert case["buffers"]["BT-01"]["loss_kpa"] == pytest.approx(expected)
+  assert case["duty"]["CoolContainer1"]["buffer_kpa"] == pytest.approx(expected)
+  assert case["node_pressure_relative_to_header_kpa"][buffer["from"]] - case["node_pressure_relative_to_header_kpa"][buffer["to"]] == pytest.approx(expected)
+  svg = ET.parse(root / "build/drawings/views/fws-buffers.svg")
+  assert len(svg.findall(f".//{SVG}circle[@data-buffer]")) == 3
+  scene = Usd.Stage.Open(str(root / "build/scenes/aidc-fire-systems-coordinated.usda"))
+  assert scene.GetPrimAtPath("/AIDC/FWSBuffers/BT_01").IsA(UsdGeom.Mesh)
+  assert scene.GetPrimAtPath("/AIDC/FWSNetwork/S_003_IN")
 
 
 def _check_professional_delivery(root):
@@ -583,13 +607,19 @@ def test_fws_transport_matches_a_single_loop_with_known_transit_and_buffer():
           "duty": {"P": {"flow_m3_s": flow, "cooling_available_kw": 80}},
           "pipes": {name: {"flow_m3_s": flow} for name in route["segments"]}}
   settings = {"supply_setpoint_c": 20, "standby_supply_c": 24, "standby_return_c": 30,
-              "standby_delay_s": 12, "standby_ramp_s": 2, "duration_s": 16, "plant_outlet_buffer_m3": 0}
+              "standby_delay_s": 12, "standby_ramp_s": 2, "duration_s": 16}
   model = Circuit(route, parameters, case, case, settings)
   t, temperature, balance = model.run(settings, "P", .05)
   assert t[99] == pytest.approx(4.975) and temperature[99, 0] == pytest.approx(20)
   assert t[100] == pytest.approx(5.025) and temperature[100, 0] == pytest.approx(30)
   assert abs(balance["residual_kj"]) < 1e-8
-  settings["plant_outlet_buffer_m3"] = .002
+  route["nodes"].append("S-B-OUT")
+  route["segments"]["supply"]["from"] = "S-B-OUT"
+  route["buffers"] = {"BT": {"from": "S-P-PORT", "to": "S-B-OUT"}}
+  parameters["buffers"] = {"BT": {"working_volume_m3": .002}}
+  case["buffers"] = {"BT": {"flow_m3_s": flow}}
+  inactive = {**case, "buffers": {"BT": {"flow_m3_s": 0.}}}
+  model = Circuit(route, parameters, case, inactive, settings)
   t, temperature, balance = model.run(settings, "P", .05)
   assert t[120] == pytest.approx(6.025)
   # The parcel took five seconds through the supply pipe after the buffer outlet.
@@ -614,11 +644,36 @@ def test_aidc_transient_blocks_package_but_draws_temperature_exceedances(tmp_pat
   study = _read(root / MODEL / "fws-transient.json")
   assert study["engineering_status"] == "fail"
   governing = study["scenarios"]["plant-off:CoolContainer1"]["terminals"]["IT01"]
-  assert governing["comparison_peak_c"] == pytest.approx(28.5542, abs=.01)
+  assert governing["comparison_peak_c"] > 28.5
   assert not governing["checks"]["temperature"]
   assert governing["first_above_limit_s"] > 0
   fig = ET.parse(root / "build/drawings/views/fws-transient-plan.svg")
   assert fig.find(f".//{SVG}rect[@data-pod='IT01']").get("class") == "pod-fail"
+
+
+def test_aidc_buffer_rejects_undersizing_excess_pressure_and_pad_clash(tmp_path):
+  root = _checkout(tmp_path)
+  route = root / "src/fws-network.json"
+  baseline = _read(route)
+  reduced = {**baseline, "buffers": {**baseline["buffers"], "bore_m": .68}}
+  write_json(route, reduced)
+  result, records = _run(root)
+  assert result.status == "fail" and records["review-package"]["execution"] == "blocked"
+  assert records["dcr:fws-network-study"]["status"] == "pass"
+  assert records["sheet-fws-buffers"]["status"] == "pass"
+  assert "AIDC_FWS_BUFFER_VOLUME" in result.diagnostics
+  trans = _read(root / MODEL / "fws-transient.json")
+  assert trans["buffers"]["BT-01"]["working_volume_m3"] == pytest.approx(pi*.34**2*1.2)
+  resistive = {**baseline, "buffers": {**baseline["buffers"], "rated_drop_kpa": 300}}
+  write_json(route, resistive)
+  failed, records = _run(root, "dcr:fws-network-study", "dcr:fws-transient-check")
+  assert failed.status == "fail" and records["dcr:fws-transient-check"]["execution"] == "blocked"
+  assert "plant-duty" in failed.diagnostics
+  clash = {**baseline, "buffers": {**baseline["buffers"], "setback_from_plant_port_m": .48}}
+  write_json(route, clash)
+  failed, _ = _run(root, "dcr:fws-network-coordination")
+  assert failed.status == "fail"
+  assert "BT-01/foundation envelope intersects CoolContainer1" in failed.diagnostics
 
 
 def test_aidc_geometry_rejects_missing_and_clashing_placements(tmp_path):

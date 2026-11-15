@@ -10,6 +10,7 @@ from pxr import Gf, Sdf, UsdGeom
 from texsys.targets import TargetResult
 from texsys_spatial import Space
 
+from .fws_buffers import install_buffers
 from .fws_design import _port
 from .spatial_design import MODELS, artifact, missing_input, model_report, number, read_versioned, source_path, staged_json
 
@@ -278,6 +279,8 @@ def build_network(context):
   nodes = {name: point for leg in legs.values() for name, point in leg["nodes"].items()}
   paths = {role: {item: {leg: legs[leg]["paths"][item] for leg in LEGS} for item in entries}
            for role, entries in ports.items()}
+  levels = staged_json(context, f"{MODELS}/levels.json")
+  buffers = install_buffers(config.get("buffers"), levels["zones"], layout, ports, nodes, segments, paths)
   bypass = {leg: data["bypass"] for leg, data in legs.items()}
   reverse = defaultdict(list)
   for role, entries in paths.items():
@@ -296,7 +299,6 @@ def build_network(context):
     if (not reverse[key] or envelope.minimum_m[0] < xmin or envelope.minimum_m[1] < ymin
         or envelope.maximum_m[0] > xmax or envelope.maximum_m[1] > ymax):
       raise ValueError(f"{key}: every FWS pipe must have a served endpoint and fit the site.")
-  levels = staged_json(context, f"{MODELS}/levels.json")
   terminal_zone = config["terminal_zone"]
   zone = levels["zones"][terminal_zone]
   roof = zone["maximum_m"][2]
@@ -321,7 +323,7 @@ def build_network(context):
         raise ValueError(f"{terminal} {leg} is missing an approach through the declared roof datum.")
   data = {"state": "assumed", "basis": config["basis"], "frame": layout["frame"], "nodes": nodes,
           "segments": segments, "fittings": fittings, "penetrations": penetrations, "ports": ports, "paths": paths,
-          "valves": valves, "bypass": bypass,
+          "valves": valves, "bypass": bypass, "buffers": buffers,
           "roots": {leg: item["root"] for leg, item in legs.items()}, "terminal_zone": terminal_zone}
   result = model_report(context, "fws-network", data)
   return TargetResult(result.status, (*result.artifacts, *_takeoff(context, data)), result.diagnostics)

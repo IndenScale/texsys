@@ -69,8 +69,14 @@ text{font-family:Arial,'PingFang SC',sans-serif;fill:#263746}
     ly = 176+index*9
     _add(root, "line", x1=36, y1=ly-1.2, x2=48, y2=ly-1.2, stroke=color, **{"class": "curve"})
     _text_at(root, 53, ly, f"{case['unavailable_plant']} 退出 · {name} · {row['comparison_peak_c']:.2f} °C", 4.4, "start")
-  buffer_l = settings["plant_outlet_buffer_m3"]*1000
-  _text_at(root, 36, 203, f"浅灰时段为待机启动及升载  {delay:g} + {ramp:g} s · 候选缓冲 {buffer_l:g} L / 台", 4.1, "start")
+  sizes = {round(row["working_volume_m3"]*1000, 1) for row in model["buffers"].values()}
+  interval = ""
+  if len(sizes) == 1:
+    volume, = sizes
+    interval = f" · 布置缓冲 {volume:g} L / 台"
+  elif sizes:
+    interval = f" · 缓冲 {min(sizes):g}–{max(sizes):g} L"
+  _text_at(root, 36, 203, f"浅灰时段为待机启动及升载  {delay:g} + {ramp:g} s{interval}", 4.1, "start")
   return root
 
 

@@ -10,6 +10,7 @@ from texsys.targets import TargetResult
 from texsys_spatial import Space
 
 from .architecture import ARCH_SCENE, MODEL as ARCH_MODEL, space
+from .fws_buffers import add_buffer_geometry
 from .fws_network import MODEL as FWS_MODEL, add_network_geometry, pipe_envelope
 from .spatial_design import MODELS, SCENE, artifact, model_report, staged_json
 from .structure import MODEL
@@ -76,6 +77,8 @@ def build_fws_network_coordination(context):
   network = staged_json(context, FWS_MODEL)
   _insert_frame(context, stage, layout)
   add_network_geometry(stage, network["segments"], network["valves"])
+  buffers = network.get("buffers", {})
+  add_buffer_geometry(stage, buffers)
   steel = [(f"{name}/{part['identity']}", _solid(part)) for name, record in structure["members"].items()
            for part in record["parts"]]
   assets = [(name, Space(record["minimum_m"], record["maximum_m"])) for name, record in layout["objects"].items()
@@ -110,6 +113,18 @@ def build_fws_network_coordination(context):
   for a, b in combinations(sorted(valves), 2):
     if valves[a].intersects(valves[b]):
       clash(a, b)
+  buffer_envelopes = {name: {f"{name}/{part}": space(row[part]) for part in ("body", "foundation", "pedestal", "service_clearance")}
+                      for name, row in buffers.items()}
+  for parts in buffer_envelopes.values():
+    for key, shape in parts.items():
+      for name, other in (*steel, *assets, *pipes.items(), *valves.items()):
+        if shape.intersects(other):
+          clash(key, name)
+  for a, b in combinations(buffer_envelopes, 2):
+    for first, body in buffer_envelopes[a].items():
+      for second, other in buffer_envelopes[b].items():
+        if body.intersects(other):
+          clash(first, second)
   for key, opening in network["penetrations"].items():
     x, y, z = opening["point_m"]
     half = opening["square_width_m"] / 2
@@ -124,7 +139,7 @@ def build_fws_network_coordination(context):
     raise OSError(f"Could not export {output.name}.")
   report = model_report(context, "fws-network-coordination", {
     "network_digest": file_digest(context.build_path / FWS_MODEL),
-    "pipe_count": len(pipes), "isolation_valves": len(valves), "steel_parts": len(steel), "equipment_envelopes": len(assets),
+    "pipe_count": len(pipes), "buffer_count": len(buffers), "isolation_valves": len(valves), "steel_parts": len(steel), "equipment_envelopes": len(assets),
     "roof_openings": len(network["penetrations"]), "obstructions": issues,
     "coverage": "Insulated orthogonal straight and valve body envelopes, and roof reservations in a ±0.15 m datum band.",
   }, issues)

@@ -155,6 +155,10 @@
         "build/drawings/sheets/fws-transient-curves-sheet.json",
         "build/drawings/sheets/fws-transient-plan.svg",
         "build/drawings/sheets/fws-transient-plan-sheet.json",
+        "build/drawings/sheets/fws-buffers.svg",
+        "build/drawings/sheets/fws-buffers-sheet.json",
+        "build/drawings/sheets/fws-buffer-section.svg",
+        "build/drawings/sheets/fws-buffer-section-sheet.json",
         "build/datacenter-reference/spatial/fws-network.json",
         "build/datacenter-reference/spatial/fws-network-study.json",
         "build/datacenter-reference/spatial/fws-thermal-parameters.json",
@@ -167,10 +171,11 @@
         "build/schedules/aidc-fws-pump-duty.csv",
         "build/schedules/aidc-fws-isolation-cases.csv",
         "build/schedules/aidc-fws-thermal-parameters.csv",
+        "build/schedules/aidc-fws-buffers.csv",
         "build/schedules/aidc-fws-transient-terminals.csv"
       ],
       "pending": [
-        "缓冲设施选型和压力损失、实测设备曲线、阀件和泵水锤与排空、共因故障、支吊架及穿越详图"
+        "承压缓冲罐及锚固专项、实测设备与罐内压损和混合、泵阀水锤与排空、共因故障、支吊架及穿越详图"
       ]
     }
   }

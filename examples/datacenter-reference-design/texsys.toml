@@ -12,7 +12,7 @@ build = "build"
 default_targets = ["review-package"]
 
 [dependencies]
-datacenter-reference = { path = "../../packages/datacenter-reference", version = "0.9.0" }
+datacenter-reference = { path = "../../packages/datacenter-reference", version = "0.10.0" }
 sheet = { path = "../../packages/sheet", version = "0.2.0" }
 
 [build.targets.review-package]
@@ -57,6 +57,8 @@ dependencies = [
   "sheet-fws-isolation",
   "sheet-fws-transient-curves",
   "sheet-fws-transient-plan",
+  "sheet-fws-buffers",
+  "sheet-fws-buffer-section",
   "sheet-telecom-a",
   "sheet-telecom-b",
   "sheet-telecom-system",
@@ -342,6 +344,28 @@ using = "sheet:compose"
 dependencies = ["plan-fws-transient-plan"]
 scope = { source = "assets/sheets/fws-transient-plan.sheet.json" }
 output = "build/drawings/sheets/fws-transient-plan.svg"
+
+[build.targets.plan-fws-buffers]
+using = "dcr:fws-buffer-view"
+output = "build/drawings/views/fws-buffers.svg"
+scope = { view = "plan" }
+
+[build.targets.sheet-fws-buffers]
+using = "sheet:compose"
+dependencies = ["plan-fws-buffers"]
+scope = { source = "assets/sheets/fws-buffers.sheet.json" }
+output = "build/drawings/sheets/fws-buffers.svg"
+
+[build.targets.plan-fws-buffer-section]
+using = "dcr:fws-buffer-view"
+output = "build/drawings/views/fws-buffer-section.svg"
+scope = { view = "section", buffer = "BT-01" }
+
+[build.targets.sheet-fws-buffer-section]
+using = "sheet:compose"
+dependencies = ["plan-fws-buffer-section"]
+scope = { source = "assets/sheets/fws-buffer-section.sheet.json" }
+output = "build/drawings/sheets/fws-buffer-section.svg"
 
 [build.targets.plan-telecom-a]
 using = "dcr:telecom-plan"

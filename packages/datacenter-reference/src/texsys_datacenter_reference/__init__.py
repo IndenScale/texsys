@@ -16,6 +16,7 @@ from .fire_systems import build_fire_systems
 from .fire_systems_coordination import build_fire_systems_coordination
 from .fire_systems_study import build_fire_systems_study
 from .fire_systems_views import build_fire_systems_view
+from .fws_buffer_views import build_buffer_view
 from .fws_design import build_hydraulics, build_routes
 from .fws_network import build_network
 from .fws_network_study import build_network_study
@@ -37,7 +38,7 @@ from .telecom_views import build_telecom_view
 
 class DatacenterReferencePackage(TexsysPackage):
   name = "datacenter-reference"
-  version = "0.9.0"
+  version = "0.10.0"
 
   def targets(self) -> tuple[TargetDefinition, ...]:
     return (
@@ -113,6 +114,8 @@ class DatacenterReferencePackage(TexsysPackage):
       TargetDefinition("dcr:fws-network-coordination", self.name, self.version, build_fws_network_coordination,
                        dependencies=("dcr:structure-model", "dcr:fws-network"), input_patterns=()),
       TargetDefinition("dcr:fws-network-view", self.name, self.version, build_network_view,
+                       dependencies=("dcr:fws-network",), input_patterns=(), named_output=True),
+      TargetDefinition("dcr:fws-buffer-view", self.name, self.version, build_buffer_view,
                        dependencies=("dcr:fws-network",), input_patterns=(), named_output=True),
       TargetDefinition("dcr:structure-model", self.name, self.version, build_structure, dependencies=("dcr:layout",),
                        input_patterns=spatial_inputs("structure.json")),
