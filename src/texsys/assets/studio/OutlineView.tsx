@@ -195,166 +195,168 @@ export function OutlineView({
           <NavigatorMenu label={t("大纲更多操作")} items={menuItems} />
         </span>
       </summary>
-      {!document ? (
-        <p className="core-hint">{t("打开文档后可查看大纲。")}</p>
-      ) : !supportsOutline(language) ? (
-        <p className="core-hint">{t("此文件无法提供大纲信息。")}</p>
-      ) : symbols.length === 0 ? (
-        <p className="core-hint">{t("文档中没有可显示的大纲符号。")}</p>
-      ) : (
-        <div className="outline-body">
-          {filterOpen && (
-            <input
-              className="outline-filter"
-              autoFocus
-              aria-label={t("筛选大纲")}
-              placeholder={t("筛选大纲")}
-              value={filterQuery}
-              onChange={(event) => setFilterQuery(event.target.value)}
-              onKeyDown={(event) => {
-                event.stopPropagation();
-                if (event.key === "Escape") {
-                  event.preventDefault();
-                  setFilterQuery("");
-                  setFilterOpen(false);
-                  treeRef.current?.focus();
-                } else if (event.key === "Backspace" && !filterQuery) {
-                  event.preventDefault();
-                  setFilterOpen(false);
-                  treeRef.current?.focus();
-                }
-              }}
-            />
-          )}
-          {rows.length === 0 ? (
-            <p className="core-hint">{t("没有匹配的符号。")}</p>
-          ) : (
-            <div
-              ref={treeRef}
-              className="outline-tree"
-              role="tree"
-              aria-label={t("大纲")}
-              tabIndex={-1}
-              onKeyDown={(event) => {
-                if (
-                  filterOnType &&
-                  !filterOpen &&
-                  !event.metaKey &&
-                  !event.ctrlKey &&
-                  !event.altKey &&
-                  event.key.length === 1
-                ) {
-                  event.preventDefault();
-                  setFilterOpen(true);
-                  setFilterQuery(event.key);
-                  return;
-                }
-                if (
-                  ![
-                    "ArrowDown",
-                    "ArrowUp",
-                    "ArrowRight",
-                    "ArrowLeft",
-                    "Home",
-                    "End",
-                    "Enter",
-                    " ",
-                  ].includes(event.key)
-                )
-                  return;
-                const elements = Array.from(
-                  event.currentTarget.querySelectorAll<HTMLDivElement>('[role="treeitem"]'),
-                );
-                const index = elements.indexOf(event.target as HTMLDivElement);
-                const row = rows[index];
-                if (!row) return;
-                event.preventDefault();
-                if (event.key === "Enter" || event.key === " ") {
-                  navigate(row.node);
-                  return;
-                }
-                if (event.key === "ArrowRight") {
-                  if (row.node.children.length && !expanded.has(row.node.id)) toggle(row.node.id);
-                  else if (rows[index + 1]?.depth === row.depth + 1)
-                    focusRow(rows[index + 1].node.id);
-                  return;
-                }
-                if (event.key === "ArrowLeft") {
-                  if (row.node.children.length && expanded.has(row.node.id)) toggle(row.node.id);
-                  else {
-                    const parent = rows
-                      .slice(0, index)
-                      .reverse()
-                      .find((item) => item.depth === row.depth - 1);
-                    focusRow(parent?.node.id);
+      <div className="outline-body">
+        {!document ? (
+          <p className="core-hint">{t("打开文档后可查看大纲。")}</p>
+        ) : !supportsOutline(language) ? (
+          <p className="core-hint">{t("此文件无法提供大纲信息。")}</p>
+        ) : symbols.length === 0 ? (
+          <p className="core-hint">{t("文档中没有可显示的大纲符号。")}</p>
+        ) : (
+          <>
+            {filterOpen && (
+              <input
+                className="outline-filter"
+                autoFocus
+                aria-label={t("筛选大纲")}
+                placeholder={t("筛选大纲")}
+                value={filterQuery}
+                onChange={(event) => setFilterQuery(event.target.value)}
+                onKeyDown={(event) => {
+                  event.stopPropagation();
+                  if (event.key === "Escape") {
+                    event.preventDefault();
+                    setFilterQuery("");
+                    setFilterOpen(false);
+                    treeRef.current?.focus();
+                  } else if (event.key === "Backspace" && !filterQuery) {
+                    event.preventDefault();
+                    setFilterOpen(false);
+                    treeRef.current?.focus();
                   }
-                  return;
-                }
-                const target =
-                  event.key === "Home"
-                    ? 0
-                    : event.key === "End"
-                      ? rows.length - 1
-                      : event.key === "ArrowUp"
-                        ? Math.max(0, index - 1)
-                        : Math.min(rows.length - 1, index + 1);
-                focusRow(rows[target]?.node.id);
-              }}
-            >
-              {rows.map(({ node, depth, ancestors }, index) => (
-                <div
-                  key={node.id}
-                  ref={(element) => {
-                    if (element) rowRefs.current.set(node.id, element);
-                    else rowRefs.current.delete(node.id);
-                  }}
-                  role="treeitem"
-                  aria-level={depth + 1}
-                  aria-selected={highlightId === node.id}
-                  aria-expanded={node.children.length ? expanded.has(node.id) : undefined}
-                  tabIndex={index === 0 ? 0 : -1}
-                  data-outline-id={node.id}
-                  className={`outline-row${highlightId === node.id ? " selected" : ""}`}
-                  style={{ "--outline-depth": depth } as React.CSSProperties}
-                  title={node.detail ? `${node.name} · ${node.detail}` : node.name}
-                  onFocus={() => setSelectedId(node.id)}
-                  onClick={() => navigate(node)}
-                >
-                  <span className="outline-guides" aria-hidden="true">
-                    {Array.from({ length: depth }, (_, level) => (
-                      <span
-                        key={level}
-                        className={`outline-guide${activeChain.has(ancestors[level]) ? " active" : ""}`}
-                        style={{ "--guide-depth": level } as React.CSSProperties}
-                      />
-                    ))}
-                  </span>
-                  <span className="outline-twistie">
-                    {node.children.length > 0 && (
-                      <button
-                        type="button"
-                        tabIndex={-1}
-                        aria-label={t(expanded.has(node.id) ? "折叠 {0}" : "展开 {0}", {
-                          0: node.name,
-                        })}
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          toggle(node.id);
-                        }}
-                      >
-                        <Icon name="chevron" size={16} />
-                      </button>
-                    )}
-                  </span>
-                  <span className="outline-symbol" data-kind={node.kind} aria-hidden="true" />
-                  <span className="outline-name">{node.name}</span>
-                  {node.detail && <small className="outline-detail">{node.detail}</small>}
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
+                }}
+              />
+            )}
+            {rows.length === 0 ? (
+              <p className="core-hint">{t("没有匹配的符号。")}</p>
+            ) : (
+              <div
+                ref={treeRef}
+                className="outline-tree"
+                role="tree"
+                aria-label={t("大纲")}
+                tabIndex={-1}
+                onKeyDown={(event) => {
+                  if (
+                    filterOnType &&
+                    !filterOpen &&
+                    !event.metaKey &&
+                    !event.ctrlKey &&
+                    !event.altKey &&
+                    event.key.length === 1
+                  ) {
+                    event.preventDefault();
+                    setFilterOpen(true);
+                    setFilterQuery(event.key);
+                    return;
+                  }
+                  if (
+                    ![
+                      "ArrowDown",
+                      "ArrowUp",
+                      "ArrowRight",
+                      "ArrowLeft",
+                      "Home",
+                      "End",
+                      "Enter",
+                      " ",
+                    ].includes(event.key)
+                  )
+                    return;
+                  const elements = Array.from(
+                    event.currentTarget.querySelectorAll<HTMLDivElement>('[role="treeitem"]'),
+                  );
+                  const index = elements.indexOf(event.target as HTMLDivElement);
+                  const row = rows[index];
+                  if (!row) return;
+                  event.preventDefault();
+                  if (event.key === "Enter" || event.key === " ") {
+                    navigate(row.node);
+                    return;
+                  }
+                  if (event.key === "ArrowRight") {
+                    if (row.node.children.length && !expanded.has(row.node.id)) toggle(row.node.id);
+                    else if (rows[index + 1]?.depth === row.depth + 1)
+                      focusRow(rows[index + 1].node.id);
+                    return;
+                  }
+                  if (event.key === "ArrowLeft") {
+                    if (row.node.children.length && expanded.has(row.node.id)) toggle(row.node.id);
+                    else {
+                      const parent = rows
+                        .slice(0, index)
+                        .reverse()
+                        .find((item) => item.depth === row.depth - 1);
+                      focusRow(parent?.node.id);
+                    }
+                    return;
+                  }
+                  const target =
+                    event.key === "Home"
+                      ? 0
+                      : event.key === "End"
+                        ? rows.length - 1
+                        : event.key === "ArrowUp"
+                          ? Math.max(0, index - 1)
+                          : Math.min(rows.length - 1, index + 1);
+                  focusRow(rows[target]?.node.id);
+                }}
+              >
+                {rows.map(({ node, depth, ancestors }, index) => (
+                  <div
+                    key={node.id}
+                    ref={(element) => {
+                      if (element) rowRefs.current.set(node.id, element);
+                      else rowRefs.current.delete(node.id);
+                    }}
+                    role="treeitem"
+                    aria-level={depth + 1}
+                    aria-selected={highlightId === node.id}
+                    aria-expanded={node.children.length ? expanded.has(node.id) : undefined}
+                    tabIndex={index === 0 ? 0 : -1}
+                    data-outline-id={node.id}
+                    className={`outline-row${highlightId === node.id ? " selected" : ""}`}
+                    style={{ "--outline-depth": depth } as React.CSSProperties}
+                    title={node.detail ? `${node.name} · ${node.detail}` : node.name}
+                    onFocus={() => setSelectedId(node.id)}
+                    onClick={() => navigate(node)}
+                  >
+                    <span className="outline-guides" aria-hidden="true">
+                      {Array.from({ length: depth }, (_, level) => (
+                        <span
+                          key={level}
+                          className={`outline-guide${activeChain.has(ancestors[level]) ? " active" : ""}`}
+                          style={{ "--guide-depth": level } as React.CSSProperties}
+                        />
+                      ))}
+                    </span>
+                    <span className="outline-twistie">
+                      {node.children.length > 0 && (
+                        <button
+                          type="button"
+                          tabIndex={-1}
+                          aria-label={t(expanded.has(node.id) ? "折叠 {0}" : "展开 {0}", {
+                            0: node.name,
+                          })}
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            toggle(node.id);
+                          }}
+                        >
+                          <Icon name="chevron" size={16} />
+                        </button>
+                      )}
+                    </span>
+                    <span className="outline-symbol" data-kind={node.kind} aria-hidden="true" />
+                    <span className="outline-name">{node.name}</span>
+                    {node.detail && <small className="outline-detail">{node.detail}</small>}
+                  </div>
+                ))}
+              </div>
+            )}
+          </>
+        )}
+      </div>
     </details>
   );
 }

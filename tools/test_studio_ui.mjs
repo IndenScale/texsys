@@ -1989,6 +1989,8 @@ test("outline view renders symbols, navigates, collapses and filters on type", a
       ),
     );
   await view();
+  const body = () => container.querySelector(".outline-body");
+  assert.ok(body(), "outline body present with symbols");
   const rows = () => Array.from(container.querySelectorAll('[role="treeitem"]'));
   const names = () => rows().map((row) => row.querySelector(".outline-name").textContent);
   assert.deepEqual(names(), ["# Title", "## A"]);
@@ -2034,6 +2036,7 @@ test("outline view renders symbols, navigates, collapses and filters on type", a
   );
   assert.equal(container.querySelector(".outline-filter"), null);
   await view({ document: { name: "package.json", value: '{"name": "texsys", "ok": true}' } });
+  assert.ok(body(), "outline body present for json");
   assert.deepEqual(
     Array.from(container.querySelectorAll(".outline-symbol")).map((item) => item.dataset.kind),
     ["string", "boolean"],
@@ -2042,7 +2045,114 @@ test("outline view renders symbols, navigates, collapses and filters on type", a
   assert.equal(container.querySelector(".outline-actions button").disabled, true);
   await view({ document: { name: "main.py", value: "print(1)" } });
   assert.match(container.textContent, /此文件无法提供大纲信息。/);
+  assert.ok(body(), "outline body present for unsupported language");
+  assert.ok(body().querySelector(".core-hint"), "unsupported hint inside fixed body");
+  await view({ document: { name: "empty.md", value: "plain text\n" } });
+  assert.match(container.textContent, /文档中没有可显示的大纲符号。/);
+  assert.ok(body(), "outline body present without symbols");
   await view({ document: undefined });
   assert.match(container.textContent, /打开文档后可查看大纲。/);
+  assert.ok(body(), "outline body present without document");
+  assert.ok(body().querySelector(".core-hint"), "no-document hint inside fixed body");
+  await act(() => root.unmount());
+});
+
+test("outline body survives filtering to zero matches", async () => {
+  const { JSDOM } = await import("jsdom");
+  const React = await import("react");
+  const { act } = React;
+  const { createRoot } = await import("react-dom/client");
+  const dom = new JSDOM("<!doctype html><body></body>", {
+    url: "http://localhost/",
+    pretendToBeVisual: true,
+  });
+  for (const name of ["window", "document", "HTMLElement", "Node", "localStorage"])
+    globalThis[name] = dom.window[name];
+  globalThis.IS_REACT_ACT_ENVIRONMENT = true;
+  globalThis.requestAnimationFrame = (callback) => setTimeout(callback, 0);
+  dom.window.HTMLElement.prototype.scrollIntoView = function () {};
+  const { OutlineView } = load("src/texsys/assets/studio/OutlineView.tsx");
+  const container = document.createElement("div");
+  document.body.appendChild(container);
+  const root = createRoot(container);
+  await act(async () =>
+    root.render(
+      React.createElement(OutlineView, {
+        document: { name: "README.md", value: "# Title\n\n## A\n" },
+        onNavigate: () => {},
+      }),
+    ),
+  );
+  const tree = container.querySelector(".outline-tree");
+  await act(async () =>
+    tree.dispatchEvent(new window.KeyboardEvent("keydown", { key: "z", bubbles: true })),
+  );
+  assert.match(container.textContent, /没有匹配的符号。/);
+  assert.ok(container.querySelector(".outline-body"), "outline body present with zero matches");
+  assert.ok(
+    container.querySelector(".outline-body .core-hint"),
+    "zero-match hint inside fixed body",
+  );
+  await act(() => root.unmount());
+});
+
+test("timeline view lists per-file commits, opens diffs and reports empty states", async () => {
+  const { JSDOM } = await import("jsdom");
+  const React = await import("react");
+  const { act } = React;
+  const { createRoot } = await import("react-dom/client");
+  const dom = new JSDOM("<!doctype html><body></body>", {
+    url: "http://localhost/",
+    pretendToBeVisual: true,
+  });
+  for (const name of ["window", "document", "HTMLElement", "Node", "localStorage"])
+    globalThis[name] = dom.window[name];
+  globalThis.IS_REACT_ACT_ENVIRONMENT = true;
+  const { TimelineView } = load("src/texsys/assets/studio/TimelineView.tsx");
+  const container = document.createElement("div");
+  document.body.appendChild(container);
+  const root = createRoot(container);
+  const opened = [];
+  const id = "a".repeat(40);
+  const commits = [
+    {
+      id,
+      subject: "设备 feature",
+      author: "Studio Test",
+      date: new Date(Date.now() - 86400000).toISOString(),
+    },
+  ];
+  const urls = [];
+  const api = async (url) => {
+    urls.push(url);
+    return { commits, truncated: false };
+  };
+  const view = (props) =>
+    act(async () =>
+      root.render(
+        React.createElement(TimelineView, {
+          api,
+          onOpen: (commit) => opened.push(commit),
+          path: "README.md",
+          ...props,
+        }),
+      ),
+    );
+  await view();
+  assert.ok(urls.every((url) => url.includes("path=README.md")));
+  const row = container.querySelector(".timeline-row");
+  assert.ok(row);
+  assert.match(row.textContent, /设备 feature/);
+  assert.ok(row.querySelector(".timeline-when").textContent);
+  await act(async () => row.click());
+  assert.deepEqual(opened, [id]);
+  await view({ path: undefined });
+  assert.match(container.textContent, /打开文件后可查看时间线。/);
+  await view({
+    api: async () => {
+      throw new Error("Git 不可用");
+    },
+  });
+  assert.match(container.textContent, /Git 不可用/);
   await act(() => root.unmount());
 });

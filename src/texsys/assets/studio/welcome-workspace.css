@@ -24,7 +24,9 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 6px 10px 6px var(--navigator-gutter);
+  height: 28px;
+  padding: 0 8px;
+  font-size: 11px;
   cursor: pointer;
   list-style: none;
 }
@@ -43,9 +45,16 @@
   transform: rotate(0deg);
 }
 
-.welcome-side-section > p {
+.welcome-side-section .core-hint {
   margin: 0;
   padding: 0 12px 8px calc(var(--navigator-gutter) + 20px);
+}
+
+.timeline-body {
+  /* 固定布局高度：空态与内容增减不改变节高度（DDR-0005）。 */
+  height: min(160px, 20vh);
+  overflow: auto;
+  padding-bottom: 6px;
 }
 
 .welcome-explorer-note {
