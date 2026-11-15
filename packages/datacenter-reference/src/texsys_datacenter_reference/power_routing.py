@@ -185,7 +185,7 @@ def build_power_coordination(context):
     roof_z = hall.maximum_m[2]
     pod_bounds = space(layout["objects"][pod])
     penetrations[name] = {"train": side, "pod": pod, "link": row["links"][0], "width_m": width,
-                          "building_roof_m": [x, y, roof_z], "pod_roof_m": [x, y, pod_roof]}
+                          "building_datum_m": [x, y, roof_z], "pod_roof_m": [x, y, pod_roof]}
     if not pod_roof < roof_z < row["points_m"][0][2] or width < max(row["width_m"], row["depth_m"]):
       _clash(issues, "AIDC_POWER_PENETRATION", name, pod, f"{name} does not fit both vertical roof interfaces.")
     for host, shape in (("IT-HALL", hall), (pod, pod_bounds)):
@@ -212,7 +212,7 @@ def build_power_coordination(context):
     table = csv.writer(stream)
     table.writerow(("drop", "train", "pod", "tap_sdl_link", "interface", "x_m", "y_m", "z_m", "sleeve_width_mm"))
     for key, row in penetrations.items():
-      for field in ("building_roof_m", "pod_roof_m"):
+      for field in ("building_datum_m", "pod_roof_m"):
         table.writerow((key, row["train"], row["pod"], row["link"], field, *row[field], 1000*row["width_m"]))
   return TargetResult(report.status, (*report.artifacts, artifact(context, "power-penetration-schedule", file)),
                       report.diagnostics)
@@ -235,7 +235,7 @@ def _draw_routes(context, stage, model, report):
   for key, row in report["penetrations"].items():
     side = row["train"]
     width = row["width_m"]
-    for building, point in (("Building", row["building_roof_m"]), ("Pod", row["pod_roof_m"])):
+    for building, point in (("Building", row["building_datum_m"]), ("Pod", row["pod_roof_m"])):
       x, y, z = point
       identity = f"{key}-{building}"
       shape = _box((x, y, z-.04), (x, y, z+.04), width, width)

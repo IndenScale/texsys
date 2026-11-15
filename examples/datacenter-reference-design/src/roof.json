@@ -1,0 +1,41 @@
+{
+  "schema_version": 1,
+  "state": "assumed",
+  "basis": "主机房候选双坡保温屋盖。海拔采用项目局部标高。构造、材料等效面密度、雨强和檩条截面用于方案比较。",
+  "overhang_m": 0.22,
+  "ridge_axis": "B",
+  "slope": 0.015,
+  "layers": {
+    "deck": {"eave_thickness_m": 0.046, "effective_unit_weight_kn_m3": 2.4},
+    "insulation": {"eave_thickness_m": 0.08, "effective_unit_weight_kn_m3": 0.38},
+    "membrane": {"eave_thickness_m": 0.004, "effective_unit_weight_kn_m3": 11.0}
+  },
+  "purlins": {
+    "width_m": 0.15,
+    "depth_m": 0.30,
+    "wall_m": 0.008,
+    "bay_fractions": [0.05625, 0.19375, 0.325, 0.45, 0.56875, 0.70625, 0.825, 0.97125],
+    "max_spacing_m": 1.2,
+    "max_deck_overhang_m": 0.7,
+    "seat_service_limit_kn": 16
+  },
+  "miscellaneous_dead_kpa": 0.035,
+  "curbs": {
+    "flange_width_m": 0.065,
+    "upstand_m": 0.12,
+    "minimum_clearance_m": 0.018
+  },
+  "drainage": {
+    "rainfall_mm_h": 155,
+    "runoff_coefficient": 1,
+    "gutter_width_m": 0.30,
+    "gutter_depth_m": 0.14,
+    "flow_depth_m": 0.09,
+    "longitudinal_slope": 0.004,
+    "manning_n": 0.013,
+    "outlet_offset_m": 0.40,
+    "leader_outside_diameter_m": 0.125,
+    "leader_capacity_l_s": 12,
+    "handoff_above_yard_m": 0.40
+  }
+}

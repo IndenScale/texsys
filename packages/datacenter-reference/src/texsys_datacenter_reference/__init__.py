@@ -38,6 +38,10 @@ from .power_routing import build_power_coordination, build_power_routing, build_
 from .power_routing_views import build_power_routing_view
 from .power_views import build_power_view
 from .review import build_review_package
+from .roof import build_roof
+from .roof_coordination import build_roof_coordination, build_roof_scene
+from .roof_study import build_roof_actions, build_roof_drainage, build_roof_drainage_check, build_roof_gravity_check
+from .roof_views import build_roof_view
 from .spatial_design import build_grid, build_layout, build_levels, build_site, spatial_inputs
 from .structure import build_gravity, build_structure
 from .structure_views import build_structure_view
@@ -55,7 +59,7 @@ from .wet_utility_views import build_wet_view
 
 class DatacenterReferencePackage(TexsysPackage):
   name = "datacenter-reference"
-  version = "0.16.0"
+  version = "0.17.0"
 
   def targets(self) -> tuple[TargetDefinition, ...]:
     return (
@@ -166,6 +170,8 @@ class DatacenterReferencePackage(TexsysPackage):
                        dependencies=("dcr:structure-model", "dcr:fws-network"), input_patterns=()),
       TargetDefinition("dcr:fws-network-view", self.name, self.version, build_network_view,
                        dependencies=("dcr:fws-network",), input_patterns=(), named_output=True),
+      TargetDefinition("dcr:fws-installed-section-view", self.name, self.version, build_network_view,
+                       dependencies=("dcr:roof-assembly",), input_patterns=(), named_output=True),
       TargetDefinition("dcr:fws-buffer-view", self.name, self.version, build_buffer_view,
                        dependencies=("dcr:fws-network",), input_patterns=(), named_output=True),
       TargetDefinition("dcr:tcs-routing", self.name, self.version, build_tcs_routing, dependencies=("dcr:pod-layout",),
@@ -203,7 +209,26 @@ class DatacenterReferencePackage(TexsysPackage):
       TargetDefinition("dcr:structure-model", self.name, self.version, build_structure, dependencies=("dcr:layout",),
                        input_patterns=spatial_inputs("structure.json")),
       TargetDefinition("dcr:structure-gravity", self.name, self.version, build_gravity,
-                       dependencies=("dcr:structure-model",), input_patterns=spatial_inputs("structure-loads.json")),
+                       dependencies=("dcr:roof-actions",), input_patterns=spatial_inputs("structure-loads.json")),
+      TargetDefinition("dcr:roof-assembly", self.name, self.version, build_roof,
+                       dependencies=("dcr:architecture", "dcr:structure-model", "dcr:fws-network", "dcr:power-routing"),
+                       input_patterns=spatial_inputs("roof.json")),
+      TargetDefinition("dcr:roof-actions", self.name, self.version, build_roof_actions,
+                       dependencies=("dcr:roof-assembly",), input_patterns=spatial_inputs("structure-loads.json")),
+      TargetDefinition("dcr:roof-gravity-check", self.name, self.version, build_roof_gravity_check,
+                       dependencies=("dcr:roof-actions",), input_patterns=()),
+      TargetDefinition("dcr:roof-drainage", self.name, self.version, build_roof_drainage,
+                       dependencies=("dcr:roof-assembly",), input_patterns=()),
+      TargetDefinition("dcr:roof-drainage-check", self.name, self.version, build_roof_drainage_check,
+                       dependencies=("dcr:roof-drainage",), input_patterns=()),
+      TargetDefinition("dcr:roof-view", self.name, self.version, build_roof_view,
+                       dependencies=("dcr:roof-assembly",), input_patterns=(), named_output=True),
+      TargetDefinition("dcr:roof-drainage-view", self.name, self.version, build_roof_view,
+                       dependencies=("dcr:roof-drainage",), input_patterns=(), named_output=True),
+      TargetDefinition("dcr:roof-coordination", self.name, self.version, build_roof_coordination,
+                       dependencies=("dcr:roof-assembly", "dcr:telecom", "dcr:fire-systems"), input_patterns=()),
+      TargetDefinition("dcr:roof-scene", self.name, self.version, build_roof_scene,
+                       dependencies=("dcr:roof-coordination", "dcr:power-scene"), input_patterns=()),
       TargetDefinition("dcr:structure-view", self.name, self.version, build_structure_view,
                        dependencies=("dcr:structure-model",), input_patterns=(), named_output=True),
       TargetDefinition("dcr:coordination-model", self.name, self.version, build_coordinated_scene,
@@ -225,7 +250,7 @@ class DatacenterReferencePackage(TexsysPackage):
       TargetDefinition("dcr:power-route-plan", self.name, self.version, build_power_routing_view,
                        dependencies=("dcr:power-routing", "dcr:architecture"), input_patterns=(), named_output=True),
       TargetDefinition("dcr:power-route-section", self.name, self.version, build_power_routing_view,
-                       dependencies=("dcr:power-coordination",), input_patterns=(), named_output=True),
+                       dependencies=("dcr:power-coordination", "dcr:roof-assembly"), input_patterns=(), named_output=True),
       TargetDefinition("dcr:power-view", self.name, self.version, build_power_view,
                        dependencies=("dcr:power-topology",), input_patterns=(), named_output=True),
       TargetDefinition("dcr:site-plan", self.name, self.version, build_plan, dependencies=("dcr:site",),

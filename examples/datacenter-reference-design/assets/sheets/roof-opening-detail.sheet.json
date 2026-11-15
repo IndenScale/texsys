@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "template": "sheet:a3-landscape",
+  "metadata": "assets/sheets/roof-opening-detail.title.json",
+  "texts": {
+    "notes": "assets/sheets/roof-opening-detail.txt",
+    "footer": "assets/sheets/footer.txt"
+  },
+  "views": {
+    "main": {
+      "path": "build/drawings/views/roof-opening-detail.svg",
+      "scale": "1:10"
+    }
+  }
+}

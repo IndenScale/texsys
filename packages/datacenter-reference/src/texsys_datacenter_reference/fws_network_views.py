@@ -7,6 +7,7 @@ from texsys.targets import TargetResult
 
 from .fws_network import LEGS, MODEL
 from .plans import _STYLE, _add, _axes, _line, _north_and_scale, _rect, _text
+from .roof import MODEL as ROOF
 from .spatial_design import MODELS, artifact, staged_json
 
 
@@ -121,15 +122,24 @@ def _isolation_tags(svg, model):
       _text(svg, x, y + (.44 if side > 0 else -.76), key, .50)
 
 
-def _section(context, model, terminal):
+def _section(context, model, terminal, *, installed=False):
   layout = staged_json(context, f"{MODELS}/layout.json")
   plant = layout["objects"][terminal]
   left, right = plant["minimum_m"][0], plant["maximum_m"][0]
   bottom, top = plant["minimum_m"][2], plant["maximum_m"][2]
   paths = model["paths"]["terminals"][terminal]
   selected = {key: model["segments"][key] for route in paths.values() for key in route[-3:]}
-  roof = next(record["point_m"][2] for identity, record in model["penetrations"].items()
-              if identity.startswith(terminal + "-"))
+  reservations = {leg: model["penetrations"][f"{terminal}-{leg}-ROOF"] for leg in LEGS}
+  roof = reservations[LEGS[0]]["point_m"][2]
+  openings = {leg: (row["point_m"], row["square_width_m"], row["point_m"][2]-.09, row["point_m"][2]+.09,
+                    row["segment"]) for leg, row in reservations.items()}
+  if installed:
+    roof_system = staged_json(context, ROOF)
+    roof = roof_system["section"]["deck_base_m"]
+    openings = {}
+    for leg in LEGS:
+      row = roof_system["openings"][f"{terminal}-{leg}-ROOF"]
+      openings[leg] = (row["point_m"], row["width_m"], roof, row["curb_top_m"], row["run"])
   pipe_top = max(point[2] for row in selected.values() for point in row["points_m"])
   bounds = left, bottom, right, pipe_top
   svg = _calibrated(bounds, f"{terminal} 设施水接驳正视投影", padding=(2, 1.35, 2.25, 1.2))
@@ -140,7 +150,7 @@ def _section(context, model, terminal):
 """
   _rect(svg, (left, bottom, right, top), "outline", data_instance=terminal)
   _text(svg, (left+right)/2, (top+bottom)/2, terminal, .24)
-  for label, height in (("方舱落位", bottom), ("屋面控制", roof)):
+  for label, height in (("方舱落位", bottom), ("屋面钢承板底" if installed else "屋面协调标高", roof)):
     _line(svg, left-.2, height, right+.35, height, "datum")
     _text(svg, right+.42, height+.03, f"{label} {height:+.3f}", .155, "start")
   for key, record in selected.items():
@@ -150,11 +160,10 @@ def _section(context, model, terminal):
       clipped = dict(record, points_m=[(max(left-.6, x), y, z) for x, y, z in (a, b)])
       _pipe_line(svg, key, clipped, vertical=2)
   for leg in LEGS:
-    opening = model["penetrations"][f"{terminal}-{leg}-ROOF"]
-    x, _, z = opening["point_m"]
-    h = opening["square_width_m"]/2
-    _rect(svg, (x-h, z-.09, x+h, z+.09), "sleeve-" + leg, data_pipe=opening["segment"])
-    _text(svg, x, z+.27 if leg == "supply" else z+.64,
+    (x, _, z), width, underside, cap, run = openings[leg]
+    h = width/2
+    _rect(svg, (x-h, underside, x+h, cap), "sleeve-" + leg, data_pipe=run)
+    _text(svg, x, z+.24,
           f"{leg[0].upper()} {round(2*h*1000)}", .155)
   y = bottom-.67
   _line(svg, left, y, right, y, "dimension")
@@ -250,8 +259,8 @@ def build_network_view(context):
     svg = _overlay(context, model, view)
   elif scope == {"view": "schematic"}:
     svg = _schematic(model)
-  elif view == "section" and set(scope) == {"view", "terminal"}:
-    svg = _section(context, model, scope["terminal"])
+  elif view in ("section", "installed-section") and set(scope) == {"view", "terminal"}:
+    svg = _section(context, model, scope["terminal"], installed=view == "installed-section")
   else:
     raise ValueError("Select the FWS site, roof, isolation plan, schematic or a named terminal section.")
   output = context.build_path / context.output

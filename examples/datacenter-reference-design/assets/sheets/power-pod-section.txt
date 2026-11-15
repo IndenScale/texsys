@@ -1,4 +1,5 @@
 标高单位为 m，洞口尺寸单位为 mm。
 两路各经主机房屋面与方舱顶板。
-逐洞口定位见 aidc-power-penetrations.csv。
+实际屋面洞口见 aidc-roof-openings.csv。
+方舱顶板洞口见 aidc-power-penetrations.csv。
 防水、防火封堵、套管及支架详图待深化。

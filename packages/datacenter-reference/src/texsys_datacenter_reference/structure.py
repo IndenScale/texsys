@@ -164,17 +164,14 @@ def build_structure(context):
   return TargetResult(report.status, (*report.artifacts, *_deliver_members(context, members)), report.diagnostics)
 
 
-def _gravity_check(model, loads):
+def _gravity_check(model, loads, roof):
   members = model["members"]
   sections = _sections(model["settings"])
   steel = number(loads["steel_kn_m3"], "steel unit weight")
   concrete = number(loads["concrete_kn_m3"], "concrete unit weight")
-  roof_dead = number(loads["roof_dead_kpa"], "roof permanent pressure")
-  roof_live = number(loads["roof_live_kpa"], "roof variable pressure", zero=True)
   elastic_modulus = number(loads["elastic_modulus_gpa"], "elastic modulus") * 1e6
   factors = {k: number(loads["strength_factors"][k], k + " factor") for k in ("permanent", "variable")}
   combinations = {"service": (1, 1), "strength": tuple(factors.values())}
-  roof_loads = {case: a*roof_dead + b*roof_live for case, (a, b) in combinations.items()}
   moment_stress = number(loads["bending_limit_mpa"], "bending stress limit") * 1000
   shear_stress = number(loads["web_shear_limit_mpa"], "web shear stress limit") * 1000
   axial_limit = number(loads["column_axial_limit_kn"], "column axial rating")
@@ -183,6 +180,9 @@ def _gravity_check(model, loads):
   columns = {key: dict.fromkeys(combinations, 0.) for key, val in members.items() if val["kind"] == "column"}
   checks, diagnostics = {}, []
   steel_weight = dict.fromkeys(combinations, 0.)
+  girder_actions = roof["girder_actions"]
+  if set(girder_actions) != {key for key, row in members.items() if row["kind"] == "girder"}:
+    raise ValueError("Roof reactions must be accounted for on all declared primary girders.")
   for key, member in members.items():
     kind = member["kind"]
     if kind not in {"girder", "tie"}:
@@ -191,8 +191,9 @@ def _gravity_check(model, loads):
     own = member["physical_volume_m3"] * steel
     response = {}
     for case, (permanent, _) in combinations.items():
-      beam = simple_beam(length, elastic_modulus * shape.major_inertia_m4,
-                         roof_loads[case] * member["tributary_width_m"] + own * permanent / length)
+      points = tuple((action["x_m"]-member["start_m"][0], action["force_kn"][case])
+                     for action in girder_actions.get(key, ()))
+      beam = simple_beam(length, elastic_modulus * shape.major_inertia_m4, own * permanent / length, points)
       response[case] = asdict(beam)
       first, last = member["supports"]
       columns[first][case] += beam.reaction_start_kn
@@ -221,14 +222,14 @@ def _gravity_check(model, loads):
       if value > 1:
         diagnostics.append({"rule": "AIDC_GRAVITY_" + rule.upper(), "status": "fail", "objects": [key],
                             "message": f"{key}: {rule} utilization {value:.3f} exceeds 1."})
-  area = (max(model["x"].values())-min(model["x"].values()))*(max(model["y"].values())-min(model["y"].values()))
   balances = {}
   for case in combinations:
-    applied = roof_loads[case] * area + steel_weight[case]
+    roof_load = roof["equilibrium"][case]["delivered_kn"]
+    applied = roof_load + steel_weight[case]
     reactions = sum(force[case] for force in columns.values())
     if not math.isclose(applied, reactions, abs_tol=1e-7):
       raise ValueError(f"Gravity equilibrium does not close for {case}.")
-    balances[case] = {"roof_kn": roof_loads[case]*area, "steel_kn": steel_weight[case],
+    balances[case] = {"roof_kn": roof_load, "steel_kn": steel_weight[case],
                       "column_reactions_kn": reactions, "residual_kn": applied - reactions}
   return checks, balances, diagnostics
 
@@ -239,9 +240,12 @@ def build_gravity(context):
     return missing_input(context, path, "structure-gravity")
   loads = _assumptions(path)
   model = staged_json(context, MODEL)
-  checks, equilibrium, failures = _gravity_check(model, loads)
+  roof_model = f"{MODELS}/roof-actions.json"
+  roof = staged_json(context, roof_model)
+  checks, equilibrium, failures = _gravity_check(model, loads, roof)
   return model_report(context, "structure-gravity", {
     "model_digest": file_digest(context.build_path / MODEL), "loads": loads, "checks": checks,
+    "roof_actions_digest": file_digest(context.build_path / roof_model), "roof_reactions": roof["girder_actions"],
     "equilibrium": equilibrium,
-    "method": "Simply supported elastic steel beams, axial columns and concentric footing bearing.",
+    "method": "Elastic steel beams loaded by extracted purlin point reactions, axial columns and concentric footing bearing.",
   }, failures)

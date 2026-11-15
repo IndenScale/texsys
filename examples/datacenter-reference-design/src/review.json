@@ -31,10 +31,23 @@
         "build/scenes/aidc-building-coordinated.usda",
         "build/datacenter-reference/spatial/architecture.json",
         "build/schedules/aidc-doors.csv",
-        "build/datacenter-reference/spatial/levels.json"
+        "build/datacenter-reference/spatial/levels.json",
+        "build/drawings/sheets/roof-envelope.svg",
+        "build/drawings/sheets/roof-envelope-sheet.json",
+        "build/drawings/sheets/roof-section.svg",
+        "build/drawings/sheets/roof-section-sheet.json",
+        "build/drawings/sheets/roof-opening-detail.svg",
+        "build/drawings/sheets/roof-opening-detail-sheet.json",
+        "build/datacenter-reference/spatial/roof-assembly.json",
+        "build/datacenter-reference/spatial/roof-coordination.json",
+        "build/scenes/aidc-roof-assembly.usda",
+        "build/scenes/aidc-roof-coordinated.usda",
+        "build/schedules/aidc-roof-openings.csv",
+        "build/schedules/aidc-roof-panels.csv"
       ],
       "pending": [
-        "实际门五金、坡道栏杆与平台节点、屋面围护和接地现场条件"
+        "实际门五金、坡道栏杆与平台节点、屋面围护和接地现场条件",
+        "屋面墙顶收口、防水泛水与耐火封堵节点，实际产品和试验资料"
       ]
     },
     "fire": {
@@ -62,10 +75,12 @@
         "build/schedules/aidc-fire-runs.csv",
         "build/schedules/aidc-fire-circuit-cases.csv",
         "build/schedules/aidc-fire-cause-effect.csv",
-        "build/datacenter-reference/spatial/pod-coordination.json"
+        "build/datacenter-reference/spatial/pod-coordination.json",
+        "build/schedules/aidc-roof-openings.csv"
       ],
       "pending": [
-        "厂家舱门、人群疏散与探测和声光现场验证、介质与喷放专项设计、控制柜型式、穿越构造和封堵产品"
+        "厂家舱门、人群疏散与探测和声光现场验证、介质与喷放专项设计、控制柜型式、穿越构造和封堵产品",
+        "实际屋盖穿越的封堵系统和材料构造核证"
       ]
     },
     "structure": {
@@ -81,10 +96,16 @@
         "build/scenes/aidc-structure.usda",
         "build/schedules/aidc-structure.csv",
         "build/datacenter-reference/spatial/structure.json",
-        "build/datacenter-reference/spatial/structure-gravity.json"
+        "build/datacenter-reference/spatial/structure-gravity.json",
+        "build/drawings/sheets/roof-secondary.svg",
+        "build/drawings/sheets/roof-secondary-sheet.json",
+        "build/datacenter-reference/spatial/roof-actions.json",
+        "build/datacenter-reference/spatial/roof-gravity-check.json",
+        "build/schedules/aidc-roof-purlins.csv"
       ],
       "pending": [
-        "实测地勘、抗风抗震、楼板与设备基础、节点与配筋设计"
+        "实测地勘、抗风抗震、楼板与设备基础、节点与配筋设计",
+        "钢承板局部承载、洞口加强、檩条座连接和屋盖抗风揭"
       ]
     },
     "it": {
@@ -268,11 +289,17 @@
         "build/datacenter-reference/spatial/wet-utility-check.json",
         "build/scenes/aidc-wet-utilities-coordinated.usda",
         "build/schedules/aidc-wet-utility-pipes.csv",
-        "build/schedules/aidc-wet-utility-duty.csv"
+        "build/schedules/aidc-wet-utility-duty.csv",
+        "build/drawings/sheets/roof-rain.svg",
+        "build/drawings/sheets/roof-rain-sheet.json",
+        "build/datacenter-reference/spatial/roof-drainage.json",
+        "build/datacenter-reference/spatial/roof-drainage-check.json",
+        "build/schedules/aidc-roof-rainwater.csv"
       ],
       "pending": [
         "市政交接高程及动压、水质检测和排放许可；喷淋定期放空／清洗的排水峰值、水处理、雨污分流与完整建筑给排水",
-        "倒流防护装置采购与实际空气间隙、满水试验、防冻、泵控制及检修旁路"
+        "倒流防护装置采购与实际空气间隙、满水试验、防冻、泵控制及检修旁路",
+        "实测雨强、厂家落水能力、极端雨况溢流与场区雨水系统接驳"
       ]
     }
   }

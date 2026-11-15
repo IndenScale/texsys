@@ -70,7 +70,7 @@ def test_aidc_deliverables_bind_to_the_same_geometry_and_recompute_the_fws_head(
   assert dossier["evidence_complete"]
   assert dossier["input_digest"] == _read(baseline.report)["input_digest"]
   assert dossier["engineering_acceptance"] == "pending-responsible-review"
-  assert len(list((root / "build/drawings/sheets").glob("*.svg"))) == 48
+  assert len(list((root / "build/drawings/sheets").glob("*.svg"))) == 53
   old_dossier = file_digest(root / "build/review/aidc-discipline-review.json")
   drawing = root / "build/drawings/sheets/fws-network.svg"
   old_route_drawing = file_digest(drawing)
@@ -78,6 +78,7 @@ def test_aidc_deliverables_bind_to_the_same_geometry_and_recompute_the_fws_head(
 
   _check_professional_delivery(root)
   _check_power_installation(root)
+  _check_roof_delivery(root)
   _check_fws_network_delivery(root)
   _check_building_delivery(root)
   _check_telecom_delivery(root)
@@ -357,9 +358,13 @@ def _check_professional_delivery(root):
   assert members["G-1-2-B"]["supports"] == ["C-1-B", "C-2-B"]
   girder = calculation["checks"]["G-1-2-B"]["response"]["service"]
   span = 8
-  udl = 1.4 * 9.5 + members["G-1-2-B"]["physical_volume_m3"] * 77 / span
-  assert girder["moment_kn_m"] == pytest.approx(udl * span**2 / 8)
-  assert girder["reaction_start_kn"] == pytest.approx(udl * span / 2)
+  self_weight = members["G-1-2-B"]["physical_volume_m3"] * 77 / span
+  points = [(row["x_m"]-8, row["force_kn"]["service"]) for row in calculation["roof_reactions"]["G-1-2-B"]]
+  reaction = self_weight * span/2 + sum(force*(span-location)/span for location, force in points)
+  station = girder["moment_at_m"]
+  moment = reaction*station-self_weight*station**2/2-sum(force*max(station-location, 0) for location, force in points)
+  assert girder["reaction_start_kn"] == pytest.approx(reaction)
+  assert girder["moment_kn_m"] == pytest.approx(moment)
   assert calculation["equilibrium"]["service"]["residual_kn"] == pytest.approx(0, abs=1e-9)
   pad = calculation["checks"]["P-1-B"]
   assert pad["peak_bearing_kpa"] == pytest.approx((pad["service_column_kn"] + pad["own_weight_kn"]) / 1.7**2)
@@ -433,6 +438,63 @@ def _check_power_installation(root):
       prim = scene.GetPrimAtPath(f"/AIDC/PowerRoutes/{side}/{side}_IT16")
       assert list(prim.GetAttribute("texsys:sdlLinks").Get()) == [terminal["link"]]
       assert scene.GetPrimAtPath(f"/AIDC/PowerRoutes/{side}/{side}_IT16_Building")
+
+
+def _check_roof_delivery(root):
+  roof = _read(root / MODEL / "roof-assembly.json")
+  actions = _read(root / MODEL / "roof-actions.json")
+  gravity = _read(root / MODEL / "structure-gravity.json")
+  drainage = _read(root / MODEL / "roof-drainage.json")
+  assert len(roof["panels"]) == 8
+  assert len(roof["purlins"]) == 64
+  assert len(roof["openings"]) == 64
+  assert roof["openings"]["IT01-return-ROOF"]["point_m"][2] == pytest.approx(5.3414)
+  assert roof["openings"]["A-IT01"]["compartment"] == "FC-S"
+  assert sum(row["net_area_m2"] for row in roof["panels"].values()) == pytest.approx(32.44*19.44-32*(.14**2+.18**2))
+  assert actions["checks"] == "pass"
+  assert actions["equilibrium"]["service"]["delivered_kn"] == pytest.approx(gravity["equilibrium"]["service"]["roof_kn"])
+  assert gravity["equilibrium"]["service"]["residual_kn"] == pytest.approx(0)
+  assert len(actions["girder_actions"]["G-1-2-B"]) == 16
+  assert drainage["outlets"]["RW-S-W"]["design_flow_l_s"] == pytest.approx(155*32.44*19.44/(4*3600))
+  stage = Usd.Stage.Open(str(root / "build/scenes/aidc-roof-assembly.usda"))
+  for key in ("IT01-return-ROOF", "A-IT01"):
+    row = roof["openings"][key]
+    tag = row["panel"].replace("-", "_")
+    px, py, _ = row["point_m"]
+    for layer in ("deck", "insulation", "membrane"):
+      panel = UsdGeom.Mesh.Get(stage, f"/AIDC/Roof/Panels/{tag}/{layer}")
+      points = panel.GetPointsAttr().Get()
+      indices = panel.GetFaceVertexIndicesAttr().Get()
+      for index in range(0, len(indices), 4):
+        xs, ys, _ = zip(*(points[item] for item in indices[index:index+4]), strict=True)
+        assert not (min(xs) < px < max(xs) and min(ys) < py < max(ys))
+    assert stage.GetPrimAtPath(f"/AIDC/Roof/Curbs/{key.replace('-', '_')}")
+  assert stage.GetPrimAtPath("/AIDC/Roof/Rainwater/RW_S_W/Leader")
+  water = ET.parse(root / "build/drawings/views/fws-section.svg")
+  power = ET.parse(root / "build/drawings/views/power-pod-section.svg")
+  row = roof["openings"]["IT01-return-ROOF"]
+  sleeve = water.find(f".//{SVG}rect[@data-pipe='{row['run']}']")
+  assert -float(sleeve.get("y")) == pytest.approx(row["curb_top_m"], abs=1e-6)
+  assert power.find(f".//{SVG}rect[@data-host='building_weather_surface_m']") is not None
+
+
+def test_aidc_roof_geometry_recomputes_gravity_and_overload_retains_drainage_plan(tmp_path):
+  root = _checkout(tmp_path)
+  src = root / "src/roof.json"
+  values = _read(src)
+  original, _ = _run(root, "dcr:structure-gravity")
+  assert original.status == "pass"
+  baseline = _read(root / MODEL / "structure-gravity.json")
+  values["slope"] = .012
+  values["drainage"]["rainfall_mm_h"] = 360
+  write_json(src, values)
+  failed, rows = _run(root, "dcr:structure-gravity", "dcr:roof-drainage-check", "sheet-roof-rain")
+  assert failed.status == "fail"
+  built = _read(root / MODEL / "structure-gravity.json")
+  assert built["roof_actions_digest"] != baseline["roof_actions_digest"]
+  assert built["equilibrium"]["service"]["roof_kn"] < baseline["equilibrium"]["service"]["roof_kn"]
+  assert rows["dcr:roof-drainage-check"]["status"] == "fail"
+  assert rows["sheet-roof-rain"]["status"] == "pass"
 
 
 def test_aidc_power_routing_exposes_a_water_clash_and_derated_feeders(tmp_path):

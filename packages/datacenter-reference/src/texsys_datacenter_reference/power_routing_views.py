@@ -8,6 +8,7 @@ from .architecture import MODEL as ARCHITECTURE
 from .fws_buffer_views import _canvas
 from .plans import _add, _line, _rect, _text, _xy
 from .power_routing import LAYOUT, MODEL
+from .roof import MODEL as ROOF, roof_surfaces
 from .spatial_design import MODELS, artifact, staged_json
 
 _STYLE = """
@@ -76,8 +77,8 @@ def _plan(context, side, train):
 
 def _section(context, trains, pod):
   layout = staged_json(context, LAYOUT)
-  architecture = staged_json(context, ARCHITECTURE)
-  hall_z = architecture["hall"]["maximum_m"][2]
+  roof = staged_json(context, ROOF)
+  hall_z = roof["section"]["steel_top_m"]
   host = layout["objects"][pod]
   _, y0, z0 = host["minimum_m"]
   _, y1, z1 = host["maximum_m"]
@@ -86,9 +87,11 @@ def _section(context, trains, pod):
   SubElement(svg, "style").text = _STYLE
   width = y1-y0
   _rect(svg, (0, z0, width, z1), "pod", data_pod=pod)
-  _line(svg, -.33, hall_z, width+.55, hall_z, "roof").set("data_interface", "building-roof")
+  deck = roof["section"]["deck_base_m"]
+  _line(svg, -.33, deck, width+.55, deck, "roof").set("data_interface", "roof-deck")
+  _line(svg, -.33, roof_surfaces(roof, y0-.33)[-1], width+.55, roof_surfaces(roof, y1+.55)[-1], "roof")
   _line(svg, -.33, z0, width+.55, z0, "roof")
-  _text(svg, width+.7, hall_z-.075, f"主机房屋面 EL +{hall_z:.3f}", .13, "start")
+  _text(svg, width+.7, deck-.075, f"屋面钢承板底 EL +{deck:.3f}", .13, "start")
   _text(svg, width+.7, z1-.075, f"方舱顶板 EL +{z1:.3f}", .13, "start")
   _text(svg, width+.7, z0-.075, f"方舱底板 EL +{z0:.3f}", .13, "start")
   sleeves = staged_json(context, f"{MODELS}/power-coordination.json")["penetrations"]
@@ -106,10 +109,14 @@ def _section(context, trains, pod):
     _rect(svg, (sy-y0, sz, ty-y0, tz), f"drop-{suffix}", data_route=tap["segment"], data_sdl_link=tap["link"])
     sleeve = sleeves[tap["segment"]]
     sleeve_width = sleeve["width_m"]
-    for field in ("building_roof_m", "pod_roof_m"):
-      _, y, z = sleeve[field]
-      _rect(svg, (y-y0-sleeve_width/2, z-.043, y-y0+sleeve_width/2, z+.043), "sectionsleeve",
-            data_penetration=tap["segment"], data_host=field)
+    _, y, z = sleeve["pod_roof_m"]
+    _rect(svg, (y-y0-sleeve_width/2, z-.043, y-y0+sleeve_width/2, z+.043), "sectionsleeve",
+          data_penetration=tap["segment"], data_host="pod_roof_m")
+    opening = roof["openings"][tap["segment"]]
+    _, low, _, high = opening["hole_xy_m"]
+    _rect(svg, (low-y0, deck, high-y0, opening["curb_top_m"]), "sectionsleeve",
+          data_penetration=tap["segment"], data_host="building_weather_surface_m")
+    _text(svg, high-y0+.035, opening["curb_top_m"]+.16, f"面层 +{opening['point_m'][2]:.3f}", .112, "start")
     _text(svg, (uy+vy)/2-y0, uz+.15, f"{bus} 底 +{lz:.3f}", .146, "start" if side == "A" else "middle")
     _text(svg, (sy+ty)/2-y0+.13, (z1+hall_z)/2, f"{side} 路 {tap['link']}", .12, "start")
   station = host["ports_m"]["power_a"][0]

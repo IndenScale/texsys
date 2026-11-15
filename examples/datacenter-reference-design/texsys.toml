@@ -12,7 +12,7 @@ build = "build"
 default_targets = ["review-package"]
 
 [dependencies]
-datacenter-reference = { path = "../../packages/datacenter-reference", version = "0.16.0" }
+datacenter-reference = { path = "../../packages/datacenter-reference", version = "0.17.0" }
 sheet = { path = "../../packages/sheet", version = "0.2.0" }
 
 [build.targets.review-package]
@@ -29,6 +29,14 @@ dependencies = [
   "dcr:wet-utility-coordination",
   "dcr:wet-utility-check",
   "dcr:structure-gravity",
+  "dcr:roof-gravity-check",
+  "dcr:roof-drainage-check",
+  "dcr:roof-scene",
+  "sheet-roof-envelope",
+  "sheet-roof-section",
+  "sheet-roof-opening-detail",
+  "sheet-roof-secondary",
+  "sheet-roof-rain",
   "dcr:pod-coordination",
   "dcr:pod-scene",
   "dcr:tcs-coordination",
@@ -333,9 +341,9 @@ scope = { source = "assets/sheets/fws-roof.sheet.json" }
 output = "build/drawings/sheets/fws-roof.svg"
 
 [build.targets.plan-fws-section]
-using = "dcr:fws-network-view"
+using = "dcr:fws-installed-section-view"
 output = "build/drawings/views/fws-section.svg"
-scope = { view = "section", terminal = "IT01" }
+scope = { view = "installed-section", terminal = "IT01" }
 
 [build.targets.sheet-fws-section]
 using = "sheet:compose"
@@ -628,3 +636,58 @@ using = "sheet:compose"
 dependencies = ["view-power-pod-section"]
 scope = { source = "assets/sheets/power-pod-section.sheet.json" }
 output = "build/drawings/sheets/power-pod-section.svg"
+
+[build.targets.view-roof-envelope]
+using = "dcr:roof-view"
+output = "build/drawings/views/roof-envelope.svg"
+scope = { view = "envelope" }
+
+[build.targets.sheet-roof-envelope]
+using = "sheet:compose"
+dependencies = ["view-roof-envelope"]
+scope = { source = "assets/sheets/roof-envelope.sheet.json" }
+output = "build/drawings/sheets/roof-envelope.svg"
+
+[build.targets.view-roof-section]
+using = "dcr:roof-view"
+output = "build/drawings/views/roof-section.svg"
+scope = { view = "section" }
+
+[build.targets.sheet-roof-section]
+using = "sheet:compose"
+dependencies = ["view-roof-section"]
+scope = { source = "assets/sheets/roof-section.sheet.json" }
+output = "build/drawings/sheets/roof-section.svg"
+
+[build.targets.view-roof-opening-detail]
+using = "dcr:roof-view"
+output = "build/drawings/views/roof-opening-detail.svg"
+scope = { view = "detail", opening = "IT01-return-ROOF" }
+
+[build.targets.sheet-roof-opening-detail]
+using = "sheet:compose"
+dependencies = ["view-roof-opening-detail"]
+scope = { source = "assets/sheets/roof-opening-detail.sheet.json" }
+output = "build/drawings/sheets/roof-opening-detail.svg"
+
+[build.targets.view-roof-secondary]
+using = "dcr:roof-view"
+output = "build/drawings/views/roof-secondary.svg"
+scope = { view = "secondary" }
+
+[build.targets.sheet-roof-secondary]
+using = "sheet:compose"
+dependencies = ["view-roof-secondary"]
+scope = { source = "assets/sheets/roof-secondary.sheet.json" }
+output = "build/drawings/sheets/roof-secondary.svg"
+
+[build.targets.view-roof-rain]
+using = "dcr:roof-drainage-view"
+output = "build/drawings/views/roof-rain.svg"
+scope = { view = "rain" }
+
+[build.targets.sheet-roof-rain]
+using = "sheet:compose"
+dependencies = ["view-roof-rain"]
+scope = { source = "assets/sheets/roof-rain.sheet.json" }
+output = "build/drawings/sheets/roof-rain.svg"
