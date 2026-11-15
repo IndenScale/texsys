@@ -465,3 +465,87 @@ def test_hmr_keeps_consuming_build_output_after_startup(station, monkeypatch, ca
   monkeypatch.setattr(subprocess, "Popen", lambda *args, **kwargs: Process())
   serve_hmr(station)
   assert capsys.readouterr().out.count("hmr update") == 10000
+
+
+def test_empty_workspace_redirects_only_the_bare_entry_url(runtime, tmp_path):
+  from http.client import HTTPConnection
+
+  frontend = tmp_path / "frontend"
+  frontend.mkdir()
+  server = create_server(runtime, port=0, frontend=frontend, empty_workspace=True)
+  thread = threading.Thread(target=server.serve_forever, daemon=True)
+  thread.start()
+  try:
+    connection = HTTPConnection("127.0.0.1", server.server_port)
+    connection.request("GET", "/")
+    response = connection.getresponse()
+    assert response.status == 302
+    assert response.getheader("Location") == "/?workspace=empty"
+    response.read()
+    for query in ("?workspace=empty", "?workspace=project"):
+      connection.request("GET", "/" + query)
+      response = connection.getresponse()
+      assert response.status == 200
+      assert 'name="tex-studio-token"' in response.read().decode()
+    connection.close()
+  finally:
+    server.shutdown()
+    server.server_close()
+    thread.join()
+
+  default = create_server(runtime, port=0, frontend=frontend)
+  thread = threading.Thread(target=default.serve_forever, daemon=True)
+  thread.start()
+  try:
+    connection = HTTPConnection("127.0.0.1", default.server_port)
+    connection.request("GET", "/")
+    response = connection.getresponse()
+    assert response.status == 200
+    assert 'name="tex-studio-token"' in response.read().decode()
+    connection.close()
+  finally:
+    default.shutdown()
+    default.server_close()
+    thread.join()
+
+
+def test_hmr_empty_workspace_adds_redirect_middleware(station, monkeypatch, capsys):
+  import io
+  from texsys.studio.server import serve_hmr
+
+  class Output:
+    def __init__(self):
+      self.stream = io.StringIO("Local: http://127.0.0.1:8710/\n")
+
+    def readline(self):
+      return self.stream.readline()
+
+    def __iter__(self):
+      return iter(())
+
+  class Process:
+    def __init__(self):
+      self.stdout = Output()
+
+    def poll(self):
+      return None
+
+    def wait(self, timeout=None):
+      return 0
+
+    def terminate(self):
+      pass
+
+  monkeypatch.setattr(subprocess, "Popen", lambda *args, **kwargs: Process())
+  config = station / "build" / "studio" / "hmr" / "vite.config.mjs"
+  serve_hmr(station, empty_workspace=True)
+  capsys.readouterr()
+  text = config.read_text()
+  assert 'name: "tex-studio-empty-workspace"' in text
+  assert 'res.setHeader("Location", "/?workspace=empty")' in text
+  assert 'name: "tex-studio-token"' in text
+  serve_hmr(station)
+  capsys.readouterr()
+  text = config.read_text()
+  assert "tex-studio-empty-workspace" not in text
+  assert 'name: "tex-studio-token"' in text

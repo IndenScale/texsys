@@ -142,7 +142,8 @@ def compile_frontend(runtime: StudioRuntime):
   return output
 
 
-def create_server(runtime: StudioRuntime, port=8710, frontend=None, token=None, public_port=None):
+def create_server(runtime: StudioRuntime, port=8710, frontend=None, token=None, public_port=None,
+                  empty_workspace=False):
   frontend = compile_frontend(runtime) if frontend is None else frontend
   token = token or secrets.token_urlsafe(32)
   ai_settings = AiSettings()
@@ -211,6 +212,13 @@ def create_server(runtime: StudioRuntime, port=8710, frontend=None, token=None, 
         terminals.upgrade(self, runtime.root, token, origins)
         return
       if parsed.path == "/":
+        if empty_workspace and not parsed.query:
+          # The bound project stays available through an explicit workspace URL.
+          self.send_response(302)
+          self.send_header("Location", "/?workspace=empty")
+          self.send_header("Content-Length", "0")
+          self.end_headers()
+          return
         page = ("<!doctype html><html lang=\"zh-CN\"><head><meta charset=\"utf-8\">"
                 '<meta name="viewport" content="width=device-width,initial-scale=1">'
                 f'<meta name="tex-studio-token" content="{token}">'
@@ -422,9 +430,9 @@ def create_server(runtime: StudioRuntime, port=8710, frontend=None, token=None, 
   return StudioServer(("127.0.0.1", port), Handler, terminals)
 
 
-def serve(root: Path, port=8710, open_browser=False):
+def serve(root: Path, port=8710, open_browser=False, *, empty_workspace=False):
   runtime = StudioRuntime(root)
-  server = create_server(runtime, port)
+  server = create_server(runtime, port, empty_workspace=empty_workspace)
   url = f"http://127.0.0.1:{server.server_port}"
   print(f"Tex Studio: {url}\nProject: {runtime.project.name}\nPress Ctrl+C to stop.", flush=True)
   if open_browser:
@@ -439,7 +447,7 @@ def serve(root: Path, port=8710, open_browser=False):
     runtime.close()
 
 
-def serve_hmr(root: Path, port=8710, open_browser=False, *, host="127.0.0.1"):
+def serve_hmr(root: Path, port=8710, open_browser=False, *, host="127.0.0.1", empty_workspace=False):
   """Run the Studio API and a Vite React development server with HMR."""
   if host not in {"127.0.0.1", "0.0.0.0"}:
     raise ProjectError("HMR host must be 127.0.0.1 or 0.0.0.0.")
@@ -475,10 +483,17 @@ def serve_hmr(root: Path, port=8710, open_browser=False, *, host="127.0.0.1"):
     '<body><div id="root"></div><script type="module" src="/main.tsx"></script></body></html>')
   config = frontend / "vite.config.mjs"
   allowed = sorted({str(root_dir), *(str(plugin.frontend.parent) for plugin in runtime.plugins.values())})
+  plugins = ['react()', '{ name: "tex-studio-token", transformIndexHtml(html) { return html; } }']
+  if empty_workspace:
+    # Mirror the production redirect: only the bare entry URL lands on the welcome page.
+    plugins.append('{ name: "tex-studio-empty-workspace", configureServer(server) { '
+                   'server.middlewares.use((req, res, next) => { '
+                   'if (req.url === "/") { res.statusCode = 302; res.setHeader("Location", "/?workspace=empty"); res.end(); return; } '
+                   'next(); }); } }')
   config.write_text(f'''import {{ defineConfig }} from {json.dumps(str(root_dir / "node_modules/vite/dist/node/index.js"))};
 import react from {json.dumps(str(root_dir / "node_modules/@vitejs/plugin-react/dist/index.js"))};
 export default defineConfig({{
-  plugins: [react(), {{ name: "tex-studio-token", transformIndexHtml(html) {{ return html; }} }}],
+  plugins: [{", ".join(plugins)}],
   server: {{ host: {json.dumps(host)}, port: {port}, strictPort: true, fs: {{ allow: {json.dumps(allowed)} }},
     proxy: {{ "^/api/terminal/ws$": {{ target: "ws://127.0.0.1:{api.server_port}", changeOrigin: true, ws: true }},
       "/api": {{ target: "http://127.0.0.1:{api.server_port}", changeOrigin: true,

@@ -14,6 +14,8 @@ Tex Studio 在 Podman 的 Linux 虚拟机内运行。macOS 登录当前用户后
 
 首次启动需要下载镜像并从锁文件安装依赖，`install` 返回后可查容器日志确认 Vite 就绪。复用已有 Google Chrome 标签页访问 [Tex Studio](http://127.0.0.1:8710/)。宿主只在 IPv4 回环地址发布端口；Python API 仍监听容器内回环地址，由 Vite 转发。
 
+容器以 `--empty-workspace` 启动：默认页面是空白工作区欢迎页，不自动打开工程。服务绑定 `examples/datacenter-reference-design`，在欢迎页选择「打开已启动的项目」后才加载该工程。绑定项目由 `tools/dev-container/entrypoint.sh` 的 `-p` 参数声明，修改后运行 `rebuild`。
+
 容器内的 `/workspace/texsys` 是同一份宿主工作树，包含 Git、设计源文件及构建结果；宿主修改前端文件后由 Vite 检测。Python 环境、Node 依赖和容器用户主目录分别保存在 Podman 卷中，容器重建会保留这些卷。本机 Git 全局配置、凭据和 Studio 服务端设置不会自动导入；如需在容器提交，可在容器中配置 Git 作者信息。进入 `shell` 后，可直接执行 `git diff`、`uv run --locked texsys build -p examples/hvac-dynamic-station` 或测试。
 
 - 前端源码修改通常由 Vite 热更新。修改 Python 服务、插件入口或锁文件后运行 `/usr/bin/python3 tools/dev_container.py restart`，启动时同步依赖。

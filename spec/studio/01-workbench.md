@@ -12,7 +12,7 @@ Tex Studio 以项目编辑能力承载工程工作。专业工作台是通用内
 
 宿主的 `showTasks(jobId?)` 可定位具体任务；可选 `taskResult` 将用户从任务面板发起的打开结果请求交给所属专业，宿主不解释专业产物。此请求包含任务记录和递增令牌，不替代结果的输入版本校验。
 
-macOS 上的标准开发实例由 Podman 容器运行，登录后由 `launchd` 启动。Vite 在容器内运行，宿主只在 `127.0.0.1:8710` 发布端口，Python API 绑定容器内回环地址。安装和维护按[常驻开发容器说明](../../docs/development-container.md)执行，浏览器验证按 [AGENTS.md](../../AGENTS.md#tex-studio-开发与验证)复用现有 Google Chrome 和唯一实例。宿主的会话令牌与同源校验用于保护本地读写 API，不能作为远程多用户认证。
+macOS 上的标准开发实例由 Podman 容器运行，登录后由 `launchd` 启动。Vite 在容器内运行，宿主只在 `127.0.0.1:8710` 发布端口，Python API 绑定容器内回环地址。开发实例以 `--empty-workspace` 启动，默认页面是空白工作区欢迎页，不自动打开工程；「打开已启动的项目」加载服务绑定的工程。安装和维护按[常驻开发容器说明](../../docs/development-container.md)执行，浏览器验证按 [AGENTS.md](../../AGENTS.md#tex-studio-开发与验证)复用现有 Google Chrome 和唯一实例。宿主的会话令牌与同源校验用于保护本地读写 API，不能作为远程多用户认证。
 
 ## 数据与操作
 

@@ -647,7 +647,7 @@ function Studio({
         window.open("/?workspace=empty", "_blank", "noopener");
         break;
       case "file.openProject":
-        window.location.assign("/");
+        window.location.assign("/?workspace=project");
         break;
       case "file.autoSave":
         updateUserPreferences({ autoSave: !autoSave });

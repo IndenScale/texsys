@@ -9,4 +9,4 @@ if [ ! -x node_modules/.bin/vite ] || [ "$digest" != "$(cat "$stamp" 2>/dev/null
   printf '%s\n' "$digest" > "$stamp"
 fi
 
-exec uv run --locked --no-sync texsys studio -p examples/hvac-dynamic-station --hmr --host 0.0.0.0
+exec uv run --locked --no-sync texsys studio -p examples/datacenter-reference-design --empty-workspace --hmr --host 0.0.0.0

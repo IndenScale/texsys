@@ -1479,3 +1479,9 @@ GitHub Linux x86_64 的两个数据中心回归由构建报告定位到 `datacen
 同时修正一处判定方向错误：耐火等级“不应低于二级”要求级数 ≤ 2，原检查用 `≥ 2` 会使三级框架误通过；现按 `≤ 2` 判定，缺失等级按失败处理，`fire_resistance_grade` 声明为钢框架族参数（单位“级”），新增降级反例。缺失 `design-basis.json` 或 `system.sdl.json` 时构建目标返回 indeterminate 并列出缺项，不再抛异常。新增 `test_standard_basis.py` 四项测试：规则键全部解析、短引与定位逐字一致、阈值与 A 级限值一致、规范包版本一致；相邻规范工作区不在场时跳过，不阻断独立 CI。
 
 包自测 34 项通过、13 项跳过；示例 `lock --check`、`check`、`build` 通过，12 条校核全部通过，判定与证据使用修正后的条款编号。根目录回归 556 项通过、1 项 slow 另行单独通过（365.58 秒）。概念边界不变：条文摘录的正式适用性仍由项目专业复核，校核通过不构成真实工程接受。
+
+### 2026-11-15：开发容器默认空白工作区与参考设计入口
+
+本轮以 `f0ba34e` 为基线，工作区干净（仅未跟踪的 `.qoder/` 工具元数据），不制造空提交。按用户要求把常驻开发容器改为默认不打开项目：`texsys studio` 新增 `--empty-workspace`，生产模式与 HMR 模式对无查询参数的入口 `/` 统一 302 到 `/?workspace=empty`；欢迎页「打开已启动的项目」改用显式 `/?workspace=project`，避免被默认重定向拦截。容器 entrypoint 绑定 `examples/datacenter-reference-design` 并启用该开关，默认页面为空白工作区欢迎页，显式操作后才加载工程。此为开发环境入口调整，不扩大物理覆盖或工程结论。
+
+验证：新增两项测试（默认重定向与显式 URL 不受影响、HMR 中间件按需生成），容器内 `tests/test_studio.py` 与 `tests/test_cli.py` 共 26 项通过；容器代理环境变量会拦截回环 `urlopen` 造成既有测试 502，属环境问题，排除回环代理后复跑通过，与本轮改动无关。`rebuild` 后实测 `/` 返回 302、`/?workspace=project` 与 `/?workspace=empty` 返回 200；现有 Chrome 标签页落在「空白工作区 — Tex Studio」欢迎页（启动／最近／演练），点击「打开已启动的项目」加载 datacenter-reference-design，标题栏与文件树显示该项目，`/api/state` 无诊断；容器内 `texsys sync` 同步 6 个依赖包。ESLint 与 Prettier 对改动前端文件通过。AIDC 参考设计的工程判定沿用上一轮记录，本轮未重新构建或接受。
