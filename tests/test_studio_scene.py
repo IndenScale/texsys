@@ -201,7 +201,8 @@ def test_current_scene_http_uses_file_version_and_previews_buffer_without_writin
   document = project_file(tmp_path, "build/scene.usda", "build")
   before = (tmp_path / "build/scene.usda").read_bytes()
   monkeypatch.setattr(server, "StudioServer", lambda address, handler, terminals: handler)
-  runtime = SimpleNamespace(root=tmp_path, project=inspect_project(tmp_path))
+  inspected = inspect_project(tmp_path)
+  runtime = SimpleNamespace(root=tmp_path, project=inspected, build=inspected.build)
   handler_type = server.create_server(runtime, frontend=tmp_path, token="scene-test")
 
   def request(path, content=None, authorized=True):

@@ -132,7 +132,8 @@ def test_manifest_checksum_symlinks_and_unknown_identifiers_are_rejected(project
 def test_preview_endpoints_require_session_and_have_no_write_operation(project, monkeypatch):
   bom_record(project)
   monkeypatch.setattr(server, "StudioServer", lambda address, handler, terminals: handler)
-  runtime = SimpleNamespace(root=project, project=inspect_project(project))
+  inspected = inspect_project(project)
+  runtime = SimpleNamespace(root=project, project=inspected, build=inspected.build)
   handler_type = server.create_server(runtime, frontend=project / "build", token="preview-test")
 
   def get(path, authorized=True):
