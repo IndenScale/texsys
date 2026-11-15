@@ -18,7 +18,8 @@
 }
 
 .outline-body {
-  max-height: 320px;
+  /* 固定布局高度：全部展开／折叠只改变滚动内容，不改变节高度（DDR-0005）。 */
+  height: min(320px, 40vh);
   overflow: auto;
   padding-bottom: 6px;
 }
@@ -36,7 +37,7 @@
   display: flex;
   align-items: center;
   height: 22px;
-  padding-left: calc(8px + var(--outline-depth) * 16px);
+  padding-left: calc(8px + var(--outline-depth) * 8px);
   padding-right: 8px;
   cursor: pointer;
   color: var(--ui-text);
@@ -53,7 +54,7 @@
   position: absolute;
   top: 0;
   bottom: 0;
-  left: calc(16px + var(--guide-depth) * 16px);
+  left: calc(16px + var(--guide-depth) * 8px);
   border-left: 1px solid var(--tree-guide-color);
 }
 
