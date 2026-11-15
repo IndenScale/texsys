@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "state": "assumed",
+  "basis": "由 IT01 装配参数取 IT 负荷，其中 75% 走液侧。水按指定温差及物性折算设计流量，冷源在该流量下可用压差暂取 75 kPa，设备及未量测配件暂占 20 kPa。",
+  "terminal": "IT01",
+  "liquid_fraction": 0.75,
+  "delta_t_k": 10,
+  "cp_kj_kg_k": 4.18,
+  "density_kg_m3": 998,
+  "viscosity_pa_s": 0.001,
+  "inside_diameter_m": 0.05,
+  "roughness_m": 0.000045,
+  "max_velocity_m_s": 1.5,
+  "elbow_k": 0.9,
+  "head_available_kpa": 75,
+  "other_losses_kpa": 20
+}

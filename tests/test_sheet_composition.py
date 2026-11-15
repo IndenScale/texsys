@@ -214,7 +214,7 @@ def test_published_sheet_components_execute_after_author_removal_in_two_projects
       stream.write('\n[build]\ndefault_targets = ["notes"]\n')
       stream.write('[build.targets.notes]\nusing = "sheet:compose"\n')
       stream.write('scope = { source = "assets/sheets/notes.sheet.json" }\noutput = "build/notes.svg"\n')
-      stream.write(f'\n[dependencies]\nsheet = {{ registry = {json.dumps(str(registry))}, version = "0.1.0" }}\n')
+      stream.write(f'\n[dependencies]\nsheet = {{ registry = {json.dumps(str(registry))}, version = "0.2.0" }}\n')
     lock_project(root)
     sync_project(root)
     result, _ = run(root, "notes")

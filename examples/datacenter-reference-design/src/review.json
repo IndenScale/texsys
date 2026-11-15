@@ -1,0 +1,81 @@
+{
+  "schema_version": 1,
+  "disciplines": {
+    "site": {
+      "name": "总图",
+      "required_artifacts": [
+        "build/drawings/sheets/parcel.svg",
+        "build/drawings/sheets/parcel-sheet.json",
+        "build/drawings/sheets/coordination.svg",
+        "build/drawings/sheets/coordination-sheet.json",
+        "build/datacenter-reference/spatial/site.json"
+      ],
+      "pending": [
+        "实测宗地红线、竖向测量与市政接驳条件"
+      ]
+    },
+    "architecture": {
+      "name": "建筑",
+      "required_artifacts": [
+        "build/drawings/sheets/grid.svg",
+        "build/drawings/sheets/grid-sheet.json",
+        "build/drawings/sheets/zoning.svg",
+        "build/drawings/sheets/zoning-sheet.json",
+        "build/drawings/sheets/architecture-l01.svg",
+        "build/drawings/sheets/architecture-l01-sheet.json",
+        "build/datacenter-reference/spatial/levels.json"
+      ],
+      "pending": [
+        "完整建筑围护、楼梯和疏散、建筑与消防责任复核"
+      ]
+    },
+    "structure": {
+      "name": "结构",
+      "required_artifacts": [
+        "build/drawings/sheets/structure-l01.svg",
+        "build/drawings/sheets/structure-l01-sheet.json",
+        "build/scenes/aidc-coordination.usda"
+      ],
+      "pending": [
+        "地勘、作用组合、截面和节点计算、基础设计"
+      ]
+    },
+    "it": {
+      "name": "机房工艺",
+      "required_artifacts": [
+        "build/drawings/sheets/it-hall.svg",
+        "build/drawings/sheets/it-hall-sheet.json",
+        "build/datacenter-reference/bom.json"
+      ],
+      "pending": [
+        "设备真实规格、机柜完整布置及检修、弱电路径与端接"
+      ]
+    },
+    "electrical": {
+      "name": "电气",
+      "required_artifacts": [
+        "build/drawings/sheets/electrical.svg",
+        "build/drawings/sheets/electrical-sheet.json",
+        "build/datacenter-reference/design-checks.json"
+      ],
+      "pending": [
+        "电气单线图、短路电流、继保选择性、接地和实际故障工况"
+      ]
+    },
+    "mechanical": {
+      "name": "暖通",
+      "required_artifacts": [
+        "build/drawings/sheets/cooling.svg",
+        "build/drawings/sheets/cooling-sheet.json",
+        "build/drawings/sheets/fws.svg",
+        "build/drawings/sheets/fws-sheet.json",
+        "build/datacenter-reference/spatial/fws-routing.json",
+        "build/datacenter-reference/spatial/fws-hydraulics.json",
+        "build/scenes/aidc-fws.usda"
+      ],
+      "pending": [
+        "全网配流、泵曲线、厂家换热器压降、支吊架与屋面穿越复核"
+      ]
+    }
+  }
+}

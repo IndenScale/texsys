@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "state": "assumed",
+  "basis": "CoolContainer1 至 IT01 单一示例回路，集管在该回路中简化为一个节点。仅声明供回水中心线与标高，支吊架、保温、屋面穿越及其他支路仍需协调。",
+  "legs": {
+    "supply": {
+      "connections": ["link-053", "link-075"],
+      "tier_m": 5.8,
+      "port_clearance_m": 0.7,
+      "header_xy_m": [20, 26],
+      "outside_diameter_m": 0.063,
+      "baseline_length_m": 40
+    },
+    "return": {
+      "connections": ["link-076", "link-054"],
+      "tier_m": 6.2,
+      "port_clearance_m": 1.2,
+      "header_xy_m": [18, 25],
+      "outside_diameter_m": 0.063,
+      "baseline_length_m": 40
+    }
+  }
+}

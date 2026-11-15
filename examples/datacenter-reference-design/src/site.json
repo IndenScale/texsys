@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "parcel": "AIDC-01",
+  "frame": "AIDC-LOCAL",
+  "state": "assumed",
+  "basis": "合成宗地。局部坐标以示例宗地西南角为平面原点，场坪基准为 ±0.000 m。",
+  "north": "+Y",
+  "boundary_m": [
+    0,
+    0,
+    80,
+    56
+  ],
+  "buildable_m": [
+    4,
+    4,
+    76,
+    52
+  ]
+}

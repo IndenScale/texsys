@@ -9,7 +9,7 @@ import urllib.request
 
 
 REPO = Path(__file__).resolve().parents[1]
-ROOTS = ("datacenter-reference",)
+ROOTS = ("datacenter-reference", "sheet")
 
 
 def main():

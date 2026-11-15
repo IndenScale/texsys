@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "template": "sheet:a3-landscape",
+  "metadata": "assets/sheets/fws.title.json",
+  "texts": {
+    "notes": "assets/sheets/fws.txt",
+    "footer": "assets/sheets/footer.txt"
+  },
+  "views": {
+    "main": {
+      "path": "build/drawings/views/fws.svg",
+      "scale": "1:400"
+    }
+  }
+}

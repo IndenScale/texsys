@@ -1,6 +1,6 @@
 # 图页组件、内容与编译组合
 
-> 状态：首个可执行子集。架构决策见 [ADR-0030](../../docs/adr/0030-independent-sheet-components-and-content.md)。图页编排消费专业视图和项目文字，构建通过表示组合完成，不表示工程设计已通过责任审查。
+> 状态：可执行子集。架构决策见 [ADR-0030](../../docs/adr/0030-independent-sheet-components-and-content.md) 与 [ADR-0033](../../docs/adr/0033-calibrated-sheet-views.md)。图页编排消费专业视图和项目文字。工程判断以相应专业证据及责任审查为准。
 
 ## 分别维护的源
 
@@ -20,7 +20,7 @@
 
 ```toml
 [dependencies]
-sheet = { path = "../../packages/sheet", version = "0.1.0" }
+sheet = { path = "../../packages/sheet", version = "0.2.0" }
 
 [build.targets.drawing-system]
 using = "sheet:compose"
@@ -122,7 +122,7 @@ uv run --locked texsys build -p examples/hvac-air-cooled-room --target drawing-r
 }
 ```
 
-含视图图页的 `scale` 只接受 `NTS` 或 `示意，不按比例`；纯文字图页还接受 `不适用`。
+视图使用 `fit` 时，标题栏的 `scale` 接受 `NTS` 或 `示意，不按比例`。校准图页标题栏填与所有视图相同的 `1:N`。纯文字图页还接受 `不适用`。
 
 每张图页可使用不同元数据文件，并共享同一段总说明、页脚或模板。修订、日期和阶段由项目显式给定；构建不会自动写入当前日期，避免无设计变化也改变产物。字段名称与模板绑定相对应，模板需要的绑定缺失时构建失败。
 
@@ -146,7 +146,7 @@ uv run --locked texsys build -p examples/hvac-air-cooled-room --target drawing-r
 
 ## 视图、比例与图面完整性
 
-内嵌视图必须是 SVG。第一版 `scale` 使用 `fit`，在模板分配的区域内保持比例适配。其含义是图形显示适配，不是工程比例尺。原理图和已经包含标题、图例或排版偏移的平面必须明确“示意，不按比例”；不得根据 viewBox 自动推断 `1:N`。
+内嵌视图必须是 SVG。`fit` 在模板分配的区域内等比适配，适合原理图和示意图。校准图纸声明 `1:N`，SVG 需声明 `data-coordinate-unit="m"` 和有限正值 `data-units-per-meter`。纸面每单位毫米数为 `1000 / N / data-units-per-meter`。视图按该倍率居中，超出内容区则构建失败。来源报告记录比例模式、工程比例及纸面占用框。
 
 外层图页使用明确纸幅和毫米坐标。图框与文字字号不随内嵌视图的 fit 缩放改变。内嵌视图保留自身内容和语义，组合层不会重新生成其中的设备、尺寸或图例。输出需要完整包含所引用的视图内容，不依赖读者的项目目录才能显示。
 
@@ -164,4 +164,4 @@ uv run --locked texsys build -p examples/hvac-air-cooled-room --target drawing-r
 
 两个可重跑示例为 [冷站](../../examples/hvac-dynamic-station/README.md)和[风冷机房](../../examples/hvac-air-cooled-room/README.md)：前者提供原理图页与总说明页，后者使用同一图框和自己的项目文字。它们验证编译链及概念内容复用，不构成正式施工图交付。
 
-第一版尚未覆盖锁定字形和跨主机打印一致性、工程比例尺、签章、自动分页、复杂表格或正式交付格式。系统字体替换及内嵌旧视图中的文字仍需视觉复核。新增制图或交付能力应声明独立验证范围，不能从图页组合成功推断完整工程文件满足要求。
+锁定字形和跨主机打印一致性、签章、自动分页、复杂表格或正式交付格式仍待实现。系统字体替换及内嵌旧视图中的文字需视觉复核。新增制图或交付能力应声明独立验证范围。

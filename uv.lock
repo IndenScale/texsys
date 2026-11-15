@@ -825,17 +825,21 @@ requires-dist = [
 
 [[package]]
 name = "texsys-datacenter-reference"
-version = "0.1.0"
+version = "0.2.0"
 source = { editable = "packages/datacenter-reference" }
 dependencies = [
     { name = "texsys" },
     { name = "texsys-bom" },
+    { name = "texsys-hvac-dynamics" },
+    { name = "texsys-spatial" },
 ]
 
 [package.metadata]
 requires-dist = [
     { name = "texsys", editable = "." },
     { name = "texsys-bom", editable = "packages/bom" },
+    { name = "texsys-hvac-dynamics", editable = "packages/hvac-dynamics" },
+    { name = "texsys-spatial", editable = "packages/spatial" },
 ]
 
 [[package]]
@@ -1034,7 +1038,7 @@ requires-dist = [{ name = "scipy", specifier = ">=1.15,<2" }]
 
 [[package]]
 name = "texsys-sheet"
-version = "0.1.0"
+version = "0.2.0"
 source = { editable = "packages/sheet" }
 dependencies = [
     { name = "texsys" },

@@ -1,5 +1,5 @@
 schema_version = 1
-manifest_digest = "sha256:758fd66e123d112834bf648f206128a8578afff1fd591f14fe0ba1829c77240e"
+manifest_digest = "sha256:60e634ccba249ae13673e972108f2c612ec11281ac85fdf563f822a6f326964d"
 
 [[packages]]
 name = "bom"
@@ -75,10 +75,10 @@ dependencies = ["diagram", "diagram-elk"]
 
 [[packages]]
 name = "sheet"
-version = "0.1.0"
+version = "0.2.0"
 source = "path"
 path = "../../packages/sheet"
-digest = "sha256:0e5b3444cc2d7282169ef80d3633d5b0ca6ba666e4cd2e7cf14d545bd430f5ce"
+digest = "sha256:0d1935ea170088f95953fdeda7c4da1ced16d1da65dcf7c2a2bf2f05d813d115"
 direct = true
 dependencies = []
 
@@ -87,7 +87,7 @@ name = "spatial"
 version = "0.1.0"
 source = "path"
 path = "../../packages/spatial"
-digest = "sha256:4e2f16cec10fdc1abd9119e5664a0d0d08f7a29433dc44c162374819f85c4090"
+digest = "sha256:acf7bd01d4091dc6ad3cebd97e27a8ed880e34b15caa9f7f71ade9cf9d6b683f"
 direct = false
 dependencies = []
 

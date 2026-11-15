@@ -52,7 +52,7 @@ def test_builtin_design_packages_are_discoverable() -> None:
   assert packages == {
     "bom": "0.1.0",
     "datacenter": "0.1.0",
-    "datacenter-reference": "0.1.0",
+    "datacenter-reference": "0.2.0",
     "hvac-bom": "0.1.0",
     "hvac-diagram": "0.1.0",
     "hvac-dynamics": "0.1.0",
@@ -60,7 +60,7 @@ def test_builtin_design_packages_are_discoverable() -> None:
     "hvac-formatter": "0.1.0",
     "hvac-linter": "0.1.0",
     "hvac-checks": "0.1.0",
-    "sheet": "0.1.0",
+    "sheet": "0.2.0",
   }
 
 

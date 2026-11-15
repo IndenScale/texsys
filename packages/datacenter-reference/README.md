@@ -59,3 +59,7 @@ uv run --locked texsys build -p examples/datacenter-reference-design
 ```
 
 模块资产由 `tools/generate_devices.py` 与 `tools/generate_units.py` 生成并提交为源文件；修改规格表后重跑生成器刷新。
+
+## 编译 AIDC 项目交付
+
+版本 0.2 增加宗地、轴网、标高及落位目标。命名图纸目标支持楼层、区块和专业范围。场景重用部件资产并展平 USD 引用，平面与场景核对同一实例包络和编号。设施水目标绑定 SDL 端口并使用 `hvac-dynamics` 计算声明条件下的局部回路。输入和图页装配示例见 [AIDC 参考设计](../../examples/datacenter-reference-design/README.md)。

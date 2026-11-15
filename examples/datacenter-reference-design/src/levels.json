@@ -1,0 +1,67 @@
+{
+  "schema_version": 1,
+  "levels_m": {
+    "YARD": 0,
+    "L01": 0.4,
+    "RF": 4.9,
+    "YARD-LIMIT": 5.0
+  },
+  "zones": {
+    "IT-HALL": {
+      "name": "主机房",
+      "functional_zone": "host",
+      "level": "L01",
+      "ceiling": "RF",
+      "minimum_axes": [
+        "1",
+        "A"
+      ],
+      "maximum_axes": [
+        "5",
+        "C"
+      ]
+    },
+    "POWER": {
+      "name": "供配电区",
+      "functional_zone": "power",
+      "level": "YARD",
+      "ceiling": "YARD-LIMIT",
+      "minimum_axes": [
+        "1",
+        "D"
+      ],
+      "maximum_axes": [
+        "3",
+        "F"
+      ]
+    },
+    "COOLING": {
+      "name": "冷源区",
+      "functional_zone": "cooling",
+      "level": "YARD",
+      "ceiling": "YARD-LIMIT",
+      "minimum_axes": [
+        "3",
+        "D"
+      ],
+      "maximum_axes": [
+        "7",
+        "F"
+      ]
+    },
+    "STANDBY": {
+      "name": "备用电源区",
+      "functional_zone": "standby",
+      "level": "YARD",
+      "ceiling": "YARD-LIMIT",
+      "minimum_axes": [
+        "7",
+        "D"
+      ],
+      "maximum_axes": [
+        "9",
+        "F"
+      ]
+    }
+  }
+}

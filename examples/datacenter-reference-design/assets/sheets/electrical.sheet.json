@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "template": "sheet:a3-landscape",
+  "metadata": "assets/sheets/electrical.title.json",
+  "texts": {
+    "notes": "assets/sheets/electrical.txt",
+    "footer": "assets/sheets/footer.txt"
+  },
+  "views": {
+    "main": {
+      "path": "build/drawings/views/electrical.svg",
+      "scale": "1:400"
+    }
+  }
+}

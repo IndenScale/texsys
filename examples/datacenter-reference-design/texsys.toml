@@ -9,7 +9,132 @@ assets = "assets"
 build = "build"
 
 [build]
-default_targets = ["dcr:design-checks", "dcr:bom"]
+default_targets = ["review-package"]
 
 [dependencies]
-datacenter-reference = { path = "../../packages/datacenter-reference", version = "0.1.0" }
+datacenter-reference = { path = "../../packages/datacenter-reference", version = "0.2.0" }
+sheet = { path = "../../packages/sheet", version = "0.2.0" }
+
+[build.targets.review-package]
+using = "dcr:review"
+output = "build/review/aidc-discipline-review.json"
+dependencies = [
+  "dcr:design-checks",
+  "dcr:bom",
+  "dcr:fws-hydraulics",
+  "sheet-parcel",
+  "sheet-grid",
+  "sheet-zoning",
+  "sheet-coordination",
+  "sheet-architecture-l01",
+  "sheet-structure-l01",
+  "sheet-it-hall",
+  "sheet-electrical",
+  "sheet-cooling",
+  "sheet-fws",
+]
+
+[build.targets.plan-parcel]
+using = "dcr:site-plan"
+output = "build/drawings/views/parcel.svg"
+
+[build.targets.sheet-parcel]
+using = "sheet:compose"
+dependencies = ["plan-parcel"]
+scope = { source = "assets/sheets/parcel.sheet.json" }
+output = "build/drawings/sheets/parcel.svg"
+
+[build.targets.plan-grid]
+using = "dcr:grid-plan"
+output = "build/drawings/views/grid.svg"
+
+[build.targets.sheet-grid]
+using = "sheet:compose"
+dependencies = ["plan-grid"]
+scope = { source = "assets/sheets/grid.sheet.json" }
+output = "build/drawings/sheets/grid.svg"
+
+[build.targets.plan-zoning]
+using = "dcr:zoning-plan"
+output = "build/drawings/views/zoning.svg"
+
+[build.targets.sheet-zoning]
+using = "sheet:compose"
+dependencies = ["plan-zoning"]
+scope = { source = "assets/sheets/zoning.sheet.json" }
+output = "build/drawings/sheets/zoning.svg"
+
+[build.targets.plan-coordination]
+using = "dcr:plan"
+output = "build/drawings/views/coordination.svg"
+
+[build.targets.sheet-coordination]
+using = "sheet:compose"
+dependencies = ["plan-coordination"]
+scope = { source = "assets/sheets/coordination.sheet.json" }
+output = "build/drawings/sheets/coordination.svg"
+
+[build.targets.plan-architecture-l01]
+using = "dcr:plan"
+output = "build/drawings/views/architecture-l01.svg"
+scope = { level = "L01", discipline = "architecture" }
+
+[build.targets.sheet-architecture-l01]
+using = "sheet:compose"
+dependencies = ["plan-architecture-l01"]
+scope = { source = "assets/sheets/architecture-l01.sheet.json" }
+output = "build/drawings/sheets/architecture-l01.svg"
+
+[build.targets.plan-structure-l01]
+using = "dcr:plan"
+output = "build/drawings/views/structure-l01.svg"
+scope = { level = "L01", discipline = "structure" }
+
+[build.targets.sheet-structure-l01]
+using = "sheet:compose"
+dependencies = ["plan-structure-l01"]
+scope = { source = "assets/sheets/structure-l01.sheet.json" }
+output = "build/drawings/sheets/structure-l01.svg"
+
+[build.targets.plan-it-hall]
+using = "dcr:plan"
+output = "build/drawings/views/it-hall.svg"
+scope = { zone = "IT-HALL", discipline = "it" }
+
+[build.targets.sheet-it-hall]
+using = "sheet:compose"
+dependencies = ["plan-it-hall"]
+scope = { source = "assets/sheets/it-hall.sheet.json" }
+output = "build/drawings/sheets/it-hall.svg"
+
+[build.targets.plan-electrical]
+using = "dcr:plan"
+output = "build/drawings/views/electrical.svg"
+scope = { discipline = "electrical" }
+
+[build.targets.sheet-electrical]
+using = "sheet:compose"
+dependencies = ["plan-electrical"]
+scope = { source = "assets/sheets/electrical.sheet.json" }
+output = "build/drawings/sheets/electrical.svg"
+
+[build.targets.plan-cooling]
+using = "dcr:plan"
+output = "build/drawings/views/cooling.svg"
+scope = { zone = "COOLING", discipline = "mechanical" }
+
+[build.targets.sheet-cooling]
+using = "sheet:compose"
+dependencies = ["plan-cooling"]
+scope = { source = "assets/sheets/cooling.sheet.json" }
+output = "build/drawings/sheets/cooling.svg"
+
+[build.targets.plan-fws]
+using = "dcr:fws-plan"
+output = "build/drawings/views/fws.svg"
+
+[build.targets.sheet-fws]
+using = "sheet:compose"
+dependencies = ["plan-fws"]
+scope = { source = "assets/sheets/fws.sheet.json" }
+output = "build/drawings/sheets/fws.svg"

@@ -16,7 +16,7 @@ scope = { source = "assets/sheets/system.sheet.json" }
 output = "build/drawings/sheets/system.svg"
 
 [dependencies]
-sheet = { path = "../../packages/sheet", version = "0.1.0" }
+sheet = { path = "../../packages/sheet", version = "0.2.0" }
 ```
 
 ```json
@@ -51,7 +51,7 @@ uv run --locked texsys build -p examples/hvac-dynamic-station --target drawing-s
 
 ## 适用边界
 
-纸面为毫米，视图使用 `fit`，不推导工程比例尺。含视图的 `metadata.scale` 必须为 `示意，不按比例` 或 `NTS`；纯文字页还可使用 `不适用`。视图内部已有字高会随视图缩放，独立图页文字保持声明字高。嵌入 SVG 的脚本、外部资源和动态内容不在支持范围。
+纸面为毫米。视图可指定 `fit` 或统一的 `1:N`，在标题栏填相同的工程比例。工程比例要求上游 SVG 明示 `data-coordinate-unit="m"` 和正的 `data-units-per-meter`，用 `viewBox` 计算纸面宽高。排布越界会失败。工程比例按原纸幅 100% 打印。采用 `fit` 的视图在 `metadata.scale` 填 `示意，不按比例` 或 `NTS`，纯文字页还可填 `不适用`。视图字高随视图缩放，独立图页文字保持声明字高。
 
 文字使用固定字符进宽排版并以 SVG `textLength` 约束宽度；字体族为系统中文无衬线回退链，没有嵌入字体。字符外观和打印效果需人工核对，排版结果不证明跨主机字体一致。图框采用本包示例版式，可替换组件；不宣称符合某一制图标准。图号唯一性、跨页引用、工程尺寸／引线标注、正式电子签章及成套交付检查留待后续能力实现。
 

@@ -35,15 +35,5 @@
     "standby": ["GenContainerA", "GenContainerB"],
     "support": ["UtilityA", "UtilityB", "AuxFeed", "ControlPanel"]
   },
-  "layout_m": {
-    "basis": "概念坐标：主机房 2 行 × 8 方舱，行距 8 m；配电与冷却方舱沿主机房北侧排列",
-    "it_row_pitch": 8.0,
-    "it_container_pitch": 6.6,
-    "container_origin": [0, 0, 0.4],
-    "power_origin": [0, 14, 0],
-    "cooling_origin": [16, 14, 0],
-    "genset_origin": [40, 14, 0],
-    "tower_origin": [16, 22, 0]
-  },
   "limitations": "布置为概念占位；实际防火间距、运输通道、基础与噪声边界由项目校核。"
 }

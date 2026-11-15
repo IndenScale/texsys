@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "template": "sheet:a3-landscape",
+  "metadata": "assets/sheets/zoning.title.json",
+  "texts": {
+    "notes": "assets/sheets/zoning.txt",
+    "footer": "assets/sheets/footer.txt"
+  },
+  "views": {
+    "main": {
+      "path": "build/drawings/views/zoning.svg",
+      "scale": "1:400"
+    }
+  }
+}

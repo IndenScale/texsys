@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "template": "sheet:a3-landscape",
+  "metadata": "assets/sheets/structure-l01.title.json",
+  "texts": {
+    "notes": "assets/sheets/structure-l01.txt",
+    "footer": "assets/sheets/footer.txt"
+  },
+  "views": {
+    "main": {
+      "path": "build/drawings/views/structure-l01.svg",
+      "scale": "1:200"
+    }
+  }
+}

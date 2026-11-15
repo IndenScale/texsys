@@ -1,5 +1,5 @@
 schema_version = 1
-manifest_digest = "sha256:81932cd08a0d93dc829c5e2873c3138e98b1792a0b659daa66f30664c85c4765"
+manifest_digest = "sha256:5716945ea57bd793c2507afd1dd3173ef8c28a3d7981329ea87d326939c5c104"
 
 [[packages]]
 name = "hvac-equipment"
@@ -12,10 +12,10 @@ dependencies = ["spatial", "structure"]
 
 [[packages]]
 name = "sheet"
-version = "0.1.0"
+version = "0.2.0"
 source = "path"
 path = "../../packages/sheet"
-digest = "sha256:0e5b3444cc2d7282169ef80d3633d5b0ca6ba666e4cd2e7cf14d545bd430f5ce"
+digest = "sha256:0d1935ea170088f95953fdeda7c4da1ced16d1da65dcf7c2a2bf2f05d813d115"
 direct = true
 dependencies = []
 
@@ -24,7 +24,7 @@ name = "spatial"
 version = "0.1.0"
 source = "path"
 path = "../../packages/spatial"
-digest = "sha256:4e2f16cec10fdc1abd9119e5664a0d0d08f7a29433dc44c162374819f85c4090"
+digest = "sha256:acf7bd01d4091dc6ad3cebd97e27a8ed880e34b15caa9f7f71ade9cf9d6b683f"
 direct = true
 dependencies = []
 

@@ -2,7 +2,7 @@ schema_version = 1
 
 [project]
 name = "datacenter-reference"
-version = "0.1.0"
+version = "0.2.0"
 
 [layout]
 source = "src"
@@ -25,10 +25,18 @@ version = "0.1.0"
 path = "../bom"
 version = "0.1.0"
 
+[dependencies.spatial]
+path = "../spatial"
+version = "0.1.0"
+
+[dependencies.hvac-dynamics]
+path = "../hvac-dynamics"
+version = "0.1.0"
+
 [package]
 kind = "component"
 description = "数据中心参考设计器件/单元库：设备、方舱与构造体族，供下游参考设计装配"
-capabilities = ["models", "geometry", "rules"]
+capabilities = ["models", "geometry", "rules", "drawings"]
 scope = "概念参考设计用脱敏参数与包络几何；参数状态为 assumed，不构成真实设备选型或工程接受依据。"
 include = ["README.md", "tests"]
 tests = ["tests"]

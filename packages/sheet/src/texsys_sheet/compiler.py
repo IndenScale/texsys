@@ -1,7 +1,7 @@
 """Compile independent paper components, content and staged views into SVG.
 
 All sheet coordinates and text heights are millimetres. Source views retain
-their own coordinate systems; fit is explicitly not an engineering scale.
+their own coordinate systems and may declare calibration in meters.
 """
 
 import base64
@@ -19,6 +19,7 @@ SVG = "http://www.w3.org/2000/svg"
 FONT = "Noto Sans CJK SC, PingFang SC, Microsoft YaHei, sans-serif"
 ASSETS = Path(__file__).parent / "assets"
 NAME = re.compile(r"[A-Za-z][A-Za-z0-9_-]*")
+ENGINEERING_SCALE = re.compile(r"1:([1-9][0-9]{0,5})")
 PLACEHOLDER = re.compile(r"\{\{([A-Za-z_][A-Za-z0-9_.-]*)\}\}")
 
 
@@ -177,11 +178,17 @@ class SheetSource:
       path = PurePosixPath(view["path"])
       if not path.is_relative_to(PurePosixPath(self.info.build)) or path.suffix != ".svg":
         raise ValueError(f"{name}: view must reference an SVG build artifact.")
-      if view["scale"] != "fit":
-        raise ValueError(f"{name}: only fit is supported; no engineering scale is inferred.")
+      scale = view["scale"]
+      if not isinstance(scale, str) or (scale != "fit" and not ENGINEERING_SCALE.fullmatch(scale)):
+        raise ValueError(f"{name}: scale must be fit or an explicit 1:N engineering scale.")
     allowed_scales = {"NTS", "示意，不按比例"} if views else {"不适用", "NTS", "示意，不按比例"}
+    scales = {view["scale"] for view in views.values()}
+    if scales - {"fit"}:
+      if len(scales) != 1:
+        raise ValueError("A calibrated sheet needs the same engineering scale on every view.")
+      allowed_scales = scales
     if metadata["scale"] not in allowed_scales:
-      raise ValueError("metadata.scale must declare NTS / 示意，不按比例 (or 不适用 on a text-only sheet).")
+      raise ValueError(f"metadata.scale must be one of: {', '.join(sorted(allowed_scales))}.")
     return {"template": template, "metadata": metadata, "texts": texts, "views": views,
             "source": scope["source"]}
 
@@ -263,6 +270,24 @@ def _svg(data, label):
 
 def _n(value):
   return f"{value:.6f}".rstrip("0").rstrip(".") or "0"
+
+
+def _paper_view_size(data, box, scale):
+  root = ET.fromstring(data)
+  if "width" in root.attrib or "height" in root.attrib:
+    raise ValueError("A calibrated SVG must size its viewport through viewBox alone.")
+  try:
+    units_per_meter = float(root.get("data-units-per-meter", ""))
+  except ValueError:
+    units_per_meter = 0
+  if root.get("data-coordinate-unit") != "m" or not math.isfinite(units_per_meter) or units_per_meter <= 0:
+    raise ValueError("Engineering scale requires a calibrated meter-based SVG.")
+  denominator = int(scale.removeprefix("1:"))
+  paper_mm_per_unit = 1000 / denominator / units_per_meter
+  size = tuple(n * paper_mm_per_unit for n in box[2:])
+  if not all(math.isfinite(n) and n > 0 for n in size):
+    raise ValueError("Invalid calibrated view size.")
+  return size
 
 
 def _element(parent, tag, **attributes):
@@ -394,17 +419,31 @@ def compile_sheet(source, document):
       padding = _number(definition.get("padding_mm", 1), "padding_mm", positive=False)
       if min(width, height) <= 2*padding:
         raise ValueError(f"{identifier}: view has no inner space.")
-      image = _element(group, "image", x=_n(x+padding), y=_n(y+padding), width=_n(width-2*padding), height=_n(height-2*padding))
+      scale = view["scale"]
+      if scale == "fit":
+        image_x, image_y = x + padding, y + padding
+        image_width, image_height = width - 2*padding, height - 2*padding
+      else:
+        image_width, image_height = _paper_view_size(data, viewbox, scale)
+        if image_width > width - 2*padding + 1e-7 or image_height > height - 2*padding + 1e-7:
+          raise ValueError(f"{identifier}: view at {scale} exceeds its paper region.")
+        image_x = x + (width - image_width) / 2
+        image_y = y + (height - image_height) / 2
+      image = _element(group, "image", x=_n(image_x), y=_n(image_y), width=_n(image_width), height=_n(image_height))
       image.set("preserveAspectRatio", "xMidYMid meet")
       image.set("href", "data:image/svg+xml;base64,"+base64.b64encode(data).decode("ascii"))
-      record.update(binding=name, source=view["path"], source_viewbox=list(viewbox), scale_mode="fit", engineering_scale=None)
+      record.update(binding=name, source=view["path"], source_viewbox=list(viewbox),
+                    scale_mode="fit" if scale == "fit" else "calibrated",
+                    engineering_scale=None if scale == "fit" else scale,
+                    image_box_mm=[image_x, image_y, image_width, image_height])
     elements.append(record)
   report = {"schema_version": 1, "deliverable": "sheet", "source": document["source"], "paper_mm": paper,
             "metadata": metadata, "composition": "valid", "engineering_acceptance": "not-evaluated",
             "font": {"family": FONT, "sizing": "fixed-advance-mm", "embedded": False},
             "sources": sorted(source.records.values(), key=lambda item: (item["role"], item["path"])),
             "components": elements,
-            "limits": ["Views use fit, not engineering scale; existing view text scales with the view.",
+            "limits": ["Fit has no engineering scale. Calibrated views honor the declared source units.",
+                       "View text scales with the view; print calibrated sheets at 100%.",
                        "Host font glyphs require visual review; fonts are not embedded.",
                        "Composition checks do not validate engineering prose, signatures or construction readiness.",
                        "Text is UTF-8 plain text with explicit line breaks and metadata fields; no rich text or automatic pagination."]}

@@ -35,7 +35,7 @@ def build_sheet(context):
 
 class SheetPackage(TexsysPackage):
   name = "sheet"
-  version = "0.1.0"
+  version = "0.2.0"
 
   def targets(self):
     return (TargetDefinition("sheet:compose", self.name, self.version, build_sheet,
