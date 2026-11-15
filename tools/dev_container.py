@@ -118,9 +118,10 @@ def running(cli):
 
 
 def check_port():
-  result = run("/usr/sbin/lsof", "-nP", "-iTCP:8710", "-sTCP:LISTEN", capture=True, check=False)
-  if result.returncode != 1 or result.stderr:
-    raise RuntimeError(f"Cannot claim port 8710: {result.stdout or result.stderr}")
+  for port in (8710, 8711):
+    result = run("/usr/sbin/lsof", "-nP", f"-iTCP:{port}", "-sTCP:LISTEN", capture=True, check=False)
+    if result.returncode != 1 or result.stderr:
+      raise RuntimeError(f"Cannot claim port {port}: {result.stdout or result.stderr}")
 
 
 def wait_for_container(cli, stopping):
@@ -188,6 +189,7 @@ def create(cli):
     *cli, "create", "--name", CONTAINER, "--init",
     "--label", f"local.texsys.checkout={ROOT}",
     "--publish", "127.0.0.1:8710:8710",
+    "--publish", "127.0.0.1:8711:8711",
     "--volume", f"{ROOT}:{WORKSPACE}",
     "--volume", "texsys-dev-python:/var/texsys",
     "--volume", f"texsys-dev-node:{WORKSPACE}/node_modules",
