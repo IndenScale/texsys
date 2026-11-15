@@ -2,7 +2,7 @@ schema_version = 1
 
 [project]
 name = "datacenter-reference"
-version = "0.3.1"
+version = "0.4.0"
 
 [layout]
 source = "src"

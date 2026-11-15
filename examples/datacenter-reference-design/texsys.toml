@@ -12,7 +12,7 @@ build = "build"
 default_targets = ["review-package"]
 
 [dependencies]
-datacenter-reference = { path = "../../packages/datacenter-reference", version = "0.3.1" }
+datacenter-reference = { path = "../../packages/datacenter-reference", version = "0.4.0" }
 sheet = { path = "../../packages/sheet", version = "0.2.0" }
 
 [build.targets.review-package]
@@ -21,8 +21,8 @@ output = "build/review/aidc-discipline-review.json"
 dependencies = [
   "dcr:design-checks",
   "dcr:bom",
-  "dcr:fws-hydraulics",
-  "dcr:coordination-model",
+  "dcr:fws-network-study",
+  "dcr:fws-network-coordination",
   "dcr:structure-gravity",
   "dcr:power-study",
   "sheet-parcel",
@@ -38,7 +38,10 @@ dependencies = [
   "sheet-power-one-line-a",
   "sheet-power-one-line-b",
   "sheet-cooling",
-  "sheet-fws",
+  "sheet-fws-network",
+  "sheet-fws-system",
+  "sheet-fws-roof",
+  "sheet-fws-section",
 ]
 
 [build.targets.plan-parcel]
@@ -189,3 +192,47 @@ using = "sheet:compose"
 dependencies = ["plan-power-one-line-b"]
 scope = { source = "assets/sheets/power-one-line-b.sheet.json" }
 output = "build/drawings/sheets/power-one-line-b.svg"
+
+[build.targets.plan-fws-network]
+using = "dcr:fws-network-view"
+output = "build/drawings/views/fws-network.svg"
+scope = { view = "site" }
+
+[build.targets.sheet-fws-network]
+using = "sheet:compose"
+dependencies = ["plan-fws-network"]
+scope = { source = "assets/sheets/fws-network.sheet.json" }
+output = "build/drawings/sheets/fws-network.svg"
+
+[build.targets.plan-fws-system]
+using = "dcr:fws-network-view"
+output = "build/drawings/views/fws-system.svg"
+scope = { view = "schematic" }
+
+[build.targets.sheet-fws-system]
+using = "sheet:compose"
+dependencies = ["plan-fws-system"]
+scope = { source = "assets/sheets/fws-system.sheet.json" }
+output = "build/drawings/sheets/fws-system.svg"
+
+[build.targets.plan-fws-roof]
+using = "dcr:fws-network-view"
+output = "build/drawings/views/fws-roof.svg"
+scope = { view = "roof" }
+
+[build.targets.sheet-fws-roof]
+using = "sheet:compose"
+dependencies = ["plan-fws-roof"]
+scope = { source = "assets/sheets/fws-roof.sheet.json" }
+output = "build/drawings/sheets/fws-roof.svg"
+
+[build.targets.plan-fws-section]
+using = "dcr:fws-network-view"
+output = "build/drawings/views/fws-section.svg"
+scope = { view = "section", terminal = "IT01" }
+
+[build.targets.sheet-fws-section]
+using = "sheet:compose"
+dependencies = ["plan-fws-section"]
+scope = { source = "assets/sheets/fws-section.sheet.json" }
+output = "build/drawings/sheets/fws-section.svg"

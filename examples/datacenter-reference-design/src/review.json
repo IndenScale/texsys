@@ -82,16 +82,24 @@
       "required_artifacts": [
         "build/drawings/sheets/cooling.svg",
         "build/drawings/sheets/cooling-sheet.json",
-        "build/drawings/sheets/fws.svg",
-        "build/drawings/sheets/fws-sheet.json",
-        "build/datacenter-reference/spatial/fws-routing.json",
-        "build/datacenter-reference/spatial/fws-hydraulics.json",
-        "build/scenes/aidc-fws.usda",
-        "build/scenes/aidc-coordinated-detailed.usda",
-        "build/datacenter-reference/spatial/coordination.json"
+        "build/drawings/sheets/fws-network.svg",
+        "build/drawings/sheets/fws-network-sheet.json",
+        "build/drawings/sheets/fws-system.svg",
+        "build/drawings/sheets/fws-system-sheet.json",
+        "build/drawings/sheets/fws-roof.svg",
+        "build/drawings/sheets/fws-roof-sheet.json",
+        "build/drawings/sheets/fws-section.svg",
+        "build/drawings/sheets/fws-section-sheet.json",
+        "build/datacenter-reference/spatial/fws-network.json",
+        "build/datacenter-reference/spatial/fws-network-study.json",
+        "build/datacenter-reference/spatial/fws-network-coordination.json",
+        "build/scenes/aidc-fws-network-coordinated.usda",
+        "build/schedules/aidc-fws-pipes.csv",
+        "build/schedules/aidc-fws-fittings.csv",
+        "build/schedules/aidc-fws-pump-duty.csv"
       ],
       "pending": [
-        "全网配流、泵曲线、厂家换热器压降、支吊架与屋面穿越复核"
+        "实测水泵曲线、冷机与 CDU 压降、共用管段故障、动态切换、支吊架和防火穿越详图"
       ]
     }
   }

@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "template": "sheet:a3-landscape",
+  "metadata": "assets/sheets/fws-roof.title.json",
+  "texts": {
+    "notes": "assets/sheets/fws-roof.txt",
+    "footer": "assets/sheets/footer.txt"
+  },
+  "views": {
+    "main": {
+      "path": "build/drawings/views/fws-roof.svg",
+      "scale": "1:200"
+    }
+  }
+}

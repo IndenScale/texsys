@@ -31,7 +31,8 @@ datacenter-reference 器件/单元库 → structure / architecture / hvac-equipm
 - `src/structure.json`、`structure-loads.json`：钢构件截面、独立基础、作用组合及承载限值。构件坐标由主机房轴网和标高派生。
 - `src/electrical.json`、`electrical-study.json`：A/B 电网边界、故障源、保护时间带及用电工况。单线图展开 SDL 方舱边界，保留每条连接的源标识。
 - `src/wbs.json`：WBS 节点与实例归属。
-- `src/fws-routing.json` 绑定一条冷却方舱至 IT 方舱的 SDL 往返路径，声明集管节点、走向、标高和概算长度。仿真工况和性能条件保存在 `src/fws-hydraulics.json`。
+- `src/fws-network.json` 声明总管坐标、管径、保温、管件及屋面预留，编译到 3 个冷源和 16 个 IT 方舱的全部 38 条 SDL 连接。`src/fws-network-study.json` 声明温差、设备阻力、变频运行范围和候选工况。
+- `src/fws-routing.json`、`src/fws-hydraulics.json` 保留单回路校验夹具。正式审查包消费全网目标。
 - `src/review.json` 声明各专业所需的文件与待审项。`assets/sheets/` 定义图号、比例、图框引用、视图和说明。
 
 ## 设计活动与编译交付
@@ -42,10 +43,10 @@ datacenter-reference 器件/单元库 → structure / architecture / hvac-equipm
 | 轴网划分 | `dcr:grid` 核对轴线并定位，`sheet-grid` 输出轴号和轴间尺寸 | 协调结构跨度、伸缩缝和建筑定位 |
 | 楼层标高、层内分区 | `dcr:levels` 从轴线和标高生成三维分区并检验重叠，`sheet-zoning`、`sheet-architecture-l01` 出图 | 完整围护、围护节点、疏散路径及防火分区 |
 | 结构建模 | `dcr:structure-model` 输出屋面钢梁与柱平面、基础平面、B 轴剖面、构件表及 USD。`dcr:structure-gravity` 编译重力计算书 | 实测地勘、抗风抗震、设备基础、节点与配筋 |
-| 核心机电与方舱布局 | 分区图核对 65 个物理实例，BOM 保留 514 条明细。详模综合场景用实际构件外形检查示例 FWS 与钢架相交 | 实际设备尺寸、检修净距、全网碰撞及安装 |
+| 核心机电与方舱布局 | 分区图核对 65 个物理实例，BOM 保留 514 条明细。设施水整网用保温包络检查相互交叉、设备和钢构件，并核对屋面预留 | 实际设备尺寸、检修净距、支吊架和贯穿详图 |
 | 性能计算与冗余保护 | A/B 单线图、失去一路后的容量证据、88 个三相故障工况与保护表，覆盖市电、单台发电机、UPS 正常及电池状态 | 厂家曲线、接地与单相故障、多源并联、共用辅助负荷互锁和实际切换 |
-| 管道布置 | `dcr:fws-routing` 由已放置端口布置一条 FWS 供回水路径，编译带标高的平面、3D 和中心线提取报告 | 全网、管段规格、分支、穿越、支吊架和管道协调 |
-| 仿真与寄生反注 | `dcr:fws-hydraulics` 消费路由提取的长度和弯头，按 IT 设计负荷重算流量、流速和压降。保存概算值、提取值、单位和路由摘要 | 厂家泵曲线、设备阻力、全网配流及瞬态 |
+| 管道布置 | `dcr:fws-network` 从设备接口生成供回水总管、支管和立管。四张图输出总平面、系统图、屋面预留和局部接驳正视投影 | 共用总管分区隔离、支吊架、阀件及防火封堵 |
+| 仿真与寄生反注 | `dcr:fws-network-study` 按实际管段、孔径及管件核对 1440 kW 液侧负荷。覆盖正常、任一冷源及任一泵停机，并列出共用段隔离的失供范围 | 制造商设备曲线、平衡阀规格、二次侧与动态切换 |
 | 多专业签核 | `review-package` 从本次构建快照生成总图、建筑、结构、机房工艺、电气、暖通审查清单和文件摘要 | 责任人在现有 Git 审查中针对指定修订处置，审查清单保留待核状态 |
 
 ## 重跑
@@ -54,13 +55,13 @@ datacenter-reference 器件/单元库 → structure / architecture / hvac-equipm
 uv run --locked texsys check -p examples/datacenter-reference-design
 uv run --locked texsys lock --check -p examples/datacenter-reference-design
 uv run --locked texsys build -p examples/datacenter-reference-design
-uv run --locked texsys build -p examples/datacenter-reference-design --target sheet-fws
+uv run --locked texsys build -p examples/datacenter-reference-design --target sheet-fws-network
 uv run --locked texsys build -p examples/datacenter-reference-design --target dcr:structure-gravity --target dcr:power-study
 ```
 
-成品图在 `build/drawings/sheets/`，包含 14 张 A3 图及各图的来源报告。平面与剖面按 1:200 或 1:400 原尺寸打印，电气单线图标记 NTS。构件及保护表在 `build/schedules/`，详模综合场景为 `build/scenes/aidc-coordinated-detailed.usda`。专业审查材料在 `build/review/aidc-discipline-review.json`。用 Tex Studio 的文件资源管理器或快速打开读取上述文件。
+成品图在 `build/drawings/sheets/`，包含 17 张 A3 图及各图的来源报告。可校准图纸按标题栏比例原尺寸打印，电气单线图和设施水系统图标记 NTS。构件、保护、管件和泵工况表在 `build/schedules/`，整网详模为 `build/scenes/aidc-fws-network-coordinated.usda`。专业审查材料在 `build/review/aidc-discipline-review.json`。用 Tex Studio 的文件资源管理器或快速打开读取上述文件。
 
-改动 `src/fws-routing.json` 的供水标高后重跑，供水布置和几何提取随之更新，水力计算使用新提取量。若压降预算不足，构建非零退出且审查材料停止更新。查阅当前 `build/build.json` 的目标状态、输入摘要和产物发布记录来识别历史文件。
+改动 `src/fws-network.json` 的供水标高后重跑，安装图、立管长度和压力结果随之更新。必需工况不满足或保温包络相交时构建非零退出，审查材料停止更新。查阅当前 `build/build.json` 的目标状态、输入摘要和产物发布记录。单回路夹具仍可用 `--target dcr:fws-hydraulics` 单独计算。
 
 `design-checks.json` 逐条给出 12 项设计基线的判定和证据。`spatial/power-study.json` 按 A/B 可用路径复算全场工况，其中 UPS 关键负荷 2144 kW，包括存活路的 CDU 和精密空调。计入转换损耗与设施负荷后，单路进线负担约 2770.33 kW。按等效电池能量算得 16.79 min。短路结果保留故障点、实际 SDL 路径、电流范围、分断校核及保护配合。
 
@@ -70,4 +71,4 @@ uv run --locked texsys build -p examples/datacenter-reference-design --target dc
 
 ## 边界
 
-设备使用包络与接口位姿，模型和求解采用合成工程参数。结构计算覆盖屋盖均布重力、梁挠度、柱轴力与基础轴心接触。电气采用放射链、三相金属性短路和假设的时间带。全专业工程接受还需要真实场址、设备资料、全网模型及责任人审查。规范条文摘录的正式适用性由项目专业复核。包测试 `test_standard_basis.py` 在相邻规范工作区存在时逐条校验规则键、条文短引与 A 级阈值。独立检出缺少相邻仓时按条件跳过该校验。
+设备使用包络与接口位姿，模型和求解采用合成工程参数。结构计算覆盖屋盖均布重力、梁挠度、柱轴力与基础轴心接触。电气采用放射链、三相金属性短路和假设的时间带。设施水计算采用闭式准稳态、两台工作冷源均分负荷、末端定流量，使用所声明的泵速与阀压差范围核对可行性。共用干管隔离可使 16 个末端失供，冗余布置与动态恢复仍待设计。全专业工程接受还需要真实场址、设备资料及责任人审查。包测试 `test_standard_basis.py` 在相邻规范工作区存在时逐条校验规则键、条文短引与 A 级阈值。

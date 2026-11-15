@@ -7,9 +7,12 @@ from texsys.targets import Artifact, TargetDefinition, TargetResult
 
 from .bom import project_reference_bom
 from .checks import evaluate_design_checks
-from .coordination import build_coordinated_scene
+from .coordination import build_coordinated_scene, build_fws_network_coordination
 from .electrical import build_power_study, build_power_topology
 from .fws_design import build_hydraulics, build_routes
+from .fws_network import build_network
+from .fws_network_study import build_network_study
+from .fws_network_views import build_network_view
 from .plans import build_plan
 from .power_views import build_power_view
 from .review import build_review_package
@@ -20,7 +23,7 @@ from .structure_views import build_structure_view
 
 class DatacenterReferencePackage(TexsysPackage):
   name = "datacenter-reference"
-  version = "0.3.1"
+  version = "0.4.0"
 
   def targets(self) -> tuple[TargetDefinition, ...]:
     return (
@@ -44,6 +47,16 @@ class DatacenterReferencePackage(TexsysPackage):
                        input_patterns=spatial_inputs("system.sdl.json", "fws-routing.json")),
       TargetDefinition("dcr:fws-hydraulics", self.name, self.version, build_hydraulics,
                        dependencies=("dcr:fws-routing",), input_patterns=spatial_inputs("fws-hydraulics.json")),
+      TargetDefinition("dcr:fws-network", self.name, self.version, build_network, dependencies=("dcr:layout",),
+                       input_patterns=spatial_inputs("system.sdl.json", "fws-network.json")),
+      TargetDefinition("dcr:fws-network-study", self.name, self.version, build_network_study,
+                       dependencies=("dcr:fws-network",),
+                       input_patterns=spatial_inputs("*.sdl.json", "*/module.toml", "design-basis.json",
+                                                     "placement.study.json", "fws-network-study.json")),
+      TargetDefinition("dcr:fws-network-coordination", self.name, self.version, build_fws_network_coordination,
+                       dependencies=("dcr:structure-model", "dcr:fws-network"), input_patterns=()),
+      TargetDefinition("dcr:fws-network-view", self.name, self.version, build_network_view,
+                       dependencies=("dcr:fws-network",), input_patterns=(), named_output=True),
       TargetDefinition("dcr:structure-model", self.name, self.version, build_structure, dependencies=("dcr:layout",),
                        input_patterns=spatial_inputs("structure.json")),
       TargetDefinition("dcr:structure-gravity", self.name, self.version, build_gravity,

@@ -1,0 +1,29 @@
+{
+  "schema_version": 1,
+  "state": "assumed",
+  "basis": "采用闭式准稳态定压差平衡。两个冷源等热负荷，末端按 SDL IT 负荷及液侧占比设定恒流量，泵变频跟随公共压差。二次侧、动态切换和厂家认证另行验证。",
+  "density_kg_m3": 998,
+  "viscosity_pa_s": 0.001,
+  "cp_kj_kg_k": 4.18,
+  "delta_t_k": 10,
+  "liquid_fraction": 0.75,
+  "duty_count": 2,
+  "duty_order": [
+    "CoolContainer1",
+    "CoolContainer2",
+    "CoolContainer3"
+  ],
+  "unavailable_plants": [],
+  "unavailable_pumps": [],
+  "chiller_capacity_factor": 0.95,
+  "pump_shutoff_ratio": 1.22,
+  "pump_efficiency": 0.76,
+  "min_speed_ratio": 0.3,
+  "head_reserve_kpa": 6,
+  "balance_max_valve_drop_kpa": 65,
+  "cdu_loss": {
+    "rated_flow_m3_s": 0.0022,
+    "rated_drop_kpa": 35
+  },
+  "chiller_rated_drop_kpa": 46
+}

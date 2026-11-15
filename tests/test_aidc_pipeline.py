@@ -40,10 +40,6 @@ def _run(root, *targets):
 
 def test_aidc_deliverables_bind_to_the_same_geometry_and_recompute_the_fws_head(tmp_path):
   root = _checkout(tmp_path)
-  path = root / "src/fws-hydraulics.json"
-  inputs = _read(path)
-  inputs["head_available_kpa"] = 54.5  # Tighten the design limit to demonstrate a geometric failure.
-  write_json(path, inputs)
   baseline, _ = _run(root)
   assert baseline.status == "pass", baseline.diagnostics
 
@@ -72,52 +68,82 @@ def test_aidc_deliverables_bind_to_the_same_geometry_and_recompute_the_fws_head(
   assert dossier["evidence_complete"]
   assert dossier["input_digest"] == _read(baseline.report)["input_digest"]
   assert dossier["engineering_acceptance"] == "pending-responsible-review"
-  assert len(list((root / "build/drawings/sheets").glob("*.svg"))) == 14
+  assert len(list((root / "build/drawings/sheets").glob("*.svg"))) == 17
   old_dossier = file_digest(root / "build/review/aidc-discipline-review.json")
-  old_route_drawing = file_digest(root / "build/drawings/sheets/fws.svg")
+  drawing = root / "build/drawings/sheets/fws-network.svg"
+  old_route_drawing = file_digest(drawing)
 
   _check_professional_delivery(root)
-  report = root / MODEL / "fws-hydraulics.json"
+  _check_fws_network_delivery(root)
+  report = root / MODEL / "fws-network-study.json"
   before = _read(report)
-  assert before["terminal_design_it_kw"] == 120
-  assert before["liquid_heat_kw"] == pytest.approx(90)
-  assert before["energy_balance_kw"] == pytest.approx(90)
-  density, diameter, viscosity = inputs["density_kg_m3"], inputs["inside_diameter_m"], inputs["viscosity_pa_s"]
-  speed = before["flow_m3_s"] / (pi * diameter**2 / 4)
-  reynolds = density * speed * diameter / viscosity
-  haaland = (-1.8 * log10((inputs["roughness_m"] / (3.7 * diameter))**1.11 + 6.9 / reynolds))**-2
-  independent_kpa = 20 + (haaland * (46.98857142857143 + 47.23142857142858) / diameter + 14 * 0.9) * (
-    density * speed**2 / 2000
-  )
-  assert before["required_kpa"] == pytest.approx(independent_kpa)
-  original_route = _read(root / "src/fws-routing.json")
-  modified = _read(root / "src/fws-routing.json")
-  modified["legs"]["supply"]["tier_m"] += 2
-  write_json(root / "src/fws-routing.json", modified)
+  path = root / "src/fws-network.json"
+  original = path.read_bytes()
+  modified = _read(path)
+  modified["legs"]["supply"]["tier_m"] -= .45
+  write_json(path, modified)
   rerouted, records = _run(root)
-  assert rerouted.status == "fail"
+  assert rerouted.status == "pass", rerouted.diagnostics
   assert records["dcr:design-checks"]["execution"] == "cached"
   assert records["dcr:layout"]["execution"] == "cached"
   assert records["sheet-it-hall"]["execution"] == "cached"
-  assert records["sheet-fws"]["status"] == "pass"
-  assert records["review-package"]["execution"] == "blocked"
-  assert file_digest(root / "build/drawings/sheets/fws.svg") != old_route_drawing
-  assert file_digest(root / "build/review/aidc-discipline-review.json") == old_dossier
+  assert records["sheet-fws-network"]["execution"] == "executed"
+  assert records["review-package"]["status"] == "pass"
+  assert file_digest(drawing) != old_route_drawing
+  assert file_digest(root / "build/review/aidc-discipline-review.json") != old_dossier
   after = _read(report)
-  assert after["route_evidence"]["digest"] != before["route_evidence"]["digest"]
-  assert after["legs"]["supply"]["extracted_length_m"] - before["legs"]["supply"]["extracted_length_m"] == pytest.approx(4)
-  assert before["head_margin_kpa"] > 0 > after["head_margin_kpa"]
-  assert "AIDC_FWS_HEAD" in rerouted.diagnostics
+  assert after["route_digest"] != before["route_digest"]
+  assert after["cases"]["normal"]["common_header_kpa"] < before["cases"]["normal"]["common_header_kpa"]
 
   # Restore exactly the original source bytes to exercise the original cache key.
-  original = REPO / "examples/datacenter-reference-design/src/fws-routing.json"
-  assert _read(original) == original_route
-  (root / "src/fws-routing.json").write_bytes(original.read_bytes())
+  path.write_bytes(original)
   restored, records = _run(root)
   assert restored.status == "pass", restored.diagnostics
-  assert records["dcr:fws-hydraulics"]["execution"] == "cached"
+  assert records["dcr:fws-network-study"]["execution"] == "cached"
   assert _read(report) == before
   _check_load_failures(root, old_dossier)
+
+
+def _check_fws_network_delivery(root):
+  source = root / MODEL / "fws-network.json"
+  model = _read(source)
+  assert len(model["ports"]["plants"]) == 3
+  assert len(model["ports"]["terminals"]) == 16
+  assert len(model["segments"]) == 122
+  assert len(model["penetrations"]) == 32
+  assert sum(item["length_m"] for item in model["segments"].values()) == pytest.approx(541.06)
+  fig = ET.parse(root / "build/drawings/views/fws-system.svg")
+  links = {item["id"] for role in model["ports"].values() for owner in role.values() for item in owner.values()}
+  symbols = [item.get("data-sdl-link") for item in fig.findall(f".//{SVG}line[@data-sdl-link]")]
+  assert set(symbols) == links and len(symbols) == len(links) == 38
+  roof = ET.parse(root / "build/drawings/views/fws-roof.svg")
+  assert {item.get("data-reservation") for item in roof.findall(f".//{SVG}rect[@data-reservation]")} == (
+    model["penetrations"].keys()
+  )
+
+  report = _read(root / MODEL / "fws-network-study.json")
+  assert report["route_digest"] == file_digest(source)
+  assert len(report["cases"]) == 10
+  expected_total = 1440 / (998 * 4.18 * 10)
+  header, = (key for key, record in model["segments"].items()
+             if record["from"] == model["roots"]["supply"] and record["kind"] == "distribution")
+  pipe = model["segments"][header]
+  spec = pipe["hydraulic_section"]
+  speed = expected_total / (pi*spec["inside_m"]**2/4)
+  reynolds = 998*speed*spec["inside_m"]/.001
+  haaland = (-1.8 * log10((spec["roughness_m"] / (3.7 * spec["inside_m"]))**1.11 + 6.9 / reynolds))**-2
+  expected_kpa = (haaland*pipe["length_m"]/spec["inside_m"] + pipe["minor_k"]) * 998*speed**2/2000
+  for case in report["cases"].values():
+    assert case["status"] == "pass"
+    assert len(case["duty"]) == 2 and len(case["terminals"]) == 16
+    assert case["continuity_max_m3_s"] < 1e-10
+    assert case["pipes"][header]["flow_m3_s"] == pytest.approx(expected_total)
+    assert case["pipes"][header]["loss_kpa"] == pytest.approx(expected_kpa)
+  assert "CoolContainer1" not in report["cases"]["plant-off:CoolContainer1"]["duty"]
+  assert report["cases"]["pump-off:CoolContainer1/Pump1"]["duty"]["CoolContainer1"]["pump"] == "CoolContainer1/Pump2"
+  assert report["distribution_isolation_exposure"][header] == {
+    "terminals": sorted(model["ports"]["terminals"]), "unserved_liquid_kw": 1440.,
+  }
 
 
 def _check_professional_delivery(root):
@@ -136,12 +162,12 @@ def _check_professional_delivery(root):
   assert pad["peak_bearing_kpa"] == pytest.approx((pad["service_column_kn"] + pad["own_weight_kn"]) / 1.7**2)
   drawing = ET.parse(root / "build/drawings/views/structure-section-b.svg")
   assert drawing.find(f".//{SVG}rect[@data-member='P-1-B']") is not None
-  scene = root / "build/scenes/aidc-coordinated-detailed.usda"
+  scene = root / "build/scenes/aidc-fws-network-coordinated.usda"
   assert str(root) not in scene.read_text()
   stage = Usd.Stage.Open(str(scene))
   assert not stage.GetPrimAtPath("/AIDC/Objects/Frame01")
   assert stage.GetPrimAtPath("/AIDC/Structure/C_1_B").GetAttribute("texsys:identity").Get() == "C-1-B"
-  assert stage.GetPrimAtPath("/AIDC/FWS/Supply")
+  assert stage.GetPrimAtPath("/AIDC/FWSNetwork/S_001")
 
   topology = _read(root / MODEL / "power-topology.json")["trains"]
   power = _read(root / MODEL / "power-study.json")["trains"]
@@ -179,7 +205,7 @@ def _check_load_failures(root, old_dossier):
   assert failed.status == "fail"
   for check in ("dcr:structure-gravity", "dcr:power-study"):
     assert records[check]["status"] == "fail"
-  for sheet in ("sheet-structure-l01", "sheet-power-one-line-a", "sheet-fws"):
+  for sheet in ("sheet-structure-l01", "sheet-power-one-line-a", "sheet-fws-network"):
     assert records[sheet]["execution"] == "cached"
   assert records["review-package"]["execution"] == "blocked"
   assert "AIDC_GRAVITY_BENDING" in failed.diagnostics
@@ -189,16 +215,34 @@ def _check_load_failures(root, old_dossier):
 
 def test_aidc_coordination_identifies_a_pipe_overlapping_the_frame(tmp_path):
   root = _checkout(tmp_path)
-  path = root / "src/fws-routing.json"
+  path = root / "src/fws-network.json"
   config = _read(path)
-  config["legs"]["supply"]["port_clearance_m"] = .7
+  config["legs"]["supply"]["outlet_offset_m"] = .7
   write_json(path, config)
-  result, records = _run(root, "dcr:coordination-model", "sheet-fws")
+  result, records = _run(root, "dcr:fws-network-coordination", "sheet-fws-network")
   assert result.status == "fail"
   assert records["dcr:structure-model"]["status"] == "pass"
-  assert records["sheet-fws"]["status"] == "pass"
-  assert "AIDC_FWS_FRAME_CLASH" in result.diagnostics
-  assert "G-1-2-A" in result.diagnostics
+  assert records["sheet-fws-network"]["status"] == "pass"
+  assert "AIDC_FWS_NETWORK_CLASH" in result.diagnostics
+  assert "S-025 envelope intersects G-1-2-B/BottomFlange" in result.diagnostics
+
+
+def test_aidc_fws_cannot_pass_when_two_plants_are_unavailable(tmp_path):
+  root = _checkout(tmp_path)
+  path = root / "src/fws-network-study.json"
+  config = _read(path)
+  config["unavailable_plants"] = ["CoolContainer1", "CoolContainer2"]
+  write_json(path, config)
+  result, records = _run(root, "review-package")
+  assert result.status == "fail"
+  assert records["sheet-fws-network"]["status"] == "pass"
+  assert records["review-package"]["execution"] == "blocked"
+  study = _read(root / MODEL / "fws-network-study.json")
+  normal = study["cases"]["normal"]
+  assert not normal["checks"]["dispatch"]
+  assert list(normal["duty"]) == ["CoolContainer3"]
+  assert not normal["duty"]["CoolContainer3"]["checks"]["cooling-rating"]
+  assert study["cases"]["plant-off:CoolContainer3"]["checks"] == {"dispatch": False}
 
 
 def test_aidc_geometry_rejects_missing_and_clashing_placements(tmp_path):

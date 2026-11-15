@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "template": "sheet:a3-landscape",
+  "metadata": "assets/sheets/fws-network.title.json",
+  "texts": {
+    "notes": "assets/sheets/fws-network.txt",
+    "footer": "assets/sheets/footer.txt"
+  },
+  "views": {
+    "main": {
+      "path": "build/drawings/views/fws-network.svg",
+      "scale": "1:400"
+    }
+  }
+}

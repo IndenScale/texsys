@@ -1,0 +1,63 @@
+{
+  "schema_version": 1,
+  "state": "assumed",
+  "basis": "南向接口接入室外共有双管总管，沿厂房西侧上空分配给 16 个 IT 方舱。坐标延续 AIDC 局部平面，保温按合成方案预留。",
+  "net": "Fws",
+  "terminal_zone": "IT-HALL",
+  "opening_allowance_m": 0.025,
+  "minor_k": {
+    "elbow": 0.9,
+    "tee": 1.8
+  },
+  "pipe_types": {
+    "header": {
+      "inside_m": 0.16,
+      "outside_m": 0.168,
+      "insulation_m": 0.024,
+      "roughness_m": 4.5e-05,
+      "max_velocity_m_s": 2
+    },
+    "spine": {
+      "inside_m": 0.16,
+      "outside_m": 0.168,
+      "insulation_m": 0.024,
+      "roughness_m": 4.5e-05,
+      "max_velocity_m_s": 2
+    },
+    "plant": {
+      "inside_m": 0.12,
+      "outside_m": 0.127,
+      "insulation_m": 0.024,
+      "roughness_m": 4.5e-05,
+      "max_velocity_m_s": 2
+    },
+    "row": {
+      "inside_m": 0.085,
+      "outside_m": 0.089,
+      "insulation_m": 0.02,
+      "roughness_m": 4.5e-05,
+      "max_velocity_m_s": 2
+    },
+    "terminal": {
+      "inside_m": 0.05,
+      "outside_m": 0.06,
+      "insulation_m": 0.015,
+      "roughness_m": 4.5e-05,
+      "max_velocity_m_s": 1.6
+    }
+  },
+  "legs": {
+    "supply": {
+      "spine_x_m": 6.0,
+      "plant_header_y_m": 27.6,
+      "tier_m": 5.8,
+      "outlet_offset_m": 0.55
+    },
+    "return": {
+      "spine_x_m": 6.65,
+      "plant_header_y_m": 28.35,
+      "tier_m": 6.3,
+      "outlet_offset_m": 0.22
+    }
+  }
+}
