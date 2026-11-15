@@ -3,7 +3,7 @@
 - 状态：已接受
 - 日期：2026-11-06
 - 取代：无
-- 被取代：无
+- 被取代：空白工作区部分由 [DDR-0020](0020-studio-empty-workspace-full-shell-and-bare-entry.md) 修订
 
 ## 标题栏
 

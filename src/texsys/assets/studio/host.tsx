@@ -243,6 +243,23 @@ const emptyWorkspaceCommands = new Set([
   "file.openProject",
   "view.sidebar",
   "view.fullscreen",
+  "view.bottom",
+  "view.inspector",
+  "view.statusbar",
+  "view.toggleMaximize",
+  "view.panelPosition",
+  "panel.bottom",
+  "panel.left",
+  "panel.right",
+  "view.problems",
+  "view.terminal",
+  "terminal.new",
+  "tasks.show",
+  "studio.reveal:problems",
+  "studio.reveal:terminal",
+  "workspace.explorer",
+  "workspace.search",
+  "workspace.scm",
 ]);
 
 function Studio({
@@ -953,7 +970,17 @@ function Studio({
     const handler = (event: KeyboardEvent) => {
       if (event.defaultPrevented || event.isComposing || event.keyCode === 229) return;
       if (event.target instanceof Element && event.target.closest('[aria-modal="true"]')) return;
-      if (emptyWorkspace && !((event.metaKey || event.ctrlKey) && event.key === "\\")) return;
+      if (emptyWorkspace) {
+        const shellShortcut =
+          ((event.metaKey || event.ctrlKey) && event.key === "\\") ||
+          (event.ctrlKey && event.key === "`") ||
+          ((macKeys ? event.metaKey : event.ctrlKey) &&
+            event.shiftKey &&
+            event.key.toLowerCase() === "m") ||
+          ((macKeys ? event.metaKey && event.altKey : event.ctrlKey && event.altKey) &&
+            event.key.toLowerCase() === "j");
+        if (!shellShortcut) return;
+      }
       if ((event.metaKey || event.ctrlKey) && event.shiftKey && event.key.toLowerCase() === "p") {
         event.preventDefault();
         openCommands("commands");
@@ -1087,7 +1114,7 @@ function Studio({
           ? t("无版本库")
           : t("分支不可用");
   const dedicatedPickerItems = commandScope === "branches" ? gitPicker.items : editorPickerItems;
-  const showStatusBar = !emptyWorkspace && statusBar.visible;
+  const showStatusBar = statusBar.visible;
   return (
     <div className={`studio-app${showStatusBar ? " has-statusbar" : ""}`}>
       <header
@@ -1165,7 +1192,6 @@ function Studio({
                   <ToolbarButton
                     aria-label={t("切换底部面板")}
                     tooltip={t("显示/隐藏底部面板")}
-                    disabled={emptyWorkspace}
                     aria-pressed={layout.bottomOpen}
                     onClick={() => updateLayout(active, { bottomOpen: !layout.bottomOpen })}
                   >
@@ -1174,7 +1200,6 @@ function Studio({
                   <ToolbarButton
                     aria-label={t("切换属性面板")}
                     tooltip={t("显示/隐藏属性面板")}
-                    disabled={emptyWorkspace}
                     aria-pressed={layout.inspectorOpen}
                     onClick={() => updateLayout(active, { inspectorOpen: !layout.inspectorOpen })}
                   >
@@ -1192,7 +1217,7 @@ function Studio({
         <CommandCenter
           project={state?.project.name ?? t(emptyWorkspace ? "空白工作区" : "打开项目中")}
           showTrigger={!hiddenTitlebarGroups.includes("commandCenter")}
-          disabled={!state}
+          disabled={!state && !emptyWorkspace}
           open={commandOpen}
           focusRequest={commandFocusRequest}
           returnFocus={commandOrigin}
@@ -1314,6 +1339,8 @@ function Studio({
             layout={layout}
             changeLayout={(patch) => updateLayout(active, patch)}
             openProject={() => invokeCommand("file.openProject")}
+            openSettings={() => setSettingsRequest((request) => request + 1)}
+            activityRequest={activityRequest}
             notify={notify}
             onEditorState={setWelcomeEditor}
           />
@@ -1495,7 +1522,6 @@ function Studio({
           }}
           aiMode={aiMode}
           onOpenAi={() => setOpenAiSettingsRequest((request) => request + 1)}
-          onShortcuts={() => invokeCommand("help.shortcuts")}
           onReconnect={() => void refresh()}
           onSourceAction={(action) => setSourceStatusRequest({ action })}
           jobs={state?.jobs.length ?? 0}
@@ -1538,7 +1564,11 @@ export function startStudio(
       throw new Error("Incompatible or duplicate Studio frontend contribution.");
     seen.add(plugin.manifest.id);
   }
-  const emptyWorkspace = new URLSearchParams(window.location.search).get("workspace") === "empty";
+  const requested = new URLSearchParams(window.location.search).get("workspace");
+  const serverDefault = document.querySelector<HTMLMetaElement>(
+    'meta[name="tex-studio-workspace"]',
+  )?.content;
+  const emptyWorkspace = (requested ?? serverDefault) === "empty";
   createRoot(document.getElementById("root")!).render(
     <Studio plugins={plugins} chrome={chrome} emptyWorkspace={emptyWorkspace} />,
   );

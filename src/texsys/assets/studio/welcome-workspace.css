@@ -6,8 +6,45 @@
 }
 
 .welcome-explorer > .core-file-tree {
+  flex: 1;
   min-height: 0;
   overflow: auto;
+}
+
+.welcome-side-sections {
+  margin-top: auto;
+  border-top: 1px solid var(--ui-chrome-border-subtle);
+}
+
+.welcome-side-section + .welcome-side-section {
+  border-top: 1px solid var(--ui-chrome-border-subtle);
+}
+
+.welcome-side-section summary {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  cursor: pointer;
+  list-style: none;
+}
+
+.welcome-side-section summary::-webkit-details-marker {
+  display: none;
+}
+
+.welcome-side-section summary > svg {
+  color: var(--ui-text-muted);
+  transition: transform var(--motion-fast);
+}
+
+.welcome-side-section[open] summary > svg {
+  transform: rotate(90deg);
+}
+
+.welcome-side-section > p {
+  margin: 0;
+  padding: 0 12px 8px 30px;
 }
 
 .welcome-explorer-caption {

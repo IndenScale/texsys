@@ -1,7 +1,11 @@
 import React, { useEffect, useImperativeHandle, useRef, useState } from "react";
-import { WorkbenchLayout } from "./atomstudio/Layout";
+import { ActivityBar, WorkbenchLayout } from "./atomstudio/Layout";
 import { WorkspaceTabStrip } from "./atomstudio/WorkspaceTabs";
+import { WorkbenchBottomPanel } from "./BottomPanel";
+import { coreItems, coreSidebarTitles, isCoreActivity, type Activity } from "./CoreWorkspace";
 import { ExplorerTree } from "./ExplorerTree";
+import { NavigatorMenu, type NavigatorMenuItem } from "./NavigatorMenu";
+import { NavigatorPage, NavigatorPanel } from "./NavigatorPanel";
 import { SourceEditor, type SourceModels } from "./SourceEditor";
 import { t } from "./i18n";
 import { closeDocumentCommand } from "./menus";
@@ -32,12 +36,22 @@ type LocalDocument = {
 };
 const noAction = () => {};
 const welcomeId = "welcome";
+const macKeys = /Mac|iPhone|iPad/.test(navigator.platform);
+const activityEmptyHints: Record<Exclude<Activity, "explorer">, string> = {
+  search: "全文搜索在打开项目后可用。",
+  scm: "源代码管理在打开项目后可用。",
+  extensions: "扩展管理在打开项目后可用。",
+  library: "部件库在打开项目后可用。",
+  instances: "项目实例在打开项目后可用。",
+};
 
 export function WelcomeWorkspace({
   ref,
   layout,
   changeLayout,
   openProject,
+  openSettings,
+  activityRequest,
   notify,
   onEditorState,
 }: {
@@ -45,6 +59,8 @@ export function WelcomeWorkspace({
   layout: StudioLayout;
   changeLayout: (patch: Partial<StudioLayout>) => void;
   openProject: () => void;
+  openSettings: () => void;
+  activityRequest?: { id: "explorer" | "search" | "scm"; token: number; replace?: boolean };
   notify: (message: string, error?: boolean) => void;
   onEditorState: (state: WelcomeEditorState) => void;
 }) {
@@ -67,6 +83,14 @@ export function WelcomeWorkspace({
   const canSave = !!current && (!current.handle || current.value !== current.saved) && !busy;
   const canSaveAs = !!current && !busy;
   const canClose = !!active && !busy;
+  const sidebarActivity = layout.sidebarActivity ?? "explorer";
+  const activity = isCoreActivity(sidebarActivity) ? sidebarActivity : "explorer";
+  const lastActivityRequest = useRef(0);
+  useEffect(() => {
+    if (!activityRequest || activityRequest.token === lastActivityRequest.current) return;
+    lastActivityRequest.current = activityRequest.token;
+    changeLayout({ sidebarOpen: true, sidebarActivity: activityRequest.id });
+  }, [activityRequest, changeLayout]);
 
   useEffect(() => {
     const ownedModels = models.current;
@@ -349,72 +373,156 @@ export function WelcomeWorkspace({
       dirty: doc.value !== doc.saved,
     })),
   ].map((tab) => ({ ...tab, action: { label: t("关闭") + ": " + tab.label, icon: "close" } }));
+  const closeTabs = (ids: string[]) => ids.forEach((id) => close(id));
+  const moreItems: NavigatorMenuItem[] = [
+    { label: t("关闭"), run: canClose ? () => close(active) : undefined },
+    {
+      label: t("关闭其他"),
+      run:
+        tabs.length > 1
+          ? () => closeTabs(tabs.filter((tab) => tab.id !== active).map((tab) => tab.id))
+          : undefined,
+    },
+    {
+      label: t("全部关闭"),
+      run: tabs.length ? () => closeTabs(tabs.map((tab) => tab.id)) : undefined,
+    },
+    {
+      label: t("关闭已保存"),
+      run: documents.some((doc) => doc.value === doc.saved)
+        ? () => closeTabs(documents.filter((doc) => doc.value === doc.saved).map((doc) => doc.id))
+        : undefined,
+    },
+    { label: t("配置编辑器"), separator: true, run: openSettings },
+  ];
+  const activityItems = coreItems.map(({ id, label, icon, shortcutKey }) => ({
+    id,
+    label,
+    icon: <Icon name={icon} size={19} />,
+    shortcut: shortcutKey
+      ? [
+          ...(macKeys ? (id === "explorer" ? ["⇧", "⌘"] : ["⌃", "⇧"]) : ["Ctrl", "Shift"]),
+          shortcutKey,
+        ]
+      : undefined,
+  }));
   return (
     <WorkbenchLayout
       layout={layout}
       change={changeLayout}
       activity={
-        <div className="activity-bar" role="tablist" aria-label={t("资源入口")}>
-          <button
-            role="tab"
-            aria-label={t("文件资源管理器")}
-            aria-controls="studio-resource-panel"
-            aria-selected={layout.sidebarOpen}
-            onClick={() => changeLayout({ sidebarOpen: !layout.sidebarOpen })}
-          >
-            <Icon name="files" size={20} />
-          </button>
-        </div>
+        <ActivityBar
+          active={activity}
+          items={activityItems}
+          select={(id) => changeLayout({ sidebarOpen: true, sidebarActivity: id })}
+          layout={layout}
+          change={changeLayout}
+        />
       }
       sidebar={
-        <div className="welcome-explorer">
-          <div className="core-heading">
-            <strong>{t("文件资源管理器")}</strong>
-          </div>
-          <div className="welcome-explorer-caption">
-            <Icon name="chevron-down" size={14} />
-            <strong>{root?.name ?? t("无打开的文件夹")}</strong>
-          </div>
-          {root ? (
-            tree.length ? (
-              <ExplorerTree
-                entries={tree}
-                expanded={expanded}
-                selected={selected}
-                select={setSelected}
-                toggle={toggle}
-                open={(path) => {
-                  const handle = handles.get(path);
-                  if (handle?.kind === "file") void perform(() => openLocalFile(handle));
-                }}
-              />
-            ) : (
-              <p className="welcome-explorer-note">{t("此文件夹为空。")}</p>
-            )
-          ) : (
-            <p className="welcome-explorer-note">{t("尚未打开文件夹")}</p>
-          )}
-          <div className="welcome-explorer-actions">
-            <button className="core-primary" disabled={busy} onClick={openFolder}>
-              {t("打开文件夹")}
-            </button>
-            <button className="core-primary" onClick={showRecents}>
-              {t("打开最近的文件")}
-            </button>
-          </div>
-        </div>
+        <NavigatorPanel
+          className="core-sidebar"
+          data-activity={activity}
+          title={t(coreSidebarTitles[activity])}
+        >
+          <NavigatorPage hidden={activity !== "explorer"} aria-label={t("文件资源管理器内容")}>
+            <div className="welcome-explorer">
+              <div className="welcome-explorer-caption">
+                <Icon name="chevron-down" size={14} />
+                <strong>{root?.name ?? t("无打开的文件夹")}</strong>
+              </div>
+              {root ? (
+                tree.length ? (
+                  <ExplorerTree
+                    entries={tree}
+                    expanded={expanded}
+                    selected={selected}
+                    select={setSelected}
+                    toggle={toggle}
+                    open={(path) => {
+                      const handle = handles.get(path);
+                      if (handle?.kind === "file") void perform(() => openLocalFile(handle));
+                    }}
+                  />
+                ) : (
+                  <p className="welcome-explorer-note">{t("此文件夹为空。")}</p>
+                )
+              ) : (
+                <p className="welcome-explorer-note">{t("尚未打开文件夹")}</p>
+              )}
+              <div className="welcome-explorer-actions">
+                <button className="core-primary" disabled={busy} onClick={openFolder}>
+                  {t("打开文件夹")}
+                </button>
+                <button className="core-primary" onClick={showRecents}>
+                  {t("打开最近的文件")}
+                </button>
+              </div>
+              <div className="welcome-side-sections">
+                <details className="welcome-side-section">
+                  <summary>
+                    <Icon name="chevron" size={14} />
+                    <span>{t("大纲")}</span>
+                  </summary>
+                  <p className="core-hint">{t("打开文档后可查看大纲。")}</p>
+                </details>
+                <details className="welcome-side-section">
+                  <summary>
+                    <Icon name="chevron" size={14} />
+                    <span>{t("时间线")}</span>
+                  </summary>
+                  <p className="core-hint">{t("打开文件后可查看时间线。")}</p>
+                </details>
+              </div>
+            </div>
+          </NavigatorPage>
+          {(Object.keys(activityEmptyHints) as Exclude<Activity, "explorer">[]).map((id) => (
+            <NavigatorPage key={id} hidden={activity !== id} aria-label={t(coreSidebarTitles[id])}>
+              <div className="core-scm-empty">
+                <Icon name={coreItems.find((item) => item.id === id)?.icon ?? "files"} size={26} />
+                <p>{t(activityEmptyHints[id])}</p>
+                <button className="core-primary" onClick={openProject}>
+                  {t("打开已启动的项目")}
+                </button>
+              </div>
+            </NavigatorPage>
+          ))}
+        </NavigatorPanel>
       }
-      inspector={null}
-      bottom={null}
+      inspector={
+        <NavigatorPanel title={t("属性")}>
+          <p className="core-hint">{t("当前没有可显示的属性。")}</p>
+        </NavigatorPanel>
+      }
+      bottom={
+        <WorkbenchBottomPanel
+          layout={layout}
+          changeLayout={changeLayout}
+          taskPanel={<p className="core-hint">{t("打开项目后可查看任务与日志。")}</p>}
+          dirty={false}
+          notify={notify}
+        />
+      }
     >
       <div className="editor-area editor-area--chrome-tabs-only">
-        <WorkspaceTabStrip
-          className="welcome-tabs"
-          label={t("编辑器标签页")}
-          tabs={tabs}
-          onSelect={setActive}
-          onAction={close}
-        />
+        <div className="core-document-tabs">
+          <div className="core-document-tab-list">
+            <WorkspaceTabStrip
+              className="welcome-tabs"
+              label={t("编辑器标签页")}
+              tabs={tabs}
+              onSelect={setActive}
+              onAction={close}
+            />
+          </div>
+          <div className="core-document-actions" role="group" aria-label={t("文档操作")}>
+            <NavigatorMenu
+              label={t("更多操作")}
+              items={moreItems}
+              triggerClassName="file-editor-more-action"
+            />
+          </div>
+        </div>
         {active === welcomeId ? (
           <div className="welcome-scroll" role="tabpanel" aria-label={t("欢迎")}>
             <div className="welcome-page">

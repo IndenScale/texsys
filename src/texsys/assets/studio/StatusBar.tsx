@@ -18,7 +18,6 @@ const standardItems = [
   { id: "languageStatus", label: "编辑器语言状态" },
   { id: "language", label: "编辑器语言" },
   { id: "ai", label: "AI 状态" },
-  { id: "keyboard", label: "键盘布局" },
   { id: "notifications", label: "通知" },
 ] as const;
 const extensionItems = [
@@ -104,7 +103,6 @@ export function createSourceStatusStore() {
 }
 
 const formatLabel = { utf8: "UTF-8", utf8bom: "UTF-8 BOM" } as const;
-const layoutKeys = ["KeyQ", "KeyW", "KeyE", "KeyR", "KeyT", "KeyY", "KeyZ"];
 
 export function StatusBar({
   preferences,
@@ -123,7 +121,6 @@ export function StatusBar({
   onClearNotices,
   aiMode,
   onOpenAi,
-  onShortcuts,
   onReconnect,
   onSourceAction,
   jobs,
@@ -151,7 +148,6 @@ export function StatusBar({
   onClearNotices: () => void;
   aiMode?: StudioAiSettings["mode"];
   onOpenAi: () => void;
-  onShortcuts: () => void;
   onReconnect: () => void;
   onSourceAction: (action: SourceStatusAction) => void;
   jobs: number;
@@ -176,20 +172,6 @@ export function StatusBar({
   const source = terminalVisible && terminalFocused ? undefined : sourceSnapshot;
   const bar = useRef<HTMLElement>(null);
   const origin = useRef<HTMLElement>(null);
-  const [keyboardLabels, setKeyboardLabels] = useState<string>();
-  const readKeyboardLayout = async () => {
-    try {
-      const keyboard = (
-        navigator as Navigator & {
-          keyboard?: { getLayoutMap: () => Promise<ReadonlyMap<string, string>> };
-        }
-      ).keyboard;
-      const map = await keyboard?.getLayoutMap();
-      setKeyboardLabels(map && layoutKeys.map((key) => map.get(key) ?? "–").join(" · "));
-    } catch {
-      setKeyboardLabels(undefined);
-    }
-  };
   const [point, setPoint] = useState<{ x: number; y: number }>();
   const openMenu = (x: number, target: EventTarget) => {
     origin.current = target instanceof Element ? target.closest("button") : null;
@@ -261,7 +243,7 @@ export function StatusBar({
               {branchContent}
             </span>
           ))}
-        {show("problems") && project && (
+        {show("problems") && (
           <button
             type="button"
             className="statusbar-item statusbar-problems"
@@ -496,23 +478,6 @@ export function StatusBar({
             <Icon name="sparkles" size={14} />
           </button>
         )}
-        {show("keyboard") && (
-          <NavigatorMenu
-            label={t("键盘布局")}
-            direction="up"
-            triggerClassName="statusbar-item statusbar-keyboard"
-            triggerIcon={<Icon name="keyboard" size={14} />}
-            onOpen={() => void readKeyboardLayout()}
-            detail={
-              <span>
-                {keyboardLabels
-                  ? t("浏览器报告的键位：{0}", { "0": keyboardLabels })
-                  : t("浏览器未提供键盘布局。")}
-              </span>
-            }
-            items={[{ label: t("键盘快捷键参考…"), run: onShortcuts }]}
-          />
-        )}
         {show("notifications") && (
           <NavigatorMenu
             label={t("通知")}
@@ -520,7 +485,7 @@ export function StatusBar({
             triggerClassName="statusbar-item statusbar-notifications"
             triggerIcon={
               <>
-                <Icon name="bell" size={14} />
+                <Icon name="bell" size={16} />
                 {notices.length || null}
               </>
             }

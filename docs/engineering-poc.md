@@ -1485,3 +1485,13 @@ GitHub Linux x86_64 的两个数据中心回归由构建报告定位到 `datacen
 本轮以 `f0ba34e` 为基线，工作区干净（仅未跟踪的 `.qoder/` 工具元数据），不制造空提交。按用户要求把常驻开发容器改为默认不打开项目：`texsys studio` 新增 `--empty-workspace`，生产模式与 HMR 模式对无查询参数的入口 `/` 统一 302 到 `/?workspace=empty`；欢迎页「打开已启动的项目」改用显式 `/?workspace=project`，避免被默认重定向拦截。容器 entrypoint 绑定 `examples/datacenter-reference-design` 并启用该开关，默认页面为空白工作区欢迎页，显式操作后才加载工程。此为开发环境入口调整，不扩大物理覆盖或工程结论。
 
 验证：新增两项测试（默认重定向与显式 URL 不受影响、HMR 中间件按需生成），容器内 `tests/test_studio.py` 与 `tests/test_cli.py` 共 26 项通过；容器代理环境变量会拦截回环 `urlopen` 造成既有测试 502，属环境问题，排除回环代理后复跑通过，与本轮改动无关。`rebuild` 后实测 `/` 返回 302、`/?workspace=project` 与 `/?workspace=empty` 返回 200；现有 Chrome 标签页落在「空白工作区 — Tex Studio」欢迎页（启动／最近／演练），点击「打开已启动的项目」加载 datacenter-reference-design，标题栏与文件树显示该项目，`/api/state` 无诊断；容器内 `texsys sync` 同步 6 个依赖包。ESLint 与 Prettier 对改动前端文件通过。AIDC 参考设计的工程判定沿用上一轮记录，本轮未重新构建或接受。
+
+### 2026-11-15：空白工作区裸入口去重定向与完整外壳
+
+本轮以 `49b9e23` 为基线，按用户对上一轮入口的反馈修正两点：默认启动不再带 `?workspace=empty` 后缀；空白工作区补回完整工作台外壳。服务端删除 302 重定向，改为向页面注入 `<meta name="tex-studio-workspace" content="empty">`（生产模式与 HMR 的 index.html 均直接注入），前端按「显式查询参数 ?? 服务端默认声明」解析工作区，裸 `/` 原位渲染空白工作区，`?workspace=project` 与 `?workspace=empty` 仍可显式覆盖。决策与交互边界见 [DDR-0020](ddr/0020-studio-empty-workspace-full-shell-and-bare-entry.md)，修订 DDR-0004 的空白工作区部分；工作台契约同步更新。
+
+空白工作区复用项目工作台的外壳组件：Activity 栏完整六入口（文件资源管理器、搜索、源代码管理、扩展、部件库、项目实例）、状态栏、标题栏布局控件（资源／底部／属性面板开关、面板位置与状态栏开关均可用）、底部面板（问题、任务与日志、终端）、属性面板与编辑器组「更多操作」（关闭／关闭其他／全部关闭／关闭已保存／配置编辑器）。非资源管理器 Activity 显示诚实空态（「…在打开项目后可用。」）并提供「打开已启动的项目」，保留 DDR-0004 非显式操作不加载工程的边界；欢迎页保留启动／最近／演练与「欢迎」标签。
+
+验证：入口测试重写为裸入口与显式参数均 200、meta 按需注入、HMR 不再使用重定向中间件，两项通过；前端 66 项通过；CI tsc、ESLint、Prettier、ruff check 通过。容器 `restart` 后在现有 Chrome 实测：裸 `/` 无重定向无后缀，标题「空白工作区 — Tex Studio」；六 Activity 入口、状态栏与「更多操作」齐备，布局开关均非禁用，底部面板可打开三个标签，侧栏仅当前 Activity 页可见；点击「打开已启动的项目」进入 `/?workspace=project` 并加载 datacenter-reference-design。窗口截图被操作系统屏幕录制权限阻挡，视觉核对以 DOM 断言替代。本轮为开发环境入口与外壳调整，不扩大物理覆盖或工程结论；AIDC 参考设计的工程判定沿用上一轮记录。
+
+同轮按用户对标 vscode.dev 的反馈继续修正，见 [DDR-0021](ddr/0021-studio-statusbar-flush-and-empty-workbench-parity.md)：状态栏可见时工作区底部间隙归零、卡片底角直角，消除浮层观感，隐藏状态栏时恢复原卡片；问题计数在空白工作区常显，点击在两种模式下打开问题视图；移除键盘布局入口与键位弹层（快捷键参考保留在帮助菜单），通知铃铛对齐参照实测 16px；空白工作区顶部命令中心解除禁用，作为全局搜索／命令入口；资源管理器底部补「大纲」「时间线」折叠空态节。修订 DDR-0018 与工作台契约相应表述。

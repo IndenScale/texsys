@@ -174,13 +174,7 @@
 
 @media (max-width: 640px) {
   .studio-statusbar
-    :is(
-      .statusbar-indent,
-      .statusbar-encoding,
-      .statusbar-language-status,
-      .statusbar-ai,
-      .statusbar-keyboard
-    ) {
+    :is(.statusbar-indent, .statusbar-encoding, .statusbar-language-status, .statusbar-ai) {
     display: none;
   }
 }

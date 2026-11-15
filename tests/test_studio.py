@@ -467,7 +467,7 @@ def test_hmr_keeps_consuming_build_output_after_startup(station, monkeypatch, ca
   assert capsys.readouterr().out.count("hmr update") == 10000
 
 
-def test_empty_workspace_redirects_only_the_bare_entry_url(runtime, tmp_path):
+def test_empty_workspace_marks_bare_entry_without_redirect(runtime, tmp_path):
   from http.client import HTTPConnection
 
   frontend = tmp_path / "frontend"
@@ -477,16 +477,13 @@ def test_empty_workspace_redirects_only_the_bare_entry_url(runtime, tmp_path):
   thread.start()
   try:
     connection = HTTPConnection("127.0.0.1", server.server_port)
-    connection.request("GET", "/")
-    response = connection.getresponse()
-    assert response.status == 302
-    assert response.getheader("Location") == "/?workspace=empty"
-    response.read()
-    for query in ("?workspace=empty", "?workspace=project"):
+    for query in ("", "?workspace=empty", "?workspace=project"):
       connection.request("GET", "/" + query)
       response = connection.getresponse()
       assert response.status == 200
-      assert 'name="tex-studio-token"' in response.read().decode()
+      page = response.read().decode()
+      assert 'name="tex-studio-token"' in page
+      assert 'name="tex-studio-workspace" content="empty"' in page
     connection.close()
   finally:
     server.shutdown()
@@ -501,7 +498,9 @@ def test_empty_workspace_redirects_only_the_bare_entry_url(runtime, tmp_path):
     connection.request("GET", "/")
     response = connection.getresponse()
     assert response.status == 200
-    assert 'name="tex-studio-token"' in response.read().decode()
+    page = response.read().decode()
+    assert 'name="tex-studio-token"' in page
+    assert "tex-studio-workspace" not in page
     connection.close()
   finally:
     default.shutdown()
@@ -509,7 +508,7 @@ def test_empty_workspace_redirects_only_the_bare_entry_url(runtime, tmp_path):
     thread.join()
 
 
-def test_hmr_empty_workspace_adds_redirect_middleware(station, monkeypatch, capsys):
+def test_hmr_empty_workspace_injects_default_meta(station, monkeypatch, capsys):
   import io
   from texsys.studio.server import serve_hmr
 
@@ -537,15 +536,15 @@ def test_hmr_empty_workspace_adds_redirect_middleware(station, monkeypatch, caps
       pass
 
   monkeypatch.setattr(subprocess, "Popen", lambda *args, **kwargs: Process())
-  config = station / "build" / "studio" / "hmr" / "vite.config.mjs"
+  hmr = station / "build" / "studio" / "hmr"
+  config = hmr / "vite.config.mjs"
   serve_hmr(station, empty_workspace=True)
   capsys.readouterr()
-  text = config.read_text()
-  assert 'name: "tex-studio-empty-workspace"' in text
-  assert 'res.setHeader("Location", "/?workspace=empty")' in text
-  assert 'name: "tex-studio-token"' in text
-  serve_hmr(station)
-  capsys.readouterr()
+  assert 'name="tex-studio-workspace" content="empty"' in (hmr / "index.html").read_text()
   text = config.read_text()
   assert "tex-studio-empty-workspace" not in text
   assert 'name: "tex-studio-token"' in text
+  serve_hmr(station)
+  capsys.readouterr()
+  assert "tex-studio-workspace" not in (hmr / "index.html").read_text()
+  assert 'name: "tex-studio-token"' in config.read_text()

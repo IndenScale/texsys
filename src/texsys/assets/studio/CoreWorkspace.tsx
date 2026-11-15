@@ -119,8 +119,8 @@ import {
 } from "./editor-groups";
 export type { EditorGroupTab } from "./editor-groups";
 
-type Activity = "explorer" | "search" | "scm" | "extensions" | "library" | "instances";
-function isCoreActivity(id: string): id is Activity {
+export type Activity = "explorer" | "search" | "scm" | "extensions" | "library" | "instances";
+export function isCoreActivity(id: string): id is Activity {
   return coreItems.some((item) => item.id === id);
 }
 type Document = {
@@ -183,7 +183,7 @@ type Core = {
 const CoreContext = createContext<Core | null>(null);
 export const useCoreWorkspace = () => useContext(CoreContext);
 const emptyListing: FileListing = { files: [], directories: [], truncated: false };
-const coreItems: { id: Activity; label: string; icon: string; shortcutKey?: string }[] = [
+export const coreItems: { id: Activity; label: string; icon: string; shortcutKey?: string }[] = [
   { id: "explorer", label: "文件资源管理器", icon: "files", shortcutKey: "E" },
   { id: "search", label: "搜索", icon: "search", shortcutKey: "F" },
   { id: "scm", label: "源代码管理", icon: "branch", shortcutKey: "G" },
@@ -191,7 +191,7 @@ const coreItems: { id: Activity; label: string; icon: string; shortcutKey?: stri
   { id: "library", label: "部件库", icon: "library" },
   { id: "instances", label: "项目实例", icon: "system" },
 ];
-const coreSidebarTitles: Record<Activity, string> = {
+export const coreSidebarTitles: Record<Activity, string> = {
   explorer: "文件资源管理器",
   search: "搜索",
   scm: "源代码管理",
