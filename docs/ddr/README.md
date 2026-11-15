@@ -55,3 +55,4 @@ ddr/NNNN-short-title.md
 | [0020](0020-studio-empty-workspace-full-shell-and-bare-entry.md)         | 空白工作区保留完整外壳，默认入口无重定向                                                    | 已接受 |
 | [0021](0021-studio-statusbar-flush-and-empty-workbench-parity.md)        | 状态栏贴底、问题计数常显、移除键盘布局入口，空白工作区搜索与大纲／时间线                    | 已接受 |
 | [0022](0022-studio-unified-file-visibility-and-welcome-native-picker.md) | 统一文件可见性契约（VS Code files.exclude 默认＋设置覆盖），欢迎页原生选择器对标 vscode.dev | 已接受 |
+| [0023](0023-studio-project-explorer-outline-and-timeline.md)             | 项目模式资源管理器大纲与按文件时间线，标题视图菜单对标参照                                  | 已接受 |

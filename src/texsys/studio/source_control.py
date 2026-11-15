@@ -358,16 +358,26 @@ def source_diff(root: Path, build: str, relative: str, staged=False) -> dict:
           "truncated": len(raw) > MAX_PREVIEW_BYTES}
 
 
-def source_history(root: Path, limit=50) -> dict:
-  """Repository-wide topology; no working tree or index mutations."""
+def _scoped_path(root: Path, relative: str) -> str:
+  candidate = (root / relative).resolve()
+  if not relative or candidate == root or not candidate.is_relative_to(root.resolve()):
+    raise ProjectError("请选择有效的文件路径。")
+  return candidate.relative_to(root.resolve()).as_posix()
+
+
+def source_history(root: Path, limit=50, path=None) -> dict:
+  """Repository-wide topology, or per-file history; no working tree or index mutations."""
   if not isinstance(limit, int) or not 1 <= limit <= 500:
     raise ProjectError("历史条数必须在 1 到 500 之间。")
+  scoped = _scoped_path(root, path) if path else None
   if repository(root) is None:
     return {"commits": [], "truncated": False}
   if not git(root, "rev-parse", "--verify", "HEAD", accepted=(0, 128)):
     return {"commits": [], "truncated": False}
-  raw = git(root, "log", "--all", "HEAD", "--topo-order", f"--max-count={limit + 1}",
-            "--format=%H%x00%P%x00%s%x00%an%x00%aI%x00%D%x00").decode("utf-8", "replace")
+  raw = git(root, "log", *(["--all"] if scoped is None else []), "HEAD", "--topo-order",
+            f"--max-count={limit + 1}",
+            "--format=%H%x00%P%x00%s%x00%an%x00%aI%x00%D%x00",
+            *(["--", scoped] if scoped is not None else [])).decode("utf-8", "replace")
   fields = raw.split("\0")
   commits = []
   for index in range(0, len(fields) - 6, 6):
@@ -377,13 +387,16 @@ def source_history(root: Path, limit=50) -> dict:
   return {"commits": commits[:limit], "truncated": len(commits) > limit}
 
 
-def source_commit_diff(root: Path, commit: str) -> dict:
+def source_commit_diff(root: Path, commit: str, path=None) -> dict:
   if not re.fullmatch(r"[0-9a-f]{40,64}", commit):
     raise ProjectError("请选择有效的提交。")
+  scoped = _scoped_path(root, path) if path else None
   # Historical patches follow the same project scope as working changes.
   raw = git(root, "show", "--format=fuller", "--no-ext-diff", "--no-textconv", "--no-color",
-            "--root", "--first-parent", commit, "--", ".", output_limit=MAX_PREVIEW_BYTES, truncate=True)
-  return {"path": commit[:8], "title": "提交 " + commit[:8] + " · 所选范围差异",
+            "--root", "--first-parent", commit, "--", scoped if scoped is not None else ".",
+            output_limit=MAX_PREVIEW_BYTES, truncate=True)
+  title = "提交 " + commit[:8] + (" · " + scoped if scoped is not None else " · 所选范围差异")
+  return {"path": commit[:8], "title": title,
           "staged": False, "historical": True,
           "content": raw[:MAX_PREVIEW_BYTES].decode("utf-8", "replace") or "此提交未更改当前管理范围内的文件。", "truncated": len(raw) > MAX_PREVIEW_BYTES}
 

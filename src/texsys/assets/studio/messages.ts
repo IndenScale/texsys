@@ -674,6 +674,7 @@ export const englishMessages: Record<string, string> = {
   时间线: "Timeline",
   "打开文档后可查看大纲。": "Open a document to view its outline.",
   "打开文件后可查看时间线。": "Open a file to view its timeline.",
+  "此文件暂无提交历史。": "This file has no commit history yet.",
   跟随光标: "Follow Cursor",
   在输入时筛选: "Filter on Type",
   "排序依据: 位置": "Sort By: Position",

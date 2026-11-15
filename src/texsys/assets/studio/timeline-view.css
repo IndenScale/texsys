@@ -1,0 +1,41 @@
+.timeline-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  height: 22px;
+  padding: 0 8px;
+  text-align: left;
+  font-size: 13px;
+  color: var(--ui-text);
+  cursor: pointer;
+}
+
+.timeline-row:hover {
+  background: var(--ui-control-hover);
+}
+
+.timeline-row:focus-visible {
+  outline: 2px solid #087f72;
+  outline-offset: -1px;
+}
+
+.timeline-icon {
+  flex: none;
+  display: flex;
+  color: var(--ui-text-muted);
+}
+
+.timeline-subject {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.timeline-when {
+  flex: none;
+  color: var(--ui-text-muted);
+  font-size: 11px;
+}

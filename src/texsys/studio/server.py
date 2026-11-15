@@ -309,10 +309,11 @@ def create_server(runtime: StudioRuntime, port=8710, frontend=None, token=None, 
           except ValueError:
             raise ProjectError("历史条数必须是整数。")
           with runtime.lock:
-            self._send(200, source_history(runtime.root, limit))
+            self._send(200, source_history(runtime.root, limit, query.get("path", [None])[0]))
         elif parsed.path == "/api/scm/commit":
+          query = parse_qs(parsed.query)
           with runtime.lock:
-            self._send(200, source_commit_diff(scm_root(parse_qs(parsed.query).get("scope", ["project"])[0]), parse_qs(parsed.query).get("id", [""])[0]))
+            self._send(200, source_commit_diff(scm_root(query.get("scope", ["project"])[0]), query.get("id", [""])[0], query.get("path", [None])[0]))
         elif parsed.path == "/api/scm/diff":
           query = parse_qs(parsed.query)
           with runtime.lock:

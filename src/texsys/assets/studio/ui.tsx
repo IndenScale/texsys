@@ -106,6 +106,12 @@ const paths: Record<string, React.ReactNode> = {
       <path d="M17 3H3v14M14 11v6M11 14h6" />
     </>
   ),
+  history: (
+    <>
+      <path d="M3 12a9 9 0 1 0 2.6-6.4L3 8" />
+      <path d="M3 3v5h5M12 7v5l3 3" />
+    </>
+  ),
   file: (
     <>
       <path d="M14 3H5v18h14V8Z" />

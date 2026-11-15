@@ -10,12 +10,9 @@ import React, {
   useState,
   type ReactNode,
 } from "react";
-import {
-  ActivityBar,
-  activityBarPositionMenuItem,
-  sidebarLayoutMenuItems,
-  WorkbenchLayout,
-} from "./atomstudio/Layout";
+import { ActivityBar, WorkbenchLayout } from "./atomstudio/Layout";
+import { OutlineView } from "./OutlineView";
+import { TimelineView } from "./TimelineView";
 import { Empty, Icon } from "./ui";
 import type {
   FilePreview,
@@ -84,6 +81,7 @@ import { SourceControl } from "./SourceControl";
 import {
   goToSourcePosition,
   supportsSourceLineComments,
+  revealSourceOutline,
   runSourceEditCommand,
   runSourceStatusAction,
   watchSourceProblems,
@@ -468,6 +466,7 @@ export function CoreWorkspaceProvider({
   const groupsRef = useRef(editorGroups);
   groupsRef.current = editorGroups;
   const sourceStatuses = useRef(new Map<string, { path: string; status: SourceEditorStatus }>());
+  const [outlineCursor, setOutlineCursor] = useState<{ line: number; column: number }>();
   const focusedGroupRef = useRef(focusedGroup);
   focusedGroupRef.current = focusedGroup;
   const focusGroup = useCallback((id: string) => {
@@ -695,6 +694,7 @@ export function CoreWorkspaceProvider({
   const formatEditable = !closeDisabled && !busy;
   const publishSourceStatus = useCallback(
     (status?: SourceEditorStatus) => {
+      setOutlineCursor(status ? { line: status.line, column: status.column } : undefined);
       onSourceStatus?.(status && { ...status, format: { encoding, lineEnding }, formatEditable });
     },
     [onSourceStatus, encoding, lineEnding, formatEditable],
@@ -1905,24 +1905,46 @@ export function CoreWorkspaceProvider({
       run: toggleOpenEditors,
     },
     { label: t("文件夹"), checkbox: true, checked: true, reason: requiredFolders },
+    {
+      label: t("大纲"),
+      checkbox: true,
+      checked: layout.explorerOutline !== false,
+      run: () => changeLayout({ explorerOutline: layout.explorerOutline === false }),
+    },
+    {
+      label: t("时间线"),
+      checkbox: true,
+      checked: layout.explorerTimeline !== false,
+      run: () => changeLayout({ explorerTimeline: layout.explorerTimeline === false }),
+    },
   ];
-  const changeExplorerLayout = (patch: Partial<StudioLayout>) => {
-    if (patch.sidebarOpen === false) {
-      const sidebar = workspaceToggleRef.current?.closest(".workbench-navigator");
-      if (document.activeElement === document.body || sidebar?.contains(document.activeElement)) {
-        sidebar
-          ?.closest(".workbench-side")
-          ?.querySelector<HTMLElement>('.activity-bar[tabindex="0"], .activity-bar [tabindex="0"]')
-          ?.focus({ preventScroll: true });
-      }
-    }
-    changeLayout(patch);
-  };
-  const explorerTitleActions: NavigatorMenuItem[] = [
-    ...explorerViewActions,
-    { ...activityBarPositionMenuItem(layout, changeLayout), separator: true },
-    ...sidebarLayoutMenuItems(layout, changeExplorerLayout),
-  ];
+  const explorerTitleActions: NavigatorMenuItem[] = explorerViewActions;
+  const showOutline = layout.explorerOutline !== false;
+  const showTimeline = layout.explorerTimeline !== false;
+  const outlineDocument =
+    active &&
+    !active.design &&
+    !active.extension &&
+    !active.loading &&
+    !active.error &&
+    !active.reason
+      ? { name: active.path.split("/").pop() ?? active.path, value: active.content }
+      : undefined;
+  const timelinePath =
+    active &&
+    !active.untitled &&
+    !active.design &&
+    !active.extension &&
+    !active.loading &&
+    !active.error &&
+    !active.reason
+      ? active.path
+      : undefined;
+  const timelineRepoPath = timelinePath
+    ? gitStatus?.project_prefix
+      ? gitStatus.project_prefix + "/" + timelinePath
+      : timelinePath
+    : undefined;
   const explorerSectionActions = (heading: "workspace" | "editors"): NavigatorMenuItem[] => [
     heading === "workspace"
       ? { label: t("隐藏“文件夹”"), reason: requiredFolders }
@@ -2062,131 +2084,167 @@ export function CoreWorkspaceProvider({
           }
         }}
       >
-        {layout.explorerOpenEditors && (
-          <>
-            <div className="core-open-editors-heading" {...explorerHeadingEvents("editors")}>
-              <button
-                type="button"
-                className="core-open-editors-toggle"
-                aria-expanded={openEditorsExpanded}
-                aria-controls={openEditorsId}
-                onClick={() => setOpenEditorsExpanded(!openEditorsExpanded)}
-              >
-                <span className="core-tree-twistie" aria-hidden="true">
-                  <Icon name="chevron" size={12} expanded={openEditorsExpanded} />
-                </span>
-                <span>{t("打开的编辑器")}</span>
-              </button>
-            </div>
-            <div id={openEditorsId} className="core-open-editors" hidden={!openEditorsExpanded}>
-              {renderOpenedEditors(domainTabs)}
-            </div>
-          </>
-        )}
-        <div className="core-workspace-heading" {...explorerHeadingEvents("workspace")}>
-          <button
-            ref={workspaceToggleRef}
-            className="core-workspace-toggle"
-            aria-expanded={workspaceOpen}
-            aria-controls={workspaceTreeId}
-            onClick={() => setWorkspaceOpen(!workspaceOpen)}
-          >
-            <span className="core-tree-twistie" aria-hidden="true">
-              <Icon name="chevron" size={12} expanded={workspaceOpen} />
-            </span>
-            <span>{t("工作区")}</span>
-          </button>
-          {workspaceOpen && (
-            <NavigatorToolbar
-              className="core-workspace-tools"
-              role="toolbar"
-              aria-label={t("项目文件操作")}
+        <div className="core-explorer">
+          {layout.explorerOpenEditors && (
+            <>
+              <div className="core-open-editors-heading" {...explorerHeadingEvents("editors")}>
+                <button
+                  type="button"
+                  className="core-open-editors-toggle"
+                  aria-expanded={openEditorsExpanded}
+                  aria-controls={openEditorsId}
+                  onClick={() => setOpenEditorsExpanded(!openEditorsExpanded)}
+                >
+                  <span className="core-tree-twistie" aria-hidden="true">
+                    <Icon name="chevron" size={12} expanded={openEditorsExpanded} />
+                  </span>
+                  <span>{t("打开的编辑器")}</span>
+                </button>
+              </div>
+              <div id={openEditorsId} className="core-open-editors" hidden={!openEditorsExpanded}>
+                {renderOpenedEditors(domainTabs)}
+              </div>
+            </>
+          )}
+          <div className="core-workspace-heading" {...explorerHeadingEvents("workspace")}>
+            <button
+              ref={workspaceToggleRef}
+              className="core-workspace-toggle"
+              aria-expanded={workspaceOpen}
+              aria-controls={workspaceTreeId}
+              onClick={() => setWorkspaceOpen(!workspaceOpen)}
             >
-              <Tool
-                label={t("新建文件")}
-                icon="new-file"
-                onClick={() => startCreation("create")}
-                disabled={busy}
-              />
-              <Tool
-                label={t("新建文件夹")}
-                icon="new-folder"
-                onClick={() => startCreation("mkdir")}
-                disabled={busy}
-              />
-              <Tool
-                label={t("刷新资源")}
-                icon="refresh"
-                onClick={() => void reload()}
-                disabled={busy}
-              />
-              <Tool
-                label={t("全部折叠")}
-                icon="collapse"
-                onClick={collapseExplorer}
-                disabled={busy}
-              />
-            </NavigatorToolbar>
-          )}
-        </div>
-        <div id={workspaceTreeId} ref={explorerRef} hidden={!workspaceOpen}>
-          {listingError && (
-            <p className="core-error" role="alert">
-              {listingError}
-            </p>
-          )}
-          {loadingFiles && !listing.files.length && (
-            <p className="core-hint">{t("正在读取文件…")}</p>
-          )}
-          <ExplorerTree
-            entries={tree}
-            root={{
-              name: state.project.name,
-              expanded: rootOpen,
-              toggle: () => setRootOpen(!rootOpen),
-              ref: projectRootRef,
-            }}
-            expanded={expanded}
-            selected={selected}
-            dirtyPaths={
-              new Set(
-                documents
-                  .filter((document) => isDocumentDirty(document))
-                  .map((document) => document.path),
-              )
-            }
-            select={setSelected}
-            toggle={(path) =>
-              setExpanded((previous) => {
-                const next = new Set(previous);
-                if (next.has(path)) next.delete(path);
-                else next.add(path);
-                return next;
-              })
-            }
-            open={(path, keyboard) => {
-              const definition = moduleDirectories.get(path);
-              if (definition) openDesign({ definition }, "model");
-              else void openFile(path, { focus: keyboard });
-            }}
-            contextMenu={(path, x, y) => setExplorerMenu({ path, x, y })}
-            rename={() => startForm("rename")}
-            remove={() => startForm("delete")}
-            creation={creation}
-            creating={creating}
-            changeCreation={(value) =>
-              setCreation((previous) => previous && { ...previous, value, error: undefined })
-            }
-            submitCreation={() => void submitCreation()}
-            cancelCreation={cancelCreation}
-            focusRequest={treeFocusRequest}
-            focusHandled={() => setTreeFocusRequest(undefined)}
-          />
-          {listing.truncated && (
-            <p className="core-hint">{t("文件列表达到上限，部分文件未显示。")}</p>
-          )}
-          {!loadingFiles && !listing.files.length && !listing.directories.length && (
-            <p className="core-hint">{t("项目中尚无文件，可在上方新建。")}</p>
+              <span className="core-tree-twistie" aria-hidden="true">
+                <Icon name="chevron" size={12} expanded={workspaceOpen} />
+              </span>
+              <span>{t("工作区")}</span>
+            </button>
+            {workspaceOpen && (
+              <NavigatorToolbar
+                className="core-workspace-tools"
+                role="toolbar"
+                aria-label={t("项目文件操作")}
+              >
+                <Tool
+                  label={t("新建文件")}
+                  icon="new-file"
+                  onClick={() => startCreation("create")}
+                  disabled={busy}
+                />
+                <Tool
+                  label={t("新建文件夹")}
+                  icon="new-folder"
+                  onClick={() => startCreation("mkdir")}
+                  disabled={busy}
+                />
+                <Tool
+                  label={t("刷新资源")}
+                  icon="refresh"
+                  onClick={() => void reload()}
+                  disabled={busy}
+                />
+                <Tool
+                  label={t("全部折叠")}
+                  icon="collapse"
+                  onClick={collapseExplorer}
+                  disabled={busy}
+                />
+              </NavigatorToolbar>
+            )}
+          </div>
+          <div
+            id={workspaceTreeId}
+            ref={explorerRef}
+            className="core-explorer-tree"
+            hidden={!workspaceOpen}
+          >
+            {listingError && (
+              <p className="core-error" role="alert">
+                {listingError}
+              </p>
+            )}
+            {loadingFiles && !listing.files.length && (
+              <p className="core-hint">{t("正在读取文件…")}</p>
+            )}
+            <ExplorerTree
+              entries={tree}
+              root={{
+                name: state.project.name,
+                expanded: rootOpen,
+                toggle: () => setRootOpen(!rootOpen),
+                ref: projectRootRef,
+              }}
+              expanded={expanded}
+              selected={selected}
+              dirtyPaths={
+                new Set(
+                  documents
+                    .filter((document) => isDocumentDirty(document))
+                    .map((document) => document.path),
+                )
+              }
+              select={setSelected}
+              toggle={(path) =>
+                setExpanded((previous) => {
+                  const next = new Set(previous);
+                  if (next.has(path)) next.delete(path);
+                  else next.add(path);
+                  return next;
+                })
+              }
+              open={(path, keyboard) => {
+                const definition = moduleDirectories.get(path);
+                if (definition) openDesign({ definition }, "model");
+                else void openFile(path, { focus: keyboard });
+              }}
+              contextMenu={(path, x, y) => setExplorerMenu({ path, x, y })}
+              rename={() => startForm("rename")}
+              remove={() => startForm("delete")}
+              creation={creation}
+              creating={creating}
+              changeCreation={(value) =>
+                setCreation((previous) => previous && { ...previous, value, error: undefined })
+              }
+              submitCreation={() => void submitCreation()}
+              cancelCreation={cancelCreation}
+              focusRequest={treeFocusRequest}
+              focusHandled={() => setTreeFocusRequest(undefined)}
+            />
+            {listing.truncated && (
+              <p className="core-hint">{t("文件列表达到上限，部分文件未显示。")}</p>
+            )}
+            {!loadingFiles && !listing.files.length && !listing.directories.length && (
+              <p className="core-hint">{t("项目中尚无文件，可在上方新建。")}</p>
+            )}
+          </div>
+          {(showOutline || showTimeline) && (
+            <div className="welcome-side-sections">
+              {showOutline && (
+                <OutlineView
+                  document={outlineDocument}
+                  cursor={outlineCursor}
+                  onNavigate={(range) => {
+                    if (active) revealSourceOutline(active.path, sourceModels, range);
+                  }}
+                />
+              )}
+              {showTimeline && (
+                <TimelineView
+                  path={timelineRepoPath}
+                  api={api}
+                  token={gitStatus}
+                  onOpen={(id) =>
+                    void openScmDiff(
+                      `/api/scm/commit?${new URLSearchParams({
+                        id,
+                        scope: gitScope,
+                        ...(timelineRepoPath ? { path: timelineRepoPath } : {}),
+                      })}`,
+                    )
+                  }
+                />
+              )}
+            </div>
           )}
         </div>
       </NavigatorPage>

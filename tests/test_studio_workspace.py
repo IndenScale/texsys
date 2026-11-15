@@ -554,3 +554,25 @@ def test_scm_api_repository_scope_is_explicit_and_cannot_choose_arbitrary_root(r
     server.server_close()
     thread.join()
     runtime.close()
+
+
+def test_history_and_commit_diff_scoped_to_file(repo):
+  from texsys.studio.source_control import source_history, source_commit_diff
+  (repo / "a.txt").write_text("one")
+  (repo / "b.txt").write_text("one")
+  git(repo, "add", "a.txt", "b.txt")
+  git(repo, "commit", "-m", "both")
+  (repo / "a.txt").write_text("two")
+  git(repo, "add", "a.txt")
+  git(repo, "commit", "-m", "a only")
+  history = source_history(repo, path="a.txt")
+  assert [c["subject"] for c in history["commits"]] == ["a only", "both"]
+  assert source_history(repo, path="b.txt")["commits"][0]["subject"] == "both"
+  head = history["commits"][0]
+  diff = source_commit_diff(repo, head["id"], path="a.txt")
+  assert "a.txt" in diff["content"] and "b.txt" not in diff["content"]
+  assert "a.txt" in diff["title"]
+  with pytest.raises(ProjectError):
+    source_history(repo, path="../outside")
+  with pytest.raises(ProjectError):
+    source_commit_diff(repo, head["id"], path="/etc/passwd")

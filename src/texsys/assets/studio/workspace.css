@@ -255,6 +255,17 @@
 .core-file-tree {
   padding: 0 0 10px;
 }
+.core-explorer {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+.core-explorer-tree {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
 .core-tree-row {
   position: relative;
   display: flex;

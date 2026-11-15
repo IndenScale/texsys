@@ -378,6 +378,7 @@ test("Explorer headings manage views while the project tree keeps its own contex
     "./SourceEditor": {
       supportsSourceLineComments: () => false,
       watchSourceProblems: () => () => {},
+      revealSourceOutline: () => {},
     },
     "./MarkdownEditor": {},
     "./extension-snippets": { useExtensionSnippets: () => {} },
@@ -415,6 +416,8 @@ test("Explorer headings manage views while the project tree keeps its own contex
       instance_tags: {},
     },
     "/api/scm?scope=project": { available: false, reason: "Fixture", entries: [] },
+    "/api/scm/history?limit=50&path=README.md": { commits: [], truncated: false },
+    "/api/scm/history?limit=50&path=texsys.toml": { commits: [], truncated: false },
     "/api/file?path=README.md": { path: "README.md", content: "# Fixture", version: "1" },
     "/api/file?path=texsys.toml": { path: "texsys.toml", content: "", version: "1" },
   };
@@ -482,7 +485,9 @@ test("Explorer headings manage views while the project tree keeps its own contex
   assert.equal(workspace.getAttribute("aria-expanded"), "true");
 
   await context(title.querySelector("strong"));
-  assert.ok(item("活动栏位置"));
+  assert.ok(item("大纲"));
+  assert.ok(item("时间线"));
+  assert.equal(item("活动栏位置"), undefined);
   assert.equal(item("隐藏“文件夹”"), undefined);
   const titleItems = menuItems().map((button) => button.textContent);
   await dismiss();
@@ -501,6 +506,22 @@ test("Explorer headings manage views while the project tree keeps its own contex
   await context(row(""));
   assert.ok(item("新建文件…"));
   assert.equal(item("打开的编辑器"), undefined);
+  await dismiss();
+
+  assert.ok(document.querySelector(".welcome-outline-section"));
+  const timelineSection = document.querySelector(".welcome-timeline-section");
+  assert.ok(timelineSection);
+  await act(async () => {});
+  assert.match(timelineSection.textContent, /此文件暂无提交历史。/);
+  await click(trigger);
+  await click(item("大纲"));
+  assert.equal(document.querySelector(".welcome-outline-section"), null);
+  await click(item("大纲"));
+  assert.ok(document.querySelector(".welcome-outline-section"));
+  await click(item("时间线"));
+  assert.equal(document.querySelector(".welcome-timeline-section"), null);
+  await click(item("时间线"));
+  assert.ok(document.querySelector(".welcome-timeline-section"));
   await dismiss();
 
   assert.equal(row("drawings"), null);

@@ -36,5 +36,6 @@
 - 视图可见性写入布局偏好（`explorerFolders`／`explorerOutline`／`explorerTimeline`，空白工作区以 `welcome` 键保存），重载后恢复，与项目模式「打开的编辑器」的持久化路径一致。
 - 文件操作回到既有入口：欢迎页启动／最近分区、菜单栏与命令面板（file.untitled／file.open／file.openFolder／file.recent）以及工作区分区工具栏；工具栏新增「新建文本文件」图标，对齐参照文件夹工具栏的新建位置，刷新资源与全部折叠保留。
 - 菜单展开方向遵循 DDR-0002；隐藏视图不关闭文档、不清空文件夹展开状态，恢复后原样呈现。
+- 项目模式标题菜单仅列视图项（打开的编辑器／文件夹／大纲／时间线），布局操作保留在活动栏菜单；项目模式大纲与时间线见 [DDR-0023](0023-studio-project-explorer-outline-and-timeline.md)，修订本文标题菜单兼列布局操作的表述。
 
 验证：`node --test tools/test_navigator_menu.mjs` 9 项（新增欢迎视图菜单行为测试：隐藏／恢复三个分区、欢迎页与工具栏文件操作入口）、其余前端套件 108 项通过；CI 参数 tsc、ESLint、Prettier、markdownlint 通过。既有 Chrome 的 8710 标签页 DOM 实测：标题菜单仅列文件夹／大纲／时间线三个视图复选项；隐藏大纲后分区移除、`texsys.studio.layout:welcome` 写入 `explorerOutline:false`，重载后保持隐藏，重新勾选恢复且勾选态同步。
