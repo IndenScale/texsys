@@ -107,6 +107,15 @@ export function readLayoutPreferences(project: string, defaults: StudioLayout): 
                   ...(typeof layout.explorerOpenEditors === "boolean" && {
                     explorerOpenEditors: layout.explorerOpenEditors,
                   }),
+                  ...(typeof layout.explorerFolders === "boolean" && {
+                    explorerFolders: layout.explorerFolders,
+                  }),
+                  ...(typeof layout.explorerOutline === "boolean" && {
+                    explorerOutline: layout.explorerOutline,
+                  }),
+                  ...(typeof layout.explorerTimeline === "boolean" && {
+                    explorerTimeline: layout.explorerTimeline,
+                  }),
                   ...(layout.activityBarPosition === "side" ||
                   layout.activityBarPosition === "top" ||
                   layout.activityBarPosition === "bottom"

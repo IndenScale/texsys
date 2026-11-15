@@ -13,6 +13,9 @@ export type StudioLayout = {
   sidebarActivity?: string;
   sidebarPosition?: "left" | "right";
   explorerOpenEditors?: boolean;
+  explorerFolders?: boolean;
+  explorerOutline?: boolean;
+  explorerTimeline?: boolean;
   activityBarPosition?: "side" | "top" | "bottom";
   activityBarSize?: "default" | "compact";
   hiddenActivities?: string[];

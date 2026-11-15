@@ -422,13 +422,28 @@ export function WelcomeWorkspace({
     },
     { label: t("配置编辑器"), separator: true, run: openSettings },
   ];
-  const explorerMoreItems: NavigatorMenuItem[] = [
-    { label: t("新建文本文件"), run: newFile },
-    { label: t("打开文件…"), run: openFile },
-    { label: t("打开文件夹"), run: openFolder },
-    { label: t("打开最近的文件"), run: showRecents },
-    { label: t("刷新资源"), separator: true, run: root && !busy ? refreshFolder : undefined },
-    { label: t("全部折叠"), run: root && !busy ? collapseExplorer : undefined },
+  const showFolders = layout.explorerFolders !== false;
+  const showOutline = layout.explorerOutline !== false;
+  const showTimeline = layout.explorerTimeline !== false;
+  const explorerViewItems: NavigatorMenuItem[] = [
+    {
+      label: t("文件夹"),
+      checkbox: true,
+      checked: showFolders,
+      run: () => changeLayout({ explorerFolders: !showFolders }),
+    },
+    {
+      label: t("大纲"),
+      checkbox: true,
+      checked: showOutline,
+      run: () => changeLayout({ explorerOutline: !showOutline }),
+    },
+    {
+      label: t("时间线"),
+      checkbox: true,
+      checked: showTimeline,
+      run: () => changeLayout({ explorerTimeline: !showTimeline }),
+    },
   ];
   const activityItems = coreItems.map(({ id, label, icon, shortcutKey }) => ({
     id,
@@ -461,100 +476,122 @@ export function WelcomeWorkspace({
           title={t(coreSidebarTitles[activity])}
           actions={
             activity === "explorer" ? (
-              <NavigatorMenu label={t("资源管理器更多操作")} items={explorerMoreItems} />
+              <NavigatorMenu label={t("资源管理器更多操作")} items={explorerViewItems} />
             ) : undefined
           }
         >
           <NavigatorPage hidden={activity !== "explorer"} aria-label={t("资源管理器内容")}>
             <div className="welcome-explorer">
-              <div className="core-workspace-heading">
-                <button
-                  className="core-workspace-toggle"
-                  aria-expanded={workspaceOpen}
-                  onClick={() => setWorkspaceOpen(!workspaceOpen)}
-                >
-                  <span className="core-tree-twistie" aria-hidden="true">
-                    <Icon name="chevron" size={12} expanded={workspaceOpen} />
-                  </span>
-                  <span>{root ? t("工作区") : t("无打开的文件夹")}</span>
-                </button>
-                {workspaceOpen && root && (
-                  <NavigatorToolbar
-                    className="core-workspace-tools"
-                    role="toolbar"
-                    aria-label={t("项目文件操作")}
-                  >
-                    <NavigatorButton
-                      label={t("刷新资源")}
-                      icon="refresh"
-                      disabled={busy}
-                      onClick={refreshFolder}
-                    />
-                    <NavigatorButton
-                      label={t("全部折叠")}
-                      icon="collapse"
-                      disabled={busy}
-                      onClick={collapseExplorer}
-                    />
-                  </NavigatorToolbar>
-                )}
-              </div>
-              {workspaceOpen &&
-                (root ? (
-                  tree.length ? (
-                    <ExplorerTree
-                      entries={tree}
-                      root={{
-                        name: root.name,
-                        expanded: rootOpen,
-                        toggle: () => setRootOpen(!rootOpen),
+              {showFolders && (
+                <>
+                  <div className="core-workspace-heading">
+                    <button
+                      className="core-workspace-toggle"
+                      aria-expanded={workspaceOpen}
+                      onClick={() => setWorkspaceOpen(!workspaceOpen)}
+                    >
+                      <span className="core-tree-twistie" aria-hidden="true">
+                        <Icon name="chevron" size={12} expanded={workspaceOpen} />
+                      </span>
+                      <span>{root ? t("工作区") : t("无打开的文件夹")}</span>
+                    </button>
+                    {workspaceOpen && root && (
+                      <NavigatorToolbar
+                        className="core-workspace-tools"
+                        role="toolbar"
+                        aria-label={t("项目文件操作")}
+                      >
+                        <NavigatorButton
+                          label={t("新建文本文件")}
+                          icon="new-file"
+                          disabled={busy}
+                          onClick={newFile}
+                        />
+                        <NavigatorButton
+                          label={t("刷新资源")}
+                          icon="refresh"
+                          disabled={busy}
+                          onClick={refreshFolder}
+                        />
+                        <NavigatorButton
+                          label={t("全部折叠")}
+                          icon="collapse"
+                          disabled={busy}
+                          onClick={collapseExplorer}
+                        />
+                      </NavigatorToolbar>
+                    )}
+                  </div>
+                  {workspaceOpen &&
+                    (root ? (
+                      tree.length ? (
+                        <ExplorerTree
+                          entries={tree}
+                          root={{
+                            name: root.name,
+                            expanded: rootOpen,
+                            toggle: () => setRootOpen(!rootOpen),
+                          }}
+                          expanded={expanded}
+                          selected={selected}
+                          select={setSelected}
+                          toggle={toggle}
+                          open={(path) => {
+                            const handle = handles.get(path);
+                            if (handle?.kind === "file") void perform(() => openLocalFile(handle));
+                          }}
+                        />
+                      ) : (
+                        <p className="welcome-explorer-note">{t("此文件夹为空。")}</p>
+                      )
+                    ) : (
+                      <>
+                        <p className="welcome-explorer-note">{t("尚未打开文件夹")}</p>
+                        <div className="welcome-explorer-actions">
+                          <button className="core-primary" disabled={busy} onClick={openFolder}>
+                            {t("打开文件夹")}
+                          </button>
+                          <button className="core-primary" onClick={showRecents}>
+                            {t("打开最近的文件")}
+                          </button>
+                        </div>
+                      </>
+                    ))}
+                </>
+              )}
+              {(showOutline || showTimeline) && (
+                <div className="welcome-side-sections">
+                  {showOutline && (
+                    <OutlineView
+                      document={
+                        current && active !== welcomeId
+                          ? { name: current.name, value: current.value }
+                          : undefined
+                      }
+                      cursor={cursor}
+                      onNavigate={(range) => {
+                        if (current)
+                          revealSourceOutline(
+                            current.id + "/" + current.name,
+                            models.current,
+                            range,
+                          );
                       }}
-                      expanded={expanded}
-                      selected={selected}
-                      select={setSelected}
-                      toggle={toggle}
-                      open={(path) => {
-                        const handle = handles.get(path);
-                        if (handle?.kind === "file") void perform(() => openLocalFile(handle));
-                      }}
                     />
-                  ) : (
-                    <p className="welcome-explorer-note">{t("此文件夹为空。")}</p>
-                  )
-                ) : (
-                  <>
-                    <p className="welcome-explorer-note">{t("尚未打开文件夹")}</p>
-                    <div className="welcome-explorer-actions">
-                      <button className="core-primary" disabled={busy} onClick={openFolder}>
-                        {t("打开文件夹")}
-                      </button>
-                      <button className="core-primary" onClick={showRecents}>
-                        {t("打开最近的文件")}
-                      </button>
-                    </div>
-                  </>
-                ))}
-              <div className="welcome-side-sections">
-                <OutlineView
-                  document={
-                    current && active !== welcomeId
-                      ? { name: current.name, value: current.value }
-                      : undefined
-                  }
-                  cursor={cursor}
-                  onNavigate={(range) => {
-                    if (current)
-                      revealSourceOutline(current.id + "/" + current.name, models.current, range);
-                  }}
-                />
-                <details className="welcome-side-section">
-                  <summary>
-                    <Icon name="chevron" size={14} />
-                    <span>{t("时间线")}</span>
-                  </summary>
-                  <p className="core-hint">{t("打开文件后可查看时间线。")}</p>
-                </details>
-              </div>
+                  )}
+                  {showTimeline && (
+                    <details className="welcome-side-section welcome-timeline-section">
+                      <summary>
+                        <Icon name="chevron" size={14} />
+                        <span>{t("时间线")}</span>
+                      </summary>
+                      <div className="timeline-body">
+                        <p className="core-hint">{t("打开文件后可查看时间线。")}</p>
+                      </div>
+                    </details>
+                  )}
+                </div>
+              )}
             </div>
           </NavigatorPage>
           {(Object.keys(activityEmptyHints) as Exclude<Activity, "explorer">[]).map((id) => (

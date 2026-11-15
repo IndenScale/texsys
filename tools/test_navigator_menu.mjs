@@ -512,3 +512,127 @@ test("Explorer headings manage views while the project tree keeps its own contex
   await act(async () => root.render(React.createElement(Fixture, { buildRevision: "new-build" })));
   assert.ok(row("drawings"));
 });
+
+test("welcome explorer title menu manages view visibility like the reference", async (t) => {
+  const { WelcomeWorkspace } = loadStudioModule("WelcomeWorkspace.tsx", {
+    "./atomstudio/Layout": {
+      ActivityBar: () => null,
+      WorkbenchLayout: ({ sidebar, children }) =>
+        React.createElement("div", null, sidebar, children),
+    },
+    "./atomstudio/WorkspaceTabs": {
+      WorkspaceTabStrip: ({ tabs }) =>
+        React.createElement(
+          "div",
+          { className: "mock-tabs" },
+          tabs.map((tab) => React.createElement("span", { key: tab.id }, tab.label)),
+        ),
+    },
+    "./BottomPanel": { WorkbenchBottomPanel: () => null },
+    "./CoreWorkspace": {
+      coreItems: [{ id: "explorer", label: "资源管理器", icon: "files" }],
+      coreSidebarTitles: {
+        explorer: "资源管理器",
+        search: "搜索",
+        scm: "源代码管理",
+        extensions: "扩展",
+        library: "部件库",
+        instances: "项目实例",
+      },
+      isCoreActivity: (id) => id === "explorer",
+    },
+    "./SourceEditor": { SourceEditor: () => null, revealSourceOutline: () => {} },
+    "./welcome-files": {
+      readLocalRecents: async () => [],
+      rememberLocalEntry: async () => [],
+      forgetLocalEntry: async () => [],
+      listLocalFolder: async () => [],
+      readLocalText: async () => "",
+      requestFileAccess: async () => true,
+      localPickers: { showDirectoryPicker: async () => ({ kind: "directory", name: "fixture" }) },
+    },
+    "./file-excludes": {
+      compileExcludes: () => () => false,
+      readWorkspaceExcludes: async () => () => false,
+    },
+  });
+  const defaults = {
+    sidebarOpen: true,
+    inspectorOpen: false,
+    bottomOpen: false,
+    bottomTab: "terminal",
+    sidebarWidth: 320,
+    inspectorWidth: 320,
+    bottomHeight: 240,
+  };
+  function Fixture() {
+    const [layout, setLayout] = React.useState(defaults);
+    return React.createElement(WelcomeWorkspace, {
+      layout,
+      changeLayout: (patch) => setLayout((current) => ({ ...current, ...patch })),
+      openProject: () => {},
+      openSettings: () => {},
+      notify: () => {},
+      onEditorState: () => {},
+    });
+  }
+  document.body.innerHTML = '<div id="app"></div>';
+  const root = createRoot(document.getElementById("app"));
+  t.after(async () => {
+    await act(async () => root.unmount());
+    popovers.clear();
+  });
+  await act(async () => root.render(React.createElement(Fixture)));
+
+  const trigger = document.querySelector('.core-sidebar [aria-label="资源管理器更多操作"]');
+  await click(trigger);
+  const menu = [...popovers].find((m) => m.getAttribute("aria-label") === "资源管理器更多操作");
+  const items = () => [...menu.querySelectorAll(":scope > button")];
+  assert.deepEqual(
+    items().map((button) => button.textContent.trim()),
+    ["文件夹", "大纲", "时间线"],
+  );
+  assert.ok(
+    items().every(
+      (button) =>
+        button.getAttribute("role") === "menuitemcheckbox" &&
+        button.getAttribute("aria-checked") === "true",
+    ),
+  );
+  const outline = () => document.querySelector(".welcome-outline-section");
+  const timeline = () =>
+    [...document.querySelectorAll(".welcome-side-section")].find((node) =>
+      node.textContent.includes("时间线"),
+    );
+  const heading = () => document.querySelector(".core-workspace-heading");
+
+  await click(items()[1]);
+  assert.equal(outline(), null);
+  assert.equal(items()[1].getAttribute("aria-checked"), "false");
+  await click(items()[2]);
+  assert.equal(document.querySelector(".welcome-side-sections"), null);
+  await click(items()[0]);
+  assert.equal(heading(), null);
+  await click(items()[0]);
+  await click(items()[1]);
+  await click(items()[2]);
+  assert.ok(heading() && outline() && timeline());
+  await key(document.activeElement, "Escape");
+  assert.equal(menu.matches(":popover-open"), false);
+
+  const welcomeNew = [...document.querySelectorAll(".welcome-page button")].find((button) =>
+    button.textContent.includes("新建文本文件"),
+  );
+  assert.ok(welcomeNew);
+  await click(welcomeNew);
+  assert.ok(
+    [...document.querySelectorAll(".mock-tabs span")].some((span) =>
+      span.textContent.includes("未命名-1.txt"),
+    ),
+  );
+  const openFolderButton = [...document.querySelectorAll(".welcome-explorer-actions button")].find(
+    (button) => button.textContent.trim() === "打开文件夹",
+  );
+  await click(openFolderButton);
+  assert.ok(document.querySelector('.core-workspace-tools [aria-label="新建文本文件"]'));
+});

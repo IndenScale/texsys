@@ -439,11 +439,11 @@ function Studio({
     [],
   );
   const [defaultLayout] = useState(initialLayout);
-  const [workbench, setWorkbench] = useState<LayoutPreferences & { project: string }>({
-    project: "",
-    discipline: "",
-    layouts: {},
-  });
+  const [workbench, setWorkbench] = useState<LayoutPreferences & { project: string }>(() =>
+    emptyWorkspace
+      ? { project: "", ...readLayoutPreferences("welcome", initialLayout()) }
+      : { project: "", discipline: "", layouts: {} },
+  );
   const { discipline: active, layouts, project } = workbench;
   const setActive = (discipline: string) =>
     setWorkbench((previous) => ({ ...previous, discipline }));
@@ -493,7 +493,8 @@ function Studio({
   }, [defaultLayout, emptyWorkspace]);
   useEffect(() => {
     if (project) writeLayoutPreferences(project, { discipline: active, layouts });
-  }, [project, active, layouts]);
+    else if (emptyWorkspace) writeLayoutPreferences("welcome", { discipline: active, layouts });
+  }, [project, emptyWorkspace, active, layouts]);
   useEffect(() => {
     let iconLink = document.querySelector<HTMLLinkElement>('link[rel~="icon"]');
     if (!iconLink) {
