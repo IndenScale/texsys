@@ -1878,14 +1878,14 @@ test("markdown outline nests headings, skips fences and spans sections", () => {
   ].join("\n");
   const symbols = outlineForDocument("markdown", text);
   assert.equal(symbols.length, 1);
-  assert.equal(symbols[0].name, "Title");
+  assert.equal(symbols[0].name, "# Title");
   assert.deepEqual(
     symbols[0].children.map((node) => node.name),
-    ["A", "B"],
+    ["## A", "## B"],
   );
   assert.deepEqual(
     symbols[0].children[0].children.map((node) => node.name),
-    ["A1"],
+    ["### A1"],
   );
   const hit = outlineSymbolAt(symbols, 12, 1);
   assert.equal(hit.id, symbols[0].children[0].children[0].id);
@@ -1991,9 +1991,9 @@ test("outline view renders symbols, navigates, collapses and filters on type", a
   await view();
   const rows = () => Array.from(container.querySelectorAll('[role="treeitem"]'));
   const names = () => rows().map((row) => row.querySelector(".outline-name").textContent);
-  assert.deepEqual(names(), ["Title", "A"]);
+  assert.deepEqual(names(), ["# Title", "## A"]);
   await view({ cursor: { line: 5, column: 1 } });
-  assert.equal(container.querySelector(".outline-row.selected .outline-name").textContent, "A");
+  assert.equal(container.querySelector(".outline-row.selected .outline-name").textContent, "## A");
   await act(async () => rows()[1].click());
   assert.deepEqual(navigated.at(-1), {
     startLine: 3,
@@ -2002,7 +2002,7 @@ test("outline view renders symbols, navigates, collapses and filters on type", a
     endColumn: 5,
   });
   await act(async () => rows()[0].querySelector(".outline-twistie button").click());
-  assert.deepEqual(names(), ["Title"]);
+  assert.deepEqual(names(), ["# Title"]);
   await act(async () => rows()[0].querySelector(".outline-twistie button").click());
   await act(async () => rows()[0].focus());
   await act(async () =>
@@ -2018,7 +2018,7 @@ test("outline view renders symbols, navigates, collapses and filters on type", a
   );
   const filter = container.querySelector(".outline-filter");
   assert.equal(filter.value, "T");
-  assert.deepEqual(names(), ["Title"]);
+  assert.deepEqual(names(), ["# Title"]);
   await act(async () =>
     filter.dispatchEvent(new window.KeyboardEvent("keydown", { key: "Escape", bubbles: true })),
   );

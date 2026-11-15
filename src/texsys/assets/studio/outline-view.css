@@ -1,8 +1,20 @@
+.welcome-outline-section summary {
+  height: 28px;
+  padding: 0 8px;
+  font-size: 11px;
+}
+
 .welcome-outline-section summary .outline-actions {
   margin-left: auto;
   display: flex;
   align-items: center;
   gap: 2px;
+  visibility: hidden;
+}
+
+.welcome-outline-section:hover .outline-actions,
+.welcome-outline-section:focus-within .outline-actions {
+  visibility: visible;
 }
 
 .outline-body {
@@ -23,11 +35,11 @@
   display: flex;
   align-items: center;
   height: 22px;
-  padding-left: calc(6px + var(--outline-depth) * 8px);
+  padding-left: calc(8px + var(--outline-depth) * 16px);
   padding-right: 8px;
   cursor: pointer;
   color: var(--ui-text);
-  font-size: 12px;
+  font-size: 13px;
 }
 
 .outline-row:hover {
@@ -47,8 +59,8 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  flex: 0 0 16px;
-  width: 16px;
+  flex: 0 0 22px;
+  width: 22px;
   color: var(--ui-text-muted);
 }
 
@@ -67,12 +79,12 @@
 }
 
 .outline-symbol {
-  flex: 0 0 16px;
-  width: 16px;
+  flex: 0 0 22px;
+  width: 22px;
   font-family: codicon;
-  font-size: 14px;
+  font-size: 16px;
   line-height: 1;
-  text-align: center;
+  text-align: left;
   color: var(--ui-icon-muted);
 }
 

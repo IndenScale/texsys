@@ -59,7 +59,7 @@ function markdownOutline(text: string): OutlineSymbol[] {
     if (atx) {
       headings.push({
         level: atx[1].length,
-        name: (atx[2] ?? "").replace(/[ \t]+#+[ \t]*$/, "").trim(),
+        name: line.trim(),
         line: index + 1,
       });
       paragraph = "";

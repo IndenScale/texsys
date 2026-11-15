@@ -302,7 +302,7 @@ export function OutlineView({
                           toggle(node.id);
                         }}
                       >
-                        <Icon name="chevron" size={12} />
+                        <Icon name="chevron" size={16} />
                       </button>
                     )}
                   </span>

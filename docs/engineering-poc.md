@@ -1527,3 +1527,9 @@ GitHub Linux x86_64 的两个数据中心回归由构建报告定位到 `datacen
 本轮以 `b14bc44` 为基线。按用户提供的 vscode.dev 参照（README.md 标题大纲、package.json 符号大纲与大纲更多菜单），欢迎工作区资源管理器「大纲」节由占位空态改为真实视图：新增 `outline-model.ts`（Markdown ATX/setext 标题树、跳过代码围栏；JSON/JSONC 容错符号树，含行列范围、值预览与数组索引；位置／名称／类别排序、输入筛选、光标命中）与 `OutlineView.tsx`（codicon 符号字形、点击定位不抢焦点、跟随光标、在输入时筛选、排序菜单、全部折叠、键盘导航、诚实空态），语言检测下沉 `workspace-model.ts` 供编辑器与大纲共用，`SourceEditor` 增加大纲定位导出。DDR-0005 新增「文件资源管理器 - 大纲」章节，DDR-0021、工作台契约与 DDR 索引同步修订。工作区仅有知识中心生成的未跟踪 `.qoder/`，非实现变更，保留不入库。
 
 验证：CI 参数 tsc、ESLint、Prettier、typography 通过；`test_studio_ui.mjs` 71 项（含新增大纲模型与组件测试）、其余前端套件 38 项通过。既有 Chrome 8710 标签页 DOM 实测：AGENTS.md 标题树嵌套、event.json kind 图标与值预览、点击「工程能力包」居中第 46 行并跟随高亮、名称排序、键入筛选与 Escape、全部折叠、不支持语言空态、codicon 字体加载均符合参照。排查确认编辑器空白系 Chrome 后台标签节流 rAF 所致，激活标签页即恢复，与代码无关。本轮为工作台能力补齐，不扩大物理覆盖或工程结论；AIDC 参考设计的工程判定沿用上一轮记录。
+
+### 2026-11-15：大纲密度对标修正，Panel Actions 仅悬停显示
+
+本轮以 `3e93497` 为基线。按用户反馈与 vscode.dev 同屏实测修正大纲信息密度：行字号 12→13 px、每层缩进 8→16 px、twistie 与符号槽 16→22 px（符号字号 16 px）、节标题行 28 px／字号 11 px，名称起点深度 0/1 实测 52/68 px 与参照逐像素一致；Markdown 符号名保留 `#`／`##` 标题标记（参照一致）。全部折叠与更多菜单默认隐藏，仅悬停该节或键盘焦点进入时显示（参照实测 Actions 默认 `display: none`）。DDR-0005 大纲章节同步修订。
+
+验证：tsc、ESLint、Prettier、typography 通过；71 项前端测试通过（名称断言同步带标记）。既有 Chrome 8710 标签页复测：行高 22、字号 13、缩进 52→68、标题行 28/11 与参照测量值一致；Actions 默认 hidden、焦点进入 visible、失焦恢复 hidden。本轮为工作台视觉与交互对标，不扩大物理覆盖或工程结论；AIDC 参考设计的工程判定沿用上一轮记录。
