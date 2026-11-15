@@ -12,7 +12,7 @@ build = "build"
 default_targets = ["review-package"]
 
 [dependencies]
-datacenter-reference = { path = "../../packages/datacenter-reference", version = "0.4.0" }
+datacenter-reference = { path = "../../packages/datacenter-reference", version = "0.5.0" }
 sheet = { path = "../../packages/sheet", version = "0.2.0" }
 
 [build.targets.review-package]
@@ -42,6 +42,7 @@ dependencies = [
   "sheet-fws-system",
   "sheet-fws-roof",
   "sheet-fws-section",
+  "sheet-fws-isolation",
 ]
 
 [build.targets.plan-parcel]
@@ -236,3 +237,14 @@ using = "sheet:compose"
 dependencies = ["plan-fws-section"]
 scope = { source = "assets/sheets/fws-section.sheet.json" }
 output = "build/drawings/sheets/fws-section.svg"
+
+[build.targets.plan-fws-isolation]
+using = "dcr:fws-network-view"
+output = "build/drawings/views/fws-isolation.svg"
+scope = { view = "isolation" }
+
+[build.targets.sheet-fws-isolation]
+using = "sheet:compose"
+dependencies = ["plan-fws-isolation"]
+scope = { source = "assets/sheets/fws-isolation.sheet.json" }
+output = "build/drawings/sheets/fws-isolation.svg"

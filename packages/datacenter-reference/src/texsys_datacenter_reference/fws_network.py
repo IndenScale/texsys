@@ -1,4 +1,4 @@
-"""Compile and quantify the SDL-bound common-header facility water network."""
+"""Compile and quantify the SDL-bound facility water mains and branches."""
 
 from collections import defaultdict
 import csv
@@ -83,19 +83,21 @@ def _compile_leg(leg, cfg, ports, pipes, fittings_k):
     nodes[key] = point
     return key
 
-  def connect(inner, outer, kind, size):
+  def connect(inner, outer, kind, size, *, closing=False):
     a, b = nodes[inner], nodes[outer]
     axis = [i for i, (x, y) in enumerate(zip(a, b, strict=True)) if not math.isclose(x, y, abs_tol=1e-9)]
-    if len(axis) != 1 or outer in parents:
-      raise ValueError(f"{inner} to {outer}: each pipe must be a straight nonzero leg in an acyclic routed tree.")
+    if len(axis) != 1 or (outer in parents and not closing):
+      raise ValueError(f"{inner} to {outer}: require a straight nonzero pipe with a unique routing parent.")
     identity = f"{prefix}-{len(segments) + 1:03}"
-    parents[outer] = (inner, identity)
-    first, last = (inner, outer) if (kind == "distribution") == (leg == "supply") else (outer, inner)
+    if kind != "bypass":
+      parents[outer] = (inner, identity)
+    first, last = (inner, outer) if (kind != "plant") == (leg == "supply") else (outer, inner)
     segments[identity] = {"leg": leg, "kind": kind, "type": size, "from": first, "to": last, "inner": inner,
                           "outer": outer, "points_m": [nodes[first], nodes[last]], "axis": axis[0],
                           "length_m": math.dist(a, b), "hydraulic_section": pipes[size]}
     incidence[inner].append(identity)
     incidence[outer].append(identity)
+    return identity
 
   root = at("HEADER", (spine, station, tier))
   bindings = {}
@@ -113,6 +115,7 @@ def _compile_leg(leg, cfg, ports, pipes, fittings_k):
     connect(foot, bound, "plant", "plant")
     bindings[name] = bound
     last = tap
+  far_plant = last
 
   rows = defaultdict(list)
   for name, record in ports["terminals"].items():
@@ -135,6 +138,17 @@ def _compile_leg(leg, cfg, ports, pipes, fittings_k):
       connect(elbow, port, "distribution", "terminal")
       takeoff = tap
       bindings[name] = port
+
+  bypass = []
+  if "bypass" in cfg:
+    route = cfg["bypass"]
+    east = number(route["east_x_m"], "bypass east coordinate")
+    south = number(route["south_y_m"], "bypass south coordinate")
+    if east <= max(x for x, _, _ in nodes.values()) or south >= nodes[last][1]:
+      raise ValueError(f"{leg}: route the bypass beyond the outlet and plant extents and south of the final row.")
+    corners = [far_plant, at("BYPASS-NE", (east, station, tier)), at("BYPASS-SE", (east, south, tier)),
+               at("BYPASS-SW", (spine, south, tier)), last]
+    bypass = [connect(a, b, "bypass", "spine", closing=b == last) for a, b in zip(corners, corners[1:])]
 
   fittings = {}
   for node, attached in incidence.items():
@@ -159,7 +173,35 @@ def _compile_leg(leg, cfg, ports, pipes, fittings_k):
     return list(reversed(result))
 
   return {"nodes": nodes, "segments": segments, "fittings": fittings, "root": root, "bindings": bindings,
-          "paths": {name: path(bound) for name, bound in bindings.items()}}
+          "paths": {name: path(bound) for name, bound in bindings.items()}, "bypass": bypass}
+
+
+def _isolation(segments, config):
+  inset = number(config["end_inset_m"], "isolation valve setback")
+  length = number(config["body_length_m"], "isolation valve body length")
+  clearance = number(config["body_envelope_factor"], "isolation valve envelope multiplier")
+  loss = number(config["open_minor_k"], "open isolation valve loss coefficient", zero=True)
+  if inset <= length/2 or clearance < 1:
+    raise ValueError("Keep the isolation valve body inside the protected pipe and declare its full envelope.")
+  valves = {}
+  for key, pipe in segments.items():
+    if pipe["type"] not in {"header", "spine"}:
+      continue
+    span = pipe["length_m"]
+    if span <= 2*inset + length:
+      raise ValueError(f"{key}: the two isolation valves need distinct installation space.")
+    a, b = pipe["points_m"]
+    axis = next(i for i in range(3) if a[i] != b[i])
+    ids = [f"IV-{key}-A", f"IV-{key}-B"]
+    for index, tag in enumerate(ids):
+      start, stop = (a, b) if index == 0 else (b, a)
+      point = [x + (y-x)*inset/span for x, y in zip(start, stop, strict=True)]
+      diameter = pipe["hydraulic_section"]["envelope_m"] * clearance
+      valves[tag] = {"segment": key, "point_m": point, "normally_open": True, "minor_k": loss,
+                     "size_m": [length if i == axis else diameter for i in range(3)]}
+    pipe["valves"] = ids
+    pipe["minor_k"] += 2*loss
+  return valves
 
 
 def pipe_envelope(record):
@@ -169,7 +211,7 @@ def pipe_envelope(record):
                tuple(max(x, y) + (radius if x == y else 0) for x, y in zip(a, b, strict=True)))
 
 
-def add_network_geometry(stage, segments):
+def add_network_geometry(stage, segments, valves):
   for identity, record in segments.items():
     space = pipe_envelope(record)
     pipe = UsdGeom.Cube.Define(stage, "/AIDC/FWSNetwork/" + identity.replace("-", "_"))
@@ -179,6 +221,13 @@ def add_network_geometry(stage, segments):
     color = (0.16, 0.48, 0.78) if record["leg"] == "supply" else (0.75, 0.29, 0.18)
     pipe.CreateDisplayColorAttr([Gf.Vec3f(*color)])
     pipe.GetPrim().CreateAttribute("texsys:identity", Sdf.ValueTypeNames.String).Set(identity)
+  for identity, record in valves.items():
+    valve = UsdGeom.Cube.Define(stage, "/AIDC/FWSIsolation/" + identity.replace("-", "_"))
+    valve.CreateSizeAttr(1)
+    valve.AddTranslateOp().Set(Gf.Vec3d(*record["point_m"]))
+    valve.AddScaleOp(UsdGeom.XformOp.PrecisionDouble).Set(Gf.Vec3d(*record["size_m"]))
+    valve.CreateDisplayColorAttr([Gf.Vec3f(.26, .25, .23)])
+    valve.GetPrim().CreateAttribute("texsys:identity", Sdf.ValueTypeNames.String).Set(identity)
 
 
 def _takeoff(context, data):
@@ -200,6 +249,9 @@ def _takeoff(context, data):
     table.writerow(("id", "kind", "x_m", "y_m", "z_m", "local_k", "adjoining_segments", "envelope_mm"))
     for key, record in sorted(data["fittings"].items()):
       table.writerow((key, record["kind"], *record["point_m"], record["k"], " ".join(record["segments"]), ""))
+    for key, record in sorted(data["valves"].items()):
+      table.writerow((key, "normally-open-isolation-valve", *record["point_m"], record["minor_k"], record["segment"],
+                      round(max(record["size_m"])*1000, 2)))
     for key, record in sorted(data["penetrations"].items()):
       table.writerow((key, "roof-opening-reservation", *record["point_m"], "", record["segment"],
                       round(record["square_width_m"]*1000, 2)))
@@ -226,12 +278,17 @@ def build_network(context):
   nodes = {name: point for leg in legs.values() for name, point in leg["nodes"].items()}
   paths = {role: {item: {leg: legs[leg]["paths"][item] for leg in LEGS} for item in entries}
            for role, entries in ports.items()}
+  bypass = {leg: data["bypass"] for leg, data in legs.items()}
   reverse = defaultdict(list)
   for role, entries in paths.items():
     for item, routes in entries.items():
       for leg, route in routes.items():
         for record in route:
           reverse[record].append(ports[role][item][leg]["id"])
+  for leg, alternate in bypass.items():
+    for key in alternate:
+      reverse[key] = [owner[leg]["id"] for entries in ports.values() for owner in entries.values()]
+  valves = _isolation(segments, config["isolation_valves"]) if "isolation_valves" in config else {}
   xmin, ymin, xmax, ymax = site["boundary_m"]
   for key, segment in segments.items():
     segment["sdl_links"] = sorted(reverse[key])
@@ -264,6 +321,7 @@ def build_network(context):
         raise ValueError(f"{terminal} {leg} is missing an approach through the declared roof datum.")
   data = {"state": "assumed", "basis": config["basis"], "frame": layout["frame"], "nodes": nodes,
           "segments": segments, "fittings": fittings, "penetrations": penetrations, "ports": ports, "paths": paths,
+          "valves": valves, "bypass": bypass,
           "roots": {leg: item["root"] for leg, item in legs.items()}, "terminal_zone": terminal_zone}
   result = model_report(context, "fws-network", data)
   return TargetResult(result.status, (*result.artifacts, *_takeoff(context, data)), result.diagnostics)

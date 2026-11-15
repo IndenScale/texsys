@@ -17,6 +17,7 @@ _WATER_STYLE = """
 .sleeve-return{fill:white;stroke:#8a3e2d;stroke-width:.065}
 .outline{fill:#e9eef1;stroke:#334855;stroke-width:.09}
 .datum{fill:none;stroke:#465864;stroke-width:.065;stroke-dasharray:.4 .2}
+.valve{fill:white;stroke:#253845;stroke-width:.08}
 """
 
 
@@ -45,17 +46,21 @@ def _extent(row):
   return x, y, xmax, ymax
 
 
-def _overlay(context, model, *, roof):
+def _overlay(context, model, view):
   site = staged_json(context, f"{MODELS}/site.json")
   layout = staged_json(context, f"{MODELS}/layout.json")
   levels = staged_json(context, f"{MODELS}/levels.json")
   grid = staged_json(context, f"{MODELS}/grid.json")
   room = _extent(levels["zones"][model["terminal_zone"]])
-  bounds = room if roof else site["boundary_m"]
-  title = "屋面设施水预留" if roof else "设施水总平面"
+  isolated = view == "isolation"
+  roof = view == "roof"
+  points = [point for pipe in model["segments"].values() for point in pipe["points_m"]]
+  xs, ys, _ = zip(*points, strict=True)
+  bounds = (min(xs), min(ys), max(xs), max(ys)+3) if isolated else (room if roof else site["boundary_m"])
+  title = {"roof": "屋面设施水预留", "site": "设施水总平面", "isolation": "设施水环路分段隔离"}[view]
   svg = _calibrated(bounds, title, padding=(6, 8, 5, 5))
   svg.set("data-frame", site["frame"])
-  if not roof:
+  if view == "site":
     _rect(svg, site["boundary_m"], "boundary")
     _rect(svg, site["buildable_m"], "setback")
   _rect(svg, room, "zone")
@@ -78,11 +83,37 @@ def _overlay(context, model, *, roof):
       _rect(svg, (x, y, xmax, ymax), "outline", data_instance=name)
       _text(svg, (x+xmax)/2, (y+ymax)/2, name, .60)
     for key, record in model["segments"].items():
-      _pipe_line(svg, key, record)
-    for leg, root in model["roots"].items():
-      x, y, z = model["nodes"][root]
-      _text(svg, x+.25, y - .44 if leg == "supply" else y + .54, f"{leg[0].upper()} +{z:.2f} m", .67, "start")
+      if not isolated or record.get("valves"):
+        line = _pipe_line(svg, key, record)
+        if record["kind"] == "bypass":
+          line.set("data-bypass", record["leg"])
+    if isolated:
+      _isolation_tags(svg, model)
+    else:
+      for leg, root in model["roots"].items():
+        x, y, z = model["nodes"][root]
+        _text(svg, x+.25, y - .44 if leg == "supply" else y + .54, f"{leg[0].upper()} +{z:.2f} m", .67, "start")
   return svg
+
+
+def _isolation_tags(svg, model):
+  for identity, valve in model["valves"].items():
+    x, y, _ = valve["point_m"]
+    marker = _add(svg, "path", d=f"M{x-.22:g},{-y:g} l.22,-.22 .22,.22 -.22,.22 z", data_valve=identity,
+                  **{"class": "valve"})
+    SubElement(marker, "title").text = f"{identity} · 常开"
+  for key, pipe in model["segments"].items():
+    if not pipe.get("valves"):
+      continue
+    a, b = pipe["points_m"]
+    x, y = (a[0]+b[0])/2, (a[1]+b[1])/2
+    sign = -1 if pipe["leg"] == "supply" else 1
+    if a[0] == b[0]:
+      x += sign*.42
+      _text(svg, x, y+.12, key, .50, "end" if sign < 0 else "start")
+    else:
+      side = -sign if pipe["kind"] == "bypass" and key == model["bypass"][pipe["leg"]][-2] else sign
+      _text(svg, x, y + (.44 if side > 0 else -.76), key, .50)
 
 
 def _section(context, model, terminal):
@@ -134,14 +165,15 @@ def _label(root, x, y, label, size=4):
 
 def _schematic(model):
   svg = Element("svg", {"xmlns": "http://www.w3.org/2000/svg", "viewBox": "0 0 309 215"})
-  SubElement(svg, "title").text = "设施水共有总管系统图"
+  SubElement(svg, "title").text = "设施水供回水环路系统图"
   SubElement(svg, "style").text = """
 text{font-family:Arial,'PingFang SC',sans-serif;fill:#203441}
 .s{stroke:#155478;fill:none;stroke-width:1}
 .r{stroke:#913c2b;fill:none;stroke-width:1;stroke-dasharray:2.7 1.5}
 .equipment{stroke:#34444f;fill:#f4f7f8;stroke-width:.75}
+.dot-s{fill:#155478}.dot-r{fill:#913c2b}
 """
-  _label(svg, 154.5, 12, "三冷源共用设施水总管系统", 6.8)
+  _label(svg, 154.5, 12, "设施水供回水系统", 6.8)
 
   def equipment(name, x, y, w, height):
     _add(svg, "rect", x=x-w/2, y=y-height/2, width=w, height=height,
@@ -168,25 +200,35 @@ text{font-family:Arial,'PingFang SC',sans-serif;fill:#203441}
     raise ValueError("This A3 schematic may show up to 3 plants and four rows of four terminals.")
   for i, (name, records) in enumerate(plants):
     x = 61 + i*92
-    equipment(name, x, 32, 68, 15)
-    pipe(records["supply"], x-6, 39.5, 58, "supply", from_equipment=True)
-    pipe(records["return"], x+6, 39.5, 67, "return", from_equipment=True)
-  _add(svg, "line", x1=9, y1=58, x2=300, y2=58, **{"class": "s"})
-  _add(svg, "line", x1=9, y1=67, x2=300, y2=67, **{"class": "r"})
-  for col, names in enumerate(sorted(rows.values(), key=min)):
-    x = 42.5 + 75*col
-    for offset, cls in ((-27, "s"), (27, "r")):
-      _add(svg, "line", x1=x+offset, y1=58 if cls == "s" else 67,
-           x2=x+offset, y2=104+22*(len(names)-1), **{"class": cls})
-    for row, name in enumerate(sorted(names)):
+    equipment(name, x, 31, 68, 15)
+    pipe(records["supply"], x-6, 38.5, 53, "supply", from_equipment=True)
+    pipe(records["return"], x+6, 38.5, 62, "return", from_equipment=True)
+    for station, height, cls in ((x-6, 53, "s"), (x+6, 62, "r")):
+      _add(svg, "circle", cx=station, cy=height, r=1.25, **{"class": "dot-" + cls})
+
+  sorted_rows = sorted(rows.values(), key=min, reverse=True)
+  bottom = 86+28*(len(sorted_rows)-1)
+  for leg, cls, west, east, top, offset in (("supply", "s", 10, 299, 53, -8), ("return", "r", 21, 289, 62, 8)):
+    end = bottom+offset
+    closure = end+19
+    _add(svg, "path", d=f"M{west},{end} V{top} H{east}", **{"class": cls})
+    if model["bypass"][leg]:
+      _add(svg, "path", d=f"M{east},{top} V{closure} H{west} V{end}",
+           data_bypass=leg, **{"class": cls})
+  for row, names in enumerate(sorted_rows):
+    y = 86 + 28*row
+    for x, offset, tail, cls in ((10, -8, -6, "s"), (21, 8, 6, "r")):
+      _add(svg, "line", x1=x, y1=y+offset, x2=57+65*(len(names)-1)+tail, y2=y+offset, **{"class": cls})
+      _add(svg, "circle", cx=x, cy=y+offset, r=1.2, **{"class": "dot-" + cls})
+    for col, name in enumerate(sorted(names)):
       records = model["ports"]["terminals"][name]
-      y = 104 + 22*row
-      equipment(name, x, y, 35, 11)
-      for leg, start, stop in (("supply", x-27, x-17.5), ("return", x+17.5, x+27)):
-        _add(svg, "line", x1=start, y1=y, x2=stop, y2=y, data_sdl_link=records[leg]["id"],
-             **{"class": "s" if leg == "supply" else "r"})
-  _label(svg, 154.5, 187, "蓝实线为供水，红虚线为回水", 4.6)
-  _label(svg, 154.5, 197, "公用管段及接口编号详见管段表", 4.3)
+      x = 57 + 65*col
+      equipment(name, x, y, 37, 9)
+      for leg, dx, station, edge, cls in (("supply", -6, -8, -4.5, "s"), ("return", 6, 8, 4.5, "r")):
+        _add(svg, "line", x1=x+dx, y1=y+station, x2=x+dx, y2=y+edge, data_sdl_link=records[leg]["id"],
+             **{"class": cls})
+        _add(svg, "circle", cx=x+dx, cy=y+station, r=1.12, **{"class": "dot-" + cls})
+  _label(svg, 154.5, 210, "蓝实线为供水，红虚线为回水。共有干管阀位见分段隔离图。", 4.4)
   return svg
 
 
@@ -194,14 +236,14 @@ def build_network_view(context):
   model = staged_json(context, MODEL)
   scope = dict(context.scope)
   view = scope.get("view")
-  if set(scope) == {"view"} and view in ("site", "roof"):
-    svg = _overlay(context, model, roof=view == "roof")
+  if set(scope) == {"view"} and view in {"site", "roof", "isolation"}:
+    svg = _overlay(context, model, view)
   elif scope == {"view": "schematic"}:
     svg = _schematic(model)
   elif view == "section" and set(scope) == {"view", "terminal"}:
     svg = _section(context, model, scope["terminal"])
   else:
-    raise ValueError("Select the FWS site, roof, schematic or a named terminal section.")
+    raise ValueError("Select the FWS site, roof, isolation plan, schematic or a named terminal section.")
   output = context.build_path / context.output
   if output.suffix != ".svg":
     raise ValueError("Facility water views require a named SVG output.")

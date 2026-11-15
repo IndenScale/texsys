@@ -1,7 +1,8 @@
 {
   "schema_version": 1,
   "state": "assumed",
-  "basis": "采用闭式准稳态定压差平衡。两个冷源等热负荷，末端按 SDL IT 负荷及液侧占比设定恒流量，泵变频跟随公共压差。二次侧、动态切换和厂家认证另行验证。",
+  "basis": "采用闭式准稳态水力平衡。两个冷源等热负荷，末端按 SDL IT 负荷及液侧占比设定恒流量。每个共有干管段独立隔离一次，两端阀关闭后泵变频跟随控制压差。二次侧、排空、动态切换和厂家认证另行验证。",
+  "require_common_main_isolation": true,
   "density_kg_m3": 998,
   "viscosity_pa_s": 0.001,
   "cp_kj_kg_k": 4.18,

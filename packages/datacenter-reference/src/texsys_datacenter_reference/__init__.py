@@ -23,7 +23,7 @@ from .structure_views import build_structure_view
 
 class DatacenterReferencePackage(TexsysPackage):
   name = "datacenter-reference"
-  version = "0.4.0"
+  version = "0.5.0"
 
   def targets(self) -> tuple[TargetDefinition, ...]:
     return (

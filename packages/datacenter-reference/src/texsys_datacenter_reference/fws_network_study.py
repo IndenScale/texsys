@@ -3,6 +3,8 @@
 import csv
 import math
 
+from scipy.optimize import brentq
+
 from texsys.evidence import file_digest
 from texsys.targets import TargetResult
 from texsys_hvac_dynamics.facility_hydraulics import EquipmentLoss, PipeHydraulics
@@ -95,28 +97,103 @@ def _pipe(segment):
                         segment["minor_k"], spec["max_velocity_m_s"])
 
 
-def _flows(model, pump_flows, outlet_flows):
-  flows = dict.fromkeys(model["segments"], 0.)
-  for role, demand in (("plants", pump_flows), ("terminals", outlet_flows)):
-    for name, flow in demand.items():
-      for leg in LEGS:
-        for key in model["paths"][role][name][leg]:
-          flows[key] += flow
-  residuals = dict.fromkeys(model["nodes"], 0.)
+def _tree(model, leg, blocked, source):
+  edges = {key: pipe for key, pipe in model["segments"].items() if pipe["leg"] == leg and key != blocked}
+  adjacency = {node: [] for node in model["nodes"] if node[0] == leg[0].upper()}
+  for key, pipe in edges.items():
+    first, last = pipe["from"], pipe["to"]
+    adjacency[first].append((last, key, 1))
+    adjacency[last].append((first, key, -1))
+  order = [source]
+  parents = {source: None}
+  for node in order:
+    for neighbour, key, sign in adjacency[node]:
+      if neighbour not in parents:
+        parents[neighbour] = (node, key, sign)
+        order.append(neighbour)
+  tree_edges = {parents[node][1] for node in order[1:]}
+  chords = [key for key, pipe in edges.items() if key not in tree_edges and pipe["from"] in parents]
+  if len(chords) > 1:
+    raise ValueError(f"{leg}: the declared FWS model supports at most one independent circuit per leg.")
+  return order, parents, chords
+
+
+def _tree_flows(order, parents, injection):
+  remaining = {node: injection.get(node, 0.) for node in order}
+  flows = {}
+  for node in reversed(order[1:]):
+    parent, key, sign = parents[node]
+    flows[key] = -sign*remaining[node]
+    remaining[parent] += remaining[node]
+  return flows
+
+
+def _port_node(leg, name):
+  return f"{leg[0].upper()}-{name}-PORT"
+
+
+def _solve_leg(model, leg, blocked, plant_flows, terminal_flows, fluid):
+  root = model["roots"][leg]
+  source = _port_node(leg, next(iter(plant_flows)))
+  order, parents, chords = _tree(model, leg, blocked, source)
+  unserved = [name for name in terminal_flows if _port_node(leg, name) not in parents]
+  disconnected = [name for name in plant_flows if _port_node(leg, name) not in parents]
+  if unserved or disconnected:
+    return {"unserved": unserved, "disconnected": disconnected}
+  direction = 1 if leg == "supply" else -1
+  injections = {_port_node(leg, name): direction*flow for name, flow in plant_flows.items()}
+  injections.update({_port_node(leg, name): -direction*flow for name, flow in terminal_flows.items()})
+  routed = {key: _pipe(item) for key, item in model["segments"].items() if item["leg"] == leg}
+
+  def loss(key, flow):
+    pipe = routed[key]
+    return pipe_loss(flow, diameter=pipe.diameter_m, length=pipe.length_m, roughness=pipe.roughness_m,
+                     minor_loss=pipe.minor_loss_coefficient, density=fluid["density_kg_m3"],
+                     viscosity=fluid["viscosity_pa_s"])/1000
+
+  flows = dict.fromkeys(routed, 0.) | _tree_flows(order, parents, injections)
+  if chords:
+    chord, = chords
+    edge = model["segments"][chord]
+    cycle = {key: sign for key, sign in _tree_flows(order, parents, {edge["to"]: 1., edge["from"]: -1.}).items() if sign}
+    cycle[chord] = 1.
+
+    def pressure_error(circulation):
+      return sum(sign*loss(key, flows[key] + sign*circulation) for key, sign in cycle.items())
+
+    # Each tree flow is bounded by the total injection. At the interval ends
+    # every circulating edge therefore has the same pressure-loss direction.
+    total = sum(plant_flows.values())
+    circulation = brentq(pressure_error, -total, total, xtol=1e-13)
+    for key, sign in cycle.items():
+      flows[key] += sign*circulation
+  losses = {key: loss(key, flow) for key, flow in flows.items()}
+  pressures = {source: 0.}
+  mass = dict.fromkeys(order, 0.) | injections
+  error = 0.
+  for node in order[1:]:
+    parent, key, sign = parents[node]
+    pressures[node] = pressures[parent] - sign*losses[key]
   for key, flow in flows.items():
-    pipe = model["segments"][key]
-    residuals[pipe["from"]] -= flow
-    residuals[pipe["to"]] += flow
-  for name, flow in pump_flows.items():
-    residuals[f"S-{name}-PORT"] += flow
-    residuals[f"R-{name}-PORT"] -= flow
-  for name, flow in outlet_flows.items():
-    residuals[f"S-{name}-PORT"] -= flow
-    residuals[f"R-{name}-PORT"] += flow
-  error = max(map(abs, residuals.values()))
-  if error > 1e-10:
-    raise ValueError("An FWS node does not satisfy simultaneous flow conservation.")
-  return flows, error
+    edge = model["segments"][key]
+    a, b = edge["from"], edge["to"]
+    if key == blocked or a not in pressures:
+      continue
+    mass[a] -= flow
+    mass[b] += flow
+    error = max(error, abs(pressures[a] - pressures[b] - losses[key]))
+  continuity = max(map(abs, mass.values()))
+  if continuity > 1e-10 or error > 1e-7:
+    raise ValueError(f"{leg}: FWS conservation residuals exceed tolerance ({continuity:g} m³/s, {error:g} kPa).")
+  reference = pressures.get(root, 0.)
+  pipes = {}
+  for key, pipe in routed.items():
+    velocity = abs(flows[key])/pipe.area_m2
+    pipes[key] = {"flow_m3_s": flows[key], "loss_kpa": losses[key], "velocity_m_s": velocity,
+                  "velocity_limit_m_s": pipe.max_velocity_m_s, "isolated": key == blocked,
+                  "pass": velocity <= pipe.max_velocity_m_s}
+  return {"unserved": [], "disconnected": [], "pipes": pipes, "continuity_m3_s": continuity,
+          "pressure_residual_kpa": error, "pressure_kpa": {node: value-reference for node, value in pressures.items()}}
 
 
 def _case(model, plants, terminals, config, count, state):
@@ -138,6 +215,10 @@ def _case(model, plants, terminals, config, count, state):
     raise ValueError("Assumed shutoff head must exceed the rated head.")
   needs = {key: record["it_kw"]*fraction for key, record in terminals.items()}
   total = sum(needs.values())
+  blocked = state.get("isolated_segment")
+  valve_pair = model["segments"][blocked].get("valves", []) if blocked else []
+  scenario = {"unavailable_plants": sorted(state["off_plants"]), "unavailable_pumps": sorted(state["off_pumps"]),
+              "isolated_segment": blocked, "closed_valves": valve_pair}
   pumps = {}
   for name in state["order"]:
     if name not in state["off_plants"]:
@@ -147,29 +228,27 @@ def _case(model, plants, terminals, config, count, state):
     if len(pumps) == count:
       break
   if not pumps:
-    return {"status": "fail", "checks": {"dispatch": False}, "demand_kw": total, "duty": {},
-            "unavailable_plants": sorted(state["off_plants"]), "unavailable_pumps": sorted(state["off_pumps"])}
+    return {**scenario, "status": "fail", "checks": {"dispatch": False}, "demand_kw": total, "duty": {},
+            "unserved_liquid_kw": total}
   plant_flows = {name: total/len(pumps)/heat_per_flow for name in pumps}
   outlet_flows = {key: heat/heat_per_flow for key, heat in needs.items()}
-  flows, continuity = _flows(model, plant_flows, outlet_flows)
-  pipes = {key: _pipe(item) for key, item in model["segments"].items()}
-  head, results = {}, {}
-  for key, pipe in pipes.items():
-    flow = flows[key]
-    loss = pipe_loss(flow, diameter=pipe.diameter_m, length=pipe.length_m, roughness=pipe.roughness_m,
-                     minor_loss=pipe.minor_loss_coefficient, density=density, viscosity=fluid["viscosity_pa_s"])/1000
-    velocity = flow / pipe.area_m2
-    head[key] = loss
-    results[key] = {"flow_m3_s": flow, "loss_kpa": loss, "velocity_m_s": velocity,
-                    "velocity_limit_m_s": pipe.max_velocity_m_s, "pass": velocity <= pipe.max_velocity_m_s}
+  legs = {leg: _solve_leg(model, leg, blocked, plant_flows, outlet_flows, fluid) for leg in LEGS}
+  unserved = sorted({name for entry in legs.values() for name in entry["unserved"]})
+  disconnected = sorted({name for entry in legs.values() for name in entry["disconnected"]})
+  if unserved or disconnected:
+    return {**scenario, "status": "fail", "checks": {"connected-duty": False, "valve-pair": len(valve_pair) == 2},
+            "demand_kw": total, "duty": {}, "unserved_terminals": unserved, "disconnected_plants": disconnected,
+            "unserved_liquid_kw": sum(needs[name] for name in unserved)}
+  results = legs["supply"]["pipes"] | legs["return"]["pipes"]
 
-  def route_loss(role, name):
-    return sum(head[key] for leg in LEGS for key in model["paths"][role][name][leg])
+  def pressure_offset(name):
+    return (legs["supply"]["pressure_kpa"][_port_node("supply", name)]
+            - legs["return"]["pressure_kpa"][_port_node("return", name)])
 
   cdu_loss = EquipmentLoss(**config["cdu_loss"])
   outlet = {}
   for key, flow in outlet_flows.items():
-    hydraulic = route_loss("terminals", key)
+    hydraulic = -pressure_offset(key)
     equipment = cdu_loss.pressure_pa(flow)/1000
     outlet[key] = {"heat_kw": needs[key], "flow_m3_s": flow, "pipe_kpa": hydraulic,
                    "cdu_kpa": equipment, "required_kpa": hydraulic + equipment,
@@ -186,7 +265,7 @@ def _case(model, plants, terminals, config, count, state):
     chiller_loss = EquipmentLoss(plant["chiller_design_flow_m3_s"],
                                  number(config["chiller_rated_drop_kpa"], "chiller pressure loss", zero=True))
     equipment_loss = chiller_loss.pressure_pa(flow)/1000
-    feed_loss = route_loss("plants", name)
+    feed_loss = pressure_offset(name)
     required = header_head + feed_loss + equipment_loss
     shutoff = shutoff_ratio*rating["rated_head_m"]
     curve = (shutoff - rating["rated_head_m"]) / rating["rated_flow_m3_s"]**2
@@ -206,10 +285,16 @@ def _case(model, plants, terminals, config, count, state):
                   "speed_ratio": speed, "power_kw": power_kw, "checks": checks, "pass": all(checks.values())}
   checks = {"dispatch": len(pumps) == count, "pipe-velocity": all(x["pass"] for x in results.values()),
             "terminal-duty": all(x["pass"] for x in outlet.values()), "plant-duty": all(x["pass"] for x in duty.values())}
-  return {"status": "pass" if all(checks.values()) else "fail", "checks": checks, "demand_kw": total,
-          "unavailable_plants": sorted(state["off_plants"]), "unavailable_pumps": sorted(state["off_pumps"]),
+  if blocked:
+    checks["valve-pair"] = len(valve_pair) == 2
+  passed = all(checks.values())
+  return {**scenario, "status": "pass" if passed else "fail", "checks": checks, "demand_kw": total,
           "requested_heat_kw": sum(entry["heat_kw"] for entry in duty.values()), "fluid": fluid,
-          "continuity_max_m3_s": continuity, "common_header_kpa": header_head, "critical_terminal": governing,
+          "unserved_liquid_kw": 0. if passed else None,
+          "continuity_max_m3_s": max(entry["continuity_m3_s"] for entry in legs.values()),
+          "loop_residual_max_kpa": max(entry["pressure_residual_kpa"] for entry in legs.values()),
+          "common_header_kpa": header_head, "critical_terminal": governing,
+          "node_pressure_relative_to_header_kpa": legs["supply"]["pressure_kpa"] | legs["return"]["pressure_kpa"],
           "duty": duty, "pipes": results, "terminals": outlet}
 
 
@@ -226,6 +311,13 @@ def build_network_study(context):
     return model_report(context, "fws-network-study", {}, design.diagnostics)
   plants, terminals = _equipment(design, model)
   count, required_cases = _cases(plants, config)
+  isolate = config.get("require_common_main_isolation", False)
+  if type(isolate) is not bool:
+    raise ValueError("Declare whether common main isolation is required as a boolean.")
+  if isolate:
+    normal = required_cases["normal"]
+    required_cases.update({f"main-isolated:{key}": {**normal, "isolated_segment": key}
+                           for key, segment in model["segments"].items() if segment["type"] in {"header", "spine"}})
   cases = {key: _case(model, plants, terminals, config, count, scenario)
            for key, scenario in required_cases.items()}
   issues = []
@@ -234,19 +326,23 @@ def build_network_study(context):
       failures = [key for key, passed in result["checks"].items() if not passed]
       identities = [entry for section in ("pipes", "terminals", "duty")
                     for entry, check in result.get(section, {}).items() if not check["pass"]]
+      identities.extend(result.get("unserved_terminals", []))
+      identities.extend(result.get("disconnected_plants", []))
       issues.append({"rule": "AIDC_FWS_NETWORK_DUTY", "status": "fail", "objects": [case, *identities],
                      "message": f"{case}: FWS engineering checks failed: {', '.join(failures)}."})
-  # Radial downstream geometry gives a single route for each terminal in each leg.
-  # Isolation screening is separate from the declared source/pump duty acceptance cases.
   exposure = {}
   for pipe, segment in model["segments"].items():
-    if segment["kind"] == "distribution":
-      affected = [name for name, paths in model["paths"]["terminals"].items() if pipe in paths[segment["leg"]]]
+    if segment["kind"] in {"distribution", "bypass"}:
+      leg = segment["leg"]
+      source = _port_node(leg, next(iter(plants)))
+      _, connected, _ = _tree(model, leg, pipe, source)
+      affected = [name for name in terminals if _port_node(leg, name) not in connected]
       exposure[pipe] = {"terminals": affected,
                         "unserved_liquid_kw": sum(terminals[name]["it_kw"]*config["liquid_fraction"] for name in affected)}
   result = model_report(context, "fws-network-study", {
     "route_digest": file_digest(context.build_path / MODEL), "basis": config["basis"],
-    "coverage": "Closed loop with controlled equal plant shares and fixed terminal flow setpoints.",
+    "coverage": "Quasi-steady fixed flows, signed loop equilibrium and individual common-main isolation.",
+    "common_main_isolation_required": isolate,
     "plants": plants, "terminals": terminals, "cases": cases,
     "distribution_isolation_exposure": exposure,
   }, issues)
@@ -261,5 +357,19 @@ def build_network_study(context):
         table.writerow((case, plant, duty["pump"], round(1000*duty["flow_m3_s"], 4), round(duty["heat_kw"], 4),
                         round(duty["required_kpa"], 4), round(duty["available_kpa"], 4), round(duty["speed_ratio"], 4),
                         round(duty["power_kw"], 4), record["status"]))
-  return TargetResult(result.status, (*result.artifacts, artifact(context, "fws-pump-duty", schedule)),
-                      result.diagnostics)
+  outputs = [artifact(context, "fws-pump-duty", schedule)]
+  if isolate:
+    matrix = schedule.with_name("aidc-fws-isolation-cases.csv")
+    with matrix.open("w", encoding="utf-8", newline="") as stream:
+      table = csv.writer(stream)
+      table.writerow(("case", "isolated_segment", "closed_valves", "unserved_terminals", "unserved_liquid_kw",
+                      "required_header_kpa", "max_pipe_velocity_m_s", "status"))
+      for case, record in cases.items():
+        if record["isolated_segment"]:
+          table.writerow((case, record["isolated_segment"], " ".join(record["closed_valves"]),
+                          " ".join(record.get("unserved_terminals", [])), record["unserved_liquid_kw"],
+                          round(record["common_header_kpa"], 4) if "common_header_kpa" in record else "",
+                          round(max(pipe["velocity_m_s"] for pipe in record["pipes"].values()), 4) if "pipes" in record else "",
+                          record["status"]))
+    outputs.append(artifact(context, "fws-isolation-cases", matrix))
+  return TargetResult(result.status, (*result.artifacts, *outputs), result.diagnostics)

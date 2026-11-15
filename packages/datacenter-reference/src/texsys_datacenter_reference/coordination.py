@@ -73,19 +73,22 @@ def build_fws_network_coordination(context):
   layout = staged_json(context, f"{MODELS}/layout.json")
   network = staged_json(context, FWS_MODEL)
   _insert_frame(context, stage, layout)
-  add_network_geometry(stage, network["segments"])
+  add_network_geometry(stage, network["segments"], network["valves"])
   steel = [(f"{name}/{part['identity']}", _solid(part)) for name, record in structure["members"].items()
            for part in record["parts"]]
   assets = [(name, Space(record["minimum_m"], record["maximum_m"])) for name, record in layout["objects"].items()
             if record["module"].split("/")[-2] != "steel-frame-bay"]
   pipes = {key: pipe_envelope(pipe) for key, pipe in network["segments"].items()}
+  valves = {key: Space(tuple(x-d/2 for x, d in zip(row["point_m"], row["size_m"], strict=True)),
+                       tuple(x+d/2 for x, d in zip(row["point_m"], row["size_m"], strict=True)))
+            for key, row in network["valves"].items()}
   issues = []
 
   def clash(first, second):
     issues.append({"rule": "AIDC_FWS_NETWORK_CLASH", "status": "fail", "objects": [first, second],
                    "message": f"{first} envelope intersects {second}."})
 
-  for key, pipe in pipes.items():
+  for key, pipe in (pipes | valves).items():
     for name, other in (*steel, *assets):
       if pipe.intersects(other):
         clash(key, name)
@@ -98,6 +101,13 @@ def build_fws_network_coordination(context):
                     for pipe in (first, second)]
       if not coincident_end or directions[0] == directions[1]:
         clash(a, b)
+  for key, valve in valves.items():
+    for pipe, envelope in pipes.items():
+      if pipe != network["valves"][key]["segment"] and valve.intersects(envelope):
+        clash(key, pipe)
+  for a, b in combinations(sorted(valves), 2):
+    if valves[a].intersects(valves[b]):
+      clash(a, b)
   for key, opening in network["penetrations"].items():
     x, y, z = opening["point_m"]
     half = opening["square_width_m"] / 2
@@ -112,9 +122,9 @@ def build_fws_network_coordination(context):
     raise OSError(f"Could not export {output.name}.")
   report = model_report(context, "fws-network-coordination", {
     "network_digest": file_digest(context.build_path / FWS_MODEL),
-    "pipe_count": len(pipes), "steel_parts": len(steel), "equipment_envelopes": len(assets),
+    "pipe_count": len(pipes), "isolation_valves": len(valves), "steel_parts": len(steel), "equipment_envelopes": len(assets),
     "roof_openings": len(network["penetrations"]), "obstructions": issues,
-    "coverage": "Insulated orthogonal straight envelopes and roof reservations in a ±0.15 m datum band.",
+    "coverage": "Insulated orthogonal straight and valve body envelopes, and roof reservations in a ±0.15 m datum band.",
   }, issues)
   return TargetResult(report.status, (*report.artifacts, artifact(context, "fws-network-scene", output)),
                       report.diagnostics)

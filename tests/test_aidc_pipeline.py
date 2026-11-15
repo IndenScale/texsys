@@ -68,7 +68,7 @@ def test_aidc_deliverables_bind_to_the_same_geometry_and_recompute_the_fws_head(
   assert dossier["evidence_complete"]
   assert dossier["input_digest"] == _read(baseline.report)["input_digest"]
   assert dossier["engineering_acceptance"] == "pending-responsible-review"
-  assert len(list((root / "build/drawings/sheets").glob("*.svg"))) == 17
+  assert len(list((root / "build/drawings/sheets").glob("*.svg"))) == 18
   old_dossier = file_digest(root / "build/review/aidc-discipline-review.json")
   drawing = root / "build/drawings/sheets/fws-network.svg"
   old_route_drawing = file_digest(drawing)
@@ -80,7 +80,7 @@ def test_aidc_deliverables_bind_to_the_same_geometry_and_recompute_the_fws_head(
   path = root / "src/fws-network.json"
   original = path.read_bytes()
   modified = _read(path)
-  modified["legs"]["supply"]["tier_m"] -= .45
+  modified["legs"]["supply"]["bypass"]["east_x_m"] += 2
   write_json(path, modified)
   rerouted, records = _run(root)
   assert rerouted.status == "pass", rerouted.diagnostics
@@ -93,7 +93,9 @@ def test_aidc_deliverables_bind_to_the_same_geometry_and_recompute_the_fws_head(
   assert file_digest(root / "build/review/aidc-discipline-review.json") != old_dossier
   after = _read(report)
   assert after["route_digest"] != before["route_digest"]
-  assert after["cases"]["normal"]["common_header_kpa"] < before["cases"]["normal"]["common_header_kpa"]
+  affected = "main-isolated:S-010"
+  assert after["cases"][affected]["common_header_kpa"] > before["cases"][affected]["common_header_kpa"]
+  assert records["sheet-fws-isolation"]["execution"] == "executed"
 
   # Restore exactly the original source bytes to exercise the original cache key.
   path.write_bytes(original)
@@ -109,13 +111,17 @@ def _check_fws_network_delivery(root):
   model = _read(source)
   assert len(model["ports"]["plants"]) == 3
   assert len(model["ports"]["terminals"]) == 16
-  assert len(model["segments"]) == 122
+  assert len(model["segments"]) == 130
+  assert len(model["valves"]) == 44
   assert len(model["penetrations"]) == 32
-  assert sum(item["length_m"] for item in model["segments"].values()) == pytest.approx(541.06)
+  assert sum(item["length_m"] for item in model["segments"].values()) == pytest.approx(688.79)
   fig = ET.parse(root / "build/drawings/views/fws-system.svg")
   links = {item["id"] for role in model["ports"].values() for owner in role.values() for item in owner.values()}
   symbols = [item.get("data-sdl-link") for item in fig.findall(f".//{SVG}line[@data-sdl-link]")]
   assert set(symbols) == links and len(symbols) == len(links) == 38
+  assert {item.get("data-bypass") for item in fig.findall(f".//{SVG}path[@data-bypass]")} == {"supply", "return"}
+  isolation = ET.parse(root / "build/drawings/views/fws-isolation.svg")
+  assert {item.get("data-valve") for item in isolation.findall(f".//{SVG}path[@data-valve]")} == model["valves"].keys()
   roof = ET.parse(root / "build/drawings/views/fws-roof.svg")
   assert {item.get("data-reservation") for item in roof.findall(f".//{SVG}rect[@data-reservation]")} == (
     model["penetrations"].keys()
@@ -123,11 +129,17 @@ def _check_fws_network_delivery(root):
 
   report = _read(root / MODEL / "fws-network-study.json")
   assert report["route_digest"] == file_digest(source)
-  assert len(report["cases"]) == 10
+  assert len(report["cases"]) == 32
   expected_total = 1440 / (998 * 4.18 * 10)
   header, = (key for key, record in model["segments"].items()
              if record["from"] == model["roots"]["supply"] and record["kind"] == "distribution")
-  pipe = model["segments"][header]
+  closed = report["cases"][f"main-isolated:{header}"]
+  assert closed["closed_valves"] == model["segments"][header]["valves"]
+  assert closed["pipes"][header]["isolated"] and closed["pipes"][header]["flow_m3_s"] == 0
+  alternate = model["bypass"]["supply"][1]
+  assert closed["pipes"][alternate]["flow_m3_s"] == pytest.approx(expected_total)
+  assert closed["common_header_kpa"] > report["cases"]["normal"]["common_header_kpa"]
+  pipe = model["segments"][alternate]
   spec = pipe["hydraulic_section"]
   speed = expected_total / (pi*spec["inside_m"]**2/4)
   reynolds = 998*speed*spec["inside_m"]/.001
@@ -137,13 +149,23 @@ def _check_fws_network_delivery(root):
     assert case["status"] == "pass"
     assert len(case["duty"]) == 2 and len(case["terminals"]) == 16
     assert case["continuity_max_m3_s"] < 1e-10
-    assert case["pipes"][header]["flow_m3_s"] == pytest.approx(expected_total)
-    assert case["pipes"][header]["loss_kpa"] == pytest.approx(expected_kpa)
+    assert case["loop_residual_max_kpa"] < 1e-7
+    assert case["unserved_liquid_kw"] == 0
+    pressures = case["node_pressure_relative_to_header_kpa"]
+    for key, state in case["pipes"].items():
+      physical = model["segments"][key]
+      if not state["isolated"]:
+        assert pressures[physical["from"]] - pressures[physical["to"]] == pytest.approx(state["loss_kpa"], abs=1e-7)
+  assert closed["pipes"][alternate]["loss_kpa"] == pytest.approx(expected_kpa)
+  assert any(case["flow_m3_s"] < 0 for case in closed["pipes"].values())
+  assert {record["isolated_segment"] for record in report["cases"].values() if record["isolated_segment"]} == (
+    {key for key, pipe in model["segments"].items() if pipe.get("valves")}
+  )
   assert "CoolContainer1" not in report["cases"]["plant-off:CoolContainer1"]["duty"]
   assert report["cases"]["pump-off:CoolContainer1/Pump1"]["duty"]["CoolContainer1"]["pump"] == "CoolContainer1/Pump2"
-  assert report["distribution_isolation_exposure"][header] == {
-    "terminals": sorted(model["ports"]["terminals"]), "unserved_liquid_kw": 1440.,
-  }
+  exposure = report["distribution_isolation_exposure"]
+  assert exposure[header] == {"terminals": [], "unserved_liquid_kw": 0.}
+  assert exposure["S-061"] == {"terminals": ["IT04"], "unserved_liquid_kw": 90.}
 
 
 def _check_professional_delivery(root):
@@ -168,6 +190,7 @@ def _check_professional_delivery(root):
   assert not stage.GetPrimAtPath("/AIDC/Objects/Frame01")
   assert stage.GetPrimAtPath("/AIDC/Structure/C_1_B").GetAttribute("texsys:identity").Get() == "C-1-B"
   assert stage.GetPrimAtPath("/AIDC/FWSNetwork/S_001")
+  assert stage.GetPrimAtPath("/AIDC/FWSIsolation/IV_S_010_A").GetAttribute("texsys:identity").Get() == "IV-S-010-A"
 
   topology = _read(root / MODEL / "power-topology.json")["trains"]
   power = _read(root / MODEL / "power-study.json")["trains"]
@@ -243,6 +266,26 @@ def test_aidc_fws_cannot_pass_when_two_plants_are_unavailable(tmp_path):
   assert list(normal["duty"]) == ["CoolContainer3"]
   assert not normal["duty"]["CoolContainer3"]["checks"]["cooling-rating"]
   assert study["cases"]["plant-off:CoolContainer3"]["checks"] == {"dispatch": False}
+
+
+def test_aidc_fws_rejects_single_main_isolation_when_the_bypass_is_removed(tmp_path):
+  root = _checkout(tmp_path)
+  route = root / "src/fws-network.json"
+  source = _read(route)
+  del source["legs"]["supply"]["bypass"]
+  write_json(route, source)
+  result, records = _run(root, "review-package")
+  assert result.status == "fail"
+  assert records["sheet-fws-isolation"]["status"] == "pass"
+  assert records["dcr:fws-network-coordination"]["status"] == "pass"
+  assert records["review-package"]["execution"] == "blocked"
+  study = _read(root / MODEL / "fws-network-study.json")
+  assert study["cases"]["normal"]["status"] == "pass"
+  outage = study["cases"]["main-isolated:S-010"]
+  assert outage["status"] == "fail"
+  assert outage["unserved_liquid_kw"] == 1440
+  assert len(outage["unserved_terminals"]) == 16
+  assert outage["checks"] == {"connected-duty": False, "valve-pair": True}
 
 
 def test_aidc_geometry_rejects_missing_and_clashing_placements(tmp_path):

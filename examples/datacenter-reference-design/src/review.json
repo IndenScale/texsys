@@ -90,16 +90,19 @@
         "build/drawings/sheets/fws-roof-sheet.json",
         "build/drawings/sheets/fws-section.svg",
         "build/drawings/sheets/fws-section-sheet.json",
+        "build/drawings/sheets/fws-isolation.svg",
+        "build/drawings/sheets/fws-isolation-sheet.json",
         "build/datacenter-reference/spatial/fws-network.json",
         "build/datacenter-reference/spatial/fws-network-study.json",
         "build/datacenter-reference/spatial/fws-network-coordination.json",
         "build/scenes/aidc-fws-network-coordinated.usda",
         "build/schedules/aidc-fws-pipes.csv",
         "build/schedules/aidc-fws-fittings.csv",
-        "build/schedules/aidc-fws-pump-duty.csv"
+        "build/schedules/aidc-fws-pump-duty.csv",
+        "build/schedules/aidc-fws-isolation-cases.csv"
       ],
       "pending": [
-        "实测水泵曲线、冷机与 CDU 压降、共用管段故障、动态切换、支吊架和防火穿越详图"
+        "实测设备曲线、阀件选型和可维护性、水锤与排空、共因和多段故障、支吊架和防火穿越详图"
       ]
     }
   }
