@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "template": "sheet:a3-landscape",
+  "metadata": "assets/sheets/tcs-a.title.json",
+  "texts": {
+    "notes": "assets/sheets/tcs-a.txt",
+    "footer": "assets/sheets/footer.txt"
+  },
+  "views": {
+    "main": {
+      "path": "build/drawings/views/tcs-a.svg",
+      "scale": "1:30"
+    }
+  }
+}

@@ -101,11 +101,12 @@
         "build/datacenter-reference/spatial/pod-coordination.json",
         "build/scenes/aidc-it-pod-typical.usda",
         "build/scenes/aidc-pods-coordinated.usda",
-        "build/schedules/aidc-pod-equipment.csv"
+        "build/schedules/aidc-pod-equipment.csv",
+        "build/datacenter-reference/spatial/tcs-coordination.json"
       ],
       "pending": [
         "设备真实规格、机柜舱内完整布置及检修",
-        "方舱批量供应制造图、基础及吊运、机柜二次侧配管和水力、机柜与门扇检修操作程序"
+        "方舱批量供应制造图、基础及吊运、机柜与门扇检修操作程序"
       ]
     },
     "telecom": {
@@ -198,11 +199,28 @@
         "build/datacenter-reference/spatial/cw-check.json",
         "build/scenes/aidc-cooling-water-coordinated.usda",
         "build/schedules/aidc-cw-pipes.csv",
-        "build/schedules/aidc-cw-duty.csv"
+        "build/schedules/aidc-cw-duty.csv",
+        "build/drawings/sheets/tcs-a.svg",
+        "build/drawings/sheets/tcs-a-sheet.json",
+        "build/drawings/sheets/tcs-b.svg",
+        "build/drawings/sheets/tcs-b-sheet.json",
+        "build/drawings/sheets/tcs-section.svg",
+        "build/drawings/sheets/tcs-section-sheet.json",
+        "build/drawings/sheets/tcs-system.svg",
+        "build/drawings/sheets/tcs-system-sheet.json",
+        "build/datacenter-reference/spatial/tcs-routing.json",
+        "build/datacenter-reference/spatial/tcs-coordination.json",
+        "build/datacenter-reference/spatial/tcs-study.json",
+        "build/datacenter-reference/spatial/tcs-check.json",
+        "build/scenes/aidc-tcs-coordinated.usda",
+        "build/scenes/aidc-it-pod-tcs.usda",
+        "build/schedules/aidc-tcs-pipes.csv",
+        "build/schedules/aidc-tcs-rack-duty.csv"
       ],
       "pending": [
         "承压缓冲罐及锚固专项、实测设备与罐内压损和混合、泵阀水锤与排空、共因故障、支吊架及穿越详图",
-        "冷却水厂商选型曲线与湿球、压力保持和气蚀、阀组及支架及供电控制联锁专项复核"
+        "冷却水厂商选型曲线与湿球、压力保持和气蚀、阀组及支架及供电控制联锁专项复核",
+        "TCS CDU 厂家泵曲线和换热性能、软管弯曲及检修、阀组及支架、泄漏检测、泵阀切换瞬态与泵热反注"
       ]
     },
     "plumbing": {

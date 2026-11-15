@@ -147,14 +147,13 @@ def _segments(model):
       yield key, index, _tube({"points_m": (low, high), "outside_diameter_m": diameter})
 
 
-def _pipe_prim(stage, path, key, points_m, diameter, color):
+def _pipe_prim(stage, path, key, points_m, diameter, color, *, sides=16, caps=True):
   mesh = UsdGeom.Mesh.Define(stage, path)
   points = [Gf.Vec3d(*point) for point in points_m]
   directions = [(b-a).GetNormalized() for a, b in pairwise(points)]
   reference = Gf.Vec3d(0, 0, 1) if directions[0][2] == 0 else Gf.Vec3d(1, 0, 0)
   transverse = Gf.Cross(directions[0], reference).GetNormalized()
   normal = Gf.Cross(directions[0], transverse)
-  sides = 16
   radius = diameter/2
   vertices, faces = [], []
   for index, point in enumerate(points):
@@ -175,7 +174,8 @@ def _pipe_prim(stage, path, key, points_m, diameter, color):
     projected = miter(transverse)
     transverse = (projected-after*Gf.Dot(projected, after)).GetNormalized()
     normal = Gf.Cross(after, transverse)
-  faces.extend((list(reversed(range(sides))), list(range(len(vertices)-sides, len(vertices)))))
+  if caps:
+    faces.extend((list(reversed(range(sides))), list(range(len(vertices)-sides, len(vertices)))))
   mesh.CreatePointsAttr(vertices)
   mesh.CreateFaceVertexCountsAttr([len(face) for face in faces])
   mesh.CreateFaceVertexIndicesAttr([index for face in faces for index in face])

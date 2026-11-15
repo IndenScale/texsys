@@ -70,7 +70,7 @@ def test_aidc_deliverables_bind_to_the_same_geometry_and_recompute_the_fws_head(
   assert dossier["evidence_complete"]
   assert dossier["input_digest"] == _read(baseline.report)["input_digest"]
   assert dossier["engineering_acceptance"] == "pending-responsible-review"
-  assert len(list((root / "build/drawings/sheets").glob("*.svg"))) == 38
+  assert len(list((root / "build/drawings/sheets").glob("*.svg"))) == 42
   old_dossier = file_digest(root / "build/review/aidc-discipline-review.json")
   drawing = root / "build/drawings/sheets/fws-network.svg"
   old_route_drawing = file_digest(drawing)
@@ -86,6 +86,7 @@ def test_aidc_deliverables_bind_to_the_same_geometry_and_recompute_the_fws_head(
   _check_cw_delivery(root)
   _check_wet_utility_delivery(root)
   _check_pod_delivery(root)
+  _check_tcs_delivery(root)
   report = root / MODEL / "fws-network-study.json"
   before = _read(report)
   path = root / "src/fws-network.json"
@@ -1016,3 +1017,108 @@ def test_pod_installation_changes_recompile_detail_and_reject_access_encroachmen
   restored, statuses = _run(root)
   assert restored.status == "pass"
   assert statuses["review-package"]["execution"] == "cached"
+
+
+def _check_tcs_delivery(root):
+  road = root / MODEL / "tcs-routing.json"
+  routing = _read(road)
+  study = _read(root / MODEL / "tcs-study.json")
+  coordination = _read(root / MODEL / "tcs-coordination.json")
+  geometry = _read(root / MODEL / "pod-layout.json")["pods"]["IT01"]["local_equipment"]
+  assert len(routing["pods"]) == coordination["routed_pods"] == 16
+  assert not coordination["issues"] and study["routing_digest"] == file_digest(road)
+  sdl = _read(REPO / "packages/datacenter-reference/src/library/modules/it-container/it-container.sdl.json")
+  for side, system in routing["pods"]["IT01"].items():
+    records = study["sides"]["IT01"][side]
+    delivered = records["required_duty"]
+    assert len(system["paths"]["supply"]) == len(system["paths"]["return"]) == 8
+    assert {pipe["sdl_link"] for pipe in system["pipes"].values() if pipe["sdl_link"]} == set(
+      sdl["components"]["ItContainer"]["nets"][f"Tcs{side}"]["connections"])
+    assert records["fluid_volume_m3"] == pytest.approx(sum(
+      p["length_m"]*pi*routing["materials"][p["material"]]["bore_m"]**2/4 for p in system["pipes"].values()))
+    name = f"Rack01.tcs_in_{side.lower()}"
+    last = system["paths"]["supply"]["Rack01"][-1]
+    assert system["pipes"][last]["nodes"][1] == name
+    assert system["pipes"][last]["points_m"][1] == pytest.approx(geometry["Rack01"]["ports_m"][name.split(".")[1]])
+    for leg, paths in system["paths"].items():
+      for path in paths.values():
+        direction = path if leg == "supply" else path[::-1]
+        assert all(system["pipes"][a]["nodes"][1] == system["pipes"][b]["nodes"][0]
+                   for a, b in zip(direction, direction[1:]))
+    f = delivered["racks"]["Rack01"]
+    weight = (90/8)/(4.18*6)
+    assert f["flow_kg_s"] == pytest.approx(weight)
+    assert f["equipment_drop_kpa"] == pytest.approx((6+12+30)*(weight/1.875)**2)
+    assert delivered["cdu_required_kpa"] > max(row["installed_pipe_kpa"] for row in delivered["racks"].values())
+    for pipe, row in delivered["pipes"].items():
+      assert row["residence_seconds"] == pytest.approx(system["pipes"][pipe]["fluid_volume_m3"]/row["flow_m3_s"])
+  assert len(study["cases"]) == 38
+  assert all(not row["failed_pods"] for row in study["cases"].values())
+  normal = study["cases"]["normal"]["pods"]["IT01"]
+  assert normal["available_side"] == "A" and normal["capacity_kw"] == pytest.approx(90)
+  loss = study["cases"]["fws-peak:plant-off:CoolContainer1:local-cdu-off:A"]["pods"]["IT01"]
+  assert loss["available_side"] == "B" and not loss["unserved_kw"]
+  transient = _read(root / MODEL / "fws-transient.json")
+  primary = transient["scenarios"]["plant-off:CoolContainer1"]["terminals"]["IT01"]["comparison_peak_c"]
+  assert loss["racks"]["Rack01"]["tcs_supply_c"] == pytest.approx(primary+3)
+  assert loss["racks"]["Rack01"]["tcs_return_c"] == pytest.approx(primary+9)
+  stage = Usd.Stage.Open(str(root / "build/scenes/aidc-it-pod-tcs.usda"))
+  pipe = stage.GetPrimAtPath("/AIDC/TCS/IT01/A_S_Rack01")
+  assert pipe.GetAttribute("texsys:identity").Get() == "IT01/A-S-Rack01"
+  plan = ET.parse(root / "build/drawings/views/tcs-a.svg")
+  assert {view.get("data-pipe") for view in plan.findall(f".//{SVG}g[@data-pipe]")} == routing["pods"]["IT01"]["A"]["pipes"].keys()
+  detail = ET.parse(root / "build/drawings/views/tcs-section.svg")
+  assert len(detail.findall(f".//{SVG}circle[@data-pipe]")) == 8
+
+
+def test_tcs_recomputes_head_and_rejects_collisions_and_joint_thermal_duty(tmp_path):
+  root = _checkout(tmp_path)
+  result, _ = _run(root)
+  assert result.status == "pass", result.diagnostics
+  route = root / "src/tcs-routing.json"
+  original = route.read_bytes()
+  model = root / MODEL / "tcs-study.json"
+  before = _read(model)
+  config = _read(route)
+  config["sides"]["A"]["supply"]["crossover_x_m"] += .10
+  write_json(route, config)
+  result, records = _run(root)
+  assert result.status == "pass", result.diagnostics
+  assert records["sheet-tcs-a"]["execution"] == "executed"
+  assert records["dcr:fws-transient"]["execution"] == "cached"
+  assert _read(model)["sides"]["IT01"]["A"]["required_duty"]["cdu_required_kpa"] > (
+    before["sides"]["IT01"]["A"]["required_duty"]["cdu_required_kpa"])
+
+  config["sides"]["A"]["supply"]["tier_m"] = config["sides"]["A"]["return"]["tier_m"]
+  write_json(route, config)
+  result, records = _run(root)
+  assert result.status == "fail" and records["review-package"]["execution"] == "blocked"
+  assert records["sheet-tcs-a"]["status"] == "pass"
+  assert "AIDC_TCS_PIPE_CLASH" in result.diagnostics
+
+  route.write_bytes(original)
+  design = root / "src/tcs-study.json"
+  basis = _read(design)
+  original = design.read_bytes()
+  basis["cdu_head_kpa_at_reference_flow"], basis["cdu_shutoff_kpa"] = 20, 30
+  write_json(design, basis)
+  result, records = _run(root)
+  assert result.status == "fail" and records["dcr:tcs-coordination"]["status"] == "pass"
+  assert records["sheet-tcs-system"]["status"] == "pass"
+  scenario = _read(model)["cases"]["normal"]["pods"]["IT01"]
+  assert "pump-head" in scenario["limiting_checks"] and scenario["unserved_kw"] > 10
+  assert 0 < scenario["racks"]["Rack01"]["flow_m3_s"] < .0004495
+
+  basis = _read(root / "src/tcs-study.json")
+  basis["cdu_head_kpa_at_reference_flow"], basis["cdu_shutoff_kpa"] = 66, 115
+  basis["cdu_approach_allowance_k"] = 6
+  write_json(design, basis)
+  result, records = _run(root)
+  assert result.status == "fail" and records["sheet-tcs-system"]["status"] == "pass"
+  cases = _read(model)["cases"]
+  assert not cases["normal"]["failed_pods"]
+  assert "rack-temperature" in cases["fws-peak:plant-off:CoolContainer1:local-cdu-off:A"]["pods"]["IT01"]["limiting_checks"]
+
+  design.write_bytes(original)
+  result, records = _run(root)
+  assert result.status == "pass" and records["review-package"]["execution"] == "cached"

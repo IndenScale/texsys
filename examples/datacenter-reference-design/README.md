@@ -26,6 +26,7 @@ datacenter-reference 器件/单元库 → structure / architecture / hvac-equipm
 - `src/site.json`、`grid.json`、`levels.json` 定义宗地、局部坐标、轴网、标高和分区边界。
 - `src/coordination.json` 以 SDL 实例 ID 绑定轴线交点、偏移、专业和分区。物理实例使用锁定部件的 USD 几何。市电及补水等逻辑接口记录待落实的空间条件。
 - `src/architecture.json` 将既有北侧墙件接入完整主机房围护，用 B 轴定位分隔墙。东西门位由南北走道导出，并按门洞、平台和坡道坐标校核到室外场坪的通行。
+- `src/tcs-routing.json` 声明舱内 A/B 干管层位、跨舱接管及管材，编译 CDU 到机柜的二次侧回路。`src/tcs-study.json` 声明泵曲线、二次侧温升、末端控制和停用设备。
 - `src/pod-layout.json` 声明舱内检修净宽、净高和设备深度要求，并可按 SDL 方舱与设备标识覆盖安装位姿。设备轮廓及 TCS 端口来自锁定设备库。
 - `src/telecom.json` 声明 A、B 两路汇聚柜、桥架中心标高、方舱端接位置和光纤构成。`telecom-study.json` 声明光模块和接续损耗预算、交换容量与可用状态。舱内跳线路由待核，当前按预算长度计。
 - `src/fire-systems.json` 从主机房防火分区和方舱 SDL 控制器生成烟感、手报、声光、两条环形回路及舱内灭火布置。`fire-systems-study.json` 声明报警回路限值、断线和方舱联动模拟条件。
@@ -50,8 +51,8 @@ datacenter-reference 器件/单元库 → structure / architecture / hvac-equipm
 | 结构建模 | `dcr:structure-model` 输出屋面钢梁与柱平面、基础平面、B 轴剖面、构件表及 USD。`dcr:structure-gravity` 编译重力计算书 | 实测地勘、抗风抗震、设备基础、节点与配筋 |
 | 核心机电与方舱布局 | 分区图核对 65 个物理实例，BOM 保留 515 条 SDL 明细。16 舱装配锁定的机柜、CDU 和精密空调尺寸，编译设备布置、通道横剖面、设备表和可查看的典型舱剖切场景。设施水与弱电协调包络和贯穿预留。弱电编译两张桥架平面、端接系统图和 128 个机柜的双路纤芯表。消防编译主机房报警平面和方舱灭火设备布置 | 厂商制造尺寸、舱内二次侧接管、机柜跳线、支吊架和灭火专项选型 |
 | 性能计算与冗余保护 | 电气 A/B 出单线图、容量证据、88 个三相故障工况及保护表。弱电校核链路光预算、单路承载 5.12 Tb/s 的配置容量及各登记构件单点断开后连通性 | 厂家曲线、接地、单相故障、多源并联、实际切换、运营商和网络协议测试 |
-| 管道布置 | `dcr:fws-network` 从设备接口生成供回水环路、支管和立管。五张图输出总平面、系统图、屋面预留、局部接驳正视投影和分段隔离图。三个冷凝器侧闭式回路从实际法兰取点，编译冷却水平面、横剖面、系统图、管段工程量和跨专业碰撞检查。场区给排水编译补水排污平面、排污纵断面、系统图和管段表 | 支吊架、排空、阀件检修及防火封堵 |
-| 仿真与寄生反注 | `dcr:fws-network-study` 复算 32 个稳态工况。`dcr:fws-thermal-parameters` 从同一套管段提取水量、热容和滞留时间。`dcr:fws-transient` 校核在役冷源分别退出后的 16 舱水温，并编译温升曲线、峰值平面、缓冲设备表和接管图。冷却水侧使用同批 FWS 冷源负荷，核算排热、流量、压损和温度，另验证六个冷却水泵或塔退出工况。喷淋水量及水质由上述排热量驱动，校核市政动压、各塔余压、重力排水、停水储备和恢复时间 | 真实机组控制曲线、承压缓冲罐选型与锚固、管壁与设备蓄热、流量切换与水锤、CDU 二次侧 |
+| 管道布置 | `dcr:fws-network` 从设备接口生成供回水环路、支管和立管。五张图输出总平面、系统图、屋面预留、局部接驳正视投影和分段隔离图。三个冷凝器侧闭式回路从实际法兰取点，编译冷却水平面、横剖面、系统图、管段工程量和跨专业碰撞检查。场区给排水编译补水排污平面、排污纵断面、系统图和管段表。TCS 从机柜和 CDU 的实际端口生成独立 A/B 管网、接管平面、机柜顶横剖面和系统图 | 支吊架、排空、阀件检修及防火封堵 |
+| 仿真与寄生反注 | `dcr:fws-network-study` 复算 32 个稳态工况。`dcr:fws-thermal-parameters` 从同一套管段提取水量、热容和滞留时间。`dcr:fws-transient` 校核在役冷源分别退出后的 16 舱水温，并编译温升曲线、峰值平面、缓冲设备表和接管图。冷却水侧使用同批 FWS 冷源负荷，核算排热、流量、压损和温度，另验证六个冷却水泵或塔退出工况。喷淋水量及水质由上述排热量驱动，校核市政动压、各塔余压、重力排水、停水储备和恢复时间。TCS 读取 FWS 正常、主干隔离和冷源退出算例，以及冷源切换一次侧峰温；编译逐机柜可供流量、冷量、压差、实际管段储液量和驻留时间 | 真实机组控制曲线、承压缓冲罐选型与锚固、管壁与设备蓄热、流量切换与水锤、CDU 厂家实测曲线及二次侧泵阀切换瞬态 |
 | 多专业签核 | `review-package` 从本次构建快照生成总图、建筑、消防、结构、机房工艺、弱电、电气、暖通和给排水审查清单与文件摘要。消防纳入疏散、报警、灭火设备、联动、断线证据和封堵预留 | 责任人在现有 Git 审查中针对指定修订处置，审查清单保留待核状态 |
 
 ## 重跑
@@ -69,11 +70,14 @@ uv run --locked texsys build -p examples/datacenter-reference-design --target dc
 uv run --locked texsys build -p examples/datacenter-reference-design --target dcr:cw-check --target dcr:cw-coordination --target sheet-cw-plan
 uv run --locked texsys build -p examples/datacenter-reference-design --target dcr:wet-utility-check --target dcr:wet-utility-coordination --target sheet-wet-profile
 uv run --locked texsys build -p examples/datacenter-reference-design --target dcr:pod-coordination --target dcr:pod-scene --target sheet-pod-plan --target sheet-pod-section
+uv run --locked texsys build -p examples/datacenter-reference-design --target dcr:tcs-coordination --target dcr:tcs-check --target sheet-tcs-section --target sheet-tcs-system
 ```
 
-成品图在 `build/drawings/sheets/`，包含 38 张 A3 图及各图的来源报告。可校准图纸按标题栏比例原尺寸打印。门、疏散、预留、构件、保护、水力、弱电端接、热瞬态及消防工况表在 `build/schedules/`。材料可在 `build/scenes/aidc-pods-coordinated.usda` 的全场综合场景与 `build/scenes/aidc-it-pod-typical.usda` 的典型舱局部剖切场景中查看。专业审查材料在 `build/review/aidc-discipline-review.json`。用 Tex Studio 的文件资源管理器或快速打开读取上述文件。
+成品图在 `build/drawings/sheets/`，包含 42 张 A3 图及各图的来源报告。可校准图纸按标题栏比例原尺寸打印。门、疏散、预留、构件、保护、水力、弱电端接、热瞬态及消防工况表在 `build/schedules/`。TCS 交付同时包含 `build/scenes/aidc-tcs-coordinated.usda` 全场综合场景及 `build/scenes/aidc-it-pod-tcs.usda` 典型舱局部剖切场景。专业审查材料在 `build/review/aidc-discipline-review.json`。用 Tex Studio 的文件资源管理器或快速打开读取上述文件。
 
-原 6.00 × 2.40 m 方舱用小方块表示内部设备。用设备库的 0.80 × 1.20 × 2.20 m 机柜重排两排四柜，方舱改为 7.40 × 3.68 m。工作通道净宽 1.12 m，南北各有 1.10 m 清宽侧门，主机房疏散从朝向公共通道的一侧实际门位计算。保持 16 舱与原负荷，将 A、C 轴分别外移 1.50 m。设施水套管、消防下引、弱电、结构和全部门位随轴网复核。方舱二次侧流量、接管、支架、密封与检修操作程序留待专项验证。
+原 6.00 × 2.40 m 方舱用小方块表示内部设备。用设备库的 0.80 × 1.20 × 2.20 m 机柜重排两排四柜，方舱改为 7.40 × 3.68 m。工作通道净宽 1.12 m，南北各有 1.10 m 清宽侧门，主机房疏散从朝向公共通道的一侧实际门位计算。保持 16 舱与原负荷，将 A、C 轴分别外移 1.50 m。设施水套管、消防下引、弱电、结构和全部门位随轴网复核。舱内厂家制造尺寸、支架、密封与检修操作程序留待专项验证。
+
+TCS 按每舱 90 kW、每台 11.25 kW 机柜液侧负荷编译。两套独立冷却回路各自以约 3.60 L/s 带全部八台机柜。IT01 的 A/B 路分别需要约 39.0 / 41.4 kPa，实际中心线和内径提取出约 59.9 / 69.4 L 储液量。一级冷源切换后使用设施侧峰值温度验证单 CDU 可用状态。额定工况及压力检查采用候选泵曲线、换热接近温差和冷板快接阻力，局部切换时序、热惯量、泵耗热反馈、软管弯曲半径、支架和实际换热性能待设备选型后核证。
 
 温度预算按 CDU 设施水入口 28°C。直管提取 7.390 m³ 水量，三个串联缓冲罐各提取 603.2 L。按 24 s 启动及 32 s 升载，最不利入口约 27.22°C。泵表列出罐体压损，冷源区平面、接管剖面和设备表同源。修改罐体内径时，容积和热瞬态重算，旧的标量缓冲输入已移至实体模型。温升结果假定失效后的规定流量在切换时立即成立。罐体、底座和检修包络已协调，承压专项和现场流量仍待核。
 

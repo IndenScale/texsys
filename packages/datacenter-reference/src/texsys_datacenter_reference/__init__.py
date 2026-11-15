@@ -35,6 +35,9 @@ from .review import build_review_package
 from .spatial_design import build_grid, build_layout, build_levels, build_site, spatial_inputs
 from .structure import build_gravity, build_structure
 from .structure_views import build_structure_view
+from .tcs_routing import build_tcs_coordination, build_tcs_routing
+from .tcs_study import build_tcs_check, build_tcs_study
+from .tcs_views import build_tcs_view
 from .telecom import build_telecom
 from .telecom_coordination import build_telecom_coordination
 from .telecom_study import build_telecom_study
@@ -46,7 +49,7 @@ from .wet_utility_views import build_wet_view
 
 class DatacenterReferencePackage(TexsysPackage):
   name = "datacenter-reference"
-  version = "0.13.0"
+  version = "0.14.1"
 
   def targets(self) -> tuple[TargetDefinition, ...]:
     return (
@@ -159,6 +162,21 @@ class DatacenterReferencePackage(TexsysPackage):
                        dependencies=("dcr:fws-network",), input_patterns=(), named_output=True),
       TargetDefinition("dcr:fws-buffer-view", self.name, self.version, build_buffer_view,
                        dependencies=("dcr:fws-network",), input_patterns=(), named_output=True),
+      TargetDefinition("dcr:tcs-routing", self.name, self.version, build_tcs_routing, dependencies=("dcr:pod-layout",),
+                       input_patterns=spatial_inputs("*.sdl.json", "*/module.toml", "design-basis.json",
+                                                     "placement.study.json", "tcs-routing.json")),
+      TargetDefinition("dcr:tcs-coordination", self.name, self.version, build_tcs_coordination,
+                       dependencies=("dcr:tcs-routing", "dcr:pod-coordination", "dcr:pod-scene"), input_patterns=()),
+      TargetDefinition("dcr:tcs-study", self.name, self.version, build_tcs_study,
+                       dependencies=("dcr:tcs-routing", "dcr:fws-transient", "dcr:fws-network-study"),
+                       input_patterns=spatial_inputs("*.sdl.json", "*/module.toml", "design-basis.json",
+                                                     "placement.study.json", "tcs-study.json")),
+      TargetDefinition("dcr:tcs-check", self.name, self.version, build_tcs_check,
+                       dependencies=("dcr:tcs-study",), input_patterns=()),
+      TargetDefinition("dcr:tcs-layout-view", self.name, self.version, build_tcs_view,
+                       dependencies=("dcr:tcs-routing",), input_patterns=(), named_output=True),
+      TargetDefinition("dcr:tcs-study-view", self.name, self.version, build_tcs_view,
+                       dependencies=("dcr:tcs-study",), input_patterns=(), named_output=True),
       TargetDefinition("dcr:structure-model", self.name, self.version, build_structure, dependencies=("dcr:layout",),
                        input_patterns=spatial_inputs("structure.json")),
       TargetDefinition("dcr:structure-gravity", self.name, self.version, build_gravity,

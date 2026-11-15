@@ -12,7 +12,7 @@ build = "build"
 default_targets = ["review-package"]
 
 [dependencies]
-datacenter-reference = { path = "../../packages/datacenter-reference", version = "0.13.0" }
+datacenter-reference = { path = "../../packages/datacenter-reference", version = "0.14.1" }
 sheet = { path = "../../packages/sheet", version = "0.2.0" }
 
 [build.targets.review-package]
@@ -31,6 +31,8 @@ dependencies = [
   "dcr:structure-gravity",
   "dcr:pod-coordination",
   "dcr:pod-scene",
+  "dcr:tcs-coordination",
+  "dcr:tcs-check",
   "dcr:power-study",
   "dcr:fire-egress",
   "dcr:fire-systems-study",
@@ -54,6 +56,10 @@ dependencies = [
   "sheet-it-hall",
   "sheet-pod-plan",
   "sheet-pod-section",
+  "sheet-tcs-a",
+  "sheet-tcs-b",
+  "sheet-tcs-section",
+  "sheet-tcs-system",
   "sheet-electrical",
   "sheet-power-one-line-a",
   "sheet-power-one-line-b",
@@ -501,3 +507,47 @@ using = "sheet:compose"
 dependencies = ["view-pod-section"]
 scope = { source = "assets/sheets/pod-section.sheet.json" }
 output = "build/drawings/sheets/pod-section.svg"
+
+[build.targets.view-tcs-a]
+using = "dcr:tcs-layout-view"
+output = "build/drawings/views/tcs-a.svg"
+scope = { view = "plan", pod = "IT01", side = "A" }
+
+[build.targets.sheet-tcs-a]
+using = "sheet:compose"
+dependencies = ["view-tcs-a"]
+scope = { source = "assets/sheets/tcs-a.sheet.json" }
+output = "build/drawings/sheets/tcs-a.svg"
+
+[build.targets.view-tcs-b]
+using = "dcr:tcs-layout-view"
+output = "build/drawings/views/tcs-b.svg"
+scope = { view = "plan", pod = "IT01", side = "B" }
+
+[build.targets.sheet-tcs-b]
+using = "sheet:compose"
+dependencies = ["view-tcs-b"]
+scope = { source = "assets/sheets/tcs-b.sheet.json" }
+output = "build/drawings/sheets/tcs-b.svg"
+
+[build.targets.view-tcs-section]
+using = "dcr:tcs-layout-view"
+output = "build/drawings/views/tcs-section.svg"
+scope = { view = "section", pod = "IT01" }
+
+[build.targets.sheet-tcs-section]
+using = "sheet:compose"
+dependencies = ["view-tcs-section"]
+scope = { source = "assets/sheets/tcs-section.sheet.json" }
+output = "build/drawings/sheets/tcs-section.svg"
+
+[build.targets.view-tcs-system]
+using = "dcr:tcs-study-view"
+output = "build/drawings/views/tcs-system.svg"
+scope = { view = "diagram", pod = "IT01" }
+
+[build.targets.sheet-tcs-system]
+using = "sheet:compose"
+dependencies = ["view-tcs-system"]
+scope = { source = "assets/sheets/tcs-system.sheet.json" }
+output = "build/drawings/sheets/tcs-system.svg"

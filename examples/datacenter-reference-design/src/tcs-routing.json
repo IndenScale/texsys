@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "state": "assumed",
+  "basis": "双套独立二次侧，CDU 可拆卸软管上引。每侧供回水各有两列机柜干管，跨舱短横管分层。机柜端使用可拆软接并按设备库快接阻力核算。布置按安装包络校核，软管最小动态弯曲半径、阀组和支架详图待供货资料。",
+  "main": {"size": "DN50", "bore_m": 0.0525, "envelope_m": 0.0783, "roughness_m": 0.000045, "maximum_velocity_m_s": 2.0},
+  "branch": {"size": "DN20", "bore_m": 0.0209, "envelope_m": 0.0387, "roughness_m": 0.000045, "maximum_velocity_m_s": 2.0},
+  "minor_k": {"header_through": 0.16, "rack_takeoff": 0.62, "elbow": 0.34, "skid_valve_allowance": 1.0},
+  "sides": {
+    "A": {"cdu": "CduA", "net": "TcsA", "feed_row": "south", "skid_lead_y_m": 0.98,
+          "supply": {"manifold": "SupplyA", "crossover_x_m": 3.26, "south_y_m": 1.12, "north_y_m": 2.56, "tier_m": 2.34},
+          "return": {"manifold": "ReturnA", "crossover_x_m": 3.59, "south_y_m": 0.86, "north_y_m": 2.82, "tier_m": 2.445}},
+    "B": {"cdu": "CduB", "net": "TcsB", "feed_row": "north", "skid_lead_y_m": 2.675,
+          "supply": {"manifold": "SupplyB", "crossover_x_m": 3.92, "south_y_m": 0.60, "north_y_m": 3.08, "tier_m": 2.66},
+          "return": {"manifold": "ReturnB", "crossover_x_m": 4.19, "south_y_m": 0.34, "north_y_m": 3.34, "tier_m": 2.76}}
+  }
+}

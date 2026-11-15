@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "state": "assumed",
+  "basis": "每舱一运一备，两套冷却水回路独立。活动侧各机柜按等热负荷、约定液侧温升配流。台架选型前采用候选 CDU 泵曲线与换热器阻力，取上游设施水稳态或冷源切换峰值，稳态比较机柜入口温度及供冷能力。",
+  "fluid": {"density_kg_m3": 998, "cp_kj_kg_k": 4.18, "viscosity_pa_s": 0.001},
+  "secondary_target_supply_c": 27,
+  "secondary_rack_rise_k": 6,
+  "cdu_approach_allowance_k": 0,
+  "cdu_reference_flow_l_s": 4.2,
+  "cdu_shutoff_kpa": 115,
+  "cdu_head_kpa_at_reference_flow": 66,
+  "cdu_secondary_drop_kpa_at_reference_flow": 24,
+  "cdu_pump_efficiency": 0.63,
+  "minimum_terminal_control_kpa": 8,
+  "maximum_terminal_trim_kpa": 40,
+  "pressure_reserve_kpa": 10,
+  "unavailable_cdus": []
+}
