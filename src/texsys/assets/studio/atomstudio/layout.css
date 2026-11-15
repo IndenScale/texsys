@@ -61,13 +61,22 @@
   --inspector-gap: 0px;
 }
 .workbench-card {
+  position: relative;
   min-height: 0;
   min-width: 0;
   overflow: hidden;
   border-radius: var(--workbench-card-radius);
-  outline: 1px solid var(--ui-chrome-divider);
-  outline-offset: -1px;
   background: var(--ui-canvas);
+}
+/* Opaque children (tab strip) would cover an outline; paint the divider above them. */
+.workbench-card::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  border: 1px solid var(--ui-chrome-divider);
+  border-radius: inherit;
+  pointer-events: none;
 }
 .workbench-side {
   grid-column: var(--sidebar-column);
