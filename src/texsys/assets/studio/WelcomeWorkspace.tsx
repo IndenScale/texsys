@@ -6,7 +6,8 @@ import { coreItems, coreSidebarTitles, isCoreActivity, type Activity } from "./C
 import { ExplorerTree } from "./ExplorerTree";
 import { NavigatorMenu, type NavigatorMenuItem } from "./NavigatorMenu";
 import { NavigatorButton, NavigatorPage, NavigatorPanel, NavigatorToolbar } from "./NavigatorPanel";
-import { SourceEditor, type SourceModels } from "./SourceEditor";
+import { OutlineView } from "./OutlineView";
+import { SourceEditor, revealSourceOutline, type SourceModels } from "./SourceEditor";
 import { t } from "./i18n";
 import { closeDocumentCommand } from "./menus";
 import type { StudioLayout } from "./sdk";
@@ -76,6 +77,7 @@ export function WelcomeWorkspace({
   const [directories, setDirectories] = useState<Record<string, LocalEntry[]>>({});
   const [expanded, setExpanded] = useState(() => new Set<string>());
   const [selected, setSelected] = useState("");
+  const [cursor, setCursor] = useState<{ line: number; column: number }>();
   const [recents, setRecents] = useState<RecentLocalEntry[]>([]);
   const [focusRecent, setFocusRecent] = useState(0);
   const [workspaceOpen, setWorkspaceOpen] = useState(true);
@@ -172,6 +174,7 @@ export function WelcomeWorkspace({
     void perform(async () => {
       if (!localPickers.showDirectoryPicker) throw new Error("此浏览器不支持打开本地文件夹。");
       await openLocalFolder(await localPickers.showDirectoryPicker({ mode: "read" }));
+      dismissWelcome();
     });
   }
   function openFile() {
@@ -184,8 +187,10 @@ export function WelcomeWorkspace({
   function openRecent(handle: LocalEntry) {
     void perform(async () => {
       if (!(await requestFileAccess(handle, "read"))) return;
-      if (handle.kind === "directory") await openLocalFolder(handle);
-      else await openLocalFile(handle);
+      if (handle.kind === "directory") {
+        await openLocalFolder(handle);
+        dismissWelcome();
+      } else await openLocalFile(handle);
     });
   }
   function newFile() {
@@ -202,6 +207,10 @@ export function WelcomeWorkspace({
   function showRecents() {
     showWelcome();
     setFocusRecent((previous) => previous + 1);
+  }
+  function dismissWelcome() {
+    setWelcomeOpen(false);
+    setActive((current) => (current === welcomeId ? (documents.at(-1)?.id ?? "") : current));
   }
   function refreshFolder() {
     if (root) void perform(() => openLocalFolder(root));
@@ -522,13 +531,18 @@ export function WelcomeWorkspace({
                   </>
                 ))}
               <div className="welcome-side-sections">
-                <details className="welcome-side-section">
-                  <summary>
-                    <Icon name="chevron" size={14} />
-                    <span>{t("大纲")}</span>
-                  </summary>
-                  <p className="core-hint">{t("打开文档后可查看大纲。")}</p>
-                </details>
+                <OutlineView
+                  document={
+                    current && active !== welcomeId
+                      ? { name: current.name, value: current.value }
+                      : undefined
+                  }
+                  cursor={cursor}
+                  onNavigate={(range) => {
+                    if (current)
+                      revealSourceOutline(current.id + "/" + current.name, models.current, range);
+                  }}
+                />
                 <details className="welcome-side-section">
                   <summary>
                     <Icon name="chevron" size={14} />
@@ -674,6 +688,7 @@ export function WelcomeWorkspace({
                 )
               }
               onFocusHandled={noAction}
+              onStatus={(status) => setCursor({ line: status.line, column: status.column })}
             />
           </div>
         ) : (

@@ -30,34 +30,15 @@ import type { SourceEditorStatus, SourceStatusAction } from "./editor-groups";
 import type { SourceEditCommand } from "./menus";
 import "./toml-language";
 import { useUserPreferences } from "./user-preferences";
-import { sourceFileFormat, sourceOffset, type SearchMatch } from "./workspace-model";
+import {
+  sourceFileFormat,
+  sourceOffset,
+  detectedSourceLanguage,
+  type SearchMatch,
+} from "./workspace-model";
 
 globalThis.MonacoEnvironment = {
   getWorker: (_id, label) => (label === "json" ? new JsonWorker() : new EditorWorker()),
-};
-
-const languageByExtension: Record<string, string> = {
-  js: "javascript",
-  jsx: "javascript",
-  mjs: "javascript",
-  cjs: "javascript",
-  ts: "typescript",
-  tsx: "typescript",
-  json: "json",
-  jsonc: "json",
-  html: "html",
-  htm: "html",
-  xml: "xml",
-  drawio: "xml",
-  svg: "xml",
-  md: "markdown",
-  markdown: "markdown",
-  ini: "ini",
-  toml: "toml",
-  py: "python",
-  sh: "shell",
-  yaml: "yaml",
-  yml: "yaml",
 };
 
 const markdownPunctuation = Object.fromEntries(
@@ -141,8 +122,21 @@ export function runSourceStatusAction(
     ?.run();
 }
 
-function detectedSourceLanguage(path: string) {
-  return languageByExtension[sourceFileFormat(path)] ?? "plaintext";
+export function revealSourceOutline(
+  path: string,
+  models: SourceModels,
+  range: { startLine: number; startColumn: number; endLine: number; endColumn: number },
+) {
+  const target = visibleSourceEditor(path, models);
+  if (!target) return;
+  const selection = {
+    startLineNumber: range.startLine,
+    startColumn: range.startColumn,
+    endLineNumber: range.endLine,
+    endColumn: range.endColumn,
+  };
+  target.code.setSelection(selection);
+  target.code.revealRangeInCenter(selection);
 }
 
 export function selectedSourceText(path: string, models: SourceModels, viewId?: string) {

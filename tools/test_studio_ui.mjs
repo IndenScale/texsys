@@ -1850,3 +1850,188 @@ test("mounted artifact previews preserve their viewport when file geometry chang
   assert.ok(faces.some((face) => JSON.stringify(face) === JSON.stringify(oldRoom)));
   await act(() => root.unmount());
 });
+
+const {
+  outlineForDocument,
+  sortOutlineSymbols,
+  filterOutlineSymbols,
+  outlineSymbolAt,
+  supportsOutline,
+} = load("src/texsys/assets/studio/outline-model.ts");
+
+test("markdown outline nests headings, skips fences and spans sections", () => {
+  const text = [
+    "# Title",
+    "",
+    "intro",
+    "",
+    "## A",
+    "",
+    "```",
+    "# not a heading",
+    "```",
+    "",
+    "### A1",
+    "",
+    "## B",
+    "",
+  ].join("\n");
+  const symbols = outlineForDocument("markdown", text);
+  assert.equal(symbols.length, 1);
+  assert.equal(symbols[0].name, "Title");
+  assert.deepEqual(
+    symbols[0].children.map((node) => node.name),
+    ["A", "B"],
+  );
+  assert.deepEqual(
+    symbols[0].children[0].children.map((node) => node.name),
+    ["A1"],
+  );
+  const hit = outlineSymbolAt(symbols, 12, 1);
+  assert.equal(hit.id, symbols[0].children[0].children[0].id);
+  assert.deepEqual(hit.ancestors, [symbols[0].id, symbols[0].children[0].id]);
+});
+
+test("markdown outline reads setext headings", () => {
+  const symbols = outlineForDocument("markdown", "Title\n=====\n\nbody\n\nSub\n---\n\nmore\n");
+  assert.deepEqual(
+    symbols.map((node) => node.name),
+    ["Title"],
+  );
+  assert.deepEqual(
+    symbols[0].children.map((node) => node.name),
+    ["Sub"],
+  );
+  assert.equal(outlineSymbolAt(symbols, 9, 1).id, symbols[0].children[0].id);
+});
+
+test("json outline builds kinds, previews and ranges; tolerates jsonc", () => {
+  const text =
+    '{\n  "name": "texsys",\n  "private": true,\n  "scripts": { "format": "prettier" },\n  "list": [1, null]\n}\n';
+  const symbols = outlineForDocument("json", text);
+  assert.deepEqual(
+    symbols.map((node) => node.name),
+    ["name", "private", "scripts", "list"],
+  );
+  assert.deepEqual(
+    symbols.map((node) => node.kind),
+    ["string", "boolean", "object", "array"],
+  );
+  assert.equal(symbols[0].detail, "texsys");
+  assert.equal(symbols[0].range.startLine, 2);
+  assert.equal(symbols[2].children[0].name, "format");
+  assert.deepEqual(
+    symbols[3].children.map((node) => node.name),
+    ["0", "1"],
+  );
+  assert.equal(outlineSymbolAt(symbols, 4, 5).id, symbols[2].id);
+  const tolerant = outlineForDocument(
+    "json",
+    '{\n // comment\n "a": 1, /* block */\n "b": [true,],\n}',
+  );
+  assert.deepEqual(
+    tolerant.map((node) => node.name),
+    ["a", "b"],
+  );
+});
+
+test("outline sorting and filtering follow the selected mode", () => {
+  const symbols = outlineForDocument("json", '{"b": {}, "a": 1, "c": {"z": 0}}');
+  assert.deepEqual(
+    sortOutlineSymbols(symbols, "name").map((node) => node.name),
+    ["a", "b", "c"],
+  );
+  assert.deepEqual(
+    sortOutlineSymbols(symbols, "category").map((node) => node.name),
+    ["b", "c", "a"],
+  );
+  const filtered = filterOutlineSymbols(symbols, "z");
+  assert.deepEqual(
+    filtered.map((node) => node.name),
+    ["c"],
+  );
+  assert.deepEqual(
+    filtered[0].children.map((node) => node.name),
+    ["z"],
+  );
+  assert.equal(filterOutlineSymbols(symbols, "missing").length, 0);
+  assert.equal(supportsOutline("python"), false);
+  assert.deepEqual(outlineForDocument("python", "def f(): pass"), []);
+});
+
+test("outline view renders symbols, navigates, collapses and filters on type", async () => {
+  const { JSDOM } = await import("jsdom");
+  const React = await import("react");
+  const { act } = React;
+  const { createRoot } = await import("react-dom/client");
+  const dom = new JSDOM("<!doctype html><body></body>", {
+    url: "http://localhost/",
+    pretendToBeVisual: true,
+  });
+  for (const name of ["window", "document", "HTMLElement", "Node", "localStorage"])
+    globalThis[name] = dom.window[name];
+  globalThis.IS_REACT_ACT_ENVIRONMENT = true;
+  globalThis.requestAnimationFrame = (callback) => setTimeout(callback, 0);
+  dom.window.HTMLElement.prototype.scrollIntoView = function () {};
+  const { OutlineView } = load("src/texsys/assets/studio/OutlineView.tsx");
+  const container = document.createElement("div");
+  document.body.appendChild(container);
+  const root = createRoot(container);
+  const navigated = [];
+  const view = (props) =>
+    act(async () =>
+      root.render(
+        React.createElement(OutlineView, {
+          document: { name: "README.md", value: "# Title\n\n## A\n\ntext\n" },
+          onNavigate: (range) => navigated.push(range),
+          ...props,
+        }),
+      ),
+    );
+  await view();
+  const rows = () => Array.from(container.querySelectorAll('[role="treeitem"]'));
+  const names = () => rows().map((row) => row.querySelector(".outline-name").textContent);
+  assert.deepEqual(names(), ["Title", "A"]);
+  await view({ cursor: { line: 5, column: 1 } });
+  assert.equal(container.querySelector(".outline-row.selected .outline-name").textContent, "A");
+  await act(async () => rows()[1].click());
+  assert.deepEqual(navigated.at(-1), {
+    startLine: 3,
+    startColumn: 1,
+    endLine: 3,
+    endColumn: 5,
+  });
+  await act(async () => rows()[0].querySelector(".outline-twistie button").click());
+  assert.deepEqual(names(), ["Title"]);
+  await act(async () => rows()[0].querySelector(".outline-twistie button").click());
+  await act(async () => rows()[0].focus());
+  await act(async () =>
+    document.activeElement.dispatchEvent(
+      new window.KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true }),
+    ),
+  );
+  assert.equal(document.activeElement, rows()[1]);
+  await act(async () =>
+    document.activeElement.dispatchEvent(
+      new window.KeyboardEvent("keydown", { key: "T", bubbles: true }),
+    ),
+  );
+  const filter = container.querySelector(".outline-filter");
+  assert.equal(filter.value, "T");
+  assert.deepEqual(names(), ["Title"]);
+  await act(async () =>
+    filter.dispatchEvent(new window.KeyboardEvent("keydown", { key: "Escape", bubbles: true })),
+  );
+  assert.equal(container.querySelector(".outline-filter"), null);
+  await view({ document: { name: "package.json", value: '{"name": "texsys", "ok": true}' } });
+  assert.deepEqual(
+    Array.from(container.querySelectorAll(".outline-symbol")).map((item) => item.dataset.kind),
+    ["string", "boolean"],
+  );
+  assert.equal(container.querySelector(".outline-detail").textContent, "texsys");
+  await view({ document: { name: "main.py", value: "print(1)" } });
+  assert.match(container.textContent, /此文件无法提供大纲信息。/);
+  await view({ document: undefined });
+  assert.match(container.textContent, /打开文档后可查看大纲。/);
+  await act(() => root.unmount());
+});

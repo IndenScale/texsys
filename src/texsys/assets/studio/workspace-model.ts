@@ -6,6 +6,34 @@ export function sourceFileFormat(path: string): string {
   return name === "texsys.lock" ? "toml" : (name.split(".").pop() ?? "");
 }
 
+const languageByExtension: Record<string, string> = {
+  js: "javascript",
+  jsx: "javascript",
+  mjs: "javascript",
+  cjs: "javascript",
+  ts: "typescript",
+  tsx: "typescript",
+  json: "json",
+  jsonc: "json",
+  html: "html",
+  htm: "html",
+  xml: "xml",
+  drawio: "xml",
+  svg: "xml",
+  md: "markdown",
+  markdown: "markdown",
+  ini: "ini",
+  toml: "toml",
+  py: "python",
+  sh: "shell",
+  yaml: "yaml",
+  yml: "yaml",
+};
+
+export function detectedSourceLanguage(path: string) {
+  return languageByExtension[sourceFileFormat(path)] ?? "plaintext";
+}
+
 export type FileListing = { files: ProjectFile[]; directories: string[]; truncated: boolean };
 export type TreeEntry = {
   path: string;

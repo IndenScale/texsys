@@ -4,6 +4,7 @@
 - 日期：2026-11-15
 - 取代：无（修订 [DDR-0018](0018-studio-status-bar-editor-and-workbench-actions.md) 的键盘布局与图标尺寸、[DDR-0020](0020-studio-empty-workspace-full-shell-and-bare-entry.md) 的空白工作区外壳部分）
 - 被取代：无
+- 后继修订：大纲节由 [DDR-0005](0005-studio-core-editor.md)「文件资源管理器 - 大纲」实现真实视图；时间线仍为空态占位。
 
 ## 用户体验与交互背景
 
