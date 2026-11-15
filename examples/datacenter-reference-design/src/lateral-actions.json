@@ -1,0 +1,29 @@
+{
+  "schema_version": 1,
+  "state": "assumed",
+  "basis": "合成场地的候选侧向作用和承载力门限。风按两向投影面积和净压预算折算至屋面。地震采用屋面有效重量及静力替代系数。正式工程需要地勘、基本风压、场地谱及现行规范的作用组合。",
+  "pending_references": {
+    "GB 55001-2021": "https://www.mohurd.gov.cn/gongkai/zc/wjk/art/2021/art_17339_761192.html",
+    "GB 55002-2021": "https://www.mohurd.gov.cn/gongkai/zc/wjk/art/2021/art_17339_761174.html",
+    "GB 55006-2021": "https://www.mohurd.gov.cn/gongkai/zc/wjk/art/2021/art_17339_761191.html"
+  },
+  "wind_net_pressure_kpa": {"x": 0.7, "y": 0.7},
+  "wind_strength_factor": 1.45,
+  "accidental_eccentricity_ratio": 0.05,
+  "seismic_static_coefficient": 0.16,
+  "seismic_orthogonal_fraction": 0.3,
+  "roof_live_mass_fraction": 0.25,
+  "additional_roof_mass_kn": 65,
+  "stable_dead_weight_factor": 0.9,
+  "upper_dead_weight_factor": 1.3,
+  "concurrent_roof_live_fraction": 0.7,
+  "service_drift_limit_ratio": 0.003333333333,
+  "seismic_drift_limit_ratio": 0.005,
+  "rod_net_area_fraction": 0.75,
+  "rod_design_stress_mpa": 170,
+  "gusset_axial_rating_kn": 150,
+  "column_base_screen_stress_mpa": 155,
+  "base_shear_rating_kn": 65,
+  "base_torsion_rating_kn_m": 13,
+  "soil_friction_coefficient": 0.5
+}

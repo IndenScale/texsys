@@ -1,0 +1,21 @@
+{
+  "schema_version": 1,
+  "state": "assumed",
+  "basis": "主机房钢框架的候选交叉拉杆。节点随轴网、柱脚和屋面梁顶定位。短接板、柱脚、锚栓及屋面集力构造待专项设计。",
+  "lower_above_column_base_m": 0.94,
+  "upper_below_beam_top_m": 0.41,
+  "joint_setback_m": 0.36,
+  "rod_diameter_m": 0.04,
+  "plane_separation_m": 0.052,
+  "installation_clearance_m": 0.003,
+  "bays": {
+    "VB-A-12": {"from_axes": ["1", "A"], "to_axes": ["2", "A"], "offset_m": 0.095},
+    "VB-A-45": {"from_axes": ["4", "A"], "to_axes": ["5", "A"], "offset_m": 0.095},
+    "VB-C-12": {"from_axes": ["1", "C"], "to_axes": ["2", "C"], "offset_m": 0.095},
+    "VB-C-45": {"from_axes": ["4", "C"], "to_axes": ["5", "C"], "offset_m": 0.095},
+    "VB-2-AB": {"from_axes": ["2", "A"], "to_axes": ["2", "B"], "offset_m": 0.095},
+    "VB-2-BC": {"from_axes": ["2", "B"], "to_axes": ["2", "C"], "offset_m": 0.095},
+    "VB-4-AB": {"from_axes": ["4", "A"], "to_axes": ["4", "B"], "offset_m": 0.095},
+    "VB-4-BC": {"from_axes": ["4", "B"], "to_axes": ["4", "C"], "offset_m": 0.095}
+  }
+}

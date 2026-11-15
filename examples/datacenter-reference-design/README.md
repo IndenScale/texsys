@@ -26,6 +26,7 @@ datacenter-reference 器件/单元库 → structure / architecture / hvac-equipm
 - `src/site.json`、`grid.json`、`levels.json` 定义宗地、局部坐标、轴网、标高和分区边界。
 - `src/site-grading.json` 声明合成测点、硬化平台、竖向控制和发电机区密闭收集。三角地形生成等高线、室外汇水分区及挖填方。
 - `src/site-storm.json` 从锁定屋面落水口编译雨水接管、重力管道、限流调蓄和东界交接。三种降雨工况按同一屋面雨强计算，覆盖覆土、管道能力、调蓄和场外交接限值。
+- `src/lateral-bracing.json` 定位主机房交叉拉杆。安装定位读取轴网、标高和柱梁节点。`src/lateral-actions.json` 声明候选风、静力替代地震、有效重量及验收门限。`src/structure.json` 按柱编号记录受侧力的加大独立基础。
 - `src/coordination.json` 以 SDL 实例 ID 绑定轴线交点、偏移、专业和分区。物理实例使用锁定部件的 USD 几何。市电及补水等逻辑接口记录待落实的空间条件。
 - `src/architecture.json` 将既有北侧墙件接入完整主机房围护，用 B 轴定位分隔墙。东西门位由南北走道导出，并按门洞、平台和坡道坐标校核到室外场坪的通行。
 - `src/air-routing.json` 声明送风短管、空调回风口、机柜背部排风后腔及空气流通尺寸。`src/air-study.json` 声明候选风机、风量、露点、回流和额外显热。
@@ -54,7 +55,7 @@ datacenter-reference 器件/单元库 → structure / architecture / hvac-equipm
 | 宗地建模 | `dcr:site` 计算宗地与可建设范围面积，`sheet-parcel` 输出红线与退界图。竖向编译现状及形成面、挖填方、设备平台和四处疏散坡道落地。洁净场区由 TIN 追踪至四处雨水受水井 | 实测界址和地形、道路详图、压实、岩土及报批 |
 | 轴网划分 | `dcr:grid` 核对轴线并定位，`sheet-grid` 输出轴号和轴间尺寸 | 协调结构跨度、伸缩缝和建筑定位 |
 | 楼层标高、层内分区 | `dcr:levels` 从轴线和标高生成空间分区。`dcr:architecture` 编译建筑围护和 B 轴防火分隔、四处外门及相应平台和坡道，输出建筑平面、坡道剖面、门表和 USD。屋盖由钢梁顶以上的檩条、钢承板、找坡保温层及防水层闭合，出屋面平面、横剖、洞口详图和墙头构造协调 | 墙头变形与耐火封堵、屋面防水、坡道节点及现场条件 |
-| 结构建模 | `dcr:structure-model` 输出屋面钢梁与柱平面、基础平面、B 轴剖面、构件表及 USD。`dcr:roof-actions` 从屋盖提取材料自重、逐檩条挠度和支座反力。主体钢梁逐点接收该反力，`dcr:structure-gravity` 编译传力至轴心基础的重力计算书 | 实测地勘、抗风抗震、设备基础、钢承板局部承载、洞口加强、座板、节点与配筋 |
+| 结构建模 | `dcr:structure-model` 输出屋面钢梁与柱平面、基础平面、B 轴剖面、构件表及 USD。`dcr:roof-actions` 提取材料自重、檩条挠度和支座反力。`dcr:structure-gravity` 复算主体重力。主机房八跨交叉支撑编译定位平面、纵横立面、基础控制作用表和专业与综合 USD。候选风和静力替代地震复算层间位移、杆件拉力、柱脚反力、基础接触与抗滑 | 实测地勘、风参数和场地反应谱、屋面集力构造、抗风揭、设备基础、端板、锚栓、节点与配筋 |
 | 核心机电与方舱布局 | 分区图核对 67 个物理实例，BOM 保留 515 条 SDL 明细。16 舱装配锁定的机柜、CDU 和精密空调尺寸，编译设备布置、通道横剖面、设备表和可查看的典型舱剖切场景。设施水与弱电协调包络和贯穿预留。弱电编译两张桥架平面、端接系统图和 128 个机柜的双路纤芯表。消防编译主机房报警平面和方舱灭火设备布置 | 厂商制造尺寸、舱内二次侧接管、机柜跳线、支吊架和灭火专项选型 |
 | 性能计算与冗余保护 | 电气 A/B 出单线图及屋面布置、单路带全部 16 舱的电压降和载流校核、88 个三相故障工况及保护表。馈线长度、母线段和下引电缆阻抗进入三相故障复算。动力区 A/B 到三列冷源、泵塔及辅助柜共 15 回路，交付排管平面、泵塔平面、入线剖面和保护表。逐列校核单路、冷源柜或泵塔退出，发电机启动控制的共因依赖保留待核。弱电校核链路光预算、单路承载 5.12 Tb/s 的配置容量及各登记构件单点断开后连通性 | 厂家曲线、接地、单相故障、多源并联、弯曲半径、谐波、照明与水处理等其余动力、发电机黑启动和实际切换、运营商和网络协议测试 |
 | 管道布置 | `dcr:fws-network` 从设备接口生成供回水环路、支管和立管。五张图输出总平面、系统图、屋面预留、局部接驳正视投影和分段隔离图。三个冷凝器侧闭式回路从实际法兰取点，编译冷却水平面、横剖面、系统图、管段工程量和跨专业碰撞检查。场区给排水编译补水排污平面、排污纵断面、系统图和管段表。屋面雨水经双侧檐沟和四处落水接入场区雨水管网。室外雨水编译总图、纵断面、调蓄池及限流孔剖面，给水及工艺排污沿各自路径交接。发电机区汇入独立密闭池。TCS 从机柜和 CDU 的实际端口生成独立 A/B 管网、接管平面、机柜顶横剖面和系统图。风侧生成空调顶部短管、回风口和机柜排风后腔，编译送回风图及协调模型 | 支吊架、排空、阀件检修及防火封堵 |
@@ -69,6 +70,7 @@ uv run --locked texsys lock --check -p examples/datacenter-reference-design
 uv run --locked texsys build -p examples/datacenter-reference-design
 uv run --locked texsys build -p examples/datacenter-reference-design --target sheet-fws-network
 uv run --locked texsys build -p examples/datacenter-reference-design --target dcr:structure-gravity --target dcr:power-study
+uv run --locked texsys build -p examples/datacenter-reference-design --target dcr:lateral-check --target dcr:lateral-scene --target sheet-lateral-plan --target sheet-lateral-elevations --target sheet-lateral-foundations
 uv run --locked texsys build -p examples/datacenter-reference-design --target dcr:roof-scene --target dcr:roof-gravity-check --target dcr:roof-drainage-check --target sheet-roof-envelope --target sheet-roof-opening-detail
 uv run --locked texsys build -p examples/datacenter-reference-design --target dcr:site-grading-check --target dcr:site-storm-check --target dcr:site-storm-scene --target sheet-site-storm-profile
 uv run --locked texsys build -p examples/datacenter-reference-design --target dcr:power-installation --target dcr:power-scene --target sheet-power-roof-a --target sheet-power-roof-b --target sheet-power-pod-section
@@ -84,7 +86,7 @@ uv run --locked texsys build -p examples/datacenter-reference-design --target dc
 uv run --locked texsys build -p examples/datacenter-reference-design --target dcr:air-coordination --target dcr:air-check --target sheet-air-environment
 ```
 
-成品图在 `build/drawings/sheets/`，包含 62 张 A3 图及各图的来源报告。可校准图纸按标题栏比例原尺寸打印。门、疏散、预留、构件、保护、馈线、洞口定位、水力、弱电端接、热瞬态及消防工况表在 `build/schedules/`。综合交付包含 `build/scenes/aidc-facility-power-coordinated.usda` 全场动力协调、`build/scenes/aidc-facility-power.usda` 冷源动力专业场景、`build/scenes/aidc-site-storm-underground.usda` 雨水地下工程剖切场景、`build/scenes/aidc-roof-assembly.usda` 屋盖专项场景、`build/scenes/aidc-power-roof.usda` 电气专业屋面场景及 `build/scenes/aidc-it-pod-air.usda` 典型舱内送回风、TCS 与设备剖切场景。专业审查材料在 `build/review/aidc-discipline-review.json`。用 Tex Studio 的文件资源管理器或快速打开读取上述文件。
+成品图在 `build/drawings/sheets/`，包含 65 张 A3 图及各图的来源报告。可校准图纸按标题栏比例原尺寸打印。门、疏散、预留、构件、保护、馈线、洞口定位、水力、弱电端接、热瞬态及消防工况表在 `build/schedules/`。综合交付包含 `build/scenes/aidc-lateral-coordinated.usda` 全场结构支撑协调、`build/scenes/aidc-braced-frame.usda` 主体结构支撑、`build/scenes/aidc-facility-power-coordinated.usda` 全场动力协调、`build/scenes/aidc-facility-power.usda` 冷源动力专业场景、`build/scenes/aidc-site-storm-underground.usda` 雨水地下工程剖切场景、`build/scenes/aidc-roof-assembly.usda` 屋盖专项场景、`build/scenes/aidc-power-roof.usda` 电气专业屋面场景及 `build/scenes/aidc-it-pod-air.usda` 典型舱内送回风、TCS 与设备剖切场景。专业审查材料在 `build/review/aidc-discipline-review.json`。用 Tex Studio 的文件资源管理器或快速打开读取上述文件。
 
 主机房屋盖在 +4.900 m 主体钢梁顶以上形成 +5.200 m 钢承板底及最高 +5.476 m 完成面。64 个设施水及关键电气预留逐层切空，并由同一套坐标更新设施水和电气剖面。本例编译屋面与檩条候选自重约 480.82 kN，逐檩条支座力用于计算主体钢梁和基础。四处屋面落水在设计雨强下单点约 6.79 L/s，从场坪以上 0.40 m 落水口转接至室外受水井。闭合屋面综合视图隐藏此视角下位于舱内的细密 TCS 管线；管线与舱内设备可从已有 TCS 与典型舱场景查看。
 
@@ -115,6 +117,8 @@ TCS 按每舱 90 kW、每台 11.25 kW 机柜液侧负荷编译。两套独立冷
 `build/datacenter-reference/bom.json` 交付 515 条 BOM 条目，按主机房、供配电、冷源及建筑构造汇总。结构专业的构件表按深化后的柱、梁、基础分别计量。
 
 修改库内容后需重新锁定（`texsys lock -p examples/datacenter-reference-design`），否则检查按锁失效处理。
+
+按现有主机房轴网，X 向支撑沿 A、C 轴，Y 向支撑沿 2、4 轴。八跨的 16 根拉杆从同一几何生成 1:150 定位图、1:200 纵横向立面和两份 USD，受侧力的十座独立基础尺寸反映在 S-002。候选工况考虑风的两向正反向与偏心，以及静力替代地震的两向、伴随正交分量与偏心。屋盖分层及檩条重量进入有效地震重量。基础按上下限竖向组合分别检查接触、边缘压力和抗滑。按 32 个工况计算，边缘最大压力约 104.85 kPa，受压面积最小为基础底面的 39.0%。屋面集力构造、短接件、锚栓、土体弹簧、真实风地震输入和正式规范组合仍待核证。
 
 ## 边界
 

@@ -2,7 +2,7 @@
 
 import csv
 from dataclasses import asdict
-from itertools import pairwise, product
+from itertools import combinations, pairwise, product
 import math
 
 from pxr import Gf, Sdf, Tf, Usd, UsdGeom
@@ -55,35 +55,41 @@ def _model(context, settings):
   shapes = _sections(settings)
   depth = max(shapes[k].depth for k in ("girder", "tie"))
   column_top = roof - depth
-  pad = vector(settings["pad"]["size_m"], 3, "pad dimensions")
+  pad_config = settings["pad"]
   plinth = vector(settings["pad"]["plinth_m"], 2, "plinth footprint")
   plate = vector(settings["base_plate_m"], 3, "base plate dimensions")
   bottom = vector([settings["pad"]["bottom_m"]], 1, "pad bottom elevation")[0]
-  if (min(*pad, *plinth, *plate) <= 0 or bottom + pad[2] >= base or base + plate[2] >= column_top
-      or any(a > b or b > c for a, b, c in zip(plate[:2], plinth, pad[:2], strict=True))):
+  if (min(*plinth, *plate) <= 0 or base + plate[2] >= column_top
+      or any(a > b for a, b in zip(plate[:2], plinth, strict=True))):
     raise ValueError("Footing, plinth, plate and column elevations or footprints do not stack.")
   if plate[0] < shapes["column"].width or plate[1] < shapes["column"].depth:
     raise ValueError("The column must fit its base plate.")
-  if any(b - a <= size for lines, size in ((grid.x, pad[0]), (grid.y, pad[1]))
-         for a, b in pairwise(lines.values())):
-    raise ValueError("The declared footing footprints overlap.")
   elevation = levels["levels_m"]["YARD"]
-  if bottom + pad[2] >= elevation:
-    raise ValueError("The declared pad must be below the yard datum.")
-  members = {}
+  members, pads = {}, {}
   column_parts = shapes["column"]
+  overrides = pad_config.get("overrides_m", {})
   for ax, ay in product(grid.x, grid.y):
     x, y = grid.point(ax, ay)
     suffix = f"{ax}-{ay}"
+    pad_key = f"P-{suffix}"
+    pad = vector(overrides.get(pad_key, pad_config["size_m"]), 3, f"{pad_key} dimensions")
+    if (min(pad) <= 0 or bottom + pad[2] >= min(base, elevation)
+        or any(a > b for a, b in zip(plinth, pad[:2], strict=True))):
+      raise ValueError(f"{pad_key}: pad must fit under the plinth and below the yard datum.")
     footing = Box("Pad", (x - pad[0]/2, y - pad[1]/2, bottom), pad)
+    pads[pad_key] = Space(footing.origin, tuple(a+b for a, b in zip(footing.origin, pad, strict=True)))
     plinth_part = Box("Plinth", (x - plinth[0]/2, y - plinth[1]/2, bottom + pad[2]),
                      (*plinth, base - bottom - pad[2]))
     plate_part = Box("Plate", (x - plate[0]/2, y - plate[1]/2, base), plate)
-    members[f"P-{suffix}"] = _member("foundation", (x, y, bottom), (x, y, base), (footing, plinth_part),
-                                     axes=[ax, ay])
+    members[pad_key] = _member("foundation", (x, y, bottom), (x, y, base), (footing, plinth_part), axes=[ax, ay])
     parts = (*column_parts.column((x, y), base + plate[2], column_top), plate_part)
     members[f"C-{suffix}"] = _member("column", (x, y, base), (x, y, column_top), parts,
-                                     axes=[ax, ay], pad=f"P-{suffix}")
+                                     axes=[ax, ay], pad=pad_key)
+  if unknown := set(overrides) - pads.keys():
+    raise ValueError(f"Unknown footing dimensions: {', '.join(sorted(unknown))}.")
+  for first, last in combinations(pads, 2):
+    if pads[first].intersects(pads[last]):
+      raise ValueError(f"{first} and {last}: the declared footing footprints overlap.")
   y_values = list(grid.y.values())
   strips = [ymin, *((a + b) / 2 for a, b in pairwise(y_values)), ymax]
   for index, ay in enumerate(grid.y):

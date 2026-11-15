@@ -12,7 +12,7 @@ build = "build"
 default_targets = ["review-package"]
 
 [dependencies]
-datacenter-reference = { path = "../../packages/datacenter-reference", version = "0.19.0" }
+datacenter-reference = { path = "../../packages/datacenter-reference", version = "0.20.0" }
 sheet = { path = "../../packages/sheet", version = "0.2.0" }
 
 [build.targets.review-package]
@@ -29,6 +29,8 @@ dependencies = [
   "dcr:wet-utility-coordination",
   "dcr:wet-utility-check",
   "dcr:structure-gravity",
+  "dcr:lateral-check",
+  "dcr:lateral-scene",
   "dcr:roof-gravity-check",
   "dcr:roof-drainage-check",
   "dcr:roof-scene",
@@ -80,6 +82,9 @@ dependencies = [
   "sheet-structure-l01",
   "sheet-structure-footings",
   "sheet-structure-section-b",
+  "sheet-lateral-plan",
+  "sheet-lateral-elevations",
+  "sheet-lateral-foundations",
   "sheet-it-hall",
   "sheet-pod-plan",
   "sheet-pod-section",
@@ -804,3 +809,36 @@ using = "sheet:compose"
 dependencies = ["view-facility-power-continuity"]
 scope = { source = "assets/sheets/facility-power-continuity.sheet.json" }
 output = "build/drawings/sheets/facility-power-continuity.svg"
+
+[build.targets.plan-lateral-plan]
+using = "dcr:lateral-layout-view"
+output = "build/drawings/views/lateral-plan.svg"
+scope = { view = "plan" }
+
+[build.targets.sheet-lateral-plan]
+using = "sheet:compose"
+dependencies = ["plan-lateral-plan"]
+scope = { source = "assets/sheets/lateral-plan.sheet.json" }
+output = "build/drawings/sheets/lateral-plan.svg"
+
+[build.targets.plan-lateral-elevations]
+using = "dcr:lateral-layout-view"
+output = "build/drawings/views/lateral-elevations.svg"
+scope = { view = "elevations" }
+
+[build.targets.sheet-lateral-elevations]
+using = "sheet:compose"
+dependencies = ["plan-lateral-elevations"]
+scope = { source = "assets/sheets/lateral-elevations.sheet.json" }
+output = "build/drawings/sheets/lateral-elevations.svg"
+
+[build.targets.plan-lateral-foundations]
+using = "dcr:lateral-study-view"
+output = "build/drawings/views/lateral-foundations.svg"
+scope = { view = "schedule" }
+
+[build.targets.sheet-lateral-foundations]
+using = "sheet:compose"
+dependencies = ["plan-lateral-foundations"]
+scope = { source = "assets/sheets/lateral-foundations.sheet.json" }
+output = "build/drawings/sheets/lateral-foundations.svg"

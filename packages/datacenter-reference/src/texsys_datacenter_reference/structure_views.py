@@ -35,7 +35,9 @@ def _plan(root, model, bounds, view):
       pad, plinth = member["parts"]
       _rect(root, _part_bounds(pad, (0, 1)), kind, data_member=identity)
       _rect(root, _part_bounds(plinth, (0, 1)), "plinth", data_member=identity)
-      _text(root, x + 1.14, y + .44, identity, .59, "start")
+      label_x = x + pad["size"][0]/2 + .29
+      _text(root, label_x, y + .37, identity, .59, "start")
+      _text(root, label_x, y - .51, "×".join(f"{value*1000:.0f}" for value in pad["size"]), .47, "start")
     elif view == "frame" and kind != "foundation":
       for part in member["parts"]:
         _rect(root, _part_bounds(part, (0, 1)), kind, data_member=identity)

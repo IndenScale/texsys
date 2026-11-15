@@ -70,7 +70,7 @@ def test_aidc_deliverables_bind_to_the_same_geometry_and_recompute_the_fws_head(
   assert dossier["evidence_complete"]
   assert dossier["input_digest"] == _read(baseline.report)["input_digest"]
   assert dossier["engineering_acceptance"] == "pending-responsible-review"
-  assert len(list((root / "build/drawings/sheets").glob("*.svg"))) == 62
+  assert len(list((root / "build/drawings/sheets").glob("*.svg"))) == 65
   old_dossier = file_digest(root / "build/review/aidc-discipline-review.json")
   drawing = root / "build/drawings/sheets/fws-network.svg"
   old_route_drawing = file_digest(drawing)
@@ -80,6 +80,7 @@ def test_aidc_deliverables_bind_to_the_same_geometry_and_recompute_the_fws_head(
   _check_power_installation(root)
   _check_facility_power(root)
   _check_roof_delivery(root)
+  _check_lateral_delivery(root)
   _check_storm_delivery(root)
   _check_fws_network_delivery(root)
   _check_building_delivery(root)
@@ -492,6 +493,67 @@ def test_aidc_facility_motor_protection_and_failed_gate_keep_views(tmp_path):
   assert any(row["rule"] == "AIDC_FACILITY_POWER_PROTECTION" for row in targets["dcr:facility-power-check"]["diagnostics"])
   assert targets["sheet-facility-power-continuity"]["status"] == "pass"
   assert targets["sheet-facility-power-cells"]["status"] == "pass"
+
+
+def _check_lateral_delivery(root):
+  frame = _read(root / MODEL / "structure.json")
+  model = _read(root / MODEL / "lateral-bracing.json")
+  fit = _read(root / MODEL / "lateral-coordination.json")
+  study = _read(root / MODEL / "lateral-study.json")
+  assert len(model["bays"]) == 8
+  assert fit["status"] == "pass" and fit["rods_checked"] == 16
+  assert len(study["cases"]) == 32
+  assert frame["members"]["P-1-A"]["parts"][0]["size"] == pytest.approx([2.6, 2.6, .60])
+  assert frame["members"]["P-1-B"]["parts"][0]["size"] == pytest.approx([1.7, 1.7, .48])
+  case = study["cases"]["wind-strength/x+1/ecc+1"]
+  force, cross, _ = case["load_kn"]
+  height = model["upper_joint_m"]-model["lower_joint_m"]
+  assert case["overturning_couple_kn_m"] == pytest.approx([height*force, height*cross])
+  assert sum(row["shear_kn"][0] for row in case["foundations"].values()) == pytest.approx(force)
+  for pad in case["foundations"].values():
+    assert pad["soil_resultants"] == pytest.approx([pad["pad_normal_kn"], *pad["first_moments_kn_m"]])
+  for file, prim in (("aidc-braced-frame.usda", "/Frame/Bracing/VB_A_12/P"),
+                     ("aidc-lateral-coordinated.usda", "/AIDC/StructureBracing/VB_A_12/P")):
+    stage = Usd.Stage.Open(str(root / "build/scenes" / file))
+    assert stage.GetPrimAtPath(prim).GetAttribute("texsys:collector").Get() == "G-1-2-A"
+  sheets = root / "build/drawings"
+  drawing = ET.parse(sheets / "views/lateral-elevations.svg")
+  assert len(drawing.findall(f".//{SVG}line[@data-rod]")) == fit["rods_checked"]
+  package = _read(root / "build/review/aidc-discipline-review.json")
+  paths = {row["file"] for row in package["disciplines"]["structure"]["artifacts"]}
+  assert "build/drawings/sheets/lateral-foundations.svg" in paths
+
+
+def test_aidc_lateral_reacts_to_mass_and_rejects_directional_mechanism(tmp_path):
+  root = _checkout(tmp_path)
+  requested = ("dcr:lateral-check", "sheet-lateral-elevations", "sheet-lateral-foundations")
+  run, _ = _run(root, *requested)
+  assert run.status == "pass", run.diagnostics
+  study = root / MODEL / "lateral-study.json"
+  first = _read(study)
+  actions = root / "src/lateral-actions.json"
+  config = _read(actions)
+  config["additional_roof_mass_kn"] += 15
+  write_json(actions, config)
+  run, targets = _run(root, *requested)
+  assert run.status == "pass", run.diagnostics
+  second = _read(study)
+  case = "seismic/x+1/ecc+1/y+1"
+  assert second["cases"][case]["load_kn"][0] - first["cases"][case]["load_kn"][0] == pytest.approx(.16*15)
+  assert second["cases"]["wind-service/x+1/ecc+1"]["load_kn"] == first["cases"]["wind-service/x+1/ecc+1"]["load_kn"]
+  assert targets["dcr:lateral-bracing"]["execution"] == "cached"
+  assert targets["sheet-lateral-elevations"]["execution"] == "cached"
+  assert targets["sheet-lateral-foundations"]["execution"] == "executed"
+
+  bracing = root / "src/lateral-bracing.json"
+  config = _read(bracing)
+  config["bays"] = {name: row for name, row in config["bays"].items() if row["from_axes"][1] == row["to_axes"][1]}
+  write_json(bracing, config)
+  run, targets = _run(root, *requested)
+  assert run.status == "fail"
+  assert {issue["rule"] for issue in targets["dcr:lateral-check"]["diagnostics"]} == {"AIDC_LATERAL_MECHANISM"}
+  assert targets["sheet-lateral-elevations"]["status"] == "pass"
+  assert targets["sheet-lateral-foundations"]["status"] == "pass"
 
 
 def _check_roof_delivery(root):

@@ -111,11 +111,26 @@
         "build/drawings/sheets/roof-secondary-sheet.json",
         "build/datacenter-reference/spatial/roof-actions.json",
         "build/datacenter-reference/spatial/roof-gravity-check.json",
-        "build/schedules/aidc-roof-purlins.csv"
+        "build/schedules/aidc-roof-purlins.csv",
+        "build/drawings/sheets/lateral-plan.svg",
+        "build/drawings/sheets/lateral-plan-sheet.json",
+        "build/drawings/sheets/lateral-elevations.svg",
+        "build/drawings/sheets/lateral-elevations-sheet.json",
+        "build/drawings/sheets/lateral-foundations.svg",
+        "build/drawings/sheets/lateral-foundations-sheet.json",
+        "build/datacenter-reference/spatial/lateral-bracing.json",
+        "build/datacenter-reference/spatial/lateral-coordination.json",
+        "build/datacenter-reference/spatial/lateral-study.json",
+        "build/datacenter-reference/spatial/lateral-check.json",
+        "build/scenes/aidc-braced-frame.usda",
+        "build/scenes/aidc-lateral-coordinated.usda",
+        "build/schedules/aidc-lateral-brace-forces.csv",
+        "build/schedules/aidc-lateral-pad-reactions.csv"
       ],
       "pending": [
-        "实测地勘、抗风抗震、楼板与设备基础、节点与配筋设计",
-        "钢承板局部承载、洞口加强、檩条座连接和屋盖抗风揭"
+        "实测地勘、真实风荷载和场地地震谱、楼板与设备基础、地基和基础配筋设计",
+        "钢承板局部承载、洞口加强、檩条座连接和屋盖抗风揭",
+        "屋面集力与抗侧力构造、柱脚锚栓、拉杆与端板节点、二阶效应、土体弹簧与动态响应"
       ]
     },
     "it": {

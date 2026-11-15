@@ -34,6 +34,10 @@ from .fws_network_views import build_network_view
 from .fws_thermal_parameters import build_thermal_parameters
 from .fws_transient import build_transient, build_transient_check
 from .fws_transient_views import build_transient_view
+from .lateral_bracing import build_lateral_bracing, build_lateral_coordination
+from .lateral_scene import build_lateral_scene
+from .lateral_study import build_lateral_check, build_lateral_study
+from .lateral_views import build_lateral_view
 from .plans import build_plan
 from .pod_layout import build_pod_coordination, build_pod_layout, build_pod_scene
 from .pod_views import build_pod_view
@@ -68,7 +72,7 @@ from .wet_utility_views import build_wet_view
 
 class DatacenterReferencePackage(TexsysPackage):
   name = "datacenter-reference"
-  version = "0.19.0"
+  version = "0.20.0"
 
   def targets(self) -> tuple[TargetDefinition, ...]:
     return (
@@ -219,6 +223,22 @@ class DatacenterReferencePackage(TexsysPackage):
                        input_patterns=spatial_inputs("structure.json")),
       TargetDefinition("dcr:structure-gravity", self.name, self.version, build_gravity,
                        dependencies=("dcr:roof-actions",), input_patterns=spatial_inputs("structure-loads.json")),
+      TargetDefinition("dcr:lateral-bracing", self.name, self.version, build_lateral_bracing,
+                       dependencies=("dcr:structure-model",), input_patterns=spatial_inputs("lateral-bracing.json")),
+      TargetDefinition("dcr:lateral-coordination", self.name, self.version, build_lateral_coordination,
+                       dependencies=("dcr:lateral-bracing", "dcr:roof-assembly", "dcr:telecom", "dcr:fire-systems",
+                                     "dcr:egress-model"), input_patterns=()),
+      TargetDefinition("dcr:lateral-study", self.name, self.version, build_lateral_study,
+                       dependencies=("dcr:lateral-bracing", "dcr:structure-gravity"),
+                       input_patterns=spatial_inputs("lateral-actions.json")),
+      TargetDefinition("dcr:lateral-check", self.name, self.version, build_lateral_check,
+                       dependencies=("dcr:lateral-study",), input_patterns=()),
+      TargetDefinition("dcr:lateral-scene", self.name, self.version, build_lateral_scene,
+                       dependencies=("dcr:lateral-coordination", "dcr:facility-power-scene"), input_patterns=()),
+      TargetDefinition("dcr:lateral-layout-view", self.name, self.version, build_lateral_view,
+                       dependencies=("dcr:lateral-bracing",), input_patterns=(), named_output=True),
+      TargetDefinition("dcr:lateral-study-view", self.name, self.version, build_lateral_view,
+                       dependencies=("dcr:lateral-study",), input_patterns=(), named_output=True),
       TargetDefinition("dcr:roof-assembly", self.name, self.version, build_roof,
                        dependencies=("dcr:architecture", "dcr:structure-model", "dcr:fws-network", "dcr:power-routing"),
                        input_patterns=spatial_inputs("roof.json")),
