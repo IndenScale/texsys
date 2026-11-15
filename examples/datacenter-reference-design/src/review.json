@@ -44,7 +44,8 @@
         "build/datacenter-reference/spatial/fire-egress.json",
         "build/datacenter-reference/spatial/building-coordination.json",
         "build/schedules/aidc-egress-routes.csv",
-        "build/schedules/aidc-firestop-reservations.csv"
+        "build/schedules/aidc-firestop-reservations.csv",
+        "build/schedules/aidc-telecom-wall-openings.csv"
       ],
       "pending": [
         "厂家方舱门位与舱内疏散、真实使用人数及疏散条件、灭火与报警系统、穿越构造和防火封堵选型"
@@ -77,7 +78,30 @@
         "build/datacenter-reference/bom.json"
       ],
       "pending": [
-        "设备真实规格、机柜完整布置及检修、弱电路径与端接"
+        "设备真实规格、机柜舱内完整布置及检修"
+      ]
+    },
+    "telecom": {
+      "name": "弱电",
+      "required_artifacts": [
+        "build/drawings/sheets/telecom-a.svg",
+        "build/drawings/sheets/telecom-a-sheet.json",
+        "build/drawings/sheets/telecom-b.svg",
+        "build/drawings/sheets/telecom-b-sheet.json",
+        "build/drawings/sheets/telecom-system.svg",
+        "build/drawings/sheets/telecom-system-sheet.json",
+        "build/scenes/aidc-telecom-coordinated.usda",
+        "build/datacenter-reference/spatial/telecom.json",
+        "build/datacenter-reference/spatial/telecom-study.json",
+        "build/datacenter-reference/spatial/telecom-coordination.json",
+        "build/schedules/aidc-telecom-cables.csv",
+        "build/schedules/aidc-telecom-fibers.csv",
+        "build/schedules/aidc-telecom-links.csv",
+        "build/schedules/aidc-telecom-contingencies.csv",
+        "build/schedules/aidc-telecom-wall-openings.csv"
+      ],
+      "pending": [
+        "厂家端接板及光模块、实装桥架弯头和支架、接地及配电、室外运营商路由、舱内跳线和现场光损耗验收"
       ]
     },
     "electrical": {

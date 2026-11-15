@@ -12,7 +12,7 @@ build = "build"
 default_targets = ["review-package"]
 
 [dependencies]
-datacenter-reference = { path = "../../packages/datacenter-reference", version = "0.6.0" }
+datacenter-reference = { path = "../../packages/datacenter-reference", version = "0.7.0" }
 sheet = { path = "../../packages/sheet", version = "0.2.0" }
 
 [build.targets.review-package]
@@ -27,6 +27,8 @@ dependencies = [
   "dcr:power-study",
   "dcr:fire-egress",
   "dcr:building-coordination",
+  "dcr:telecom-study",
+  "dcr:telecom-coordination",
   "sheet-parcel",
   "sheet-grid",
   "sheet-zoning",
@@ -47,6 +49,9 @@ dependencies = [
   "sheet-fws-roof",
   "sheet-fws-section",
   "sheet-fws-isolation",
+  "sheet-telecom-a",
+  "sheet-telecom-b",
+  "sheet-telecom-system",
 ]
 
 [build.targets.plan-parcel]
@@ -274,3 +279,36 @@ using = "sheet:compose"
 dependencies = ["plan-fws-isolation"]
 scope = { source = "assets/sheets/fws-isolation.sheet.json" }
 output = "build/drawings/sheets/fws-isolation.svg"
+
+[build.targets.plan-telecom-a]
+using = "dcr:telecom-plan"
+output = "build/drawings/views/telecom-a.svg"
+scope = { plane = "A" }
+
+[build.targets.sheet-telecom-a]
+using = "sheet:compose"
+dependencies = ["plan-telecom-a"]
+scope = { source = "assets/sheets/telecom-a.sheet.json" }
+output = "build/drawings/sheets/telecom-a.svg"
+
+[build.targets.plan-telecom-b]
+using = "dcr:telecom-plan"
+output = "build/drawings/views/telecom-b.svg"
+scope = { plane = "B" }
+
+[build.targets.sheet-telecom-b]
+using = "sheet:compose"
+dependencies = ["plan-telecom-b"]
+scope = { source = "assets/sheets/telecom-b.sheet.json" }
+output = "build/drawings/sheets/telecom-b.svg"
+
+[build.targets.plan-telecom-system]
+using = "dcr:telecom-diagram"
+output = "build/drawings/views/telecom-system.svg"
+scope = { view = "system" }
+
+[build.targets.sheet-telecom-system]
+using = "sheet:compose"
+dependencies = ["plan-telecom-system"]
+scope = { source = "assets/sheets/telecom-system.sheet.json" }
+output = "build/drawings/sheets/telecom-system.svg"

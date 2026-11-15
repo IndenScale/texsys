@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "state": "assumed",
+  "basis": "主机房 A/B 两套光纤从独立的室外汇聚柜进入。A 沿西侧低位桥架，B 沿东侧高位桥架。每个方舱各设两块端接板，上方接入。方舱内部跳线按预留长度计，位置待厂家深化。",
+  "zone": "IT-HALL",
+  "planes": {
+    "A": {"cabinet": "TC-A", "axes": ["1", "A"], "offset_m": [-2.25, 2, 0], "power_dependency": "PowerPathA",
+          "tray_offset_m": 3.36, "side_inset_m": 0.46, "row_inset_m": 0.55, "panel_offset_x_m": 2.2},
+    "B": {"cabinet": "TC-B", "axes": ["5", "C"], "offset_m": [2.25, -2, 0], "power_dependency": "PowerPathB",
+          "tray_offset_m": 3.70, "side_inset_m": 0.46, "row_inset_m": 0.55, "panel_offset_x_m": 3.8}
+  },
+  "cabinet_size_m": [0.9, 0.8, 2.2],
+  "tray": {"width_m": 0.24, "depth_m": 0.10, "drop_width_m": 0.14, "opening_allowance_m": 0.045,
+           "interplane_clearance_m": 0.14, "bend_radius_m": 0.12, "usable_fill_fraction": 0.35},
+  "cable": {"fiber_count": 24, "outside_diameter_m": 0.009, "fiber_pairs_per_rack": 1,
+            "length_reserve_fraction": 0.1, "patch_allowance_m": 12}
+}

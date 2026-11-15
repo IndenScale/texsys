@@ -22,11 +22,15 @@ from .review import build_review_package
 from .spatial_design import build_grid, build_layout, build_levels, build_site, spatial_inputs
 from .structure import build_gravity, build_structure
 from .structure_views import build_structure_view
+from .telecom import build_telecom
+from .telecom_coordination import build_telecom_coordination
+from .telecom_study import build_telecom_study
+from .telecom_views import build_telecom_view
 
 
 class DatacenterReferencePackage(TexsysPackage):
   name = "datacenter-reference"
-  version = "0.6.0"
+  version = "0.7.0"
 
   def targets(self) -> tuple[TargetDefinition, ...]:
     return (
@@ -59,6 +63,17 @@ class DatacenterReferencePackage(TexsysPackage):
                        dependencies=("dcr:egress-model",), input_patterns=(), named_output=True),
       TargetDefinition("dcr:building-coordination", self.name, self.version, build_building_coordination,
                        dependencies=("dcr:architecture", "dcr:fws-network-coordination"), input_patterns=()),
+      TargetDefinition("dcr:telecom", self.name, self.version, build_telecom, dependencies=("dcr:architecture",),
+                       input_patterns=spatial_inputs("*.sdl.json", "*/module.toml", "telecom.json",
+                                                     "design-basis.json", "placement.study.json")),
+      TargetDefinition("dcr:telecom-study", self.name, self.version, build_telecom_study, dependencies=("dcr:telecom",),
+                       input_patterns=spatial_inputs("telecom-study.json")),
+      TargetDefinition("dcr:telecom-coordination", self.name, self.version, build_telecom_coordination,
+                       dependencies=("dcr:building-coordination", "dcr:telecom"), input_patterns=()),
+      TargetDefinition("dcr:telecom-plan", self.name, self.version, build_telecom_view,
+                       dependencies=("dcr:telecom-coordination",), input_patterns=(), named_output=True),
+      TargetDefinition("dcr:telecom-diagram", self.name, self.version, build_telecom_view,
+                       dependencies=("dcr:telecom",), input_patterns=(), named_output=True),
       TargetDefinition("dcr:fws-routing", self.name, self.version, build_routes, dependencies=("dcr:layout",),
                        input_patterns=spatial_inputs("system.sdl.json", "fws-routing.json")),
       TargetDefinition("dcr:fws-hydraulics", self.name, self.version, build_hydraulics,

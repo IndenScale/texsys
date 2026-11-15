@@ -26,6 +26,7 @@ datacenter-reference 器件/单元库 → structure / architecture / hvac-equipm
 - `src/site.json`、`grid.json`、`levels.json` 定义宗地、局部坐标、轴网、标高和分区边界。
 - `src/coordination.json` 以 SDL 实例 ID 绑定轴线交点、偏移、专业和分区。物理实例使用锁定部件的 USD 几何。市电及补水等逻辑接口记录待落实的空间条件。
 - `src/architecture.json` 将既有北侧墙件接入完整主机房围护，用 B 轴定位分隔墙。东西门位由南北走道导出，并按门洞、平台和坡道坐标校核到室外场坪的通行。
+- `src/telecom.json` 声明 A、B 两路汇聚柜、桥架中心标高、方舱端接位置和光纤构成。`telecom-study.json` 声明光模块和接续损耗预算、交换容量与可用状态。舱内跳线路由待核，当前按预算长度计。
 - `src/design-basis.json`：A 级分级依据、规模假设与 12 条 GB 50174 要求（3.2.1、4.2.1、5.1.1、6.1.3、7.5.2、8.1.1、8.1.7、8.1.15、13.1.2、13.2.1、13.2.4、附录 A 电气），每条绑定一个校核，并以 `rules` 记录规范包 texsys-gb50174-2017 的规则键、以 `citation` 保存条文短引与定位；阈值与规范包 A 级结构化限值一致。
 - `src/system.sdl.json`：系统装配（`tools/assemble.py` 生成并提交为源文件）。
 - `src/placement.study.json`：逻辑分区及单路带全场的设施负荷预算（2771 kW）。空间定位由 `coordination.json` 和轴线、标高提供。
@@ -44,11 +45,11 @@ datacenter-reference 器件/单元库 → structure / architecture / hvac-equipm
 | 轴网划分 | `dcr:grid` 核对轴线并定位，`sheet-grid` 输出轴号和轴间尺寸 | 协调结构跨度、伸缩缝和建筑定位 |
 | 楼层标高、层内分区 | `dcr:levels` 从轴线和标高生成空间分区。`dcr:architecture` 编译建筑围护和 B 轴防火分隔、四处外门及相应平台和坡道，输出建筑平面、坡道剖面、门表和 USD | 墙体、屋面及坡道的构造节点、厂家门位和现场条件 |
 | 结构建模 | `dcr:structure-model` 输出屋面钢梁与柱平面、基础平面、B 轴剖面、构件表及 USD。`dcr:structure-gravity` 编译重力计算书 | 实测地勘、抗风抗震、设备基础、节点与配筋 |
-| 核心机电与方舱布局 | 分区图核对 65 个物理实例，BOM 保留 514 条明细。设施水整网用保温包络检查相互交叉、设备和钢构件，并核对屋面预留 | 实际设备尺寸、检修净距、支吊架和贯穿详图 |
-| 性能计算与冗余保护 | A/B 单线图、失去一路后的容量证据、88 个三相故障工况与保护表，覆盖市电、单台发电机、UPS 正常及电池状态 | 厂家曲线、接地与单相故障、多源并联、共用辅助负荷互锁和实际切换 |
+| 核心机电与方舱布局 | 分区图核对 65 个物理实例，BOM 保留 514 条明细。设施水与弱电协调包络和贯穿预留。弱电编译两张桥架平面、端接系统图、四处独立穿墙孔和 128 个机柜的双路纤芯表 | 实际设备尺寸、机柜跳线路由、检修净距、支吊架和贯穿详图 |
+| 性能计算与冗余保护 | 电气 A/B 出单线图、容量证据、88 个三相故障工况及保护表。弱电校核链路光预算、单路承载 5.12 Tb/s 的配置容量及各登记构件单点断开后连通性 | 厂家曲线、接地、单相故障、多源并联、实际切换、运营商和网络协议测试 |
 | 管道布置 | `dcr:fws-network` 从设备接口生成供回水环路、支管和立管。五张图输出总平面、系统图、屋面预留、局部接驳正视投影和分段隔离图 | 支吊架、排空、阀件检修及防火封堵 |
 | 仿真与寄生反注 | `dcr:fws-network-study` 按实际管段、孔径、管件及阀门阻力计算 1440 kW 液侧负荷，覆盖正常、单冷源、单泵和 22 个单干管段隔离工况 | 制造商设备曲线、平衡阀规格、二次侧与动态切换 |
-| 多专业签核 | `review-package` 从本次构建快照生成总图、建筑、消防、结构、机房工艺、电气和暖通审查清单与文件摘要。消防纳入疏散路径、分区图和屋面封堵预留表 | 责任人在现有 Git 审查中针对指定修订处置，审查清单保留待核状态 |
+| 多专业签核 | `review-package` 从本次构建快照生成总图、建筑、消防、结构、机房工艺、弱电、电气和暖通审查清单与文件摘要。消防纳入疏散路径、分区图和屋面及弱电封堵预留表 | 责任人在现有 Git 审查中针对指定修订处置，审查清单保留待核状态 |
 
 ## 重跑
 
@@ -59,9 +60,12 @@ uv run --locked texsys build -p examples/datacenter-reference-design
 uv run --locked texsys build -p examples/datacenter-reference-design --target sheet-fws-network
 uv run --locked texsys build -p examples/datacenter-reference-design --target dcr:structure-gravity --target dcr:power-study
 uv run --locked texsys build -p examples/datacenter-reference-design --target dcr:fire-egress --target sheet-fire-egress
+uv run --locked texsys build -p examples/datacenter-reference-design --target dcr:telecom-study --target sheet-telecom-a
 ```
 
-成品图在 `build/drawings/sheets/`，包含 20 张 A3 图及各图的来源报告。可校准图纸按标题栏比例原尺寸打印，电气单线图和设施水系统图标记 NTS。门、疏散路径、封堵预留、构件、保护、管件和水力工况表在 `build/schedules/`，建筑、结构与设施水综合场景为 `build/scenes/aidc-building-coordinated.usda`。专业审查材料在 `build/review/aidc-discipline-review.json`。用 Tex Studio 的文件资源管理器或快速打开读取上述文件。
+成品图在 `build/drawings/sheets/`，包含 23 张 A3 图及各图的来源报告。可校准图纸按标题栏比例原尺寸打印。门、疏散、预留、构件、保护、水力及弱电端接和工况表在 `build/schedules/`。带桥架和穿墙孔的建筑、结构与设施水综合场景为 `build/scenes/aidc-telecom-coordinated.usda`。专业审查材料在 `build/review/aidc-discipline-review.json`。用 Tex Studio 的文件资源管理器或快速打开读取上述文件。
+
+将 `telecom.json` 的西侧柜外移会改变对应的光缆长度和光损耗。用 `telecom-study.json` 声明 A 路入口失效后，机柜仍有 B 路可达，正常双路校核与随后再失去 B 路的工况失败，触发审查门禁。布置检查还覆盖桥架撞柱和穿墙孔能否容纳。
 
 将 `architecture.json` 中西南出口标记为不可用后，消防图改绘封闭门，南分区各方舱仅余东门可达，审查包停止更新。移动方舱占用声明通道时，疏散路径报告记录设备编号。计算从假设的舱外访问点出发，并计入室外坡道。到出口距离与到场坪距离分列，室外退界使用和场坪后的道路条件待复核。
 

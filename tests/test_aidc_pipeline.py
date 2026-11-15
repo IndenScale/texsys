@@ -68,7 +68,7 @@ def test_aidc_deliverables_bind_to_the_same_geometry_and_recompute_the_fws_head(
   assert dossier["evidence_complete"]
   assert dossier["input_digest"] == _read(baseline.report)["input_digest"]
   assert dossier["engineering_acceptance"] == "pending-responsible-review"
-  assert len(list((root / "build/drawings/sheets").glob("*.svg"))) == 20
+  assert len(list((root / "build/drawings/sheets").glob("*.svg"))) == 23
   old_dossier = file_digest(root / "build/review/aidc-discipline-review.json")
   drawing = root / "build/drawings/sheets/fws-network.svg"
   old_route_drawing = file_digest(drawing)
@@ -76,6 +76,7 @@ def test_aidc_deliverables_bind_to_the_same_geometry_and_recompute_the_fws_head(
   _check_professional_delivery(root)
   _check_fws_network_delivery(root)
   _check_building_delivery(root)
+  _check_telecom_delivery(root)
   report = root / MODEL / "fws-network-study.json"
   before = _read(report)
   path = root / "src/fws-network.json"
@@ -200,6 +201,44 @@ def _check_building_delivery(root):
   for name in ("/AIDC/Architecture/W_DIVIDE", "/AIDC/Architecture/Wall01", "/AIDC/FWSIsolation/IV_S_010_A", "/AIDC/Structure/C_1_B"):
     assert stage.GetPrimAtPath(name)
   assert not stage.GetPrimAtPath("/AIDC/Objects/Wall01")
+
+
+def _check_telecom_delivery(root):
+  geometry = root / MODEL / "telecom.json"
+  design = _read(geometry)
+  assert len(design["allocation"]) == 256
+  assert len({row["rack"] for row in design["allocation"].values()}) == 128
+  assert len({row["rack_port"] for row in design["allocation"].values()}) == 256
+  assert len({row["cabinet_port"] for row in design["allocation"].values()}) == 256
+  first, last = (design["allocation"][f"A-IT01-Rack{number:02}"] for number in (1, 8))
+  assert (first["first_core"], first["last_core"]) == (1, 2)
+  assert (last["first_core"], last["last_core"]) == (15, 16)
+  cable = design["planes"]["A"]["cables"]["FO-A-IT01"]
+  centreline = (3.76-2.2) + (8.46-5.75) + (10-9.35) + (11.2-8.46) + (3.76-3.34)
+  assert cable["routed_m"] == pytest.approx(centreline)
+  report = _read(root / MODEL / "telecom-study.json")
+  assert report["source_digest"] == file_digest(geometry)
+  assert report["cables"]["FO-A-IT01"]["remaining_db"] == pytest.approx(6.5-3-4*.35-2*.1-(centreline*1.1+12)*.4/1000)
+  assert report["switching"]["B"]["uplink_demand_gbps"] == 128*40
+  assert len(report["scenarios"]) == 145
+  assert all(case["pass"] for case in report["scenarios"].values())
+  assert report["scenarios"]["off:TA-E02"]["single_racks"] == 128
+  assert not report["scenarios"]["off:TA-E02"]["failed_racks"]
+  section = _read(root / MODEL / "telecom-coordination.json")
+  assert len(section["wall_openings"]) == 4
+  assert section["wall_openings"]["OP-TA-S03-W-DIVIDE"]["opening_size_m"] == pytest.approx([.33, .19])
+  fig = ET.parse(root / "build/drawings/views/telecom-a.svg")
+  assert len(fig.findall(f".//{SVG}rect[@data-opening]")) == 2
+  system = ET.parse(root / "build/drawings/views/telecom-system.svg")
+  assert {item.get("data-cable") for item in system.findall(f".//{SVG}line[@data-cable]")} == {
+    name for plane in design["planes"].values() for name in plane["cables"]
+  }
+  path = root / "build/scenes/aidc-telecom-coordinated.usda"
+  assert str(root) not in path.read_text()
+  stage = Usd.Stage.Open(str(path))
+  partition = stage.GetPrimAtPath("/AIDC/Architecture/W_DIVIDE")
+  assert partition.IsA(UsdGeom.Xform) and len(partition.GetChildren()) == 7
+  assert stage.GetPrimAtPath("/AIDC/Telecom/TA_S03").GetAttribute("texsys:identity").Get() == "TA-S03"
 
 
 def _check_professional_delivery(root):
@@ -359,6 +398,55 @@ def test_aidc_egress_uses_current_equipment_envelopes(tmp_path):
   egress = _read(root / MODEL / "egress-model.json")
   assert egress["routes"]["IT01"]["usable_exits"] == []
   assert "IT01" in egress["routes"]["IT02"]["paths"][0]["blockers"]
+
+
+def test_aidc_telecom_reroutes_and_rejects_lost_diversity_and_optical_budget(tmp_path):
+  root = _checkout(tmp_path)
+  assert _run(root)[0].status == "pass"
+  baseline = _read(root / MODEL / "telecom-study.json")
+  geometry = root / "src/telecom.json"
+  source = _read(geometry)
+  source["planes"]["A"]["offset_m"][0] -= 1
+  write_json(geometry, source)
+  changed, statuses = _run(root)
+  assert changed.status == "pass"
+  assert statuses["sheet-it-hall"]["execution"] == "cached"
+  assert statuses["sheet-telecom-a"]["execution"] == "executed"
+  rerouted = _read(root / MODEL / "telecom-study.json")
+  a, b = rerouted["cables"]["FO-A-IT01"], baseline["cables"]["FO-A-IT01"]
+  assert a["basis_length_m"] - b["basis_length_m"] == pytest.approx(1.1)
+  assert b["remaining_db"] - a["remaining_db"] == pytest.approx(1.1*.4/1000)
+  assert rerouted["cables"]["FO-B-IT01"] == baseline["cables"]["FO-B-IT01"]
+  input_file = root / "src/telecom-study.json"
+  input_data = _read(input_file)
+  input_data["unavailable_components"] = ["TA-E02"]
+  write_json(input_file, input_data)
+  failed, statuses = _run(root)
+  assert failed.status == "fail" and statuses["review-package"]["execution"] == "blocked"
+  assert statuses["sheet-telecom-a"]["execution"] == "cached"
+  result = _read(root / MODEL / "telecom-study.json")
+  assert result["scenarios"]["normal"]["single_racks"] == 128
+  assert len(result["scenarios"]["off:TB-E02"]["failed_racks"]) == 128
+  input_data["unavailable_components"] = []
+  input_data["optics"]["connector_loss_db"] = .86
+  write_json(input_file, input_data)
+  failed, statuses = _run(root)
+  assert failed.status == "fail" and statuses["review-package"]["execution"] == "blocked"
+  assert "AIDC_TELECOM_LOSS" in failed.diagnostics
+
+
+def test_aidc_telecom_rejects_tray_near_the_column(tmp_path):
+  root = _checkout(tmp_path)
+  source = root / "src/telecom.json"
+  config = _read(source)
+  config["planes"]["A"]["side_inset_m"] = .26
+  write_json(source, config)
+  failed, statuses = _run(root, "dcr:telecom-coordination", "dcr:telecom-study")
+  assert failed.status == "fail"
+  assert statuses["dcr:telecom-study"]["status"] == "pass"
+  assert "AIDC_TELECOM_CLASH" in failed.diagnostics
+  assert "C-1-B" in failed.diagnostics
+  assert not (root / "build/scenes/aidc-telecom-coordinated.usda").exists()
 
 
 def test_aidc_geometry_rejects_missing_and_clashing_placements(tmp_path):

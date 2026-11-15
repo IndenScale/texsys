@@ -1,0 +1,11 @@
+{
+  "schema_version": 1,
+  "state": "assumed",
+  "basis": "按单模双纤无源光链路验证至机柜端口。光模块、连接器、熔接和流量均为项目预算，安装测试及外部运营商路由待验证。",
+  "unavailable_components": [],
+  "optics": {"attenuation_db_per_km": 0.40, "tx_min_dbm": -4.0, "rx_sensitivity_dbm": -10.5,
+             "connector_pairs": 4, "connector_loss_db": 0.35, "splices": 2, "splice_loss_db": 0.1, "reserve_db": 3.0},
+  "switches": {"A": {"rack_ports": 144, "port_gbps": 100, "usable_uplinks_gbps": 6400},
+               "B": {"rack_ports": 144, "port_gbps": 100, "usable_uplinks_gbps": 6400}},
+  "rack_demand_gbps": 40
+}
