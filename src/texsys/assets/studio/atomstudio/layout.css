@@ -396,8 +396,8 @@
 .page-tabs {
   display: flex;
   height: var(--editor-tab-height);
-  overflow-x: auto;
-  scrollbar-width: thin;
+  /* 自身不做滚动容器：横向滚动条占高会触发垂直滚动条，水平滚动交给外层 tab-list。 */
+  overflow: visible;
   background: var(--ui-workspace-chrome);
 }
 .page-tab {
