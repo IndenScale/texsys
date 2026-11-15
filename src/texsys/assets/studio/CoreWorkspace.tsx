@@ -11,7 +11,7 @@ import React, {
   type ReactNode,
 } from "react";
 import { ActivityBar, WorkbenchLayout } from "./atomstudio/Layout";
-import { OutlineView } from "./OutlineView";
+import { ExplorerSideSections } from "./ExplorerSideSections";
 import { TimelineView } from "./TimelineView";
 import { Empty, Icon } from "./ui";
 import type {
@@ -2217,35 +2217,37 @@ export function CoreWorkspaceProvider({
               <p className="core-hint">{t("项目中尚无文件，可在上方新建。")}</p>
             )}
           </div>
-          {(showOutline || showTimeline) && (
-            <div className="welcome-side-sections">
-              {showOutline && (
-                <OutlineView
-                  document={outlineDocument}
-                  cursor={outlineCursor}
-                  onNavigate={(range) => {
-                    if (active) revealSourceOutline(active.path, sourceModels, range);
-                  }}
-                />
-              )}
-              {showTimeline && (
-                <TimelineView
-                  path={timelineRepoPath}
-                  api={api}
-                  token={gitStatus}
-                  onOpen={(id) =>
-                    void openScmDiff(
-                      `/api/scm/commit?${new URLSearchParams({
-                        id,
-                        scope: gitScope,
-                        ...(timelineRepoPath ? { path: timelineRepoPath } : {}),
-                      })}`,
-                    )
-                  }
-                />
-              )}
-            </div>
-          )}
+          <ExplorerSideSections
+            showOutline={showOutline}
+            showTimeline={showTimeline}
+            foldersVisible
+            activeDocument={outlineDocument}
+            cursor={outlineCursor}
+            onNavigate={(range) => {
+              if (active) revealSourceOutline(active.path, sourceModels, range);
+            }}
+            initialHeights={{ outline: layout.outlineHeight, timeline: layout.timelineHeight }}
+            onCommit={(heights) =>
+              changeLayout({ outlineHeight: heights.outline, timelineHeight: heights.timeline })
+            }
+            renderTimeline={(controls) => (
+              <TimelineView
+                path={timelineRepoPath}
+                api={api}
+                token={gitStatus}
+                onOpen={(id) =>
+                  void openScmDiff(
+                    `/api/scm/commit?${new URLSearchParams({
+                      id,
+                      scope: gitScope,
+                      ...(timelineRepoPath ? { path: timelineRepoPath } : {}),
+                    })}`,
+                  )
+                }
+                {...controls}
+              />
+            )}
+          />
         </div>
       </NavigatorPage>
       <NavigatorPage

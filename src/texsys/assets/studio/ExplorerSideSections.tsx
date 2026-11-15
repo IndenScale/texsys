@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState, type ReactNode } from "react";
 import { OutlineView } from "./OutlineView";
 import type { OutlineRange } from "./outline-model";
 import { t } from "./i18n";
@@ -12,6 +12,11 @@ const SUMMARY_HEIGHT = 28;
 
 type Heights = { outline: number; timeline: number };
 type Mode = "first-outline" | "first-timeline" | "transfer";
+export type SectionControls = {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  bodyHeight: number;
+};
 
 export function defaultSectionHeights(): Heights {
   const vh = typeof window === "undefined" ? 720 : window.innerHeight;
@@ -39,6 +44,7 @@ export function ExplorerSideSections({
   onNavigate,
   initialHeights,
   onCommit,
+  renderTimeline,
 }: {
   showOutline: boolean;
   showTimeline: boolean;
@@ -48,6 +54,7 @@ export function ExplorerSideSections({
   onNavigate: (range: OutlineRange) => void;
   initialHeights?: Partial<Heights>;
   onCommit?: (heights: Heights) => void;
+  renderTimeline?: (controls: SectionControls) => ReactNode;
 }) {
   const defaults = useRef(defaultSectionHeights());
   const [heights, setHeights] = useState<Heights>(() => ({
@@ -64,7 +71,20 @@ export function ExplorerSideSections({
     { y: number; base: Heights; min: number; max: number; mode: Mode; dy: number } | undefined
   >(undefined);
 
-  useEffect(() => () => document.body.classList.remove("side-sash-dragging"), []);
+  const finishRef = useRef<() => void>(() => {});
+  useEffect(() => {
+    const winEnd = () => finishRef.current();
+    window.addEventListener("pointerup", winEnd);
+    window.addEventListener("pointercancel", winEnd);
+    // lostpointercapture 不冒泡，React 根监听收不到，用捕获阶段兜底。
+    window.addEventListener("lostpointercapture", winEnd, true);
+    return () => {
+      window.removeEventListener("pointerup", winEnd);
+      window.removeEventListener("pointercancel", winEnd);
+      window.removeEventListener("lostpointercapture", winEnd, true);
+      document.body.classList.remove("side-sash-dragging");
+    };
+  }, []);
 
   const boundsFor = (mode: Mode, base: Heights) => {
     if (mode === "transfer")
@@ -73,15 +93,19 @@ export function ExplorerSideSections({
         max: base.timeline - MIN_SECTION_BODY,
       };
     const primary = mode === "first-outline" ? base.outline : base.timeline;
-    const container = rootRef.current?.closest(".welcome-explorer");
+    const container = rootRef.current?.closest(".welcome-explorer, .core-explorer");
     const containerH = container?.getBoundingClientRect().height ?? 0;
     const headingH =
       container?.querySelector(".core-workspace-heading")?.getBoundingClientRect().height ?? 0;
     const sectionsH =
       (showOutline ? SUMMARY_HEIGHT + base.outline : 0) +
       (showTimeline ? SUMMARY_HEIGHT + 1 + base.timeline : 0);
-    const treeSpace =
-      containerH > 0 ? Math.max(0, containerH - headingH - sectionsH) : MAX_SECTION_BODY;
+    const treeEl = container?.querySelector(".core-explorer-tree, .core-file-tree");
+    const treeSpace = treeEl
+      ? treeEl.getBoundingClientRect().height
+      : containerH > 0
+        ? Math.max(0, containerH - headingH - sectionsH)
+        : MAX_SECTION_BODY;
     // 边界随指针移动：向下拖扩大边界上方空间，下方节收缩。
     const maxPrimary = Math.min(
       MAX_SECTION_BODY,
@@ -127,20 +151,28 @@ export function ExplorerSideSections({
     setHeights(deltaHeights(drag.mode, drag.base, drag.dy));
   };
 
-  const endDrag = (event: React.PointerEvent<HTMLDivElement>) => {
+  const finishDrag = () => {
     const drag = dragRef.current;
     if (!drag) return;
     dragRef.current = undefined;
     setDragMode(undefined);
     document.body.classList.remove("side-sash-dragging");
+    const next = deltaHeights(drag.mode, drag.base, drag.dy);
+    setHeights(next);
+    onCommit?.(next);
+  };
+  finishRef.current = finishDrag;
+
+  const endDrag = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (!dragRef.current) return;
     try {
       event.currentTarget.releasePointerCapture(event.pointerId);
     } catch {
       // Capture may already be lost when the pointer leaves the window.
     }
-    const next = deltaHeights(drag.mode, drag.base, drag.dy);
-    setHeights(next);
-    onCommit?.(next);
+    // 松开即失活：指针拖拽不留键盘焦点，避免焦点条残留。
+    event.currentTarget.blur();
+    finishDrag();
   };
 
   const keyAdjust = (event: React.KeyboardEvent<HTMLDivElement>, mode: Mode) => {
@@ -185,9 +217,26 @@ export function ExplorerSideSections({
       onPointerMove={moveDrag}
       onPointerUp={endDrag}
       onPointerCancel={endDrag}
+      onLostPointerCapture={finishDrag}
       onKeyDown={(event) => keyAdjust(event, mode)}
       onDoubleClick={() => reset(mode)}
     />
+  );
+
+  const defaultTimeline = (controls: SectionControls) => (
+    <details
+      className="welcome-side-section welcome-timeline-section"
+      open={controls.open}
+      onToggle={(event) => controls.onOpenChange(event.currentTarget.open)}
+    >
+      <summary>
+        <Icon name="chevron" size={14} />
+        <span>{t("时间线")}</span>
+      </summary>
+      <div className="timeline-body" style={{ height: controls.bodyHeight }}>
+        <p className="core-hint">{t("打开文件后可查看时间线。")}</p>
+      </div>
+    </details>
   );
 
   return (
@@ -208,21 +257,12 @@ export function ExplorerSideSections({
         />
       )}
       {showOutline && showTimeline && sash("transfer", t("调整大纲与时间线高度"), heights.outline)}
-      {showTimeline && (
-        <details
-          className="welcome-side-section welcome-timeline-section"
-          open={timelineOpen}
-          onToggle={(event) => setTimelineOpen(event.currentTarget.open)}
-        >
-          <summary>
-            <Icon name="chevron" size={14} />
-            <span>{t("时间线")}</span>
-          </summary>
-          <div className="timeline-body" style={{ height: heights.timeline }}>
-            <p className="core-hint">{t("打开文件后可查看时间线。")}</p>
-          </div>
-        </details>
-      )}
+      {showTimeline &&
+        (renderTimeline ?? defaultTimeline)({
+          open: timelineOpen,
+          onOpenChange: setTimelineOpen,
+          bodyHeight: heights.timeline,
+        })}
     </div>
   );
 }

@@ -35,11 +35,17 @@ export function TimelineView({
   api,
   token,
   onOpen,
+  open,
+  onOpenChange,
+  bodyHeight,
 }: {
   path?: string;
   api: <T>(url: string) => Promise<T>;
   token?: unknown;
   onOpen: (id: string) => void;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  bodyHeight?: number;
 }) {
   const [commits, setCommits] = useState<TimelineCommit[]>();
   const [error, setError] = useState("");
@@ -68,12 +74,19 @@ export function TimelineView({
   }, [path, api, token]);
 
   return (
-    <details className="welcome-side-section welcome-timeline-section">
+    <details
+      className="welcome-side-section welcome-timeline-section"
+      open={open}
+      onToggle={(event) => onOpenChange?.(event.currentTarget.open)}
+    >
       <summary>
         <Icon name="chevron" size={14} />
         <span>{t("时间线")}</span>
       </summary>
-      <div className="timeline-body">
+      <div
+        className="timeline-body"
+        style={bodyHeight === undefined ? undefined : { height: bodyHeight }}
+      >
         {!path ? (
           <p className="core-hint">{t("打开文件后可查看时间线。")}</p>
         ) : !commits ? (

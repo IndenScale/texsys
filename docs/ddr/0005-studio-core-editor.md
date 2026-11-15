@@ -121,3 +121,13 @@ Tex Studio 以项目 Editor 为主体。文件资源管理器、全文搜索、�
 - 视图菜单隐藏分区、显式折叠节仍按既有行为改变占用高度；仅一个节可见时单把手调节该节。
 
 验证：CI 参数 tsc、ESLint、typography 通过，Prettier 对改动文件通过；新增 `tools/test_side_sections.mjs` 6 项（拖拽实时改高与释放提交、双向钳制、转移、键盘／双击、折叠自动展开与内容态稳定、单节／无节），与 `test_studio_ui.mjs` 合计 79 项通过。既有 Chrome 8710 标签页实测：首把手下拖 40 px 把手顶缘 195→235 随指针、大纲 288→248；转移把手下拖 30 px 边界 511→541、大纲 +30／时间线 -30；释放写入 layouts[""]（258/144）且重载恢复同值；README 与 .editorconfig 两内容态节高一致；拖拽中截图可见主色把手条。截图存 `output/playwright/section-height/`（sash-dragging.png、sash-final.png）。osascript 无辅助功能权限，键盘以页内合成事件验证同一处理器。并行会话的项目模式时间线中间态与本轮无关，其成果保留在工作区，不纳入本轮提交。
+
+## 文件资源管理器 - 把手项目模式与松开失活修订（2026-11-15）
+
+用户实测指出项目模式分节边缘无把手、越范围拖拽松开后把手条残留且点击他处无法取消激活。修订上一章节把手范围与失活契约：
+
+- 项目模式复用 ExplorerSideSections：容器查找兼容 `.core-explorer`，树空间直接量取 `.core-explorer-tree`／`.core-file-tree`（兼容打开的编辑器分区占用）；时间线改为渲染插槽，项目模式挂载真实 TimelineView（受控 open／bodyHeight），空白工作区保留空态占位。高度持久化沿每项目布局键，重载恢复。
+- 松开即失活：指针释放时 blur 把手（键盘焦点不受影响）；主色条去掉 opacity 过渡，松开立即消失；window 级 pointerup／pointercancel 与捕获阶段 lostpointercapture 兜底监听，保证指针越范围、节点被替换或 React 根监听收不到不冒泡事件时拖拽仍终结并提交。修复「向下拖超过范围松开后点他处无法取消激活」。
+- 命中契约复核：8 px 命中带内 elementFromPoint 全为 sash，边界可触发；折叠节拖拽自动展开的布局跳变为显式展开语义，与参照一致。
+
+验证：把手测试 8 项（新增释放失活与 lost-capture 兜底），与其余前端套件合计 81 项通过；CI 参数 tsc、ESLint、typography、Prettier 通过。既有 Chrome 项目模式实测：双把手命中带正常；首把手拖拽折叠大纲自动展开、边界随指针；转移把手 +25 互让；项目键写入 283/119 且重载恢复；README 内容态高度不变；仅 lostpointercapture（无 pointerup）与完整拖拽两种释放路径后 dragging／body 类清零、主色条 opacity 0、焦点不残留。截图存 `output/playwright/section-height/`（sash-project-drag.png、sash-released.png）。

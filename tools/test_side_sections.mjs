@@ -193,3 +193,55 @@ test("single visible section gets one sash; hidden sections render nothing", asy
   assert.equal(container.querySelector(".welcome-side-sections"), null);
   await ctx.act(() => root.unmount());
 });
+
+test("timeline render slot receives controlled open and live body height", async () => {
+  const ctx = await setup();
+  let controls;
+  const { container, root, view } = mount(ctx, {
+    renderTimeline: (c) => {
+      controls = c;
+      return ctx.React.createElement("div", {
+        className: "slot-timeline",
+        "data-open": c.open,
+        style: { height: c.bodyHeight },
+      });
+    },
+  });
+  await view();
+  const slot = () => container.querySelector(".slot-timeline");
+  assert.equal(slot().style.height, "150px");
+  assert.equal(slot().dataset.open, "false");
+  const transfer = container.querySelectorAll(".side-sash")[1];
+  await pointer(ctx, transfer, "pointerdown", 300);
+  assert.equal(slot().dataset.open, "true", "collapsed slot timeline expands on drag");
+  await pointer(ctx, transfer, "pointermove", 330);
+  assert.equal(slot().style.height, "120px");
+  assert.equal(bodyHeight(container, ".outline-body"), "330px");
+  await pointer(ctx, transfer, "pointerup", 330);
+  assert.equal(controls.bodyHeight, 120);
+  await ctx.act(() => root.unmount());
+});
+
+test("release deactivates the sash immediately; lost capture finishes the drag", async () => {
+  const ctx = await setup();
+  const { container, root, commits, view } = mount(ctx);
+  await view();
+  const first = container.querySelector(".side-sash");
+  await pointer(ctx, first, "pointerdown", 200);
+  await pointer(ctx, first, "pointermove", 240);
+  await pointer(ctx, first, "pointerup", 240);
+  assert.notEqual(document.activeElement, first, "pointer release blurs the sash");
+  assert.ok(!first.classList.contains("dragging"));
+  assert.ok(!document.body.classList.contains("side-sash-dragging"));
+  assert.deepEqual(commits.at(-1), { outline: 260, timeline: 150 });
+  const transfer = container.querySelectorAll(".side-sash")[1];
+  await pointer(ctx, transfer, "pointerdown", 300);
+  await pointer(ctx, transfer, "pointermove", 320);
+  await ctx.act(async () =>
+    transfer.dispatchEvent(new window.Event("lostpointercapture", { bubbles: true })),
+  );
+  assert.ok(!transfer.classList.contains("dragging"), "lost capture clears dragging");
+  assert.ok(!document.body.classList.contains("side-sash-dragging"));
+  assert.deepEqual(commits.at(-1), { outline: 280, timeline: 130 });
+  await ctx.act(() => root.unmount());
+});

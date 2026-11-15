@@ -21,7 +21,6 @@
   inset: 2px 0;
   background: var(--ui-chrome-accent, #087f72);
   opacity: 0;
-  transition: opacity var(--motion-fast);
 }
 
 .side-sash:hover::after,
