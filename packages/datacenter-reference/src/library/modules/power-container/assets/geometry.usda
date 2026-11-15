@@ -41,6 +41,14 @@ def Xform "Module"
             double3 xformOp:translate = (3.6999999999999997, 0.5, 0.3)
             uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
         }
+        def Cube "TransferBus1"
+        {
+            color3f[] primvars:displayColor = [(0.55, 0.58, 0.62)]
+            double size = 1
+            double3 xformOp:scale = (0.6, 0.6, 0.6)
+            double3 xformOp:translate = (2.9, 0.8, 2.1)
+            uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
+        }
         def Cube "UpsBus1"
         {
             color3f[] primvars:displayColor = [(0.55, 0.58, 0.62)]
@@ -54,7 +62,7 @@ def Xform "Module"
             color3f[] primvars:displayColor = [(0.55, 0.58, 0.62)]
             double size = 1
             double3 xformOp:scale = (0.6, 0.6, 0.6)
-            double3 xformOp:translate = (5.8999999999999995, 1.1, 2.1)
+            double3 xformOp:translate = (5.7, 1.1, 2.1)
             uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
         }
         def Cube "Ups1"
@@ -144,19 +152,25 @@ def Xform "Module"
         def Xform "utility_in"
         {
             custom double3 texsys:normal = (0, -1, 0)
-            double3 xformOp:translate = (1.500, 0, 1.45)
+            double3 xformOp:translate = (1.200, 0, 1.45)
             uniform token[] xformOpOrder = ["xformOp:translate"]
         }
         def Xform "genset_in"
         {
             custom double3 texsys:normal = (0, -1, 0)
-            double3 xformOp:translate = (3.000, 0, 1.45)
+            double3 xformOp:translate = (2.400, 0, 1.45)
             uniform token[] xformOpOrder = ["xformOp:translate"]
         }
         def Xform "out"
         {
             custom double3 texsys:normal = (0, -1, 0)
-            double3 xformOp:translate = (4.500, 0, 1.45)
+            double3 xformOp:translate = (3.600, 0, 1.45)
+            uniform token[] xformOpOrder = ["xformOp:translate"]
+        }
+        def Xform "facility_out"
+        {
+            custom double3 texsys:normal = (0, -1, 0)
+            double3 xformOp:translate = (4.800, 0, 1.45)
             uniform token[] xformOpOrder = ["xformOp:translate"]
         }
     }

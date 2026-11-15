@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "template": "sheet:a3-landscape",
+  "metadata": "assets/sheets/structure-footings.title.json",
+  "texts": {
+    "notes": "assets/sheets/structure-footings.txt",
+    "footer": "assets/sheets/footer.txt"
+  },
+  "views": {
+    "main": {
+      "path": "build/drawings/views/structure-footings.svg",
+      "scale": "1:200"
+    }
+  }
+}

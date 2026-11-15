@@ -34,10 +34,18 @@
       "required_artifacts": [
         "build/drawings/sheets/structure-l01.svg",
         "build/drawings/sheets/structure-l01-sheet.json",
-        "build/scenes/aidc-coordination.usda"
+        "build/scenes/aidc-coordination.usda",
+        "build/drawings/sheets/structure-footings.svg",
+        "build/drawings/sheets/structure-footings-sheet.json",
+        "build/drawings/sheets/structure-section-b.svg",
+        "build/drawings/sheets/structure-section-b-sheet.json",
+        "build/scenes/aidc-structure.usda",
+        "build/schedules/aidc-structure.csv",
+        "build/datacenter-reference/spatial/structure.json",
+        "build/datacenter-reference/spatial/structure-gravity.json"
       ],
       "pending": [
-        "地勘、作用组合、截面和节点计算、基础设计"
+        "实测地勘、抗风抗震、楼板与设备基础、节点与配筋设计"
       ]
     },
     "it": {
@@ -56,10 +64,17 @@
       "required_artifacts": [
         "build/drawings/sheets/electrical.svg",
         "build/drawings/sheets/electrical-sheet.json",
-        "build/datacenter-reference/design-checks.json"
+        "build/datacenter-reference/design-checks.json",
+        "build/drawings/sheets/power-one-line-a.svg",
+        "build/drawings/sheets/power-one-line-a-sheet.json",
+        "build/drawings/sheets/power-one-line-b.svg",
+        "build/drawings/sheets/power-one-line-b-sheet.json",
+        "build/datacenter-reference/spatial/power-topology.json",
+        "build/datacenter-reference/spatial/power-study.json",
+        "build/schedules/aidc-power-protection.csv"
       ],
       "pending": [
-        "电气单线图、短路电流、继保选择性、接地和实际故障工况"
+        "厂家时间电流曲线、接地和单相故障、全场并联及动态切换试验"
       ]
     },
     "mechanical": {
@@ -71,7 +86,9 @@
         "build/drawings/sheets/fws-sheet.json",
         "build/datacenter-reference/spatial/fws-routing.json",
         "build/datacenter-reference/spatial/fws-hydraulics.json",
-        "build/scenes/aidc-fws.usda"
+        "build/scenes/aidc-fws.usda",
+        "build/scenes/aidc-coordinated-detailed.usda",
+        "build/datacenter-reference/spatial/coordination.json"
       ],
       "pending": [
         "全网配流、泵曲线、厂家换热器压降、支吊架与屋面穿越复核"

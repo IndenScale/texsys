@@ -284,7 +284,7 @@
       "clause": "附录 A 电气",
       "title": "A 级电气技术要求",
       "requirement": "变压器应满足容错要求；后备柴油发电机基本容量应包括 UPS 基本容量与空调制冷设备基本容量",
-      "decision": "变压器 2×3150 kVA，发电机 2 组×（2×3000 kW N+1），UPS 2N；设施负荷约 2729 kW",
+      "decision": "变压器 2×3150 kVA，发电机 2 组×（2×3000 kW N+1），UPS 2N；设施负荷约 2771 kW",
       "check": "power-capacity",
       "rules": [
         "A.power.transformer-configuration",

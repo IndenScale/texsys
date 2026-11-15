@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "state": "assumed",
+  "basis": "仅校核屋盖均布重力、钢构件自重与轴心地基接触。服务工况用于挠度和承载压力。",
+  "steel_kn_m3": 77,
+  "concrete_kn_m3": 24,
+  "roof_dead_kpa": 0.8,
+  "roof_live_kpa": 0.6,
+  "elastic_modulus_gpa": 200,
+  "bending_limit_mpa": 210,
+  "web_shear_limit_mpa": 120,
+  "column_axial_limit_kn": 620,
+  "bearing_limit_kpa": 110,
+  "deflection_ratio": 300,
+  "strength_factors": {
+    "permanent": 1.3,
+    "variable": 1.5
+  }
+}

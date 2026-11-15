@@ -3,14 +3,15 @@
   "state": "assumed",
   "source": "参考设计布置与负荷假设，脱敏概念算例",
   "slab_fire_resistance_hours": 1.5,
-  "facility_load_kw": 2729,
+  "facility_load_kw": 2771,
   "facility_load_breakdown": {
     "it_load_kw": 1920,
-    "ups_losses_kw": 80,
+    "ups_losses_kw": 90,
     "cooling_plant_kw": 497,
-    "precision_air_fans_kw": 192,
+    "it_container_cdu_kw": 128,
+    "precision_air_fans_kw": 96,
     "auxiliary_kw": 40,
-    "basis": "IT 1920 kW；UPS 效率 0.96；冷机 2 台运行 COP 5.5、冷冻/冷却泵各 2×22 kW、冷却塔风机 2×30 kW；精密空调风机 64×3 kW；照明与控制 40 kW"
+    "basis": "单路带全场负荷。每舱开启存活路的一台 CDU 和两台精密空调。UPS 效率 0.96，损耗向上取整。冷源采用两台冷机和两组泵塔，另计照明与控制。"
   },
   "zones": {
     "host": [

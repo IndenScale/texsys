@@ -194,6 +194,11 @@ def it_container() -> dict:
 
 def power_container() -> dict:
   components = {
+    "TransferBus": {"ports": {
+      "in": port("in", "ac-power"),
+      "critical": port("out", "ac-power"),
+      "facility": port("out", "ac-power", 4),
+    }},
     "UpsBus": {"ports": {
       "in": port("in", "ac-power"),
       **{f"out_{i}": port("out", "ac-power") for i in range(1, 6)},
@@ -205,8 +210,10 @@ def power_container() -> dict:
   }
   instances = {
     "Transformer": {"component": "Transformer"},
-    "Switchboard": {"component": "Switchboard"},
-    "Ats": {"component": "ATS"},
+    "Switchboard": {"component": "Switchboard", "parameters": {
+      "rated_a": binding(5000, "A"), "breaking_ka": binding(85, "kA")}},
+    "Ats": {"component": "ATS", "parameters": {"rated_a": binding(5000, "A")}},
+    "TransferBus1": {"component": "TransferBus"},
     "UpsBus1": {"component": "UpsBus"},
     "OutputBus1": {"component": "OutputBus"},
   }
@@ -216,7 +223,8 @@ def power_container() -> dict:
   pairs = [
     ("Transformer.secondary", "Switchboard.in"),
     ("Switchboard.out_1", "Ats.source_a"),
-    ("Ats.out", "UpsBus1.in"),
+    ("Ats.out", "TransferBus1.in"),
+    ("TransferBus1.critical", "UpsBus1.in"),
   ]
   for i in range(1, 6):
     pairs.append((f"UpsBus1.out_{i}", f"Ups{i}.ac_in"))
@@ -232,7 +240,8 @@ def power_container() -> dict:
     "DcPath": {"kind": "dc-power", "connections": [c["id"] for c in connections if is_dc(c)]},
   }
   layout = {"Transformer": [0.2, 0.2, 0], "Switchboard": [2.2, 0.2, 0],
-            "Ats": [3.4, 0.2, 0], "UpsBus1": [3.4, 1.3, 1.8], "OutputBus1": [5.6, 0.8, 1.8]}
+            "Ats": [3.4, 0.2, 0], "TransferBus1": [2.6, 0.5, 1.8],
+            "UpsBus1": [3.4, 1.3, 1.8], "OutputBus1": [5.4, 0.8, 1.8]}
   for i in range(1, 6):
     layout[f"Ups{i}"] = [3.9 + (i - 1) * 0.35, 0.2, 0]
     layout[f"Battery{i}"] = [0.2 + (i - 1) * 0.9, 1.3, 0]
@@ -252,6 +261,7 @@ def power_container() -> dict:
       "utility_in": port("in", "ac-power"),
       "genset_in": port("in", "ac-power"),
       "out": port("out", "ac-power", 8),
+      "facility_out": port("out", "ac-power", 4),
     },
     "instances": instances,
     "connections": connections,
@@ -260,6 +270,7 @@ def power_container() -> dict:
       "utility_in": ["Transformer.primary"],
       "genset_in": ["Ats.source_b"],
       "out": ["OutputBus1.out"],
+      "facility_out": ["TransferBus1.facility"],
     },
     "layout": layout,
     "parameters": {
@@ -275,7 +286,7 @@ def power_container() -> dict:
       "weathering": {"installation": "indoor", "ip": "IP54"},
     },
     "model": "containerized-power-path",
-    "method": "单路 2500 kVA：变压器→开关柜→ATS→5×500 kVA UPS→输出母线；每模块配 120 kWh 电池柜，合计 600 kWh。",
+    "method": "ATS 后的转换母线分出设施负荷与 2500 kVA UPS 两条支路。每台 UPS 配 120 kWh 电池柜。",
     "limitations": "概念脱敏；实际保护选择性、电池通风与维护旁路由项目校核。",
   }
 

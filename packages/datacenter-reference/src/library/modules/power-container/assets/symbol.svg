@@ -1,10 +1,12 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="200" height="140" viewBox="0 0 200 140">
   <rect x="20" y="20" width="160" height="90" fill="none" stroke="#333" stroke-width="2"/>
   <text x="100" y="45" font-size="11" text-anchor="middle" fill="#333">配电方舱</text>
-  <circle id="port-utility_in" cx="60.0" cy="110" r="4" fill="#0a7"/>
-  <text x="60.0" y="126" font-size="7" text-anchor="middle">utility_in</text>
-  <circle id="port-genset_in" cx="100.0" cy="110" r="4" fill="#0a7"/>
-  <text x="100.0" y="126" font-size="7" text-anchor="middle">genset_in</text>
-  <circle id="port-out" cx="140.0" cy="110" r="4" fill="#0a7"/>
-  <text x="140.0" y="126" font-size="7" text-anchor="middle">out</text>
+  <circle id="port-utility_in" cx="52.0" cy="110" r="4" fill="#0a7"/>
+  <text x="52.0" y="126" font-size="7" text-anchor="middle">utility_in</text>
+  <circle id="port-genset_in" cx="84.0" cy="110" r="4" fill="#0a7"/>
+  <text x="84.0" y="126" font-size="7" text-anchor="middle">genset_in</text>
+  <circle id="port-out" cx="116.0" cy="110" r="4" fill="#0a7"/>
+  <text x="116.0" y="126" font-size="7" text-anchor="middle">out</text>
+  <circle id="port-facility_out" cx="148.0" cy="110" r="4" fill="#0a7"/>
+  <text x="148.0" y="126" font-size="7" text-anchor="middle">facility_out</text>
 </svg>

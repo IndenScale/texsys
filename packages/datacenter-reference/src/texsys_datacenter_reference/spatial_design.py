@@ -42,6 +42,12 @@ def vector(value, size, label):
   return tuple(value)
 
 
+def number(value, name, *, zero=False):
+  if type(value) not in (float, int) or not math.isfinite(value) or value < 0 or (value == 0 and not zero):
+    raise ValueError(f"{name}: expected a finite {'nonnegative' if zero else 'positive'} engineering value.")
+  return value
+
+
 def artifact(context, identity, path, **options):
   return Artifact(identity, path.relative_to(context.root).as_posix(), **options)
 

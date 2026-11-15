@@ -1,7 +1,7 @@
 """Run the AIDC delivery graph through a geometry change and failed check."""
 
 import json
-from math import log10, pi
+from math import log10, pi, sqrt
 from pathlib import Path
 import shutil
 import xml.etree.ElementTree as ET
@@ -72,10 +72,11 @@ def test_aidc_deliverables_bind_to_the_same_geometry_and_recompute_the_fws_head(
   assert dossier["evidence_complete"]
   assert dossier["input_digest"] == _read(baseline.report)["input_digest"]
   assert dossier["engineering_acceptance"] == "pending-responsible-review"
-  assert len(list((root / "build/drawings/sheets").glob("*.svg"))) == 10
+  assert len(list((root / "build/drawings/sheets").glob("*.svg"))) == 14
   old_dossier = file_digest(root / "build/review/aidc-discipline-review.json")
   old_route_drawing = file_digest(root / "build/drawings/sheets/fws.svg")
 
+  _check_professional_delivery(root)
   report = root / MODEL / "fws-hydraulics.json"
   before = _read(report)
   assert before["terminal_design_it_kw"] == 120
@@ -85,7 +86,7 @@ def test_aidc_deliverables_bind_to_the_same_geometry_and_recompute_the_fws_head(
   speed = before["flow_m3_s"] / (pi * diameter**2 / 4)
   reynolds = density * speed * diameter / viscosity
   haaland = (-1.8 * log10((inputs["roughness_m"] / (3.7 * diameter))**1.11 + 6.9 / reynolds))**-2
-  independent_kpa = 20 + (haaland * (47.28857142857143 + 47.23142857142858) / diameter + 14 * 0.9) * (
+  independent_kpa = 20 + (haaland * (46.98857142857143 + 47.23142857142858) / diameter + 14 * 0.9) * (
     density * speed**2 / 2000
   )
   assert before["required_kpa"] == pytest.approx(independent_kpa)
@@ -116,6 +117,88 @@ def test_aidc_deliverables_bind_to_the_same_geometry_and_recompute_the_fws_head(
   assert restored.status == "pass", restored.diagnostics
   assert records["dcr:fws-hydraulics"]["execution"] == "cached"
   assert _read(report) == before
+  _check_load_failures(root, old_dossier)
+
+
+def _check_professional_delivery(root):
+  frame = _read(root / MODEL / "structure.json")
+  calculation = _read(root / MODEL / "structure-gravity.json")
+  members = frame["members"]
+  assert len(members) == 52
+  assert members["G-1-2-B"]["supports"] == ["C-1-B", "C-2-B"]
+  girder = calculation["checks"]["G-1-2-B"]["response"]["service"]
+  span = 8
+  udl = 1.4 * 8 + members["G-1-2-B"]["physical_volume_m3"] * 77 / span
+  assert girder["moment_kn_m"] == pytest.approx(udl * span**2 / 8)
+  assert girder["reaction_start_kn"] == pytest.approx(udl * span / 2)
+  assert calculation["equilibrium"]["service"]["residual_kn"] == pytest.approx(0, abs=1e-9)
+  pad = calculation["checks"]["P-1-B"]
+  assert pad["peak_bearing_kpa"] == pytest.approx((pad["service_column_kn"] + pad["own_weight_kn"]) / 1.7**2)
+  drawing = ET.parse(root / "build/drawings/views/structure-section-b.svg")
+  assert drawing.find(f".//{SVG}rect[@data-member='P-1-B']") is not None
+  scene = root / "build/scenes/aidc-coordinated-detailed.usda"
+  assert str(root) not in scene.read_text()
+  stage = Usd.Stage.Open(str(scene))
+  assert not stage.GetPrimAtPath("/AIDC/Objects/Frame01")
+  assert stage.GetPrimAtPath("/AIDC/Structure/C_1_B").GetAttribute("texsys:identity").Get() == "C-1-B"
+  assert stage.GetPrimAtPath("/AIDC/FWS/Supply")
+
+  topology = _read(root / MODEL / "power-topology.json")["trains"]
+  power = _read(root / MODEL / "power-study.json")["trains"]
+  for side, path in topology.items():
+    plan = ET.parse(root / f"build/drawings/views/power-one-line-{side.lower()}.svg")
+    wires = plan.findall(f".//{SVG}polyline[@data-link]")
+    assert {wire.get("data-link") for wire in wires} == {edge["id"] for edge in path["edges"]}
+    assert len(wires) == len(path["edges"])
+    breakers = {symbol.get("data-protection-link") for symbol in plan.findall(f".//{SVG}rect[@data-protection-link]")}
+    assert breakers == {link for response in power[side]["fault_cases"].values() for link in response["devices"]}
+    assert len(power[side]["fault_cases"]) == 44
+    assert len(path["shared_feeds"]) == 7
+    assert power[side]["critical_kw"] == 2144
+    assert power[side]["input_kw"] == pytest.approx(2144/.96 + 497 + 40)
+    assert power[side]["duty"][f"Busway{side}1"]["required"] == pytest.approx(536 / (sqrt(3)*.4*.9))
+    assert power[side]["autonomy_min"] == pytest.approx(600*60/2144)
+    transformer_z = .06 * .4**2 / 3.15
+    winding = transformer_z * complex(1, 7) / sqrt(50)
+    utility = complex(.06+.015, .30+.06) * (.4/10)**2
+    assert power[side]["fault_cases"]["utility:main"]["current_max_ka"] == pytest.approx(
+      1.05*.4/(sqrt(3)*abs(winding+utility))
+    )
+
+
+def _check_load_failures(root, old_dossier):
+  loads = root / "src/structure-loads.json"
+  structure = _read(loads)
+  structure["roof_live_kpa"] = 15
+  write_json(loads, structure)
+  settings = root / "src/electrical-study.json"
+  electrical = _read(settings)
+  electrical["breakers"]["terminal"]["interrupt_ka"] = 4
+  write_json(settings, electrical)
+  failed, records = _run(root)
+  assert failed.status == "fail"
+  for check in ("dcr:structure-gravity", "dcr:power-study"):
+    assert records[check]["status"] == "fail"
+  for sheet in ("sheet-structure-l01", "sheet-power-one-line-a", "sheet-fws"):
+    assert records[sheet]["execution"] == "cached"
+  assert records["review-package"]["execution"] == "blocked"
+  assert "AIDC_GRAVITY_BENDING" in failed.diagnostics
+  assert "AIDC_ELECTRICAL_FAULT" in failed.diagnostics
+  assert file_digest(root / "build/review/aidc-discipline-review.json") == old_dossier
+
+
+def test_aidc_coordination_identifies_a_pipe_overlapping_the_frame(tmp_path):
+  root = _checkout(tmp_path)
+  path = root / "src/fws-routing.json"
+  config = _read(path)
+  config["legs"]["supply"]["port_clearance_m"] = .7
+  write_json(path, config)
+  result, records = _run(root, "dcr:coordination-model", "sheet-fws")
+  assert result.status == "fail"
+  assert records["dcr:structure-model"]["status"] == "pass"
+  assert records["sheet-fws"]["status"] == "pass"
+  assert "AIDC_FWS_FRAME_CLASH" in result.diagnostics
+  assert "G-1-2-A" in result.diagnostics
 
 
 def test_aidc_geometry_rejects_missing_and_clashing_placements(tmp_path):

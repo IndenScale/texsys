@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "trains": {
+    "A": {
+      "net": "PowerA",
+      "shared_net": "AuxPower",
+      "utility": "UtilityA",
+      "generator": "GenContainerA",
+      "power_container": "PowerPathA"
+    },
+    "B": {
+      "net": "PowerB",
+      "shared_net": "AuxPower",
+      "utility": "UtilityB",
+      "generator": "GenContainerB",
+      "power_container": "PowerPathB"
+    }
+  }
+}

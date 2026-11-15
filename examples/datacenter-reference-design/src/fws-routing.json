@@ -6,7 +6,7 @@
     "supply": {
       "connections": ["link-053", "link-075"],
       "tier_m": 5.8,
-      "port_clearance_m": 0.7,
+      "port_clearance_m": 0.55,
       "header_xy_m": [20, 26],
       "outside_diameter_m": 0.063,
       "baseline_length_m": 40

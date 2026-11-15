@@ -9,6 +9,6 @@
     "battery_autonomy_min": "min",
     "fire_resistance_hours": "h"
   },
-  "method": "单路 2500 kVA：变压器→开关柜→ATS→5×500 kVA UPS→输出母线；每模块配 120 kWh 电池柜，合计 600 kWh。",
+  "method": "ATS 后的转换母线分出设施负荷与 2500 kVA UPS 两条支路。每台 UPS 配 120 kWh 电池柜。",
   "limitations": "概念脱敏；实际保护选择性、电池通风与维护旁路由项目校核。"
 }

@@ -7,15 +7,20 @@ from texsys.targets import Artifact, TargetDefinition, TargetResult
 
 from .bom import project_reference_bom
 from .checks import evaluate_design_checks
+from .coordination import build_coordinated_scene
+from .electrical import build_power_study, build_power_topology
 from .fws_design import build_hydraulics, build_routes
 from .plans import build_plan
+from .power_views import build_power_view
 from .review import build_review_package
 from .spatial_design import build_grid, build_layout, build_levels, build_site, spatial_inputs
+from .structure import build_gravity, build_structure
+from .structure_views import build_structure_view
 
 
 class DatacenterReferencePackage(TexsysPackage):
   name = "datacenter-reference"
-  version = "0.2.0"
+  version = "0.3.1"
 
   def targets(self) -> tuple[TargetDefinition, ...]:
     return (
@@ -39,6 +44,21 @@ class DatacenterReferencePackage(TexsysPackage):
                        input_patterns=spatial_inputs("system.sdl.json", "fws-routing.json")),
       TargetDefinition("dcr:fws-hydraulics", self.name, self.version, build_hydraulics,
                        dependencies=("dcr:fws-routing",), input_patterns=spatial_inputs("fws-hydraulics.json")),
+      TargetDefinition("dcr:structure-model", self.name, self.version, build_structure, dependencies=("dcr:layout",),
+                       input_patterns=spatial_inputs("structure.json")),
+      TargetDefinition("dcr:structure-gravity", self.name, self.version, build_gravity,
+                       dependencies=("dcr:structure-model",), input_patterns=spatial_inputs("structure-loads.json")),
+      TargetDefinition("dcr:structure-view", self.name, self.version, build_structure_view,
+                       dependencies=("dcr:structure-model",), input_patterns=(), named_output=True),
+      TargetDefinition("dcr:coordination-model", self.name, self.version, build_coordinated_scene,
+                       dependencies=("dcr:structure-model", "dcr:fws-routing"), input_patterns=()),
+      TargetDefinition("dcr:power-topology", self.name, self.version, build_power_topology,
+                       input_patterns=spatial_inputs("*.sdl.json", "*/module.toml", "design-basis.json",
+                                                     "placement.study.json", "electrical.json")),
+      TargetDefinition("dcr:power-study", self.name, self.version, build_power_study,
+                       dependencies=("dcr:power-topology",), input_patterns=spatial_inputs("electrical-study.json")),
+      TargetDefinition("dcr:power-view", self.name, self.version, build_power_view,
+                       dependencies=("dcr:power-topology",), input_patterns=(), named_output=True),
       TargetDefinition("dcr:site-plan", self.name, self.version, build_plan, dependencies=("dcr:site",),
                        input_patterns=(), named_output=True),
       TargetDefinition("dcr:grid-plan", self.name, self.version, build_plan, dependencies=("dcr:grid",),

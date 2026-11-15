@@ -2,7 +2,7 @@ schema_version = 1
 
 [project]
 name = "datacenter-reference"
-version = "0.2.0"
+version = "0.3.1"
 
 [layout]
 source = "src"
@@ -31,6 +31,10 @@ version = "0.1.0"
 
 [dependencies.hvac-dynamics]
 path = "../hvac-dynamics"
+version = "0.1.0"
+
+[dependencies.electrical]
+path = "../electrical"
 version = "0.1.0"
 
 [package]

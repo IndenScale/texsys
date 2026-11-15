@@ -12,7 +12,7 @@ build = "build"
 default_targets = ["review-package"]
 
 [dependencies]
-datacenter-reference = { path = "../../packages/datacenter-reference", version = "0.2.0" }
+datacenter-reference = { path = "../../packages/datacenter-reference", version = "0.3.1" }
 sheet = { path = "../../packages/sheet", version = "0.2.0" }
 
 [build.targets.review-package]
@@ -22,14 +22,21 @@ dependencies = [
   "dcr:design-checks",
   "dcr:bom",
   "dcr:fws-hydraulics",
+  "dcr:coordination-model",
+  "dcr:structure-gravity",
+  "dcr:power-study",
   "sheet-parcel",
   "sheet-grid",
   "sheet-zoning",
   "sheet-coordination",
   "sheet-architecture-l01",
   "sheet-structure-l01",
+  "sheet-structure-footings",
+  "sheet-structure-section-b",
   "sheet-it-hall",
   "sheet-electrical",
+  "sheet-power-one-line-a",
+  "sheet-power-one-line-b",
   "sheet-cooling",
   "sheet-fws",
 ]
@@ -86,9 +93,9 @@ scope = { source = "assets/sheets/architecture-l01.sheet.json" }
 output = "build/drawings/sheets/architecture-l01.svg"
 
 [build.targets.plan-structure-l01]
-using = "dcr:plan"
+using = "dcr:structure-view"
 output = "build/drawings/views/structure-l01.svg"
-scope = { level = "L01", discipline = "structure" }
+scope = { view = "frame" }
 
 [build.targets.sheet-structure-l01]
 using = "sheet:compose"
@@ -138,3 +145,47 @@ using = "sheet:compose"
 dependencies = ["plan-fws"]
 scope = { source = "assets/sheets/fws.sheet.json" }
 output = "build/drawings/sheets/fws.svg"
+
+[build.targets.plan-structure-footings]
+using = "dcr:structure-view"
+output = "build/drawings/views/structure-footings.svg"
+scope = { view = "footings" }
+
+[build.targets.sheet-structure-footings]
+using = "sheet:compose"
+dependencies = ["plan-structure-footings"]
+scope = { source = "assets/sheets/structure-footings.sheet.json" }
+output = "build/drawings/sheets/structure-footings.svg"
+
+[build.targets.plan-structure-section-b]
+using = "dcr:structure-view"
+output = "build/drawings/views/structure-section-b.svg"
+scope = { view = "section", axis = "B" }
+
+[build.targets.sheet-structure-section-b]
+using = "sheet:compose"
+dependencies = ["plan-structure-section-b"]
+scope = { source = "assets/sheets/structure-section-b.sheet.json" }
+output = "build/drawings/sheets/structure-section-b.svg"
+
+[build.targets.plan-power-one-line-a]
+using = "dcr:power-view"
+output = "build/drawings/views/power-one-line-a.svg"
+scope = { train = "A" }
+
+[build.targets.sheet-power-one-line-a]
+using = "sheet:compose"
+dependencies = ["plan-power-one-line-a"]
+scope = { source = "assets/sheets/power-one-line-a.sheet.json" }
+output = "build/drawings/sheets/power-one-line-a.svg"
+
+[build.targets.plan-power-one-line-b]
+using = "dcr:power-view"
+output = "build/drawings/views/power-one-line-b.svg"
+scope = { train = "B" }
+
+[build.targets.sheet-power-one-line-b]
+using = "sheet:compose"
+dependencies = ["plan-power-one-line-b"]
+scope = { source = "assets/sheets/power-one-line-b.sheet.json" }
+output = "build/drawings/sheets/power-one-line-b.svg"

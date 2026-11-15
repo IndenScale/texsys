@@ -51,7 +51,7 @@ def main() -> None:
     }},
     "AuxFeed": {"ports": {
       "in_a": port("in", "ac-power"), "in_b": port("in", "ac-power"),
-      **{f"out_{i}": port("out", "ac-power") for i in range(1, COOLING + 2)},
+      **{f"out_{i}": port("out", "ac-power") for i in range(1, 2 * COOLING + 2)},
     }},
   }
   instances: dict = {
@@ -70,9 +70,12 @@ def main() -> None:
   for i in range(1, CONTAINERS + 1):
     instances[f"IT{i:02d}"] = {"component": "ItContainer"}
     instances[f"Floor{i:02d}"] = {"component": "RaisedAccessFloor"}
-  for i in range(1, 5):
-    instances[f"BuswayA{i}"] = {"component": "Busway"}
-    instances[f"BuswayB{i}"] = {"component": "Busway"}
+  for side in ("A", "B"):
+    for i in range(1, 5):
+      instances[f"Busway{side}{i}"] = {"component": "Busway", "parameters": {"rated_a": {
+        "value": 1000, "unit": "A", "state": "assumed",
+        "source": "AIDC 单路供电工况，四个 IT 方舱含舱内保障负荷",
+      }}}
   for i in range(1, COOLING + 1):
     instances[f"CoolContainer{i}"] = {"component": "CoolingContainer"}
     instances[f"CwPump{i}"] = {"component": "CondenserWaterPump"}
@@ -96,10 +99,9 @@ def main() -> None:
   for path in ("A", "B"):
     for i in range(1, 5):
       conn(f"PowerPath{path}.out", f"Busway{path}{i}.in", path)
-    conn(f"PowerPath{path}.out", "AuxFeed.in_a" if path == "A" else "AuxFeed.in_b", path)
+    conn(f"PowerPath{path}.facility_out", f"AuxFeed.in_{path.lower()}", path)
     for i in range(1, COOLING + 1):
-      conn(f"PowerPath{path}.out", f"CoolContainer{i}.power_a" if path == "A"
-           else f"CoolContainer{i}.power_b", path)
+      conn(f"PowerPath{path}.facility_out", f"CoolContainer{i}.power_{path.lower()}", path)
   for i in range(1, CONTAINERS + 1):
     group, tap = divmod(i - 1, 4)
     conn(f"BuswayA{group + 1}.tap_{tap + 1}", f"IT{i:02d}.power_a", "A")
@@ -118,6 +120,8 @@ def main() -> None:
     conn(f"IT{i:02d}.fws_return", f"FwsReturnHeader.in_{i}", "fws")
   conn("ControlPanel.out_1", "GenContainerA.control", "signal")
   conn("ControlPanel.out_2", "GenContainerB.control", "signal")
+  for i in range(1, COOLING + 1):
+    conn(f"AuxFeed.out_{COOLING+1+i}", f"CwPump{i}.power", "aux")
 
   nets: dict = {}
   for connection, side in zip(connections, sides):

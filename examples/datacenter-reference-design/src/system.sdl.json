@@ -280,6 +280,21 @@
           "direction": "out",
           "kind": "ac-power",
           "max_connections": 1
+        },
+        "out_5": {
+          "direction": "out",
+          "kind": "ac-power",
+          "max_connections": 1
+        },
+        "out_6": {
+          "direction": "out",
+          "kind": "ac-power",
+          "max_connections": 1
+        },
+        "out_7": {
+          "direction": "out",
+          "kind": "ac-power",
+          "max_connections": 1
         }
       }
     },
@@ -415,28 +430,92 @@
           "component": "RaisedAccessFloor"
         },
         "BuswayA1": {
-          "component": "Busway"
-        },
-        "BuswayB1": {
-          "component": "Busway"
+          "component": "Busway",
+          "parameters": {
+            "rated_a": {
+              "value": 1000,
+              "unit": "A",
+              "state": "assumed",
+              "source": "AIDC 单路供电工况，四个 IT 方舱含舱内保障负荷"
+            }
+          }
         },
         "BuswayA2": {
-          "component": "Busway"
-        },
-        "BuswayB2": {
-          "component": "Busway"
+          "component": "Busway",
+          "parameters": {
+            "rated_a": {
+              "value": 1000,
+              "unit": "A",
+              "state": "assumed",
+              "source": "AIDC 单路供电工况，四个 IT 方舱含舱内保障负荷"
+            }
+          }
         },
         "BuswayA3": {
-          "component": "Busway"
-        },
-        "BuswayB3": {
-          "component": "Busway"
+          "component": "Busway",
+          "parameters": {
+            "rated_a": {
+              "value": 1000,
+              "unit": "A",
+              "state": "assumed",
+              "source": "AIDC 单路供电工况，四个 IT 方舱含舱内保障负荷"
+            }
+          }
         },
         "BuswayA4": {
-          "component": "Busway"
+          "component": "Busway",
+          "parameters": {
+            "rated_a": {
+              "value": 1000,
+              "unit": "A",
+              "state": "assumed",
+              "source": "AIDC 单路供电工况，四个 IT 方舱含舱内保障负荷"
+            }
+          }
+        },
+        "BuswayB1": {
+          "component": "Busway",
+          "parameters": {
+            "rated_a": {
+              "value": 1000,
+              "unit": "A",
+              "state": "assumed",
+              "source": "AIDC 单路供电工况，四个 IT 方舱含舱内保障负荷"
+            }
+          }
+        },
+        "BuswayB2": {
+          "component": "Busway",
+          "parameters": {
+            "rated_a": {
+              "value": 1000,
+              "unit": "A",
+              "state": "assumed",
+              "source": "AIDC 单路供电工况，四个 IT 方舱含舱内保障负荷"
+            }
+          }
+        },
+        "BuswayB3": {
+          "component": "Busway",
+          "parameters": {
+            "rated_a": {
+              "value": 1000,
+              "unit": "A",
+              "state": "assumed",
+              "source": "AIDC 单路供电工况，四个 IT 方舱含舱内保障负荷"
+            }
+          }
         },
         "BuswayB4": {
-          "component": "Busway"
+          "component": "Busway",
+          "parameters": {
+            "rated_a": {
+              "value": 1000,
+              "unit": "A",
+              "state": "assumed",
+              "source": "AIDC 单路供电工况，四个 IT 方舱含舱内保障负荷"
+            }
+          }
         },
         "CoolContainer1": {
           "component": "CoolingContainer"
@@ -544,22 +623,22 @@
           "to": "BuswayA4.in"
         },
         {
-          "from": "PowerPathA.out",
+          "from": "PowerPathA.facility_out",
           "id": "link-009",
           "to": "AuxFeed.in_a"
         },
         {
-          "from": "PowerPathA.out",
+          "from": "PowerPathA.facility_out",
           "id": "link-010",
           "to": "CoolContainer1.power_a"
         },
         {
-          "from": "PowerPathA.out",
+          "from": "PowerPathA.facility_out",
           "id": "link-011",
           "to": "CoolContainer2.power_a"
         },
         {
-          "from": "PowerPathA.out",
+          "from": "PowerPathA.facility_out",
           "id": "link-012",
           "to": "CoolContainer3.power_a"
         },
@@ -584,22 +663,22 @@
           "to": "BuswayB4.in"
         },
         {
-          "from": "PowerPathB.out",
+          "from": "PowerPathB.facility_out",
           "id": "link-017",
           "to": "AuxFeed.in_b"
         },
         {
-          "from": "PowerPathB.out",
+          "from": "PowerPathB.facility_out",
           "id": "link-018",
           "to": "CoolContainer1.power_b"
         },
         {
-          "from": "PowerPathB.out",
+          "from": "PowerPathB.facility_out",
           "id": "link-019",
           "to": "CoolContainer2.power_b"
         },
         {
-          "from": "PowerPathB.out",
+          "from": "PowerPathB.facility_out",
           "id": "link-020",
           "to": "CoolContainer3.power_b"
         },
@@ -1042,6 +1121,21 @@
           "from": "ControlPanel.out_2",
           "id": "link-108",
           "to": "GenContainerB.control"
+        },
+        {
+          "from": "AuxFeed.out_5",
+          "id": "link-109",
+          "to": "CwPump1.power"
+        },
+        {
+          "from": "AuxFeed.out_6",
+          "id": "link-110",
+          "to": "CwPump2.power"
+        },
+        {
+          "from": "AuxFeed.out_7",
+          "id": "link-111",
+          "to": "CwPump3.power"
         }
       ],
       "nets": {
@@ -1170,7 +1264,10 @@
             "link-058",
             "link-065",
             "link-072",
-            "link-074"
+            "link-074",
+            "link-109",
+            "link-110",
+            "link-111"
           ]
         },
         "Makeup": {

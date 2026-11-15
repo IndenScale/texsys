@@ -1,0 +1,215 @@
+{
+  "schema_version": 1,
+  "state": "assumed",
+  "basis": "两套独立放射形配电链。校核运行设备名牌与三相金属性故障，故障源与时间带为合成数据。",
+  "power_factor": 0.9,
+  "ups_efficiency": 0.96,
+  "min_battery_minutes": 15,
+  "transformer_x_over_r": 7,
+  "clearing": {
+    "primary_s": 0.5,
+    "backup_s": 0.6,
+    "grading_s": 0.1
+  },
+  "sources": {
+    "utility": {
+      "minimum": {
+        "voltage_factor": 0.95,
+        "impedance_ohm": {
+          "r_ohm": 0.1,
+          "x_ohm": 0.6
+        }
+      },
+      "maximum": {
+        "voltage_factor": 1.05,
+        "impedance_ohm": {
+          "r_ohm": 0.06,
+          "x_ohm": 0.3
+        }
+      }
+    },
+    "generator": {
+      "minimum": {
+        "voltage_factor": 0.95,
+        "impedance_ohm": {
+          "r_ohm": 0.004,
+          "x_ohm": 0.023
+        }
+      },
+      "maximum": {
+        "voltage_factor": 1.05,
+        "impedance_ohm": {
+          "r_ohm": 0.003,
+          "x_ohm": 0.016
+        }
+      },
+      "sustain_s": 0.65
+    },
+    "inverter": {
+      "minimum": {
+        "voltage_factor": 0.95,
+        "impedance_ohm": {
+          "r_ohm": 0.001,
+          "x_ohm": 0.003
+        },
+        "current_multiplier": 2.0
+      },
+      "maximum": {
+        "voltage_factor": 1.05,
+        "impedance_ohm": {
+          "r_ohm": 0.001,
+          "x_ohm": 0.002
+        },
+        "current_multiplier": 2.5
+      },
+      "sustain_s": 0.55
+    },
+    "battery": {
+      "minimum": {
+        "voltage_factor": 0.95,
+        "impedance_ohm": {
+          "r_ohm": 0.001,
+          "x_ohm": 0.003
+        },
+        "current_multiplier": 1.5
+      },
+      "maximum": {
+        "voltage_factor": 1.05,
+        "impedance_ohm": {
+          "r_ohm": 0.001,
+          "x_ohm": 0.002
+        },
+        "current_multiplier": 1.9
+      },
+      "sustain_s": 0.45
+    }
+  },
+  "sections_ohm": {
+    "mv_in": {
+      "r_ohm": 0.015,
+      "x_ohm": 0.06
+    },
+    "connection": {
+      "r_ohm": 0.00017,
+      "x_ohm": 0.00019
+    },
+    "transfer": {
+      "r_ohm": 0.00022,
+      "x_ohm": 0.00042
+    },
+    "generator": {
+      "r_ohm": 0.001,
+      "x_ohm": 0.002
+    },
+    "feeder": {
+      "r_ohm": 0.001,
+      "x_ohm": 0.002
+    },
+    "tap": {
+      "r_ohm": 0.0012,
+      "x_ohm": 0.002
+    }
+  },
+  "breakers": {
+    "main": {
+      "interrupt_ka": 85,
+      "curve": [
+        [
+          8,
+          0.37,
+          0.46
+        ],
+        [
+          45,
+          0.32,
+          0.42
+        ],
+        [
+          90,
+          0.29,
+          0.38
+        ]
+      ]
+    },
+    "transfer": {
+      "interrupt_ka": 85,
+      "curve": [
+        [
+          6,
+          0.1,
+          0.16
+        ],
+        [
+          22,
+          0.085,
+          0.13
+        ],
+        [
+          90,
+          0.064,
+          0.098
+        ]
+      ]
+    },
+    "generator": {
+      "interrupt_ka": 35,
+      "curve": [
+        [
+          6,
+          0.36,
+          0.46
+        ],
+        [
+          15,
+          0.31,
+          0.4
+        ],
+        [
+          35,
+          0.27,
+          0.37
+        ]
+      ]
+    },
+    "feeder": {
+      "interrupt_ka": 25,
+      "curve": [
+        [
+          4,
+          0.24,
+          0.3
+        ],
+        [
+          8,
+          0.2,
+          0.26
+        ],
+        [
+          25,
+          0.16,
+          0.22
+        ]
+      ]
+    },
+    "terminal": {
+      "interrupt_ka": 18,
+      "curve": [
+        [
+          3,
+          0.056,
+          0.089
+        ],
+        [
+          8,
+          0.04,
+          0.068
+        ],
+        [
+          18,
+          0.031,
+          0.051
+        ]
+      ]
+    }
+  }
+}

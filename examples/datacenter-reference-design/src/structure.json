@@ -1,0 +1,43 @@
+{
+  "schema_version": 1,
+  "state": "assumed",
+  "basis": "主机房屋面钢梁、轴线柱与独立基础的方案初选。按现有主机房正交轴网建模。",
+  "zone": "IT-HALL",
+  "sections_m": {
+    "column": {
+      "depth": 0.35,
+      "width": 0.32,
+      "web": 0.012,
+      "flange": 0.02
+    },
+    "girder": {
+      "depth": 0.5,
+      "width": 0.24,
+      "web": 0.011,
+      "flange": 0.018
+    },
+    "tie": {
+      "depth": 0.5,
+      "width": 0.18,
+      "web": 0.009,
+      "flange": 0.014
+    }
+  },
+  "base_plate_m": [
+    0.5,
+    0.5,
+    0.028
+  ],
+  "pad": {
+    "size_m": [
+      1.7,
+      1.7,
+      0.48
+    ],
+    "plinth_m": [
+      0.58,
+      0.58
+    ],
+    "bottom_m": -1.3
+  }
+}

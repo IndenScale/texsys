@@ -9,6 +9,25 @@
     "Battery": "library/modules/battery-cabinet/battery-cabinet.sdl.json"
   },
   "components": {
+    "TransferBus": {
+      "ports": {
+        "in": {
+          "direction": "in",
+          "kind": "ac-power",
+          "max_connections": 1
+        },
+        "critical": {
+          "direction": "out",
+          "kind": "ac-power",
+          "max_connections": 1
+        },
+        "facility": {
+          "direction": "out",
+          "kind": "ac-power",
+          "max_connections": 4
+        }
+      }
+    },
     "UpsBus": {
       "ports": {
         "in": {
@@ -93,6 +112,11 @@
           "direction": "out",
           "kind": "ac-power",
           "max_connections": 8
+        },
+        "facility_out": {
+          "direction": "out",
+          "kind": "ac-power",
+          "max_connections": 4
         }
       },
       "instances": {
@@ -100,10 +124,35 @@
           "component": "Transformer"
         },
         "Switchboard": {
-          "component": "Switchboard"
+          "component": "Switchboard",
+          "parameters": {
+            "rated_a": {
+              "value": 5000,
+              "unit": "A",
+              "state": "assumed",
+              "source": "Texsys 数据中心参考设计库概念假设（公开产品水平脱敏）"
+            },
+            "breaking_ka": {
+              "value": 85,
+              "unit": "kA",
+              "state": "assumed",
+              "source": "Texsys 数据中心参考设计库概念假设（公开产品水平脱敏）"
+            }
+          }
         },
         "Ats": {
-          "component": "ATS"
+          "component": "ATS",
+          "parameters": {
+            "rated_a": {
+              "value": 5000,
+              "unit": "A",
+              "state": "assumed",
+              "source": "Texsys 数据中心参考设计库概念假设（公开产品水平脱敏）"
+            }
+          }
+        },
+        "TransferBus1": {
+          "component": "TransferBus"
         },
         "UpsBus1": {
           "component": "UpsBus"
@@ -156,81 +205,86 @@
         {
           "from": "Ats.out",
           "id": "link-003",
+          "to": "TransferBus1.in"
+        },
+        {
+          "from": "TransferBus1.critical",
+          "id": "link-004",
           "to": "UpsBus1.in"
         },
         {
           "from": "UpsBus1.out_1",
-          "id": "link-004",
+          "id": "link-005",
           "to": "Ups1.ac_in"
         },
         {
           "from": "Ups1.ac_out",
-          "id": "link-005",
+          "id": "link-006",
           "to": "OutputBus1.in_1"
         },
         {
           "from": "Battery1.dc",
-          "id": "link-006",
+          "id": "link-007",
           "to": "Ups1.battery"
         },
         {
           "from": "UpsBus1.out_2",
-          "id": "link-007",
+          "id": "link-008",
           "to": "Ups2.ac_in"
         },
         {
           "from": "Ups2.ac_out",
-          "id": "link-008",
+          "id": "link-009",
           "to": "OutputBus1.in_2"
         },
         {
           "from": "Battery2.dc",
-          "id": "link-009",
+          "id": "link-010",
           "to": "Ups2.battery"
         },
         {
           "from": "UpsBus1.out_3",
-          "id": "link-010",
+          "id": "link-011",
           "to": "Ups3.ac_in"
         },
         {
           "from": "Ups3.ac_out",
-          "id": "link-011",
+          "id": "link-012",
           "to": "OutputBus1.in_3"
         },
         {
           "from": "Battery3.dc",
-          "id": "link-012",
+          "id": "link-013",
           "to": "Ups3.battery"
         },
         {
           "from": "UpsBus1.out_4",
-          "id": "link-013",
+          "id": "link-014",
           "to": "Ups4.ac_in"
         },
         {
           "from": "Ups4.ac_out",
-          "id": "link-014",
+          "id": "link-015",
           "to": "OutputBus1.in_4"
         },
         {
           "from": "Battery4.dc",
-          "id": "link-015",
+          "id": "link-016",
           "to": "Ups4.battery"
         },
         {
           "from": "UpsBus1.out_5",
-          "id": "link-016",
+          "id": "link-017",
           "to": "Ups5.ac_in"
         },
         {
           "from": "Ups5.ac_out",
-          "id": "link-017",
+          "id": "link-018",
           "to": "OutputBus1.in_5"
         },
         {
           "from": "Battery5.dc",
-          "id": "link-018",
+          "id": "link-019",
           "to": "Ups5.battery"
         }
       ],
@@ -243,24 +297,25 @@
             "link-003",
             "link-004",
             "link-005",
-            "link-007",
+            "link-006",
             "link-008",
-            "link-010",
+            "link-009",
             "link-011",
-            "link-013",
+            "link-012",
             "link-014",
-            "link-016",
-            "link-017"
+            "link-015",
+            "link-017",
+            "link-018"
           ]
         },
         "DcPath": {
           "kind": "dc-power",
           "connections": [
-            "link-006",
-            "link-009",
-            "link-012",
-            "link-015",
-            "link-018"
+            "link-007",
+            "link-010",
+            "link-013",
+            "link-016",
+            "link-019"
           ]
         }
       },

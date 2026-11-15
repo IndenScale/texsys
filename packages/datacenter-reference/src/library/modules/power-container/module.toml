@@ -38,3 +38,7 @@ symbol = "port-genset_in"
 [port_bindings.out]
 geometry = "/Module/Ports/out"
 symbol = "port-out"
+
+[port_bindings.facility_out]
+geometry = "/Module/Ports/facility_out"
+symbol = "port-facility_out"
