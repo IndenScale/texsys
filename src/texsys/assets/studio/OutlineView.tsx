@@ -16,7 +16,7 @@ import {
 import { Icon } from "./ui";
 import "./outline-view.css";
 
-type OutlineRow = { node: OutlineSymbol; depth: number };
+type OutlineRow = { node: OutlineSymbol; depth: number; ancestors: string[] };
 
 export function OutlineView({
   document,
@@ -48,16 +48,34 @@ export function OutlineView({
     () => filterOutlineSymbols(sortOutlineSymbols(symbols, sort), filterQuery),
     [symbols, sort, filterQuery],
   );
+  const highlightId = followCursor && activeId ? activeId : selectedId;
+  const activeChain = useMemo(() => {
+    const chain = new Set<string>();
+    if (!highlightId) return chain;
+    const walk = (list: OutlineSymbol[], trail: string[]): boolean => {
+      for (const node of list) {
+        const next = [...trail, node.id];
+        if (node.id === highlightId) {
+          next.forEach((id) => chain.add(id));
+          return true;
+        }
+        if (walk(node.children, next)) return true;
+      }
+      return false;
+    };
+    walk(displayed, []);
+    return chain;
+  }, [displayed, highlightId]);
   const rows = useMemo(() => {
     const flat: OutlineRow[] = [];
-    const walk = (list: OutlineSymbol[], depth: number) => {
+    const walk = (list: OutlineSymbol[], depth: number, ancestors: string[]) => {
       for (const node of list) {
-        flat.push({ node, depth });
+        flat.push({ node, depth, ancestors });
         if (node.children.length && (filtering || expanded.has(node.id)))
-          walk(node.children, depth + 1);
+          walk(node.children, depth + 1, [...ancestors, node.id]);
       }
     };
-    walk(displayed, 0);
+    walk(displayed, 0, []);
     return flat;
   }, [displayed, expanded, filtering]);
 
@@ -125,7 +143,6 @@ export function OutlineView({
     },
   ];
 
-  const highlightId = followCursor && activeId ? activeId : selectedId;
   const toggle = (id: string) =>
     setExpanded((previous) => {
       const next = new Set(previous);
@@ -270,7 +287,7 @@ export function OutlineView({
                 focusRow(rows[target]?.node.id);
               }}
             >
-              {rows.map(({ node, depth }, index) => (
+              {rows.map(({ node, depth, ancestors }, index) => (
                 <div
                   key={node.id}
                   ref={(element) => {
@@ -289,6 +306,15 @@ export function OutlineView({
                   onFocus={() => setSelectedId(node.id)}
                   onClick={() => navigate(node)}
                 >
+                  <span className="outline-guides" aria-hidden="true">
+                    {Array.from({ length: depth }, (_, level) => (
+                      <span
+                        key={level}
+                        className={`outline-guide${activeChain.has(ancestors[level]) ? " active" : ""}`}
+                        style={{ "--guide-depth": level } as React.CSSProperties}
+                      />
+                    ))}
+                  </span>
                   <span className="outline-twistie">
                     {node.children.length > 0 && (
                       <button

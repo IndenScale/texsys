@@ -1994,6 +1994,9 @@ test("outline view renders symbols, navigates, collapses and filters on type", a
   assert.deepEqual(names(), ["# Title", "## A"]);
   await view({ cursor: { line: 5, column: 1 } });
   assert.equal(container.querySelector(".outline-row.selected .outline-name").textContent, "## A");
+  assert.equal(rows()[0].querySelectorAll(".outline-guide").length, 0);
+  assert.equal(rows()[1].querySelectorAll(".outline-guide").length, 1);
+  assert.ok(rows()[1].querySelector(".outline-guide").classList.contains("active"));
   await act(async () => rows()[1].click());
   assert.deepEqual(navigated.at(-1), {
     startLine: 3,

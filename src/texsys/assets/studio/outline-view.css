@@ -32,6 +32,7 @@
 }
 
 .outline-row {
+  position: relative;
   display: flex;
   align-items: center;
   height: 22px;
@@ -40,6 +41,24 @@
   cursor: pointer;
   color: var(--ui-text);
   font-size: 13px;
+}
+
+.outline-guides {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.outline-guide {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: calc(16px + var(--guide-depth) * 16px);
+  border-left: 1px solid var(--tree-guide-color);
+}
+
+.outline-guide.active {
+  border-left-color: var(--tree-active-guide-color);
 }
 
 .outline-row:hover {
