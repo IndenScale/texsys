@@ -72,7 +72,8 @@
     "ControlPanel": "控制信号边界，控制柜实体位置待定。",
     "FwsReturnHeader": "回水集管逻辑节点，已选回水支路中的接口位置由路由定义。",
     "FwsSupplyHeader": "供水集管逻辑节点，已选供水支路中的接口位置由路由定义。",
-    "MakeupWaterSource": "市政补水边界，实地接驳位置待定。",
+    "MakeupWaterSource": "场区给排水模型中的来水、断流水箱与加压补水边界。",
+    "BlowdownOutfall": "场区给排水模型中的工艺排污交接井。",
     "UtilityA": "市电 A 路逻辑边界，实地接驳位置待定。",
     "UtilityB": "市电 B 路逻辑边界，实地接驳位置待定。"
   }

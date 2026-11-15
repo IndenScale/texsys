@@ -230,6 +230,15 @@
         }
       }
     },
+    "BlowdownOutfall": {
+      "ports": {
+        "inlet": {
+          "direction": "in",
+          "kind": "process-drain",
+          "max_connections": 3
+        }
+      }
+    },
     "ControlPanel": {
       "ports": {
         "power": {
@@ -326,6 +335,9 @@
         },
         "MakeupWaterSource": {
           "component": "MakeupWaterSource"
+        },
+        "BlowdownOutfall": {
+          "component": "BlowdownOutfall"
         },
         "ControlPanel": {
           "component": "ControlPanel"
@@ -1136,6 +1148,21 @@
           "from": "AuxFeed.out_7",
           "id": "link-111",
           "to": "CwPump3.power"
+        },
+        {
+          "from": "Tower1.blowdown",
+          "id": "link-112",
+          "to": "BlowdownOutfall.inlet"
+        },
+        {
+          "from": "Tower2.blowdown",
+          "id": "link-113",
+          "to": "BlowdownOutfall.inlet"
+        },
+        {
+          "from": "Tower3.blowdown",
+          "id": "link-114",
+          "to": "BlowdownOutfall.inlet"
         }
       ],
       "nets": {
@@ -1283,6 +1310,14 @@
           "connections": [
             "link-107",
             "link-108"
+          ]
+        },
+        "TowerDrain": {
+          "kind": "process-drain",
+          "connections": [
+            "link-112",
+            "link-113",
+            "link-114"
           ]
         }
       }

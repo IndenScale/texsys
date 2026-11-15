@@ -1,0 +1,42 @@
+{
+  "schema_version": 1,
+  "state": "assumed",
+  "basis": "冷却塔喷淋补排水候选场区设计。管线坐标沿用 AIDC-LOCAL，场坪 ±0.000，北界市政来水，东界工艺排水交接；实际市政权属、接管实测及排放许可待核。",
+  "supply": {
+    "boundary_sdl": "MakeupWaterSource.supply",
+    "net": "Makeup",
+    "city_connection_m": [50, 56, -0.8],
+    "city_riser_y_m": 48,
+    "tank_box_m": [48.5, 45.25, 0, 51.5, 47.25, 2.4],
+    "tank_fill_m": [50, 47.25, 2.27],
+    "tank_delivery_m": [49.8, 45.25, 0.6],
+    "wetted_area_m2": 2.85,
+    "low_water_m": 0.25,
+    "high_water_m": 2.0,
+    "main_y_m": 43.35,
+    "main_centerline_z_m": -0.8,
+    "tower_riser_y_m": 41.7,
+    "city_pipe": {"size": "DN40", "inside_m": 0.041, "outside_m": 0.0483, "roughness_m": 0.000045, "elbow_k": 0.35},
+    "main_pipe": {"size": "DN40", "inside_m": 0.041, "outside_m": 0.0483, "roughness_m": 0.000045, "elbow_k": 0.35},
+    "branch_pipe": {"size": "DN25", "inside_m": 0.0266, "outside_m": 0.0337, "roughness_m": 0.000045, "elbow_k": 0.35}
+  },
+  "drain": {
+    "boundary_sdl": "BlowdownOutfall.inlet",
+    "net": "TowerDrain",
+    "collector_y_m": 44.5,
+    "west_junction_invert_m": -1.27,
+    "collector_grade": 0.01,
+    "branch_grade": 0.015,
+    "receiver_y_m": 41.8,
+    "receiver_flood_rim_m": 0.11,
+    "receiver_size_m": 0.42,
+    "nozzle_tip_above_ground_m": 0.19,
+    "east_boundary_invert_m": -1.95,
+    "main_pipe": {"size": "DN100", "inside_m": 0.104, "outside_m": 0.11, "manning_n": 0.011},
+    "branch_pipe": {"size": "DN75", "inside_m": 0.072, "outside_m": 0.08, "manning_n": 0.011},
+    "nozzle_od_m": 0.042
+  },
+  "minimum_cover_m": 0.60,
+  "minimum_buried_crossing_clearance_m": 0.25,
+  "minimum_receiver_air_break_m": 0.05
+}

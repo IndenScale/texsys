@@ -147,10 +147,9 @@ def _segments(model):
       yield key, index, _tube({"points_m": (low, high), "outside_diameter_m": diameter})
 
 
-def _pipe_prim(stage, key, route, diameter):
-  path = f"/AIDC/CoolingWater/{key.replace('-', '_')}"
+def _pipe_prim(stage, path, key, points_m, diameter, color):
   mesh = UsdGeom.Mesh.Define(stage, path)
-  points = [Gf.Vec3d(*point) for point in route["points_m"]]
+  points = [Gf.Vec3d(*point) for point in points_m]
   directions = [(b-a).GetNormalized() for a, b in pairwise(points)]
   reference = Gf.Vec3d(0, 0, 1) if directions[0][2] == 0 else Gf.Vec3d(1, 0, 0)
   transverse = Gf.Cross(directions[0], reference).GetNormalized()
@@ -181,7 +180,7 @@ def _pipe_prim(stage, key, route, diameter):
   mesh.CreateFaceVertexCountsAttr([len(face) for face in faces])
   mesh.CreateFaceVertexIndicesAttr([index for face in faces for index in face])
   mesh.CreateSubdivisionSchemeAttr(UsdGeom.Tokens.none)
-  mesh.CreateDisplayColorAttr([Gf.Vec3f(*COLORS[route["role"]])])
+  mesh.CreateDisplayColorAttr([Gf.Vec3f(*color)])
   mesh.GetPrim().CreateAttribute("texsys:identity", Sdf.ValueTypeNames.String).Set(key)
 
 def build_cw_coordination(context):
@@ -224,7 +223,8 @@ def build_cw_coordination(context):
   if stage is None:
     raise ValueError("Cannot open the federated source scene.")
   for key, route in model["routes"].items():
-    _pipe_prim(stage, key, route, model["pipe"]["envelope_m"])
+    path = f"/AIDC/CoolingWater/{key.replace('-', '_')}"
+    _pipe_prim(stage, path, key, route["points_m"], model["pipe"]["envelope_m"], COLORS[route["role"]])
   scene = context.build_path / SCENE
   if not stage.Flatten(False).Export(str(scene)):
     raise OSError(f"Could not export {scene.name}.")

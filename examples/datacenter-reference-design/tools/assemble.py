@@ -45,6 +45,7 @@ def main() -> None:
       **{f"out_{i}": port("out", "fws") for i in range(1, COOLING + 1)},
     }},
     "MakeupWaterSource": {"ports": {"supply": port("out", "makeup-water", COOLING)}},
+    "BlowdownOutfall": {"ports": {"inlet": port("in", "process-drain", COOLING)}},
     "ControlPanel": {"ports": {
       "power": port("in", "ac-power"),
       "out_1": port("out", "signal"), "out_2": port("out", "signal"),
@@ -64,6 +65,7 @@ def main() -> None:
     "FwsSupplyHeader": {"component": "FwsSupplyHeader"},
     "FwsReturnHeader": {"component": "FwsReturnHeader"},
     "MakeupWaterSource": {"component": "MakeupWaterSource"},
+    "BlowdownOutfall": {"component": "BlowdownOutfall"},
     "ControlPanel": {"component": "ControlPanel"},
     "AuxFeed": {"component": "AuxFeed"},
   }
@@ -123,13 +125,16 @@ def main() -> None:
   for i in range(1, COOLING + 1):
     conn(f"AuxFeed.out_{COOLING+1+i}", f"CwPump{i}.power", "aux")
 
+  for i in range(1, COOLING + 1):
+    conn(f"Tower{i}.blowdown", "BlowdownOutfall.inlet", "drain")
+
   nets: dict = {}
   for connection, side in zip(connections, sides):
     net = {"A": "PowerA", "B": "PowerB", "fws": "Fws", "cw": "Cw",
-           "aux": "AuxPower", "makeup": "Makeup", "signal": "Control"}[side]
+           "aux": "AuxPower", "makeup": "Makeup", "signal": "Control", "drain": "TowerDrain"}[side]
     nets.setdefault(net, {"kind": {
       "PowerA": "ac-power", "PowerB": "ac-power", "AuxPower": "ac-power",
-      "Fws": "fws", "Cw": "cw", "Makeup": "makeup-water", "Control": "signal",
+      "Fws": "fws", "Cw": "cw", "Makeup": "makeup-water", "Control": "signal", "TowerDrain": "process-drain",
     }[net], "connections": []})["connections"].append(connection["id"])
 
   document = {

@@ -7,6 +7,8 @@
   <text x="68.0" y="114" font-size="6" text-anchor="middle">cw_out</text>
   <circle id="port-makeup" cx="92.0" cy="100" r="4" fill="#0a7"/>
   <text x="92.0" y="114" font-size="6" text-anchor="middle">makeup</text>
-  <circle id="port-fan_power" cx="116.0" cy="100" r="4" fill="#0a7"/>
-  <text x="116.0" y="114" font-size="6" text-anchor="middle">fan_power</text>
+  <circle id="port-fan_power" cx="115.0" cy="100" r="4" fill="#0a7"/>
+  <text x="115.0" y="114" font-size="6" text-anchor="middle">fan_power</text>
+  <circle id="port-blowdown" cx="137" cy="100" r="4" fill="#0a7"/>
+  <text x="136" y="114" font-size="6" text-anchor="middle" fill="#333">blowdown</text>
 </svg>

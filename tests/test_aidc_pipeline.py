@@ -1,5 +1,6 @@
 """Run the AIDC delivery graph through a geometry change and failed check."""
 
+import csv
 import json
 from math import exp, log10, pi, sqrt
 from pathlib import Path
@@ -48,7 +49,7 @@ def test_aidc_deliverables_bind_to_the_same_geometry_and_recompute_the_fws_head(
   assert site["area_m2"] == 4480
   layout = _read(root / MODEL / "layout.json")
   assert len(layout["objects"]) == 65
-  assert len(layout["nonspatial"]) == 7
+  assert len(layout["nonspatial"]) == 8
   selected = layout["objects"]["IT01"]
   scene = Usd.Stage.Open(str(root / "build/scenes/aidc-coordination.usda"))
   prim = scene.GetPrimAtPath(selected["prim_path"])
@@ -69,7 +70,7 @@ def test_aidc_deliverables_bind_to_the_same_geometry_and_recompute_the_fws_head(
   assert dossier["evidence_complete"]
   assert dossier["input_digest"] == _read(baseline.report)["input_digest"]
   assert dossier["engineering_acceptance"] == "pending-responsible-review"
-  assert len(list((root / "build/drawings/sheets").glob("*.svg"))) == 33
+  assert len(list((root / "build/drawings/sheets").glob("*.svg"))) == 36
   old_dossier = file_digest(root / "build/review/aidc-discipline-review.json")
   drawing = root / "build/drawings/sheets/fws-network.svg"
   old_route_drawing = file_digest(drawing)
@@ -82,6 +83,7 @@ def test_aidc_deliverables_bind_to_the_same_geometry_and_recompute_the_fws_head(
   _check_transient_delivery(root)
   _check_buffer_delivery(root)
   _check_cw_delivery(root)
+  _check_wet_utility_delivery(root)
   report = root / MODEL / "fws-network-study.json"
   before = _read(report)
   path = root / "src/fws-network.json"
@@ -839,3 +841,107 @@ def test_cw_route_and_operating_changes_recompute_and_block_review(tmp_path):
   result, targets = _run(root)
   assert result.status == "pass"
   assert targets["review-package"]["execution"] == "cached"
+
+
+def _check_wet_utility_delivery(root):
+  model = _read(root / MODEL / "wet-utilities.json")
+  runs, tank = model["runs"], model["tank"]
+  sheet = root / "build/schedules/aidc-wet-utility-pipes.csv"
+  with sheet.open(newline="") as stream:
+    assert [row["id"] for row in csv.DictReader(stream)] == sorted(runs)
+  sdl = _read(root / "src/system.sdl.json")
+  nets = sdl["components"][sdl["root"]]["nets"]
+  assert {runs[f"MU-{tower}"]["sdl_link"] for tower in model["towers"]} == set(nets["Makeup"]["connections"])
+  assert {runs[f"DR-{tower}"]["sdl_link"] for tower in model["towers"]} == set(nets["TowerDrain"]["connections"])
+  assert {runs[f"NOZ-{tower}"]["sdl_link"] for tower in model["towers"]} == set(nets["TowerDrain"]["connections"])
+  assert tank["usable_volume_m3"] == pytest.approx(2.85*(2-.25))
+  assert model["outfall"]["point_m"] == pytest.approx([80, 44.5, -1.798])
+  assert all(row["gap_m"] >= .05 for row in model["receivers"].values())
+  stage = Usd.Stage.Open(str(root / "build/scenes/aidc-wet-utilities-coordinated.usda"))
+  assert stage.GetPrimAtPath("/AIDC/CoolingWater/link_055")
+  for key in runs:
+    path = f"/AIDC/WetUtilities/{key.replace('-', '_')}"
+    assert stage.GetPrimAtPath(path).GetAttribute("texsys:identity").Get() == key
+  coordination = _read(root / MODEL / "wet-utility-coordination.json")
+  assert len(coordination["crossings"]) == 3
+  low = min(row["vertical_clearance_m"] for row in coordination["crossings"])
+  expected_low = 1.27-(44.5-43.35+.0483/2)*.015-.072/2-.8-.0483/2-.08/2
+  assert low == pytest.approx(expected_low)
+  assert coordination["minimum_cover_m"] == pytest.approx(.8-.0483/2)
+  plan = ET.parse(root / "build/drawings/views/wet-plan.svg")
+  assert {node.get("data-run") for node in plan.findall(f".//{SVG}g[@data-run]")} == set(runs)
+  profile = ET.parse(root / "build/drawings/views/wet-profile.svg")
+  tags = {node.get("data-run") for node in profile.findall(f".//{SVG}g[@data-run]")}
+  assert tags == {key for key in runs if key.startswith("DR-M")}
+  study = _read(root / MODEL / "wet-utility-study.json")
+  cw = _read(root / MODEL / "cw-study.json")
+  assert set(study["cases"]) == set(cw["cases"])
+  normal = study["cases"]["normal"]
+  duty = sum(row["rejection_kw"] for row in cw["cases"]["normal"]["duty"].values())
+  evaporation = duty*.85*3600/(997*2430)
+  assert normal["makeup_m3_h"] == pytest.approx(evaporation*4/3)
+  assert normal["outage_end_remaining_m3"] == pytest.approx(tank["usable_volume_m3"]-1.5*evaporation*4/3)
+  assert normal["basin_tds_mg_l"] == pytest.approx(4*210)
+  assert normal["gravity_capacity_m3_h"]["DR-M03"] == pytest.approx(pi*.104**2/8*(.104/4)**(2/3)*.1/.011*3600)
+  assert normal["discharge_flow_by_run_m3_h"]["DR-M03"] == pytest.approx(normal["blowdown_m3_h"])
+
+
+def test_site_wet_utility_profile_and_reserve_failures_retain_drawings(tmp_path):
+  root = _checkout(tmp_path)
+  baseline, _ = _run(root)
+  assert baseline.status == "pass", baseline.diagnostics
+  path = root / "src/wet-utilities.json"
+  original = path.read_bytes()
+  model = root / MODEL / "wet-utilities.json"
+  geometry = _read(model)
+  sheet = root / "build/drawings/sheets/wet-profile.svg"
+  original_profile = file_digest(sheet)
+  source = _read(path)
+  source["drain"]["west_junction_invert_m"] -= .07
+  write_json(path, source)
+  built, records = _run(root)
+  assert built.status == "pass"
+  assert records["dcr:cw-study"]["execution"] == "cached"
+  assert records["sheet-wet-profile"]["execution"] == "executed"
+  assert records["sheet-cw-system"]["execution"] == "cached"
+  assert _read(model)["outfall"]["point_m"][2] == pytest.approx(geometry["outfall"]["point_m"][2]-.07)
+  assert file_digest(sheet) != original_profile
+
+  source["drain"]["west_junction_invert_m"] = -1.14
+  write_json(path, source)
+  failed, records = _run(root)
+  assert failed.status == "fail"
+  assert records["dcr:wet-utility-coordination"]["diagnostics"][0]["rule"] == "AIDC_WET_CROSSING"
+  assert records["sheet-wet-plan"]["status"] == "pass"
+  assert records["review-package"]["execution"] == "blocked"
+
+  path.write_bytes(original)
+  source = _read(path)
+  source["supply"]["high_water_m"] = 1.65
+  write_json(path, source)
+  failed, records = _run(root)
+  assert failed.status == "fail"
+  assert records["dcr:wet-utility-coordination"]["status"] == "pass"
+  study = _read(root / MODEL / "wet-utility-study.json")
+  assert study["cases"]["normal"]["checks"]["bounded-city-outage"] is False
+  assert study["cases"]["normal"]["outage_end_remaining_m3"] < 0
+  assert records["sheet-wet-system"]["status"] == "pass"
+  assert records["review-package"]["execution"] == "blocked"
+  path.write_bytes(original)
+
+  path = root / "src/wet-utility-study.json"
+  limits = _read(path)
+  original = path.read_bytes()
+  limits["city_tds_mg_l"] = 280
+  write_json(path, limits)
+  failed, records = _run(root)
+  assert failed.status == "fail"
+  study = _read(root / MODEL / "wet-utility-study.json")
+  assert study["cases"]["normal"]["basin_tds_mg_l"] == pytest.approx(1120)
+  assert not study["cases"]["normal"]["checks"]["discharge-tds"]
+  assert records["sheet-wet-profile"]["execution"] == "cached"
+  path.write_bytes(original)
+
+  restored, records = _run(root)
+  assert restored.status == "pass"
+  assert records["review-package"]["execution"] == "cached"

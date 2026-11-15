@@ -12,7 +12,7 @@ build = "build"
 default_targets = ["review-package"]
 
 [dependencies]
-datacenter-reference = { path = "../../packages/datacenter-reference", version = "0.11.1" }
+datacenter-reference = { path = "../../packages/datacenter-reference", version = "0.12.1" }
 sheet = { path = "../../packages/sheet", version = "0.2.0" }
 
 [build.targets.review-package]
@@ -26,6 +26,8 @@ dependencies = [
   "dcr:fws-network-coordination",
   "dcr:cw-coordination",
   "dcr:cw-check",
+  "dcr:wet-utility-coordination",
+  "dcr:wet-utility-check",
   "dcr:structure-gravity",
   "dcr:power-study",
   "dcr:fire-egress",
@@ -64,6 +66,9 @@ dependencies = [
   "sheet-cw-plan",
   "sheet-cw-section",
   "sheet-cw-system",
+  "sheet-wet-plan",
+  "sheet-wet-profile",
+  "sheet-wet-system",
   "sheet-telecom-a",
   "sheet-telecom-b",
   "sheet-telecom-system",
@@ -437,3 +442,36 @@ using = "sheet:compose"
 dependencies = ["view-cw-system"]
 scope = { source = "assets/sheets/cw-system.sheet.json" }
 output = "build/drawings/sheets/cw-system.svg"
+
+[build.targets.view-wet-plan]
+using = "dcr:wet-utility-view"
+output = "build/drawings/views/wet-plan.svg"
+scope = { view = "plan" }
+
+[build.targets.sheet-wet-plan]
+using = "sheet:compose"
+dependencies = ["view-wet-plan"]
+scope = { source = "assets/sheets/wet-plan.sheet.json" }
+output = "build/drawings/sheets/wet-plan.svg"
+
+[build.targets.view-wet-profile]
+using = "dcr:wet-utility-view"
+output = "build/drawings/views/wet-profile.svg"
+scope = { view = "profile" }
+
+[build.targets.sheet-wet-profile]
+using = "sheet:compose"
+dependencies = ["view-wet-profile"]
+scope = { source = "assets/sheets/wet-profile.sheet.json" }
+output = "build/drawings/sheets/wet-profile.svg"
+
+[build.targets.view-wet-system]
+using = "dcr:wet-utility-diagram"
+output = "build/drawings/views/wet-system.svg"
+scope = { view = "diagram" }
+
+[build.targets.sheet-wet-system]
+using = "sheet:compose"
+dependencies = ["view-wet-system"]
+scope = { source = "assets/sheets/wet-system.sheet.json" }
+output = "build/drawings/sheets/wet-system.svg"

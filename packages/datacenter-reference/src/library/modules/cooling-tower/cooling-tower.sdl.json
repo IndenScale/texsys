@@ -23,6 +23,11 @@
           "direction": "in",
           "kind": "ac-power",
           "max_connections": 1
+        },
+        "blowdown": {
+          "direction": "out",
+          "kind": "process-drain",
+          "max_connections": 1
         }
       },
       "behavior": {

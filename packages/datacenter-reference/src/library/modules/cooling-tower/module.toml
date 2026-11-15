@@ -42,3 +42,7 @@ symbol = "port-makeup"
 [port_bindings.fan_power]
 geometry = "/Module/Ports/fan_power"
 symbol = "port-fan_power"
+
+[port_bindings.blowdown]
+geometry = "/Module/Ports/blowdown"
+symbol = "port-blowdown"

@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "template": "sheet:a3-landscape",
+  "metadata": "assets/sheets/wet-system.title.json",
+  "texts": {
+    "notes": "assets/sheets/wet-system.txt",
+    "footer": "assets/sheets/footer.txt"
+  },
+  "views": {
+    "main": {
+      "path": "build/drawings/views/wet-system.svg",
+      "scale": "fit"
+    }
+  }
+}

@@ -31,7 +31,7 @@
       "CoolContainer1", "CoolContainer2", "CoolContainer3",
       "CwPump1", "CwPump2", "CwPump3",
       "Tower1", "Tower2", "Tower3",
-      "FwsSupplyHeader", "FwsReturnHeader", "MakeupWaterSource"
+      "FwsSupplyHeader", "FwsReturnHeader", "BlowdownOutfall", "MakeupWaterSource"
     ],
     "standby": ["GenContainerA", "GenContainerB"],
     "support": ["UtilityA", "UtilityB", "AuxFeed", "ControlPanel"]

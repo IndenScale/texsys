@@ -37,11 +37,14 @@ from .telecom import build_telecom
 from .telecom_coordination import build_telecom_coordination
 from .telecom_study import build_telecom_study
 from .telecom_views import build_telecom_view
+from .wet_utilities import build_wet_coordination, build_wet_utilities
+from .wet_utility_study import build_wet_check, build_wet_study
+from .wet_utility_views import build_wet_view
 
 
 class DatacenterReferencePackage(TexsysPackage):
   name = "datacenter-reference"
-  version = "0.11.1"
+  version = "0.12.1"
 
   def targets(self) -> tuple[TargetDefinition, ...]:
     return (
@@ -109,6 +112,18 @@ class DatacenterReferencePackage(TexsysPackage):
                        input_patterns=spatial_inputs("*.sdl.json", "*/module.toml", "cw-study.json")),
       TargetDefinition("dcr:cw-check", self.name, self.version, build_cw_check,
                        dependencies=("dcr:cw-study",), input_patterns=()),
+      TargetDefinition("dcr:wet-utilities", self.name, self.version, build_wet_utilities,
+                       dependencies=("dcr:cw-network",), input_patterns=spatial_inputs("system.sdl.json", "wet-utilities.json")),
+      TargetDefinition("dcr:wet-utility-coordination", self.name, self.version, build_wet_coordination,
+                       dependencies=("dcr:wet-utilities", "dcr:cw-coordination"), input_patterns=()),
+      TargetDefinition("dcr:wet-utility-study", self.name, self.version, build_wet_study,
+                       dependencies=("dcr:wet-utilities", "dcr:cw-study"), input_patterns=spatial_inputs("wet-utility-study.json")),
+      TargetDefinition("dcr:wet-utility-check", self.name, self.version, build_wet_check,
+                       dependencies=("dcr:wet-utility-study",), input_patterns=()),
+      TargetDefinition("dcr:wet-utility-view", self.name, self.version, build_wet_view,
+                       dependencies=("dcr:wet-utilities",), input_patterns=(), named_output=True),
+      TargetDefinition("dcr:wet-utility-diagram", self.name, self.version, build_wet_view,
+                       dependencies=("dcr:wet-utility-study",), input_patterns=(), named_output=True),
       TargetDefinition("dcr:fws-routing", self.name, self.version, build_routes, dependencies=("dcr:layout",),
                        input_patterns=spatial_inputs("system.sdl.json", "fws-routing.json")),
       TargetDefinition("dcr:fws-hydraulics", self.name, self.version, build_hydraulics,

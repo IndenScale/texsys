@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "template": "sheet:a3-landscape",
+  "metadata": "assets/sheets/wet-profile.title.json",
+  "texts": {
+    "notes": "assets/sheets/wet-profile.txt",
+    "footer": "assets/sheets/footer.txt"
+  },
+  "views": {
+    "main": {
+      "path": "build/drawings/views/wet-profile.svg",
+      "scale": "1:250"
+    }
+  }
+}

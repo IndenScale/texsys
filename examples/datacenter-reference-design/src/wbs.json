@@ -27,6 +27,6 @@
     "CoolContainer1": "WBS-03", "CoolContainer2": "WBS-03", "CoolContainer3": "WBS-03",
     "CwPump1": "WBS-03", "CwPump2": "WBS-03", "CwPump3": "WBS-03",
     "Tower1": "WBS-03", "Tower2": "WBS-03", "Tower3": "WBS-03",
-    "FwsSupplyHeader": "WBS-03", "FwsReturnHeader": "WBS-03", "MakeupWaterSource": "WBS-03"
+    "FwsSupplyHeader": "WBS-03", "FwsReturnHeader": "WBS-03", "MakeupWaterSource": "WBS-03", "BlowdownOutfall": "WBS-03"
   }
 }
