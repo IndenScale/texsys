@@ -12,7 +12,7 @@ build = "build"
 default_targets = ["review-package"]
 
 [dependencies]
-datacenter-reference = { path = "../../packages/datacenter-reference", version = "0.10.0" }
+datacenter-reference = { path = "../../packages/datacenter-reference", version = "0.11.1" }
 sheet = { path = "../../packages/sheet", version = "0.2.0" }
 
 [build.targets.review-package]
@@ -24,6 +24,8 @@ dependencies = [
   "dcr:fws-network-study",
   "dcr:fws-transient-check",
   "dcr:fws-network-coordination",
+  "dcr:cw-coordination",
+  "dcr:cw-check",
   "dcr:structure-gravity",
   "dcr:power-study",
   "dcr:fire-egress",
@@ -59,6 +61,9 @@ dependencies = [
   "sheet-fws-transient-plan",
   "sheet-fws-buffers",
   "sheet-fws-buffer-section",
+  "sheet-cw-plan",
+  "sheet-cw-section",
+  "sheet-cw-system",
   "sheet-telecom-a",
   "sheet-telecom-b",
   "sheet-telecom-system",
@@ -399,3 +404,36 @@ using = "sheet:compose"
 dependencies = ["plan-telecom-system"]
 scope = { source = "assets/sheets/telecom-system.sheet.json" }
 output = "build/drawings/sheets/telecom-system.svg"
+
+[build.targets.view-cw-plan]
+using = "dcr:cw-view"
+output = "build/drawings/views/cw-plan.svg"
+scope = { view = "plan" }
+
+[build.targets.sheet-cw-plan]
+using = "sheet:compose"
+dependencies = ["view-cw-plan"]
+scope = { source = "assets/sheets/cw-plan.sheet.json" }
+output = "build/drawings/sheets/cw-plan.svg"
+
+[build.targets.view-cw-section]
+using = "dcr:cw-view"
+output = "build/drawings/views/cw-section.svg"
+scope = { view = "section", plant = "CoolContainer1" }
+
+[build.targets.sheet-cw-section]
+using = "sheet:compose"
+dependencies = ["view-cw-section"]
+scope = { source = "assets/sheets/cw-section.sheet.json" }
+output = "build/drawings/sheets/cw-section.svg"
+
+[build.targets.view-cw-system]
+using = "dcr:cw-diagram"
+output = "build/drawings/views/cw-system.svg"
+scope = { view = "diagram" }
+
+[build.targets.sheet-cw-system]
+using = "sheet:compose"
+dependencies = ["view-cw-system"]
+scope = { source = "assets/sheets/cw-system.sheet.json" }
+output = "build/drawings/sheets/cw-system.svg"

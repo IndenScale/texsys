@@ -87,14 +87,14 @@ def Xform "Module"
         }
         def Xform "cw_in"
         {
-            custom double3 texsys:normal = (0, -1, 0)
-            double3 xformOp:translate = (4.286, 0, 1.45)
+            custom double3 texsys:normal = (0, 1, 0)
+            double3 xformOp:translate = (4.285714, 2.4, 1.45)
             uniform token[] xformOpOrder = ["xformOp:translate"]
         }
         def Xform "cw_out"
         {
-            custom double3 texsys:normal = (0, -1, 0)
-            double3 xformOp:translate = (5.143, 0, 1.45)
+            custom double3 texsys:normal = (0, 1, 0)
+            double3 xformOp:translate = (5.142857, 2.4, 1.45)
             uniform token[] xformOpOrder = ["xformOp:translate"]
         }
     }

@@ -24,13 +24,13 @@ def Xform "Module"
         def Xform "cw_in"
         {
             custom double3 texsys:normal = (-1, 0, 0)
-            double3 xformOp:translate = (0.3, 1.5, 3.0)
+            double3 xformOp:translate = (0, 1.5, 3)
             uniform token[] xformOpOrder = ["xformOp:translate"]
         }
         def Xform "cw_out"
         {
             custom double3 texsys:normal = (1, 0, 0)
-            double3 xformOp:translate = (2.7, 1.5, 0.5)
+            double3 xformOp:translate = (3, 1.5, 0.5)
             uniform token[] xformOpOrder = ["xformOp:translate"]
         }
         def Xform "makeup"

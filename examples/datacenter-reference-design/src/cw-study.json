@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "state": "assumed",
+  "basis": "参考设计候选工况：循环为始终充满的闭式盘管。定流量设定取冷机冷凝器名义流量。湿球、逼近度、换热损失、冷机 COP 和变频曲线均为候选输入，须按厂商数据与选型点复校。",
+  "fluid": {"density_kg_m3": 995, "cp_j_kg_k": 4180, "viscosity_pa_s": 0.0008},
+  "cop": 5.5,
+  "wet_bulb_c": 27,
+  "tower_capacity_factor": 0.85,
+  "maximum_cold_c": 33,
+  "maximum_hot_c": 38,
+  "condenser_drop_kpa_at_rated_flow": 58,
+  "tower_coil_drop_kpa_at_chiller_rated_flow": 44,
+  "pump_shutoff_to_rated_head": 1.25,
+  "pump_efficiency": 0.8,
+  "pressure_reserve_kpa": 20,
+  "unavailable": []
+}

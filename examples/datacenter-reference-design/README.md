@@ -18,7 +18,7 @@ datacenter-reference 器件/单元库 → structure / architecture / hvac-equipm
 
 - **供电 2N**：两路独立 10 kV 市电，各经过 3150 kVA 变压器和 5000 A 低压进线及转换开关。每路转换母线直供设施负荷，另接 5 台 500 kVA UPS 和 4 段 1000 A 母线槽，带 16 个 IT 方舱的机柜和舱内冷却。每路电池 600 kWh。
 - **备用电源**：A/B 各一组发电机方舱（2×3000 kW，N+1），每组储油 9000 L；控制屏统一发出启动命令。
-- **冷源 N+1**：3 个冷却方舱（1200 kW 水冷机组 + 2 台冷冻泵，1 用 1 备），对外 FWS 供回水经集管接 16 个方舱的 CDU 设施侧；3 台闭式冷却塔与 3 台冷却水泵一一对应，补水接市政水源。
+- **冷源 N+1**：3 个冷却方舱（1200 kW 水冷机组 + 2 台冷冻泵，1 用 1 备），对外 FWS 供回水经集管接 16 个方舱的 CDU 设施侧；3 台闭式冷却塔与 3 台冷却水泵一一对应，SDL 声明市政补水接口。
 - **建筑构造**：8 跨 8 m 钢框架、4 道 2.0 h 防火隔墙和 16 区防静电活动地板。轴网编译产生 22 根屋面钢梁、15 根柱与 15 个独立基础。概念耐火校核沿用已声明的耐火等级与楼板耐火时间。
 
 ## 文件
@@ -49,8 +49,8 @@ datacenter-reference 器件/单元库 → structure / architecture / hvac-equipm
 | 结构建模 | `dcr:structure-model` 输出屋面钢梁与柱平面、基础平面、B 轴剖面、构件表及 USD。`dcr:structure-gravity` 编译重力计算书 | 实测地勘、抗风抗震、设备基础、节点与配筋 |
 | 核心机电与方舱布局 | 分区图核对 65 个物理实例，BOM 保留 514 条 SDL 明细。设施水与弱电协调包络和贯穿预留。弱电编译两张桥架平面、端接系统图和 128 个机柜的双路纤芯表。消防编译主机房报警平面和方舱灭火设备布置 | 实际设备尺寸、机柜跳线、支吊架、贯穿详图及灭火专项选型 |
 | 性能计算与冗余保护 | 电气 A/B 出单线图、容量证据、88 个三相故障工况及保护表。弱电校核链路光预算、单路承载 5.12 Tb/s 的配置容量及各登记构件单点断开后连通性 | 厂家曲线、接地、单相故障、多源并联、实际切换、运营商和网络协议测试 |
-| 管道布置 | `dcr:fws-network` 从设备接口生成供回水环路、支管和立管。五张图输出总平面、系统图、屋面预留、局部接驳正视投影和分段隔离图 | 支吊架、排空、阀件检修及防火封堵 |
-| 仿真与寄生反注 | `dcr:fws-network-study` 复算 32 个稳态工况。`dcr:fws-thermal-parameters` 从同一套管段提取水量、热容和滞留时间。`dcr:fws-transient` 校核在役冷源分别退出后的 16 舱水温，并编译温升曲线、峰值平面、缓冲设备表和接管图 | 真实机组控制曲线、承压缓冲罐选型与锚固、管壁与设备蓄热、流量切换与水锤、CDU 二次侧 |
+| 管道布置 | `dcr:fws-network` 从设备接口生成供回水环路、支管和立管。五张图输出总平面、系统图、屋面预留、局部接驳正视投影和分段隔离图。三个冷凝器侧闭式回路从实际法兰取点，编译冷却水平面、横剖面、系统图、管段工程量和跨专业碰撞检查 | 支吊架、排空、阀件检修及防火封堵 |
+| 仿真与寄生反注 | `dcr:fws-network-study` 复算 32 个稳态工况。`dcr:fws-thermal-parameters` 从同一套管段提取水量、热容和滞留时间。`dcr:fws-transient` 校核在役冷源分别退出后的 16 舱水温，并编译温升曲线、峰值平面、缓冲设备表和接管图。冷却水侧使用同批 FWS 冷源负荷，核算排热、流量、压损和温度，另验证六个冷却水泵或塔退出工况 | 真实机组控制曲线、承压缓冲罐选型与锚固、管壁与设备蓄热、流量切换与水锤、CDU 二次侧 |
 | 多专业签核 | `review-package` 从本次构建快照生成总图、建筑、消防、结构、机房工艺、弱电、电气和暖通审查清单与文件摘要。消防纳入疏散、报警、灭火设备、联动、断线证据和封堵预留 | 责任人在现有 Git 审查中针对指定修订处置，审查清单保留待核状态 |
 
 ## 重跑
@@ -65,11 +65,14 @@ uv run --locked texsys build -p examples/datacenter-reference-design --target dc
 uv run --locked texsys build -p examples/datacenter-reference-design --target dcr:telecom-study --target sheet-telecom-a
 uv run --locked texsys build -p examples/datacenter-reference-design --target dcr:fire-systems-study --target sheet-fire-alarm
 uv run --locked texsys build -p examples/datacenter-reference-design --target dcr:fws-transient-check --target sheet-fws-transient-plan
+uv run --locked texsys build -p examples/datacenter-reference-design --target dcr:cw-check --target dcr:cw-coordination --target sheet-cw-plan
 ```
 
-成品图在 `build/drawings/sheets/`，包含 30 张 A3 图及各图的来源报告。可校准图纸按标题栏比例原尺寸打印。门、疏散、预留、构件、保护、水力、弱电端接、热瞬态及消防工况表在 `build/schedules/`。带桥架、设施水、建筑结构及消防安装包络的综合场景为 `build/scenes/aidc-fire-systems-coordinated.usda`。专业审查材料在 `build/review/aidc-discipline-review.json`。用 Tex Studio 的文件资源管理器或快速打开读取上述文件。
+成品图在 `build/drawings/sheets/`，包含 33 张 A3 图及各图的来源报告。可校准图纸按标题栏比例原尺寸打印。门、疏散、预留、构件、保护、水力、弱电端接、热瞬态及消防工况表在 `build/schedules/`。带冷却水、设施水、桥架、建筑结构及消防安装包络的综合场景为 `build/scenes/aidc-cooling-water-coordinated.usda`。专业审查材料在 `build/review/aidc-discipline-review.json`。用 Tex Studio 的文件资源管理器或快速打开读取上述文件。
 
 温度预算按 CDU 设施水入口 28°C。直管提取 7.346 m³ 水量，三个串联缓冲罐各提取 603.2 L。按 24 s 启动及 32 s 升载，最不利入口约 27.22°C。泵表列出罐体压损，冷源区平面、接管剖面和设备表同源。修改罐体内径时，容积和热瞬态重算，旧的标量缓冲输入已移至实体模型。温升结果假定失效后的规定流量在切换时立即成立。罐体、底座和检修包络已协调，承压专项和现场流量仍待核。
+
+冷却水依据 `src/cw-network.json` 与 `src/cw-study.json`。工况计算使用设备名义定流量和候选夏季湿球，压力保持、泵吸入气蚀、设备真实曲线、闭式塔喷淋侧补排水、现场控制联锁和支架深化仍待专项校核。设备退出时，复用 FWS 相应停冷源的重新分配结果，求解其余两列。
 
 省略 `SD-FC-S-11` 后报警平面标记未覆盖单元，审查包停止更新。断开它相邻的两个回路段可在工况表中定位失联设备。删除风阀关闭反馈会使联动反例的模拟许可与验收期望冲突，构建非零退出。消防覆盖依据项目声明的几何单元，联动模拟与任何现场设备隔离。介质量、喷放能力、实际烟气及声光覆盖、失电恢复和现场联动试验待专项校核。
 

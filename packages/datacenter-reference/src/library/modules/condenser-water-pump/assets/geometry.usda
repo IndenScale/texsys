@@ -24,13 +24,13 @@ def Xform "Module"
         def Xform "in"
         {
             custom double3 texsys:normal = (-1, 0, 0)
-            double3 xformOp:translate = (0.1, 0.25, 0.4)
+            double3 xformOp:translate = (0, 0.25, 0.4)
             uniform token[] xformOpOrder = ["xformOp:translate"]
         }
         def Xform "out"
         {
             custom double3 texsys:normal = (1, 0, 0)
-            double3 xformOp:translate = (1.1, 0.25, 0.4)
+            double3 xformOp:translate = (1.2, 0.25, 0.4)
             uniform token[] xformOpOrder = ["xformOp:translate"]
         }
         def Xform "power"

@@ -1,0 +1,25 @@
+{
+  "schema_version": 1,
+  "state": "assumed",
+  "net": "Cw",
+  "basis": "冷源北侧闭式冷却水盘管回路。设备外接口及候选管道中心线使用 L01 项目坐标，法兰、弯头半径和支架详图待设备资料校核。",
+  "cells": {
+    "CoolContainer1": {"pump": "CwPump1", "tower": "Tower1"},
+    "CoolContainer2": {"pump": "CwPump2", "tower": "Tower2"},
+    "CoolContainer3": {"pump": "CwPump3", "tower": "Tower3"}
+  },
+  "pipe": {
+    "designation": "DN200",
+    "inside_m": 0.2027,
+    "outside_m": 0.2191,
+    "insulation_m": 0.03,
+    "roughness_m": 0.000045,
+    "max_velocity_m_s": 2.5,
+    "elbow_k": 0.3
+  },
+  "waypoints_from_plant_origin_m": {
+    "hot": [["from", 3.4, "from"], ["from", 3.4, 2.35], ["from", 5, 2.35], [3.1, 5, 2.35], [3.1, "to", 2.35], [3.1, "to", "to"]],
+    "discharge": [[5.5, "from", "from"], [5.5, "from", "to"], [5.5, 7.2, "to"], [-0.5, 7.2, "to"], [-0.5, "to", "to"]],
+    "return": [[3.9, "from", "from"], [3.9, "from", 1.15], [3.9, 4.6, 1.15], ["to", 4.6, 1.15], ["to", 4.6, "to"]]
+  }
+}

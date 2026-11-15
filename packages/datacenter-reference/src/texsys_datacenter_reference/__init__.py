@@ -10,6 +10,9 @@ from .bom import project_reference_bom
 from .building_views import build_building_view
 from .checks import evaluate_design_checks
 from .coordination import build_building_coordination, build_coordinated_scene, build_fws_network_coordination
+from .cw_network import build_cw_coordination, build_cw_network
+from .cw_study import build_cw_check, build_cw_study
+from .cw_views import build_cw_view
 from .electrical import build_power_study, build_power_topology
 from .fire_egress import build_egress_check, build_egress_model
 from .fire_systems import build_fire_systems
@@ -38,7 +41,7 @@ from .telecom_views import build_telecom_view
 
 class DatacenterReferencePackage(TexsysPackage):
   name = "datacenter-reference"
-  version = "0.10.0"
+  version = "0.11.1"
 
   def targets(self) -> tuple[TargetDefinition, ...]:
     return (
@@ -93,6 +96,19 @@ class DatacenterReferencePackage(TexsysPackage):
                        dependencies=("dcr:telecom-coordination",), input_patterns=(), named_output=True),
       TargetDefinition("dcr:telecom-diagram", self.name, self.version, build_telecom_view,
                        dependencies=("dcr:telecom",), input_patterns=(), named_output=True),
+      TargetDefinition("dcr:cw-network", self.name, self.version, build_cw_network, dependencies=("dcr:layout",),
+                       input_patterns=spatial_inputs("system.sdl.json", "cw-network.json")),
+      TargetDefinition("dcr:cw-coordination", self.name, self.version, build_cw_coordination,
+                       dependencies=("dcr:cw-network", "dcr:fire-systems-coordination"), input_patterns=()),
+      TargetDefinition("dcr:cw-view", self.name, self.version, build_cw_view,
+                       dependencies=("dcr:cw-network",), input_patterns=(), named_output=True),
+      TargetDefinition("dcr:cw-diagram", self.name, self.version, build_cw_view,
+                       dependencies=("dcr:cw-study",), input_patterns=(), named_output=True),
+      TargetDefinition("dcr:cw-study", self.name, self.version, build_cw_study,
+                       dependencies=("dcr:cw-network", "dcr:fws-network-study"),
+                       input_patterns=spatial_inputs("*.sdl.json", "*/module.toml", "cw-study.json")),
+      TargetDefinition("dcr:cw-check", self.name, self.version, build_cw_check,
+                       dependencies=("dcr:cw-study",), input_patterns=()),
       TargetDefinition("dcr:fws-routing", self.name, self.version, build_routes, dependencies=("dcr:layout",),
                        input_patterns=spatial_inputs("system.sdl.json", "fws-routing.json")),
       TargetDefinition("dcr:fws-hydraulics", self.name, self.version, build_hydraulics,

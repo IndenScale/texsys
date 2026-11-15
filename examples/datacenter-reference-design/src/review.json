@@ -172,10 +172,24 @@
         "build/schedules/aidc-fws-isolation-cases.csv",
         "build/schedules/aidc-fws-thermal-parameters.csv",
         "build/schedules/aidc-fws-buffers.csv",
-        "build/schedules/aidc-fws-transient-terminals.csv"
+        "build/schedules/aidc-fws-transient-terminals.csv",
+        "build/drawings/sheets/cw-plan.svg",
+        "build/drawings/sheets/cw-plan-sheet.json",
+        "build/drawings/sheets/cw-section.svg",
+        "build/drawings/sheets/cw-section-sheet.json",
+        "build/drawings/sheets/cw-system.svg",
+        "build/drawings/sheets/cw-system-sheet.json",
+        "build/datacenter-reference/spatial/cw-network.json",
+        "build/datacenter-reference/spatial/cw-coordination.json",
+        "build/datacenter-reference/spatial/cw-study.json",
+        "build/datacenter-reference/spatial/cw-check.json",
+        "build/scenes/aidc-cooling-water-coordinated.usda",
+        "build/schedules/aidc-cw-pipes.csv",
+        "build/schedules/aidc-cw-duty.csv"
       ],
       "pending": [
-        "承压缓冲罐及锚固专项、实测设备与罐内压损和混合、泵阀水锤与排空、共因故障、支吊架及穿越详图"
+        "承压缓冲罐及锚固专项、实测设备与罐内压损和混合、泵阀水锤与排空、共因故障、支吊架及穿越详图",
+        "冷却水厂商选型曲线与湿球、压力保持和气蚀、阀组及支架、闭式塔喷淋补排水及供电控制联锁专项复核"
       ]
     }
   }

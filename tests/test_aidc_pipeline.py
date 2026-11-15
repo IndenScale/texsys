@@ -69,7 +69,7 @@ def test_aidc_deliverables_bind_to_the_same_geometry_and_recompute_the_fws_head(
   assert dossier["evidence_complete"]
   assert dossier["input_digest"] == _read(baseline.report)["input_digest"]
   assert dossier["engineering_acceptance"] == "pending-responsible-review"
-  assert len(list((root / "build/drawings/sheets").glob("*.svg"))) == 30
+  assert len(list((root / "build/drawings/sheets").glob("*.svg"))) == 33
   old_dossier = file_digest(root / "build/review/aidc-discipline-review.json")
   drawing = root / "build/drawings/sheets/fws-network.svg"
   old_route_drawing = file_digest(drawing)
@@ -81,6 +81,7 @@ def test_aidc_deliverables_bind_to_the_same_geometry_and_recompute_the_fws_head(
   _check_fire_systems_delivery(root)
   _check_transient_delivery(root)
   _check_buffer_delivery(root)
+  _check_cw_delivery(root)
   report = root / MODEL / "fws-network-study.json"
   before = _read(report)
   path = root / "src/fws-network.json"
@@ -709,3 +710,132 @@ def test_aidc_sheet_refuses_scale_that_does_not_fit_the_paper(tmp_path):
   assert records["plan-parcel"]["status"] == "pass"
   assert "view at 1:100 exceeds its paper region" in result.diagnostics
   assert not (root / "build/drawings/sheets/parcel.svg").exists()
+
+
+def _check_cw_delivery(root):
+  network = _read(root / MODEL / "cw-network.json")
+  layout = _read(root / MODEL / "layout.json")["objects"]
+  system = _read(root / "src/system.sdl.json")
+  assert set(network["routes"]) == set(system["components"][system["root"]]["nets"]["Cw"]["connections"])
+  stage = Usd.Stage.Open(str(root / "build/scenes/aidc-cooling-water-coordinated.usda"))
+  transforms = UsdGeom.XformCache()
+  for key, row in network["routes"].items():
+    for name, point in ((row["from"], row["points_m"][0]), (row["to"], row["points_m"][-1])):
+      equipment, port = name.split(".")
+      assert point == pytest.approx(layout[equipment]["ports_m"][port])
+      flange = stage.GetPrimAtPath(f"{layout[equipment]['prim_path']}/Asset/Ports/{port}")
+      assert tuple(transforms.GetLocalToWorldTransform(flange).ExtractTranslation()) == pytest.approx(point, abs=1e-6)
+    mesh = UsdGeom.Mesh.Get(stage, f"/AIDC/CoolingWater/{key.replace('-', '_')}")
+    assert mesh.GetPrim().GetAttribute("texsys:identity").Get() == key
+    assert len(mesh.GetPointsAttr().Get()) == 16*len(row["points_m"])
+  assert not _read(root / MODEL / "cw-coordination.json")["issues"]
+  drawing = ET.parse(root / "build/drawings/views/cw-plan.svg")
+  assert {element.get("data-connection") for element in drawing.iter() if element.get("data-connection")} == set(network["routes"])
+  sheet = ET.parse(root / "build/drawings/sheets/cw-section.svg")
+  assert sheet.getroot().get("data-drawing-number") == "AIDC-M-013"
+  assert float(sheet.find(f".//{SVG}image").get("width")) == pytest.approx(266.4)
+
+  fws = _read(root / MODEL / "fws-network-study.json")
+  study = _read(root / MODEL / "cw-study.json")
+  assert len(study["cases"]) == len(fws["cases"])+6 == 38
+  assert study["engineering_result"] == "pass"
+  for name, case in study["cases"].items():
+    dispatch = fws["cases"][case["fws_dispatch"]]
+    assert {key: row["evaporator_kw"] for key, row in case["duty"].items()} == {
+      key: row["heat_kw"] for key, row in dispatch["duty"].items()
+    }
+    if name.startswith("cw-"):
+      assert len(case["unavailable"]) == 1
+      assert len(case["duty"]) == 2
+      assert all(case["unavailable"][0] not in (network["cells"][cell]["pump"], network["cells"][cell]["tower"])
+                 for cell in case["duty"])
+  plant, key = "CoolContainer1", "link-055"
+  hydraulics = study["hydraulics"][plant]
+  properties = study["parameters"]["fluid"]
+  density, viscosity = properties["density_kg_m3"], properties["viscosity_pa_s"]
+  q = 260/3600
+  pipe, route = network["pipe"], network["routes"][key]
+  diameter = pipe["inside_m"]
+  velocity = q / (pi*diameter**2/4)
+  reynolds = density*velocity*diameter/viscosity
+  factor = 1/(-1.8*log10((pipe["roughness_m"]/(3.7*diameter))**1.11 + 6.9/reynolds))**2
+  loss = (factor*route["length_m"]/diameter + route["elbows"]*pipe["elbow_k"])*density*velocity**2/2000
+  assert hydraulics["loss_by_object_kpa"][key] == pytest.approx(loss)
+  assert hydraulics["required_kpa"] == pytest.approx(120.176062)
+  normal = study["cases"]["normal"]["duty"][plant]
+  rejection = 720 + 720/5.5 + 120.176062*q
+  assert normal["rejection_kw"] == pytest.approx(rejection)
+  assert (normal["hot_c"]-normal["cold_c"])*properties["cp_j_kg_k"]*density*q == pytest.approx(1000*rejection)
+
+
+def test_cw_route_and_operating_changes_recompute_and_block_review(tmp_path):
+  root = _checkout(tmp_path)
+  baseline, _ = _run(root)
+  assert baseline.status == "pass", baseline.diagnostics
+  network = root / "src/cw-network.json"
+  conditions = root / "src/cw-study.json"
+  report = root / MODEL / "cw-study.json"
+  drawing = root / "build/drawings/sheets/cw-section.svg"
+  initial, initial_drawing = _read(report), file_digest(drawing)
+
+  cfg = _read(network)
+  original = network.read_bytes()
+  for point in cfg["waypoints_from_plant_origin_m"]["hot"]:
+    if point[2] == 2.35:
+      point[2] = 2.55
+  write_json(network, cfg)
+  result, targets = _run(root)
+  assert result.status == "pass"
+  assert targets["dcr:fws-network-study"]["execution"] == "cached"
+  assert targets["sheet-it-hall"]["execution"] == "cached"
+  assert targets["sheet-cw-section"]["execution"] == "executed"
+  assert initial_drawing != file_digest(drawing)
+  routed = _read(report)
+  assert routed["route_digest"] != initial["route_digest"]
+  assert routed["hydraulics"]["CoolContainer1"]["required_kpa"] > initial["hydraulics"]["CoolContainer1"]["required_kpa"]
+
+  for point in cfg["waypoints_from_plant_origin_m"]["hot"]:
+    if point[2] == 2.55:
+      point[2] = 3
+  write_json(network, cfg)
+  result, targets = _run(root)
+  assert result.status == "fail"
+  assert targets["sheet-cw-plan"]["status"] == "pass"
+  assert targets["dcr:cw-coordination"]["status"] == "fail"
+  assert targets["review-package"]["execution"] == "blocked"
+  assert any(row["objects"] == ["link-055/5", "link-056/4"] for row in _read(root / MODEL / "cw-coordination.json")["issues"])
+
+  network.write_bytes(original)
+  settings = _read(conditions)
+  original_study = conditions.read_bytes()
+  settings["unavailable"] = ["CwPump1"]
+  write_json(conditions, settings)
+  result, targets = _run(root)
+  assert result.status == "fail"
+  assert targets["dcr:cw-check"]["status"] == "fail"
+  assert targets["dcr:cw-coordination"]["status"] == "pass"
+  assert targets["sheet-cw-system"]["status"] == "pass"
+  assert _read(report)["cases"]["normal"]["failed_checks"] == [["CoolContainer1", "equipment-available"]]
+  assert _read(report)["cases"]["cw-pump-off:CwPump1"]["status"] == "pass"
+
+  conditions.write_bytes(original_study)
+  original_cfg = _read(network)
+  original_cfg["pipe"]["inside_m"] = .12
+  write_json(network, original_cfg)
+  result, targets = _run(root)
+  assert result.status == "fail"
+  assert targets["dcr:cw-study"]["status"] == "pass"
+  assert targets["sheet-cw-system"]["status"] == "pass"
+  assert targets["review-package"]["execution"] == "blocked"
+  assert ["CoolContainer1", "pump-pressure-reserve"] in _read(report)["cases"]["normal"]["failed_checks"]
+  assert ["CoolContainer1", "velocity"] in _read(report)["cases"]["normal"]["failed_checks"]
+
+  network.unlink()
+  result, targets = _run(root, "dcr:cw-network", "sheet-it-hall")
+  assert result.status == "indeterminate"
+  assert targets["dcr:cw-network"]["open_items"][0]["id"] == "missing-source"
+  assert targets["sheet-it-hall"]["status"] == "pass"
+  network.write_bytes(original)
+  result, targets = _run(root)
+  assert result.status == "pass"
+  assert targets["review-package"]["execution"] == "cached"
