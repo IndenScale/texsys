@@ -1556,6 +1556,12 @@ GitHub Linux x86_64 的两个数据中心回归由构建报告定位到 `datacen
 
 本轮以 `af723fa` 为基线。按用户决策（不开放第三方；AIDC Reference Design 端到端演示为第一个真实消费方；本地 Podman 部署）形成 [ADR-0031](adr/0031-read-only-http-package-registry.md)，收窄首期分发边界：CLI 支持 `registry = "http(s)://..."` 只读源，拉取元数据与归档、sha256 双摘要校验、复用内容缓存，传递依赖沿用 `"."` 别名，锁记录绝对源地址；拒绝重定向、非 http(s) 协议与带凭据／查询的源。开发容器发布 `127.0.0.1:8711`，以 `python3 -m http.server` 提供 `build/package-registry`；`tools/publish_official_registry.py` 发布 `datacenter-reference` 六包闭包并逐包经 HTTP 校验，重跑不覆盖。独立演示仓库 `aidc-reference-design`（`64374ff`、`f27c749`）只含项目源与锁，不含任何能力包源码。
 
-验证：新增 12 项 HTTP 正例／反例测试通过，既有 registry、依赖、部件、CLI 与 project 套件通过，Ruff 通过。全量回归仅 2 项既有失败：`test_studio_preview`／`test_studio_scene` 的 `SimpleNamespace` 夹具未提供 `runtime.build`（基线 `af723fa` 即如此，源于 `11e65e6` 的 Studio 改动，与本轮无关），其余全部通过。演示冷启动（全新缓存、无 `build/`）`sync → lock --check → build → check → package status` 五步全零：6 包经 HTTP 拉取，12 条 GB 50174 A 级设计校核通过，BOM 512 条；证据在该仓库 `build/ci-demo/`。执行环境显式安装包声明的 `numpy>=1.26,<3`；CLI 为已安装软件，工程依赖只走 registry。
+验证：新增 12 项 HTTP 正例／反例测试通过，既有 registry、依赖、部件、CLI 与 project 套件通过，Ruff 通过。基线既有的 2 项失败（`test_studio_preview`／`test_studio_scene` 夹具缺 `runtime.build`，源于 `11e65e6`）已在 `7e1323d` 按 `StudioRuntime` 语义补齐夹具修复，全量回归通过。演示冷启动（全新缓存、无 `build/`）`sync → lock --check → build → check → package status` 五步全零：6 包经 HTTP 拉取，12 条 GB 50174 A 级设计校核通过，BOM 512 条；证据在该仓库 `build/ci-demo/`。执行环境显式安装包声明的 `numpy>=1.26,<3`；CLI 为已安装软件，工程依赖只走 registry。
 
 边界：HTTP 源无传输加密，仅限本机回环；无账户、第三方上传与签名；第三方运行环境完整还原、公网托管与跨组织部署仍未完成。本轮推进 G09、G12、G13 的 CI 可复现拉取；AIDC 参考设计校核通过仍为概念判定，不构成真实工程接受。
+
+### 2026-11-15：TPM Registry 独立服务迁移准备
+
+以 `7e1323d` 为基线准备 [ADR-0032](adr/0032-independent-local-tpm-registry.md)。本机包源独立于 Studio 后，重建工作台无需中断已锁依赖的提供，推进 G09／G13 的部署复现。保留 `127.0.0.1:8711`、归档路径和客户端契约。原有只读包源回归记录的修订保留在工作树，当前会话无权写母仓 Git 索引。
+
+验证：macOS LaunchAgent 配置通过 `plutil -lint`，现有监听占用时安装器拒绝接管。用复制的发布目录校验 AIDC 锁中的 6 个包以及 12 个静态 HTTP 响应，归档和元数据字节与旧源一致。宿主权限阻止创建同级目录、操作 Podman 和监听 TCP，独立仓库暂放在母仓的忽略目录中。现有容器未重建；登录服务实时切换与 AIDC 空缓存重跑待验收。
