@@ -1,0 +1,10 @@
+{
+  "schema_version": 1,
+  "state": "assumed",
+  "model": "open-transition-auxiliary-switchboard",
+  "parameters": {
+    "rated_a": "A"
+  },
+  "method": "两路交流输入经开路转换供共用辅助负荷。",
+  "limitations": "共用转换柜故障影响其下游，黑启动另行设计。"
+}

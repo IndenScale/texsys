@@ -1,0 +1,10 @@
+{
+  "schema_version": 1,
+  "state": "assumed",
+  "model": "common-generator-command",
+  "parameters": {
+    "input_kw": "kW"
+  },
+  "method": "接收辅助电源并提供两路启动指令。",
+  "limitations": "指令互锁、控制电源电池、双路自治及黑启动试验待深化。"
+}

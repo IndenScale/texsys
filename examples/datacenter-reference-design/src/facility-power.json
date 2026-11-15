@@ -1,0 +1,45 @@
+{
+  "schema_version": 1,
+  "state": "assumed",
+  "basis": "冷源与动力候选 400 V 安装设计。A/B 并行供电但每列开路转换。冷机、冷冻泵、冷却泵和水塔随本列换源。设备容量、导体、保护时间带及分断能力均用于方案比较。",
+  "trains": {
+    "A": {"entry_y_m": 28.9, "trunk_y_m": 28.9, "trunk_z_m": -0.84},
+    "B": {"entry_y_m": 29.73, "trunk_y_m": 29.25, "trunk_z_m": -1.44}
+  },
+  "routes": {
+    "inlet_exit_m": 0.24,
+    "pump_start_setout_m": 0.54,
+    "tower_start_setout_m": 0.76,
+    "pump_carrier_z_m": 4.26,
+    "tower_carrier_z_m": 4.85
+  },
+  "carriers": {
+    "bank": [0.68, 0.20],
+    "branch": [0.22, 0.16],
+    "equipment": [0.15, 0.14],
+    "control": [0.07, 0.07]
+  },
+  "cables": {
+    "plant": {"parallel": 2, "od_m": 0.062, "ampacity_a": 350, "derate": 0.84, "r_ohm_per_km": 0.095, "x_ohm_per_km": 0.081},
+    "aux": {"parallel": 1, "od_m": 0.039, "ampacity_a": 175, "derate": 0.8, "r_ohm_per_km": 0.266, "x_ohm_per_km": 0.083},
+    "pump": {"parallel": 1, "od_m": 0.030, "ampacity_a": 120, "derate": 0.85, "r_ohm_per_km": 0.64, "x_ohm_per_km": 0.083},
+    "tower": {"parallel": 1, "od_m": 0.030, "ampacity_a": 120, "derate": 0.85, "r_ohm_per_km": 0.64, "x_ohm_per_km": 0.083},
+    "control": {"parallel": 1, "od_m": 0.015, "ampacity_a": 32, "derate": 0.9, "r_ohm_per_km": 4.6, "x_ohm_per_km": 0.10}
+  },
+  "study": {
+    "plant_power_factor": 0.90,
+    "transfer_rating_a": 630,
+    "minimum_cover_m": 0.56,
+    "minimum_ab_crossing_clearance_m": 0.25,
+    "max_fill": 0.4,
+    "maximum_voltage_drop_pct": 3,
+    "fixed_cell_kw": 1.5,
+    "primary_max_s": 0.2,
+    "grading_min_s": 0.02,
+    "switches": {
+      "feed": {"interrupt_ka": 65, "curve": [[1.5, 0.077, 0.099], [20, 0.069, 0.088], [65, 0.059, 0.077]]},
+      "motor": {"interrupt_ka": 50, "curve": [[0.25, 0.024, 0.044], [20, 0.019, 0.039], [50, 0.016, 0.034]]},
+      "command": {"interrupt_ka": 50, "curve": [[0.14, 0.022, 0.043], [18, 0.018, 0.039], [50, 0.016, 0.034]]}
+    }
+  }
+}

@@ -1,0 +1,4 @@
+每侧单独带载算例引用同名 FWS 与冷却水调度。
+冷源柜、泵与塔的单点失效按对应水力工况重分配。
+计算采用候选三相保护曲线及路由提取阻抗。
+完整校核见 aidc-facility-power-duty.csv 与 aidc-facility-power-faults.csv。

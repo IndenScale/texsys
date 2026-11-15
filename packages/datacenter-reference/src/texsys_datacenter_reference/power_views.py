@@ -137,16 +137,16 @@ def _diagram(root, train, side):
     y = 103 + 16*index
     _device(root, name, 237, y, 43, name, "alternate", height=7)
     wire(link, (131.5, 86), (199, 86), (199, y), (215.5, y))
+    _breaker(root, link, 207.5, y)
+    outputs = train["cell_feeds"].get(name, train["shared_feeds"])
+    for branch, (terminal, connection) in enumerate(outputs.items()):
+      at = y+(branch-.5)*7 if len(outputs) == 2 else y
+      _device(root, terminal, 280, at, 28, terminal, "terminal", height=5.9)
+      wire(connection, (258.5, y), (262, y), (262, at), (266, at))
+      _breaker(root, connection, 264, at)
   _label(root, 237, 94, "设施负荷  ·  ATS 后直供")
-  shared = train["shared_bus"]
-  gy = 103 + 16*list(train["facility_feeds"]).index(shared)
-  for index, (name, link) in enumerate(train["shared_feeds"].items()):
-    if index >= 8:
-      raise ValueError("The one-line sheet fits up to eight common auxiliary taps.")
-    y = 151 + 9*index
-    _device(root, name, 275, y, 31, name, "terminal", height=6.4)
-    wire(link, (258.5, gy), (294, gy), (294, y), (290.5, y))
-  _label(root, 237, 164, "共用辅助负荷", anchor="middle")
+  _label(root, 256, 166, "冷源各列开路转换，泵塔随本列供电")
+  _label(root, 256, 174, "发电机指令经共用辅助控制柜")
   _label(root, 8, 215, "棕色虚线为直流电池支路，方框斜线为参与校核的断路器。", anchor="start")
   if drawn != edges.keys():
     raise ValueError(f"The {side} one-line omitted power connections: {sorted(edges.keys()-drawn)}.")

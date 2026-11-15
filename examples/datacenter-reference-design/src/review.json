@@ -189,11 +189,29 @@
         "build/scenes/aidc-power-coordinated.usda",
         "build/scenes/aidc-power-roof.usda",
         "build/schedules/aidc-power-feeders.csv",
-        "build/schedules/aidc-power-penetrations.csv"
+        "build/schedules/aidc-power-penetrations.csv",
+        "build/drawings/sheets/facility-power-entry.svg",
+        "build/drawings/sheets/facility-power-entry-sheet.json",
+        "build/drawings/sheets/facility-power-cells.svg",
+        "build/drawings/sheets/facility-power-cells-sheet.json",
+        "build/drawings/sheets/facility-power-section.svg",
+        "build/drawings/sheets/facility-power-section-sheet.json",
+        "build/drawings/sheets/facility-power-continuity.svg",
+        "build/drawings/sheets/facility-power-continuity-sheet.json",
+        "build/datacenter-reference/spatial/facility-power.json",
+        "build/datacenter-reference/spatial/facility-power-coordination.json",
+        "build/datacenter-reference/spatial/facility-power-study.json",
+        "build/datacenter-reference/spatial/facility-power-check.json",
+        "build/scenes/aidc-facility-power.usda",
+        "build/scenes/aidc-facility-power-coordinated.usda",
+        "build/schedules/aidc-facility-power-circuits.csv",
+        "build/schedules/aidc-facility-power-duty.csv",
+        "build/schedules/aidc-facility-power-faults.csv"
       ],
       "pending": [
         "厂家时间电流曲线、接地和单相故障、全场并联及动态切换试验",
-        "全场非 IT 动力回路、屋面孔洞节点及封堵、耐候选型、弯曲半径与支架、载流量实测修正和谐波分析"
+        "屋面孔洞节点及封堵、耐候选型、弯曲半径与支架、载流量实测修正和谐波分析",
+        "各冷源转换柜的机械电气联锁、脱扣和电机再启动、穿管热环境、共用发电机指令及独立黑启动、补水泵与照明检修配电、电源侧中压及发电机输出安装"
       ]
     },
     "mechanical": {
@@ -275,7 +293,9 @@
         "build/scenes/aidc-air-coordinated.usda",
         "build/scenes/aidc-it-pod-air.usda",
         "build/schedules/aidc-air-sections.csv",
-        "build/schedules/aidc-air-rack-duty.csv"
+        "build/schedules/aidc-air-rack-duty.csv",
+        "build/datacenter-reference/spatial/facility-power-coordination.json",
+        "build/datacenter-reference/spatial/facility-power-study.json"
       ],
       "pending": [
         "承压缓冲罐及锚固专项、实测设备与罐内压损和混合、泵阀水锤与排空、共因故障、支吊架及穿越详图",

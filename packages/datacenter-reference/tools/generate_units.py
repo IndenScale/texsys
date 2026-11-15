@@ -314,6 +314,7 @@ def cooling_container() -> dict:
       "in_a": port("in", "ac-power"), "in_b": port("in", "ac-power"),
       "out_1": port("out", "ac-power"), "out_2": port("out", "ac-power"),
       "out_3": port("out", "ac-power"),
+      "out_pump": port("out", "ac-power"), "out_tower": port("out", "ac-power"),
     }},
     "ChwReturnHeader": {"ports": {
       "in_1": port("in", "chw"), "in_2": port("in", "chw"), "out": port("out", "chw"),
@@ -346,6 +347,18 @@ def cooling_container() -> dict:
       "fws_supply": port("out", "fws", 3),
       "cw_in": port("in", "cw"),
       "cw_out": port("out", "cw"),
+      "pump_power_out": port("out", "ac-power"),
+      "tower_power_out": port("out", "ac-power"),
+    },
+    "ports_mounting": {
+      "power_a": ([6/7, 0, 1.45], [0, -1, 0]),
+      "power_b": ([12/7, 0, 1.45], [0, -1, 0]),
+      "fws_return": ([18/7, 0, 1.45], [0, -1, 0]),
+      "fws_supply": ([24/7, 0, 1.45], [0, -1, 0]),
+      "cw_in": ([30/7, 2.4, 1.45], [0, 1, 0]),
+      "cw_out": ([36/7, 2.4, 1.45], [0, 1, 0]),
+      "pump_power_out": ([.48, 2.4, 1.95], [0, 1, 0]),
+      "tower_power_out": ([1.26, 2.4, 1.95], [0, 1, 0]),
     },
     "instances": instances,
     "connections": connections,
@@ -353,10 +366,8 @@ def cooling_container() -> dict:
       "ChwPath": {"kind": "chw", "connections": [
         c["id"] for c in connections if c["from"].startswith(("Pump", "Header"))
         or c["to"].startswith("Header")]},
-      "PowerA": {"kind": "ac-power", "connections": [
-        c["id"] for c in connections if c["from"] in ("Feed.out_1", "Feed.out_2")]},
-      "PowerB": {"kind": "ac-power", "connections": [
-        c["id"] for c in connections if c["from"] == "Feed.out_3"]},
+      "CellPower": {"kind": "ac-power", "connections": [
+        c["id"] for c in connections if c["from"].startswith("Feed.")]},
     },
     "boundary": {
       "power_a": ["Feed.in_a"],
@@ -365,6 +376,8 @@ def cooling_container() -> dict:
       "fws_supply": ["Chiller.chw_supply"],
       "cw_in": ["Chiller.cw_in"],
       "cw_out": ["Chiller.cw_out"],
+      "pump_power_out": ["Feed.out_pump"],
+      "tower_power_out": ["Feed.out_tower"],
     },
     "layout": {"Chiller": [0.2, 0.3, 0], "Pump1": [4.5, 0.3, 0],
                "Pump2": [4.5, 1.3, 0], "Feed": [5.5, 0.9, 1.8],
@@ -380,9 +393,9 @@ def cooling_container() -> dict:
       "fire": {"class": "方舱围护不燃", "fire_resistance_hours": 1.0},
       "weathering": {"installation": "outdoor", "ip": "IP54"},
     },
-    "model": "containerized-chilled-water-plant",
-    "method": "1200 kW 水冷机组 + 2 台冷冻泵（1 用 1 备）；对外接口为设施水 FWS（与 CDU 设施侧同回路），A/B 双路供电，冷却水接室外冷却塔。",
-    "limitations": "概念脱敏；实际水力平衡、防冻与群控由项目校核。",
+    "model": "two-source-containerized-chilled-water-plant",
+    "method": "A/B 双进线经本柜开路转换后送给冷机、两台冷冻泵及本列冷却泵、冷却塔。",
+    "limitations": "实际切换时序、联锁、短路稳定及水力群控由项目核证。",
   }
 
 
@@ -606,7 +619,7 @@ def build_geometry(name: str, unit: dict) -> str:
     lines += [
       f'        def Xform "{pname}"', '        {',
       f'            custom double3 texsys:normal = {tuple(normal)}',
-      f'            double3 xformOp:translate = {tuple(round(value, 3) for value in position)}',
+      f'            double3 xformOp:translate = {tuple(position)}',
       '            uniform token[] xformOpOrder = ["xformOp:translate"]',
       '        }',
     ]

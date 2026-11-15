@@ -64,37 +64,49 @@ def Xform "Module"
         def Xform "power_a"
         {
             custom double3 texsys:normal = (0, -1, 0)
-            double3 xformOp:translate = (0.857, 0, 1.45)
+            double3 xformOp:translate = (0.8571428571428571, 0, 1.45)
             uniform token[] xformOpOrder = ["xformOp:translate"]
         }
         def Xform "power_b"
         {
             custom double3 texsys:normal = (0, -1, 0)
-            double3 xformOp:translate = (1.714, 0, 1.45)
+            double3 xformOp:translate = (1.7142857142857142, 0, 1.45)
             uniform token[] xformOpOrder = ["xformOp:translate"]
         }
         def Xform "fws_return"
         {
             custom double3 texsys:normal = (0, -1, 0)
-            double3 xformOp:translate = (2.571, 0, 1.45)
+            double3 xformOp:translate = (2.5714285714285716, 0, 1.45)
             uniform token[] xformOpOrder = ["xformOp:translate"]
         }
         def Xform "fws_supply"
         {
             custom double3 texsys:normal = (0, -1, 0)
-            double3 xformOp:translate = (3.429, 0, 1.45)
+            double3 xformOp:translate = (3.4285714285714284, 0, 1.45)
             uniform token[] xformOpOrder = ["xformOp:translate"]
         }
         def Xform "cw_in"
         {
             custom double3 texsys:normal = (0, 1, 0)
-            double3 xformOp:translate = (4.285714, 2.4, 1.45)
+            double3 xformOp:translate = (4.285714285714286, 2.4, 1.45)
             uniform token[] xformOpOrder = ["xformOp:translate"]
         }
         def Xform "cw_out"
         {
             custom double3 texsys:normal = (0, 1, 0)
-            double3 xformOp:translate = (5.142857, 2.4, 1.45)
+            double3 xformOp:translate = (5.142857142857143, 2.4, 1.45)
+            uniform token[] xformOpOrder = ["xformOp:translate"]
+        }
+        def Xform "pump_power_out"
+        {
+            custom double3 texsys:normal = (0, 1, 0)
+            double3 xformOp:translate = (0.48, 2.4, 1.95)
+            uniform token[] xformOpOrder = ["xformOp:translate"]
+        }
+        def Xform "tower_power_out"
+        {
+            custom double3 texsys:normal = (0, 1, 0)
+            double3 xformOp:translate = (1.26, 2.4, 1.95)
             uniform token[] xformOpOrder = ["xformOp:translate"]
         }
     }

@@ -33,6 +33,8 @@ def main() -> None:
     "Busway": f"{LIB}/busway/busway.sdl.json",
     "CoolingTower": f"{LIB}/cooling-tower/cooling-tower.sdl.json",
     "CondenserWaterPump": f"{LIB}/condenser-water-pump/condenser-water-pump.sdl.json",
+    "ControlPanel": f"{LIB}/generator-command-panel/generator-command-panel.sdl.json",
+    "AuxFeed": f"{LIB}/facility-aux-transfer/facility-aux-transfer.sdl.json",
   }
   components: dict = {
     "utility-feed": {"ports": {"supply": port("out", "ac-power")}},
@@ -46,14 +48,6 @@ def main() -> None:
     }},
     "MakeupWaterSource": {"ports": {"supply": port("out", "makeup-water", COOLING)}},
     "BlowdownOutfall": {"ports": {"inlet": port("in", "process-drain", COOLING)}},
-    "ControlPanel": {"ports": {
-      "power": port("in", "ac-power"),
-      "out_1": port("out", "signal"), "out_2": port("out", "signal"),
-    }},
-    "AuxFeed": {"ports": {
-      "in_a": port("in", "ac-power"), "in_b": port("in", "ac-power"),
-      **{f"out_{i}": port("out", "ac-power") for i in range(1, 2 * COOLING + 2)},
-    }},
   }
   instances: dict = {
     "UtilityA": {"component": "utility-feed"},
@@ -114,7 +108,7 @@ def main() -> None:
     conn(f"CoolContainer{i}.cw_out", f"CwPump{i}.in", "cw")
     conn(f"CwPump{i}.out", f"Tower{i}.cw_in", "cw")
     conn(f"Tower{i}.cw_out", f"CoolContainer{i}.cw_in", "cw")
-    conn(f"AuxFeed.out_{i}", f"Tower{i}.fan_power", "aux")
+    conn(f"CoolContainer{i}.tower_power_out", f"Tower{i}.fan_power", "aux")
     conn("MakeupWaterSource.supply", f"Tower{i}.makeup", "makeup")
   conn(f"AuxFeed.out_{COOLING + 1}", "ControlPanel.power", "aux")
   for i in range(1, CONTAINERS + 1):
@@ -123,7 +117,7 @@ def main() -> None:
   conn("ControlPanel.out_1", "GenContainerA.control", "signal")
   conn("ControlPanel.out_2", "GenContainerB.control", "signal")
   for i in range(1, COOLING + 1):
-    conn(f"AuxFeed.out_{COOLING+1+i}", f"CwPump{i}.power", "aux")
+    conn(f"CoolContainer{i}.pump_power_out", f"CwPump{i}.power", "aux")
 
   for i in range(1, COOLING + 1):
     conn(f"Tower{i}.blowdown", "BlowdownOutfall.inlet", "drain")

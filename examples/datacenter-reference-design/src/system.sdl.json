@@ -11,7 +11,9 @@
     "RaisedAccessFloor": "@datacenter-reference/library/modules/raised-access-floor/raised-access-floor.sdl.json",
     "Busway": "@datacenter-reference/library/modules/busway/busway.sdl.json",
     "CoolingTower": "@datacenter-reference/library/modules/cooling-tower/cooling-tower.sdl.json",
-    "CondenserWaterPump": "@datacenter-reference/library/modules/condenser-water-pump/condenser-water-pump.sdl.json"
+    "CondenserWaterPump": "@datacenter-reference/library/modules/condenser-water-pump/condenser-water-pump.sdl.json",
+    "ControlPanel": "@datacenter-reference/library/modules/generator-command-panel/generator-command-panel.sdl.json",
+    "AuxFeed": "@datacenter-reference/library/modules/facility-aux-transfer/facility-aux-transfer.sdl.json"
   },
   "components": {
     "utility-feed": {
@@ -236,74 +238,6 @@
           "direction": "in",
           "kind": "process-drain",
           "max_connections": 3
-        }
-      }
-    },
-    "ControlPanel": {
-      "ports": {
-        "power": {
-          "direction": "in",
-          "kind": "ac-power",
-          "max_connections": 1
-        },
-        "out_1": {
-          "direction": "out",
-          "kind": "signal",
-          "max_connections": 1
-        },
-        "out_2": {
-          "direction": "out",
-          "kind": "signal",
-          "max_connections": 1
-        }
-      }
-    },
-    "AuxFeed": {
-      "ports": {
-        "in_a": {
-          "direction": "in",
-          "kind": "ac-power",
-          "max_connections": 1
-        },
-        "in_b": {
-          "direction": "in",
-          "kind": "ac-power",
-          "max_connections": 1
-        },
-        "out_1": {
-          "direction": "out",
-          "kind": "ac-power",
-          "max_connections": 1
-        },
-        "out_2": {
-          "direction": "out",
-          "kind": "ac-power",
-          "max_connections": 1
-        },
-        "out_3": {
-          "direction": "out",
-          "kind": "ac-power",
-          "max_connections": 1
-        },
-        "out_4": {
-          "direction": "out",
-          "kind": "ac-power",
-          "max_connections": 1
-        },
-        "out_5": {
-          "direction": "out",
-          "kind": "ac-power",
-          "max_connections": 1
-        },
-        "out_6": {
-          "direction": "out",
-          "kind": "ac-power",
-          "max_connections": 1
-        },
-        "out_7": {
-          "direction": "out",
-          "kind": "ac-power",
-          "max_connections": 1
         }
       }
     },
@@ -880,7 +814,7 @@
           "to": "CoolContainer1.cw_in"
         },
         {
-          "from": "AuxFeed.out_1",
+          "from": "CoolContainer1.tower_power_out",
           "id": "link-058",
           "to": "Tower1.fan_power"
         },
@@ -915,7 +849,7 @@
           "to": "CoolContainer2.cw_in"
         },
         {
-          "from": "AuxFeed.out_2",
+          "from": "CoolContainer2.tower_power_out",
           "id": "link-065",
           "to": "Tower2.fan_power"
         },
@@ -950,7 +884,7 @@
           "to": "CoolContainer3.cw_in"
         },
         {
-          "from": "AuxFeed.out_3",
+          "from": "CoolContainer3.tower_power_out",
           "id": "link-072",
           "to": "Tower3.fan_power"
         },
@@ -1135,17 +1069,17 @@
           "to": "GenContainerB.control"
         },
         {
-          "from": "AuxFeed.out_5",
+          "from": "CoolContainer1.pump_power_out",
           "id": "link-109",
           "to": "CwPump1.power"
         },
         {
-          "from": "AuxFeed.out_6",
+          "from": "CoolContainer2.pump_power_out",
           "id": "link-110",
           "to": "CwPump2.power"
         },
         {
-          "from": "AuxFeed.out_7",
+          "from": "CoolContainer3.pump_power_out",
           "id": "link-111",
           "to": "CwPump3.power"
         },

@@ -7,7 +7,7 @@ GB 50174-2017（texsys-gb50174-2017 规范包，外部工作区）
         │  src/design-basis.json：分级、规模与 12 条设计要求
         ▼
 本参考设计（examples/datacenter-reference-design）
-        │  src/system.sdl.json：72 个顶层实例、111 条连接
+        │  src/system.sdl.json：73 个顶层实例、114 条连接
         ▼
 datacenter-reference 器件/单元库 → structure / architecture / hvac-equipment
 ```
@@ -17,7 +17,7 @@ datacenter-reference 器件/单元库 → structure / architecture / hvac-equipm
 1920 kW IT 负荷：128 台 15 kW 液冷机柜，16 个 IT 方舱（每舱 7.40 × 3.68 × 2.90 m，布置 8 柜，液侧 75% 由 2N CDU 承担，风侧 25% 由 2N 精密空调承担）。
 
 - **供电 2N**：两路独立 10 kV 市电，各经过 3150 kVA 变压器和 5000 A 低压进线及转换开关。每路转换母线直供设施负荷，另接 5 台 500 kVA UPS 和 4 段 1000 A 母线槽，带 16 个 IT 方舱的机柜和舱内冷却。每路电池 600 kWh。
-- **备用电源**：A/B 各一组发电机方舱（2×3000 kW，N+1），每组储油 9000 L；控制屏统一发出启动命令。
+- **备用电源**：A/B 各一组发电机方舱（2×3000 kW，N+1），每组储油 9000 L；控制柜统一发出启动命令，独立黑启动仍待深化。
 - **冷源 N+1**：3 个冷却方舱（1200 kW 水冷机组 + 2 台冷冻泵，1 用 1 备），对外 FWS 供回水经集管接 16 个方舱的 CDU 设施侧；3 台闭式冷却塔与 3 台冷却水泵一一对应，喷淋补水经断流水箱接宗地北侧市政来水，排污经自由出流接水器接东侧工艺排水交接井。
 - **建筑构造**：8 跨钢框架，轴网 8.0 m × 9.5 m、4 道 2.0 h 防火隔墙和 16 区防静电活动地板。轴网编译产生 22 根屋面钢梁、15 根柱与 15 个独立基础。概念耐火校核沿用已声明的耐火等级与楼板耐火时间。
 
@@ -40,6 +40,7 @@ datacenter-reference 器件/单元库 → structure / architecture / hvac-equipm
 - `src/roof.json` 声明主机房屋脊与坡度、钢承板及保温防水层、檩条、预留洞口构造和雨水工况。屋盖直接读取已编译的结构轴网、设施水立管及 A/B 下引，生成板区、檩条、墙头闭合、物理洞口、檐沟和落水立管。
 - `src/electrical.json`、`electrical-study.json`：A/B 电网边界、故障源、保护时间带及用电工况。单线图展开 SDL 方舱边界，保留每条连接的源标识。
 - `src/power-routing.json` 声明 A/B 室外转接与屋面桥架位置、导体配置、阻抗、候选载流修正及洞口尺寸。布置直接引用 SDL 连线和锁定设备物理端口，编译分路平面、入舱剖面、馈线与洞口定位表及三维协调场景。
+- `src/facility-power.json` 定义动力区 A/B 地埋排管、各冷源的泵塔动力支路、辅助柜与控制柜配电、导体及保护。三列冷源各有开路转换，泵塔从同列柜出线。路线、最小覆土、上下交叉和阻抗均从已编译端口与地形提取。
 - `src/wbs.json`：WBS 节点与实例归属。
 - `src/fws-network.json` 声明总管和外绕环路坐标、管径、保温、管件及屋面预留，编译到 3 个冷源和 16 个 IT 方舱的全部 38 条 SDL 连接。`src/fws-network-study.json` 声明温差、设备阻力、变频运行范围和必需隔离校核。
 - `src/fws-thermal-parameters.json` 保留管段水量预算。`src/fws-transient.json` 声明切换初温、备用延时、升载和候选缓冲容积。读取编译所得管段净内径、实际长度和有符号流量以复算热输运。缓冲罐水量从冷源出口布置的净内径和工作液位提取。
@@ -54,11 +55,11 @@ datacenter-reference 器件/单元库 → structure / architecture / hvac-equipm
 | 轴网划分 | `dcr:grid` 核对轴线并定位，`sheet-grid` 输出轴号和轴间尺寸 | 协调结构跨度、伸缩缝和建筑定位 |
 | 楼层标高、层内分区 | `dcr:levels` 从轴线和标高生成空间分区。`dcr:architecture` 编译建筑围护和 B 轴防火分隔、四处外门及相应平台和坡道，输出建筑平面、坡道剖面、门表和 USD。屋盖由钢梁顶以上的檩条、钢承板、找坡保温层及防水层闭合，出屋面平面、横剖、洞口详图和墙头构造协调 | 墙头变形与耐火封堵、屋面防水、坡道节点及现场条件 |
 | 结构建模 | `dcr:structure-model` 输出屋面钢梁与柱平面、基础平面、B 轴剖面、构件表及 USD。`dcr:roof-actions` 从屋盖提取材料自重、逐檩条挠度和支座反力。主体钢梁逐点接收该反力，`dcr:structure-gravity` 编译传力至轴心基础的重力计算书 | 实测地勘、抗风抗震、设备基础、钢承板局部承载、洞口加强、座板、节点与配筋 |
-| 核心机电与方舱布局 | 分区图核对 65 个物理实例，BOM 保留 515 条 SDL 明细。16 舱装配锁定的机柜、CDU 和精密空调尺寸，编译设备布置、通道横剖面、设备表和可查看的典型舱剖切场景。设施水与弱电协调包络和贯穿预留。弱电编译两张桥架平面、端接系统图和 128 个机柜的双路纤芯表。消防编译主机房报警平面和方舱灭火设备布置 | 厂商制造尺寸、舱内二次侧接管、机柜跳线、支吊架和灭火专项选型 |
-| 性能计算与冗余保护 | 电气 A/B 出单线图及屋面布置、单路带全部 16 舱的电压降和载流校核、88 个三相故障工况及保护表。馈线实长、母线至插接口距离与下引电缆阻抗进入三相故障复算。弱电校核链路光预算、单路承载 5.12 Tb/s 的配置容量及各登记构件单点断开后连通性 | 厂家曲线、接地、单相故障、多源并联、弯曲半径、谐波、全场非 IT 动力和实际切换、运营商和网络协议测试 |
+| 核心机电与方舱布局 | 分区图核对 67 个物理实例，BOM 保留 515 条 SDL 明细。16 舱装配锁定的机柜、CDU 和精密空调尺寸，编译设备布置、通道横剖面、设备表和可查看的典型舱剖切场景。设施水与弱电协调包络和贯穿预留。弱电编译两张桥架平面、端接系统图和 128 个机柜的双路纤芯表。消防编译主机房报警平面和方舱灭火设备布置 | 厂商制造尺寸、舱内二次侧接管、机柜跳线、支吊架和灭火专项选型 |
+| 性能计算与冗余保护 | 电气 A/B 出单线图及屋面布置、单路带全部 16 舱的电压降和载流校核、88 个三相故障工况及保护表。馈线长度、母线段和下引电缆阻抗进入三相故障复算。动力区 A/B 到三列冷源、泵塔及辅助柜共 15 回路，交付排管平面、泵塔平面、入线剖面和保护表。逐列校核单路、冷源柜或泵塔退出，发电机启动控制的共因依赖保留待核。弱电校核链路光预算、单路承载 5.12 Tb/s 的配置容量及各登记构件单点断开后连通性 | 厂家曲线、接地、单相故障、多源并联、弯曲半径、谐波、照明与水处理等其余动力、发电机黑启动和实际切换、运营商和网络协议测试 |
 | 管道布置 | `dcr:fws-network` 从设备接口生成供回水环路、支管和立管。五张图输出总平面、系统图、屋面预留、局部接驳正视投影和分段隔离图。三个冷凝器侧闭式回路从实际法兰取点，编译冷却水平面、横剖面、系统图、管段工程量和跨专业碰撞检查。场区给排水编译补水排污平面、排污纵断面、系统图和管段表。屋面雨水经双侧檐沟和四处落水接入场区雨水管网。室外雨水编译总图、纵断面、调蓄池及限流孔剖面，给水及工艺排污沿各自路径交接。发电机区汇入独立密闭池。TCS 从机柜和 CDU 的实际端口生成独立 A/B 管网、接管平面、机柜顶横剖面和系统图。风侧生成空调顶部短管、回风口和机柜排风后腔，编译送回风图及协调模型 | 支吊架、排空、阀件检修及防火封堵 |
 | 仿真与寄生反注 | `dcr:fws-network-study` 复算 32 个稳态工况。`dcr:fws-thermal-parameters` 从同一套管段提取水量、热容和滞留时间。`dcr:fws-transient` 校核在役冷源分别退出后的 16 舱水温，并编译温升曲线、峰值平面、缓冲设备表和接管图。冷却水侧使用同批 FWS 冷源负荷，核算排热、流量、压损和温度，另验证六个冷却水泵或塔退出工况。喷淋水量及水质由上述排热量驱动，校核市政动压、各塔余压、重力排水、停水储备和恢复时间。TCS 读取 FWS 正常、主干隔离和冷源退出算例，以及冷源切换一次侧峰温；编译逐机柜可供流量、冷量、压差、实际管段储液量和驻留时间。舱内风侧按配对备用空调、风道与后腔压损及公共回风混合，生成机柜进风温湿度及空调静压，并与 TCS 联算。屋面和场坪雨水按降雨汇流，使用物理池容和限流孔复算逐时出流和峰值水位 | 真实机组控制曲线、承压缓冲罐选型与锚固、管壁与设备蓄热、流量切换与水锤、CDU 厂家实测曲线及二次侧泵阀切换瞬态 |
-| 多专业签核 | `review-package` 从本次构建快照生成总图、建筑、消防、结构、机房工艺、弱电、电气、暖通和给排水审查清单与文件摘要。消防纳入疏散、报警、灭火设备、联动、断线证据、封堵和发电机区密闭收集。电气纳入 A/B 平剖、桥架与洞口协调、馈线表及三相保护证据 | 责任人在现有 Git 审查中针对指定修订处置，审查清单保留待核状态 |
+| 多专业签核 | `review-package` 从本次构建快照生成总图、建筑、消防、结构、机房工艺、弱电、电气、暖通和给排水审查清单与文件摘要。消防纳入疏散、报警、灭火设备、联动、断线证据、封堵和发电机区密闭收集。电气纳入 A/B 平剖、桥架与洞口协调、动力排管与局部支路、馈线表及三相保护证据 | 责任人在现有 Git 审查中针对指定修订处置，审查清单保留待核状态 |
 
 ## 重跑
 
@@ -71,6 +72,7 @@ uv run --locked texsys build -p examples/datacenter-reference-design --target dc
 uv run --locked texsys build -p examples/datacenter-reference-design --target dcr:roof-scene --target dcr:roof-gravity-check --target dcr:roof-drainage-check --target sheet-roof-envelope --target sheet-roof-opening-detail
 uv run --locked texsys build -p examples/datacenter-reference-design --target dcr:site-grading-check --target dcr:site-storm-check --target dcr:site-storm-scene --target sheet-site-storm-profile
 uv run --locked texsys build -p examples/datacenter-reference-design --target dcr:power-installation --target dcr:power-scene --target sheet-power-roof-a --target sheet-power-roof-b --target sheet-power-pod-section
+uv run --locked texsys build -p examples/datacenter-reference-design --target dcr:facility-power-check --target dcr:facility-power-scene --target sheet-facility-power-entry --target sheet-facility-power-continuity
 uv run --locked texsys build -p examples/datacenter-reference-design --target dcr:fire-egress --target sheet-fire-egress
 uv run --locked texsys build -p examples/datacenter-reference-design --target dcr:telecom-study --target sheet-telecom-a
 uv run --locked texsys build -p examples/datacenter-reference-design --target dcr:fire-systems-study --target sheet-fire-alarm
@@ -82,7 +84,7 @@ uv run --locked texsys build -p examples/datacenter-reference-design --target dc
 uv run --locked texsys build -p examples/datacenter-reference-design --target dcr:air-coordination --target dcr:air-check --target sheet-air-environment
 ```
 
-成品图在 `build/drawings/sheets/`，包含 58 张 A3 图及各图的来源报告。可校准图纸按标题栏比例原尺寸打印。门、疏散、预留、构件、保护、馈线、洞口定位、水力、弱电端接、热瞬态及消防工况表在 `build/schedules/`。综合交付包含 `build/scenes/aidc-site-coordinated.usda` 全场形成面、`build/scenes/aidc-site-storm-underground.usda` 雨水地下工程剖切场景、`build/scenes/aidc-roof-assembly.usda` 屋盖专项场景、`build/scenes/aidc-power-roof.usda` 电气专业屋面场景及 `build/scenes/aidc-it-pod-air.usda` 典型舱内送回风、TCS 与设备剖切场景。专业审查材料在 `build/review/aidc-discipline-review.json`。用 Tex Studio 的文件资源管理器或快速打开读取上述文件。
+成品图在 `build/drawings/sheets/`，包含 62 张 A3 图及各图的来源报告。可校准图纸按标题栏比例原尺寸打印。门、疏散、预留、构件、保护、馈线、洞口定位、水力、弱电端接、热瞬态及消防工况表在 `build/schedules/`。综合交付包含 `build/scenes/aidc-facility-power-coordinated.usda` 全场动力协调、`build/scenes/aidc-facility-power.usda` 冷源动力专业场景、`build/scenes/aidc-site-storm-underground.usda` 雨水地下工程剖切场景、`build/scenes/aidc-roof-assembly.usda` 屋盖专项场景、`build/scenes/aidc-power-roof.usda` 电气专业屋面场景及 `build/scenes/aidc-it-pod-air.usda` 典型舱内送回风、TCS 与设备剖切场景。专业审查材料在 `build/review/aidc-discipline-review.json`。用 Tex Studio 的文件资源管理器或快速打开读取上述文件。
 
 主机房屋盖在 +4.900 m 主体钢梁顶以上形成 +5.200 m 钢承板底及最高 +5.476 m 完成面。64 个设施水及关键电气预留逐层切空，并由同一套坐标更新设施水和电气剖面。本例编译屋面与檩条候选自重约 480.82 kN，逐檩条支座力用于计算主体钢梁和基础。四处屋面落水在设计雨强下单点约 6.79 L/s，从场坪以上 0.40 m 落水口转接至室外受水井。闭合屋面综合视图隐藏此视角下位于舱内的细密 TCS 管线；管线与舱内设备可从已有 TCS 与典型舱场景查看。
 
@@ -108,9 +110,9 @@ TCS 按每舱 90 kW、每台 11.25 kW 机柜液侧负荷编译。两套独立冷
 
 改动 `src/fws-network.json` 的供水环路坐标后重跑，安装图、管线长度和各段隔离压力随之更新。删除供水绕行段后，原 `S-010` 隔离工况中全体方舱失供，触发审查门禁。必需工况不满足或保温包络相交时构建非零退出，审查材料停止更新。查阅当前 `build/build.json` 的目标状态、输入摘要和产物发布记录。单回路夹具仍可用 `--target dcr:fws-hydraulics` 单独计算。
 
-`design-checks.json` 逐条给出 12 项设计基线的判定和证据。`spatial/power-study.json` 按 A/B 可用路径复算全场工况，其中 UPS 关键负荷 2144 kW，包括存活路的 CDU 和精密空调。计入转换损耗与设施负荷后，单路进线负担约 2770.33 kW。按等效电池能量算得 16.79 min。短路结果保留故障点、实际 SDL 路径、电流范围、分断校核及保护配合。
+`design-checks.json` 逐条给出 12 项设计基线的判定和证据。`spatial/power-study.json` 按 A/B 可用路径复算供电基线。UPS 关键负荷 2144 kW，包括存活路的 CDU 和精密空调。计入原设施负荷预算与转换损耗后，单路进线负担约 2770.33 kW，等效电池供电时间 16.79 min。`spatial/facility-power-study.json` 进一步按当前水系统工况计算三列冷源用电，纳入 40 kW 辅助预算后，单路工况含 IT 最大合计 2624.68 kW。短路结果保留故障点、实际 SDL 路径、电流范围、分断校核及保护配合。
 
-`build/datacenter-reference/bom.json` 交付 514 条 BOM 条目，按主机房、供配电、冷源及建筑构造汇总。结构专业的构件表按深化后的柱、梁、基础分别计量。
+`build/datacenter-reference/bom.json` 交付 515 条 BOM 条目，按主机房、供配电、冷源及建筑构造汇总。结构专业的构件表按深化后的柱、梁、基础分别计量。
 
 修改库内容后需重新锁定（`texsys lock -p examples/datacenter-reference-design`），否则检查按锁失效处理。
 

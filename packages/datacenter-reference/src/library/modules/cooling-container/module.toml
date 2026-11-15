@@ -25,7 +25,7 @@ fidelity = "坐标、边界映射、防火与耐候属性"
 kind = "behavior"
 path = "assets/behavior.json"
 source = "Texsys 数据中心参考设计库概念假设（公开产品水平脱敏）"
-fidelity = "containerized-chilled-water-plant"
+fidelity = "two-source-containerized-chilled-water-plant"
 
 [port_bindings.power_a]
 geometry = "/Module/Ports/power_a"
@@ -50,3 +50,11 @@ symbol = "port-cw_in"
 [port_bindings.cw_out]
 geometry = "/Module/Ports/cw_out"
 symbol = "port-cw_out"
+
+[port_bindings.pump_power_out]
+geometry = "/Module/Ports/pump_power_out"
+symbol = "port-pump_power_out"
+
+[port_bindings.tower_power_out]
+geometry = "/Module/Ports/tower_power_out"
+symbol = "port-tower_power_out"

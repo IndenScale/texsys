@@ -32,6 +32,16 @@
           "direction": "out",
           "kind": "ac-power",
           "max_connections": 1
+        },
+        "out_pump": {
+          "direction": "out",
+          "kind": "ac-power",
+          "max_connections": 1
+        },
+        "out_tower": {
+          "direction": "out",
+          "kind": "ac-power",
+          "max_connections": 1
         }
       }
     },
@@ -84,6 +94,16 @@
         "cw_out": {
           "direction": "out",
           "kind": "cw",
+          "max_connections": 1
+        },
+        "pump_power_out": {
+          "direction": "out",
+          "kind": "ac-power",
+          "max_connections": 1
+        },
+        "tower_power_out": {
+          "direction": "out",
+          "kind": "ac-power",
           "max_connections": 1
         }
       },
@@ -145,16 +165,11 @@
             "link-006"
           ]
         },
-        "PowerA": {
+        "CellPower": {
           "kind": "ac-power",
           "connections": [
             "link-001",
-            "link-002"
-          ]
-        },
-        "PowerB": {
-          "kind": "ac-power",
-          "connections": [
+            "link-002",
             "link-003"
           ]
         }

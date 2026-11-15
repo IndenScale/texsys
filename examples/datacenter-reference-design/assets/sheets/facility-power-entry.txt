@@ -1,0 +1,4 @@
+棕色为 A 路，蓝色为 B 路。两路分层进各冷源转换柜及辅助柜。
+轴线采用 AIDC-LOCAL 坐标。
+以排管中心标高组织，编号和订货长度见 aidc-facility-power-circuits.csv。
+1—1 剖面 AIDC-E-009。

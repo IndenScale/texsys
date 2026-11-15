@@ -48,8 +48,8 @@ def test_aidc_deliverables_bind_to_the_same_geometry_and_recompute_the_fws_head(
   site = _read(root / MODEL / "site.json")
   assert site["area_m2"] == 4480
   layout = _read(root / MODEL / "layout.json")
-  assert len(layout["objects"]) == 65
-  assert len(layout["nonspatial"]) == 8
+  assert len(layout["objects"]) == 67
+  assert len(layout["nonspatial"]) == 6
   selected = layout["objects"]["IT01"]
   scene = Usd.Stage.Open(str(root / "build/scenes/aidc-coordination.usda"))
   prim = scene.GetPrimAtPath(selected["prim_path"])
@@ -70,7 +70,7 @@ def test_aidc_deliverables_bind_to_the_same_geometry_and_recompute_the_fws_head(
   assert dossier["evidence_complete"]
   assert dossier["input_digest"] == _read(baseline.report)["input_digest"]
   assert dossier["engineering_acceptance"] == "pending-responsible-review"
-  assert len(list((root / "build/drawings/sheets").glob("*.svg"))) == 58
+  assert len(list((root / "build/drawings/sheets").glob("*.svg"))) == 62
   old_dossier = file_digest(root / "build/review/aidc-discipline-review.json")
   drawing = root / "build/drawings/sheets/fws-network.svg"
   old_route_drawing = file_digest(drawing)
@@ -78,6 +78,7 @@ def test_aidc_deliverables_bind_to_the_same_geometry_and_recompute_the_fws_head(
 
   _check_professional_delivery(root)
   _check_power_installation(root)
+  _check_facility_power(root)
   _check_roof_delivery(root)
   _check_storm_delivery(root)
   _check_fws_network_delivery(root)
@@ -381,15 +382,19 @@ def _check_professional_delivery(root):
 
   topology = _read(root / MODEL / "power-topology.json")["trains"]
   power = _read(root / MODEL / "power-study.json")["trains"]
+  facility_faults = _read(root / MODEL / "facility-power-study.json")["fault_cases"]
   for side, path in topology.items():
     plan = ET.parse(root / f"build/drawings/views/power-one-line-{side.lower()}.svg")
     wires = plan.findall(f".//{SVG}polyline[@data-link]")
     assert {wire.get("data-link") for wire in wires} == {edge["id"] for edge in path["edges"]}
     assert len(wires) == len(path["edges"])
     breakers = {symbol.get("data-protection-link") for symbol in plan.findall(f".//{SVG}rect[@data-protection-link]")}
-    assert breakers == {link for response in power[side]["fault_cases"].values() for link in response["devices"]}
+    subjects = [*power[side]["fault_cases"].values(), *(row for row in facility_faults.values() if row["feed_train"] == side)]
+    assert breakers == {link for response in subjects for link in response["devices"]}
     assert len(power[side]["fault_cases"]) == 44
-    assert len(path["shared_feeds"]) == 7
+    assert set(path["shared_feeds"]) == {"ControlPanel"}
+    assert len(path["cell_feeds"]) == 3
+    assert all(len(branches) == 2 for branches in path["cell_feeds"].values())
     assert power[side]["critical_kw"] == 2144
     assert power[side]["input_kw"] == pytest.approx(2144/.96 + 497 + 40)
     assert power[side]["duty"][f"Busway{side}1"]["required"] == pytest.approx(536 / (sqrt(3)*.4*.9))
@@ -439,6 +444,54 @@ def _check_power_installation(root):
       prim = scene.GetPrimAtPath(f"/AIDC/PowerRoutes/{side}/{side}_IT16")
       assert list(prim.GetAttribute("texsys:sdlLinks").Get()) == [terminal["link"]]
       assert scene.GetPrimAtPath(f"/AIDC/PowerRoutes/{side}/{side}_IT16_Building")
+
+
+def _check_facility_power(root):
+  topology = _read(root / MODEL / "power-topology.json")
+  installation = _read(root / MODEL / "facility-power.json")
+  fit = _read(root / MODEL / "facility-power-coordination.json")
+  study = _read(root / MODEL / "facility-power-study.json")
+  assert not fit["issues"] and not study["issues"]
+  assert len(installation["circuits"]) == 15
+  assert set(installation["circuits"]["link-109"]["from"].split(".")) == {"CoolContainer1", "pump_power_out"}
+  assert min(row["clearance_m"] for row in fit["ab_crossings"]) >= .25
+  assert min(fit["burial_cover_m"].values()) >= .56
+  assert len(study["states"]) == 78
+  assert len(study["fault_cases"]) == 66
+  side = topology["trains"]["B"]
+  feeder = side["facility_feeds"]["CoolContainer1"]
+  circuit = installation["circuits"][feeder]
+  expected = .095*circuit["length_m"]/2/1000
+  fault = study["fault_cases"]["B:utility:transfer:link-109"]
+  assert fault["path_impedance_ohm"][feeder]["r"] == pytest.approx(expected)
+  assert fault["checks"]["selectivity"]
+  assert side["cell_feeds"]["CoolContainer1"]["CwPump1"] in fault["path_impedance_ohm"]
+  good = study["states"]["A:train-only:normal"]
+  assert good["all_cooling_kw"] == pytest.approx(1440)
+  assert good["plant_kw"] == pytest.approx(sum(row["demand_kw"] for row in good["running_cells"].values()))
+  assert set(study["states"]["A:cell-transfer-off:plant-off:CoolContainer1"]["running_cells"]) == {
+    "CoolContainer2", "CoolContainer3"
+  }
+  command = study["states"]["B:common-aux-off:normal"]
+  assert command["all_cooling_kw"] == pytest.approx(1440)
+  assert not command["common_command_available"]
+  assert not command["generator_restart_credited"]
+  scene = Usd.Stage.Open(str(root / "build/scenes/aidc-facility-power-coordinated.usda"))
+  geometry = scene.GetPrimAtPath("/AIDC/FacilityPower/LOCAL/LOCAL_CwPump1_05")
+  assert list(geometry.GetAttribute("texsys:sdlLinks").Get()) == ["link-109"]
+
+
+def test_aidc_facility_motor_protection_and_failed_gate_keep_views(tmp_path):
+  root = _checkout(tmp_path)
+  config = root / "src/facility-power.json"
+  values = _read(config)
+  values["study"]["switches"]["motor"]["interrupt_ka"] = 10
+  write_json(config, values)
+  run, targets = _run(root, "dcr:facility-power-check", "sheet-facility-power-continuity", "sheet-facility-power-cells")
+  assert run.status == "fail"
+  assert any(row["rule"] == "AIDC_FACILITY_POWER_PROTECTION" for row in targets["dcr:facility-power-check"]["diagnostics"])
+  assert targets["sheet-facility-power-continuity"]["status"] == "pass"
+  assert targets["sheet-facility-power-cells"]["status"] == "pass"
 
 
 def _check_roof_delivery(root):

@@ -132,17 +132,27 @@ def _train(design, side, spec):
   actual_ups_edges = {edge["id"] for edge in edges if _node(edge["from"]) == ups_out}
   if actual_ups_edges != {record["feed"] for record in feeders.values()}:
     raise ValueError(f"Train {side} UPS output must feed only the critical IT busways.")
-  facilities = sorted(name for name in nodes if nodes[name]["family"] in {"cooling-container", "AuxFeed"})
-  expected = {name for name, instance in design.instances.items() if instance.family in {"cooling-container", "AuxFeed"}}
+  facility_families = {"cooling-container", "facility-aux-transfer"}
+  facilities = sorted(name for name in nodes if nodes[name]["family"] in facility_families)
+  expected = {name for name, instance in design.instances.items() if instance.family in facility_families}
   if set(facilities) != expected:
     raise ValueError(f"Train {side} must include every facility branch.")
   facility_feeds = {name: _link(edges, transfer, name) for name in facilities}
-  shared, = by_family("AuxFeed")
+  shared, = by_family("facility-aux-transfer")
   shared_feeds = {_node(edge["to"]): edge["id"] for edge in edges if _node(edge["from"]) == shared}
-  expected = {name for name, instance in design.instances.items()
-              if instance.family in {"condenser-water-pump", "cooling-tower", "ControlPanel"}}
-  if shared_feeds.keys() != expected:
-    raise ValueError("Shared utility bus must feed every condenser pump, cooling tower and control panel.")
+  if set(shared_feeds) != set(by_family("generator-command-panel")) or len(shared_feeds) != 1:
+    raise ValueError("The common standby command must be the auxiliary board's unique modeled consumer.")
+  cell_feeds = {}
+  for name in by_family("cooling-container"):
+    links = {edge["from"].split(".")[1]: edge for edge in edges if _node(edge["from"]) == name}
+    targets = {"pump_power_out": "condenser-water-pump", "tower_power_out": "cooling-tower"}
+    if links.keys() != targets.keys() or any(nodes[_node(links[port]["to"])]["family"] != family
+                                            for port, family in targets.items()):
+      raise ValueError(f"{name} needs two local outgoing feeds to its condenser-water equipment.")
+    cell_feeds[name] = {_node(edge["to"]): edge["id"] for edge in links.values()}
+  served = [item for outputs in cell_feeds.values() for item in outputs]
+  if len(set(served)) != len(served) or set(served) != set(by_family("condenser-water-pump")+by_family("cooling-tower")):
+    raise ValueError("All cooling cells must own their condenser pump and tower without a common feed.")
   for terminal in terminals:
     it = design.instances[terminal]
     destination, = it.specification["boundary"][f"power_{side.lower()}"]
@@ -159,7 +169,7 @@ def _train(design, side, spec):
           "switchboard": switchboard, "ats": ats, "transfer": transfer, "ups_in": ups_in, "ups_out": ups_out,
           "utility_route": utility_route, "standby_route": standby_route, "inverters": inverters,
           "genset_feeders": genset_feeders, "feeders": feeders, "facility_feeds": facility_feeds,
-          "shared_bus": shared, "shared_feeds": shared_feeds}
+          "shared_bus": shared, "shared_feeds": shared_feeds, "cell_feeds": cell_feeds}
 
 
 def build_power_topology(context):

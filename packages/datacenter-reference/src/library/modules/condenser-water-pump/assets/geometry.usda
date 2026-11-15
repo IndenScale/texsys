@@ -36,7 +36,7 @@ def Xform "Module"
         def Xform "power"
         {
             custom double3 texsys:normal = (0, 0, 1)
-            double3 xformOp:translate = (0.6, 0.25, 0.8)
+            double3 xformOp:translate = (0.85, 0.25, 0.8)
             uniform token[] xformOpOrder = ["xformOp:translate"]
         }
     }

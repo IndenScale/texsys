@@ -1,0 +1,40 @@
+schema_version = 1
+name = "辅助负荷转换柜"
+version = "0.1.0"
+entry = "facility-aux-transfer.sdl.json"
+
+[assets.geometry]
+kind = "geometry"
+path = "assets/geometry.usda"
+source = "Texsys 数据中心参考设计库概念假设（公开产品水平脱敏）"
+fidelity = "设备包络与接口位姿"
+
+[assets.symbol]
+kind = "symbol"
+path = "assets/symbol.svg"
+source = "Texsys 数据中心参考设计库概念假设（公开产品水平脱敏）"
+fidelity = "功能符号与端口锚点"
+
+[assets.specification]
+kind = "specification"
+path = "assets/specification.json"
+source = "Texsys 数据中心参考设计库概念假设（公开产品水平脱敏）"
+fidelity = "坐标、接口、防火与耐候属性"
+
+[assets.behavior]
+kind = "behavior"
+path = "assets/behavior.json"
+source = "Texsys 数据中心参考设计库概念假设（公开产品水平脱敏）"
+fidelity = "open-transition-auxiliary-switchboard"
+
+[port_bindings.in_a]
+geometry = "/Module/Ports/in_a"
+symbol = "port-in_a"
+
+[port_bindings.in_b]
+geometry = "/Module/Ports/in_b"
+symbol = "port-in_b"
+
+[port_bindings.out_4]
+geometry = "/Module/Ports/out_4"
+symbol = "port-out_4"

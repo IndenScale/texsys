@@ -1,12 +1,12 @@
 {
   "schema_version": 1,
   "state": "assumed",
-  "model": "containerized-chilled-water-plant",
+  "model": "two-source-containerized-chilled-water-plant",
   "parameters": {
     "cooling_kw": "kW",
     "standby_pumps": "台",
     "fire_resistance_hours": "h"
   },
-  "method": "1200 kW 水冷机组 + 2 台冷冻泵（1 用 1 备）；对外接口为设施水 FWS（与 CDU 设施侧同回路），A/B 双路供电，冷却水接室外冷却塔。",
-  "limitations": "概念脱敏；实际水力平衡、防冻与群控由项目校核。"
+  "method": "A/B 双进线经本柜开路转换后送给冷机、两台冷冻泵及本列冷却泵、冷却塔。",
+  "limitations": "实际切换时序、联锁、短路稳定及水力群控由项目核证。"
 }

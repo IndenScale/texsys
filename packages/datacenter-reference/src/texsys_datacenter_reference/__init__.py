@@ -17,6 +17,10 @@ from .cw_network import build_cw_coordination, build_cw_network
 from .cw_study import build_cw_check, build_cw_study
 from .cw_views import build_cw_view
 from .electrical import build_power_study, build_power_topology
+from .facility_power import build_facility_coordination, build_facility_power
+from .facility_power_scene import build_facility_power_scene
+from .facility_power_study import build_facility_power_check, build_facility_power_study
+from .facility_power_views import build_facility_power_view
 from .fire_egress import build_egress_check, build_egress_model
 from .fire_systems import build_fire_systems
 from .fire_systems_coordination import build_fire_systems_coordination
@@ -64,7 +68,7 @@ from .wet_utility_views import build_wet_view
 
 class DatacenterReferencePackage(TexsysPackage):
   name = "datacenter-reference"
-  version = "0.18.0"
+  version = "0.19.0"
 
   def targets(self) -> tuple[TargetDefinition, ...]:
     return (
@@ -263,6 +267,22 @@ class DatacenterReferencePackage(TexsysPackage):
                        dependencies=("dcr:power-routing",), input_patterns=spatial_inputs("electrical-study.json")),
       TargetDefinition("dcr:power-routing", self.name, self.version, build_power_routing,
                        dependencies=("dcr:layout", "dcr:power-topology"), input_patterns=spatial_inputs("power-routing.json")),
+      TargetDefinition("dcr:facility-power", self.name, self.version, build_facility_power,
+                       dependencies=("dcr:layout", "dcr:power-topology"), input_patterns=spatial_inputs("facility-power.json")),
+      TargetDefinition("dcr:facility-power-coordination", self.name, self.version, build_facility_coordination,
+                       dependencies=("dcr:facility-power", "dcr:power-routing", "dcr:site-storm", "dcr:telecom",
+                                     "dcr:fire-systems", "dcr:fws-network", "dcr:structure-model"), input_patterns=()),
+      TargetDefinition("dcr:facility-power-study", self.name, self.version, build_facility_power_study,
+                       dependencies=("dcr:facility-power", "dcr:power-study", "dcr:cw-study"), input_patterns=()),
+      TargetDefinition("dcr:facility-power-check", self.name, self.version, build_facility_power_check,
+                       dependencies=("dcr:facility-power-study",), input_patterns=()),
+      TargetDefinition("dcr:facility-power-scene", self.name, self.version, build_facility_power_scene,
+                       dependencies=("dcr:facility-power-coordination", "dcr:site-storm-scene"), input_patterns=()),
+      TargetDefinition("dcr:facility-power-view", self.name, self.version, build_facility_power_view,
+                       dependencies=("dcr:facility-power", "dcr:site-grading", "dcr:cw-network"),
+                       input_patterns=(), named_output=True),
+      TargetDefinition("dcr:facility-power-study-view", self.name, self.version, build_facility_power_view,
+                       dependencies=("dcr:facility-power-study",), input_patterns=(), named_output=True),
       TargetDefinition("dcr:power-coordination", self.name, self.version, build_power_coordination,
                        dependencies=("dcr:power-routing", "dcr:fire-systems", "dcr:telecom",
                                      "dcr:structure-model", "dcr:fws-network"), input_patterns=()),

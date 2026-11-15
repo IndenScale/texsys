@@ -24,7 +24,7 @@ def Xform "Module"
         def Xform "cw_in"
         {
             custom double3 texsys:normal = (-1, 0, 0)
-            double3 xformOp:translate = (0, 1.5, 3)
+            double3 xformOp:translate = (0, 1.5, 3.0)
             uniform token[] xformOpOrder = ["xformOp:translate"]
         }
         def Xform "cw_out"
@@ -39,16 +39,16 @@ def Xform "Module"
             double3 xformOp:translate = (1.5, 3, 0.5)
             uniform token[] xformOpOrder = ["xformOp:translate"]
         }
+        def Xform "fan_power"
+        {
+            custom double3 texsys:normal = (0, 0, 1)
+            double3 xformOp:translate = (1.5, 2.8, 3.5)
+            uniform token[] xformOpOrder = ["xformOp:translate"]
+        }
         def Xform "blowdown"
         {
             custom double3 texsys:normal = (0, 1, 0)
             double3 xformOp:translate = (2.2, 3, 0.25)
-            uniform token[] xformOpOrder = ["xformOp:translate"]
-        }
-        def Xform "fan_power"
-        {
-            custom double3 texsys:normal = (0, 1, 0)
-            double3 xformOp:translate = (1.5, 2.8, 3.5)
             uniform token[] xformOpOrder = ["xformOp:translate"]
         }
     }

@@ -23,7 +23,7 @@
       "Wall01", "Wall02", "Wall03", "Wall04"
     ],
     "power": [
-      "PowerPathA", "PowerPathB",
+      "PowerPathA", "PowerPathB", "AuxFeed", "ControlPanel",
       "BuswayA1", "BuswayA2", "BuswayA3", "BuswayA4",
       "BuswayB1", "BuswayB2", "BuswayB3", "BuswayB4"
     ],
@@ -34,7 +34,7 @@
       "FwsSupplyHeader", "FwsReturnHeader", "BlowdownOutfall", "MakeupWaterSource"
     ],
     "standby": ["GenContainerA", "GenContainerB"],
-    "support": ["UtilityA", "UtilityB", "AuxFeed", "ControlPanel"]
+    "support": ["UtilityA", "UtilityB"]
   },
   "limitations": "布置为概念占位；实际防火间距、运输通道、基础与噪声边界由项目校核。"
 }

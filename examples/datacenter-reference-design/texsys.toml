@@ -12,7 +12,7 @@ build = "build"
 default_targets = ["review-package"]
 
 [dependencies]
-datacenter-reference = { path = "../../packages/datacenter-reference", version = "0.18.0" }
+datacenter-reference = { path = "../../packages/datacenter-reference", version = "0.19.0" }
 sheet = { path = "../../packages/sheet", version = "0.2.0" }
 
 [build.targets.review-package]
@@ -55,6 +55,12 @@ dependencies = [
   "dcr:power-study",
   "dcr:power-installation",
   "dcr:power-scene",
+  "dcr:facility-power-check",
+  "dcr:facility-power-scene",
+  "sheet-facility-power-entry",
+  "sheet-facility-power-cells",
+  "sheet-facility-power-section",
+  "sheet-facility-power-continuity",
   "dcr:fire-egress",
   "dcr:fire-systems-study",
   "dcr:fire-systems-coordination",
@@ -754,3 +760,47 @@ using = "sheet:compose"
 dependencies = ["view-site-storm-hydrograph"]
 scope = { source = "assets/sheets/site-storm-hydrograph.sheet.json" }
 output = "build/drawings/sheets/site-storm-hydrograph.svg"
+
+[build.targets.view-facility-power-entry]
+using = "dcr:facility-power-view"
+output = "build/drawings/views/facility-power-entry.svg"
+scope = { mode = "entry-plan" }
+
+[build.targets.sheet-facility-power-entry]
+using = "sheet:compose"
+dependencies = ["view-facility-power-entry"]
+scope = { source = "assets/sheets/facility-power-entry.sheet.json" }
+output = "build/drawings/sheets/facility-power-entry.svg"
+
+[build.targets.view-facility-power-cells]
+using = "dcr:facility-power-view"
+output = "build/drawings/views/facility-power-cells.svg"
+scope = { mode = "cells-plan" }
+
+[build.targets.sheet-facility-power-cells]
+using = "sheet:compose"
+dependencies = ["view-facility-power-cells"]
+scope = { source = "assets/sheets/facility-power-cells.sheet.json" }
+output = "build/drawings/sheets/facility-power-cells.svg"
+
+[build.targets.view-facility-power-section]
+using = "dcr:facility-power-view"
+output = "build/drawings/views/facility-power-section.svg"
+scope = { mode = "section", plant = "CoolContainer1" }
+
+[build.targets.sheet-facility-power-section]
+using = "sheet:compose"
+dependencies = ["view-facility-power-section"]
+scope = { source = "assets/sheets/facility-power-section.sheet.json" }
+output = "build/drawings/sheets/facility-power-section.svg"
+
+[build.targets.view-facility-power-continuity]
+using = "dcr:facility-power-study-view"
+output = "build/drawings/views/facility-power-continuity.svg"
+scope = { mode = "matrix" }
+
+[build.targets.sheet-facility-power-continuity]
+using = "sheet:compose"
+dependencies = ["view-facility-power-continuity"]
+scope = { source = "assets/sheets/facility-power-continuity.sheet.json" }
+output = "build/drawings/sheets/facility-power-continuity.svg"

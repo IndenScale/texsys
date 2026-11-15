@@ -84,6 +84,30 @@
         1,
         0
       ]
+    },
+    "pump_power_out": {
+      "position_m": [
+        0.48,
+        2.4,
+        1.95
+      ],
+      "normal": [
+        0,
+        1,
+        0
+      ]
+    },
+    "tower_power_out": {
+      "position_m": [
+        1.26,
+        2.4,
+        1.95
+      ],
+      "normal": [
+        0,
+        1,
+        0
+      ]
     }
   },
   "boundary": {
@@ -105,6 +129,12 @@
     ],
     "cw_out": [
       "Chiller.cw_out"
+    ],
+    "pump_power_out": [
+      "Feed.out_pump"
+    ],
+    "tower_power_out": [
+      "Feed.out_tower"
     ]
   },
   "instance_layout_m": {

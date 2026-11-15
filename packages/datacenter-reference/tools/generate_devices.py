@@ -8,6 +8,7 @@ Outputs are committed source; re-run after editing SPECS to refresh assets.
 
 from __future__ import annotations
 
+import argparse
 import json
 from pathlib import Path
 
@@ -17,6 +18,36 @@ SOURCE = "Texsys 数据中心参考设计库概念假设（公开产品水平脱
 # name: (中文名, envelope_m, color, ports, parameters, properties, model, method, limitations)
 # ports: name -> (direction, kind, position_m, normal)
 SPECS: dict[str, dict] = {
+  "facility-aux-transfer": {
+    "title": "辅助负荷转换柜",
+    "envelope": [.72, 1., 2.1],
+    "color": [.49, .51, .55],
+    "ports": {
+      "in_a": ("in", "ac-power", [.14, 0, 1.0], [0, -1, 0]),
+      "in_b": ("in", "ac-power", [.58, 0, 1.0], [0, -1, 0]),
+      "out_4": ("out", "ac-power", [.36, 1., 1.25], [0, 1, 0]),
+    },
+    "parameters": {"rated_a": (125, "A")},
+    "properties": {"weathering": {"installation": "outdoor", "ip": "IP54"}},
+    "model": "open-transition-auxiliary-switchboard",
+    "method": "两路交流输入经开路转换供共用辅助负荷。",
+    "limitations": "共用转换柜故障影响其下游，黑启动另行设计。",
+  },
+  "generator-command-panel": {
+    "title": "发电机启动控制柜",
+    "envelope": [.72, .60, 1.65],
+    "color": [.48, .56, .58],
+    "ports": {
+      "power": ("in", "ac-power", [.36, 0, 1.25], [0, -1, 0]),
+      "out_1": ("out", "signal", [.20, .60, 1.30], [0, 1, 0]),
+      "out_2": ("out", "signal", [.52, .60, 1.30], [0, 1, 0]),
+    },
+    "parameters": {"input_kw": (1.5, "kW")},
+    "properties": {"weathering": {"installation": "outdoor", "ip": "IP54"}},
+    "model": "common-generator-command",
+    "method": "接收辅助电源并提供两路启动指令。",
+    "limitations": "指令互锁、控制电源电池、双路自治及黑启动试验待深化。",
+  },
   "dry-type-transformer": {
     "title": "干式变压器",
     "envelope": [1.8, 1.2, 2.0],
@@ -243,10 +274,11 @@ SPECS: dict[str, dict] = {
     "envelope": [3.0, 3.0, 3.5],
     "color": [0.4, 0.5, 0.45],
     "ports": {
-      "cw_in": ("in", "cw", [0.3, 1.5, 3.0], [-1, 0, 0]),
-      "cw_out": ("out", "cw", [2.7, 1.5, 0.5], [1, 0, 0]),
-      "makeup": ("in", "makeup-water", [1.5, 0.2, 0.5], [0, -1, 0]),
-      "fan_power": ("in", "ac-power", [1.5, 2.8, 3.5], [0, 1, 0]),
+      "cw_in": ("in", "cw", [0, 1.5, 3.0], [-1, 0, 0]),
+      "cw_out": ("out", "cw", [3, 1.5, 0.5], [1, 0, 0]),
+      "makeup": ("in", "makeup-water", [1.5, 3, 0.5], [0, 1, 0]),
+      "fan_power": ("in", "ac-power", [1.5, 2.8, 3.5], [0, 0, 1]),
+      "blowdown": ("out", "process-drain", [2.2, 3, .25], [0, 1, 0]),
     },
     "parameters": {
       "heat_rejection_kw": (1500, "kW"),
@@ -291,9 +323,9 @@ SPECS: dict[str, dict] = {
     "envelope": [1.2, 0.5, 0.8],
     "color": [0.35, 0.4, 0.45],
     "ports": {
-      "in": ("in", "cw", [0.1, 0.25, 0.4], [-1, 0, 0]),
-      "out": ("out", "cw", [1.1, 0.25, 0.4], [1, 0, 0]),
-      "power": ("in", "ac-power", [0.6, 0.25, 0.8], [0, 0, 1]),
+      "in": ("in", "cw", [0, 0.25, 0.4], [-1, 0, 0]),
+      "out": ("out", "cw", [1.2, 0.25, 0.4], [1, 0, 0]),
+      "power": ("in", "ac-power", [0.85, 0.25, 0.8], [0, 0, 1]),
     },
     "parameters": {
       "flow_m3h": (260, "m3/h"),
@@ -481,7 +513,11 @@ def module_toml(name: str, spec: dict) -> str:
 
 
 def main() -> None:
-  for name, spec in SPECS.items():
+  parser = argparse.ArgumentParser()
+  parser.add_argument("modules", nargs="*", metavar="module")
+  args = parser.parse_args()
+  for name in args.modules or SPECS:
+    spec = SPECS[name]
     directory = ROOT / name
     assets = directory / "assets"
     assets.mkdir(parents=True, exist_ok=True)

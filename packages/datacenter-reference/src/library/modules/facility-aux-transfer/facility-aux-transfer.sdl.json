@@ -1,0 +1,38 @@
+{
+  "schema_version": 1,
+  "root": "FacilityAuxTransfer",
+  "components": {
+    "FacilityAuxTransfer": {
+      "ports": {
+        "in_a": {
+          "direction": "in",
+          "kind": "ac-power",
+          "max_connections": 1
+        },
+        "in_b": {
+          "direction": "in",
+          "kind": "ac-power",
+          "max_connections": 1
+        },
+        "out_4": {
+          "direction": "out",
+          "kind": "ac-power",
+          "max_connections": 1
+        }
+      },
+      "behavior": {
+        "reference": "assets/behavior.json",
+        "state": "assumed",
+        "source": "Texsys 数据中心参考设计库概念假设（公开产品水平脱敏）",
+        "parameters": {
+          "rated_a": {
+            "value": 125,
+            "unit": "A",
+            "state": "assumed",
+            "source": "Texsys 数据中心参考设计库概念假设（公开产品水平脱敏）"
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,6 +1,8 @@
 {
   "schema_version": 1,
   "placements": {
+    "AuxFeed": {"zone": "POWER", "discipline": "electrical", "axes": ["2", "D"], "offset_m": [7.24, 2.42, 0]},
+    "ControlPanel": {"zone": "POWER", "discipline": "electrical", "axes": ["2", "D"], "offset_m": [7.24, 4.05, 0]},
     "BuswayA1": {"zone": "POWER-ROOF", "discipline": "electrical", "axes": ["1", "A"], "offset_m": [0.3, 0.89, 0.12]},
     "BuswayA2": {"zone": "POWER-ROOF", "discipline": "electrical", "axes": ["1", "A"], "offset_m": [0.3, 5.77, 0.12]},
     "BuswayA3": {"zone": "POWER-ROOF", "discipline": "electrical", "axes": ["1", "B"], "offset_m": [0.3, 0.85, 0.12]},
@@ -68,8 +70,6 @@
     "Wall04": {"zone": "IT-HALL", "discipline": "architecture", "axes": ["4", "B"], "offset_m": [1, 9.3, 0]}
   },
   "nonspatial": {
-    "AuxFeed": "辅助负荷电源逻辑接口，实体位置待定。",
-    "ControlPanel": "控制信号边界，控制柜实体位置待定。",
     "FwsReturnHeader": "回水集管逻辑节点，已选回水支路中的接口位置由路由定义。",
     "FwsSupplyHeader": "供水集管逻辑节点，已选供水支路中的接口位置由路由定义。",
     "MakeupWaterSource": "场区给排水模型中的来水、断流水箱与加压补水边界。",
