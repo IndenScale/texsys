@@ -24,7 +24,7 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 6px 10px;
+  padding: 6px 10px 6px var(--navigator-gutter);
   cursor: pointer;
   list-style: none;
 }
@@ -44,14 +44,14 @@
 
 .welcome-side-section > p {
   margin: 0;
-  padding: 0 12px 8px 30px;
+  padding: 0 12px 8px calc(var(--navigator-gutter) + 20px);
 }
 
 .welcome-explorer-caption {
   display: flex;
   align-items: center;
   gap: 4px;
-  padding: 6px 10px;
+  padding: 6px 10px 6px var(--navigator-gutter);
 }
 
 .welcome-explorer-caption strong {

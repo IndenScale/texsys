@@ -12,7 +12,7 @@
   align-items: center;
   gap: 6px;
   height: var(--editor-tab-height);
-  padding: 4px var(--navigator-end) 4px var(--navigator-inset);
+  padding: 4px var(--navigator-end) 4px var(--navigator-gutter);
   font:
     13px/18px system-ui,
     sans-serif;
