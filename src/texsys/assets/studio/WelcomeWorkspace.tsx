@@ -12,6 +12,7 @@ import { t } from "./i18n";
 import { closeDocumentCommand } from "./menus";
 import type { StudioLayout } from "./sdk";
 import { Icon } from "./ui";
+import { compileExcludes, readWorkspaceExcludes } from "./file-excludes";
 import {
   forgetLocalEntry,
   listLocalFolder,
@@ -74,6 +75,7 @@ export function WelcomeWorkspace({
   const [active, setActive] = useState<string>(welcomeId);
   const [documents, setDocuments] = useState<LocalDocument[]>([]);
   const [root, setRoot] = useState<LocalFolder>();
+  const [excluded, setExcluded] = useState<(relative: string) => boolean>(() => compileExcludes());
   const [directories, setDirectories] = useState<Record<string, LocalEntry[]>>({});
   const [expanded, setExpanded] = useState(() => new Set<string>());
   const [selected, setSelected] = useState("");
@@ -144,7 +146,9 @@ export function WelcomeWorkspace({
     }
   }
   async function openLocalFolder(folder: LocalFolder) {
-    const items = await listLocalFolder(folder);
+    const matcher = await readWorkspaceExcludes(folder);
+    setExcluded(() => matcher);
+    const items = await listLocalFolder(folder, "", matcher);
     setRoot(folder);
     setDirectories({ "": items });
     setExpanded(new Set());
@@ -287,7 +291,7 @@ export function WelcomeWorkspace({
           if (Object.hasOwn(directories, parent)) {
             const folder = parent ? handles.get(parent) : root;
             if (folder?.kind === "directory") {
-              const items = await listLocalFolder(folder).catch(() => undefined);
+              const items = await listLocalFolder(folder, parent, excluded).catch(() => undefined);
               if (items) setDirectories((previous) => ({ ...previous, [parent]: items }));
             }
           }
@@ -358,7 +362,7 @@ export function WelcomeWorkspace({
     }
     void perform(async () => {
       if (!Object.hasOwn(directories, path)) {
-        const children = await listLocalFolder(handle);
+        const children = await listLocalFolder(handle, path, excluded);
         setDirectories((previous) => ({ ...previous, [path]: children }));
       }
       setExpanded((previous) => new Set(previous).add(path));

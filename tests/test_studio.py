@@ -411,6 +411,25 @@ def test_file_listing_includes_public_outputs_but_skips_caches_and_links(tmp_pat
   assert listing["truncated"] is False
 
 
+def test_file_listing_applies_vscode_exclude_defaults_and_workspace_overrides(tmp_path):
+  from texsys.studio.files import project_files
+  root = tmp_path / "project"
+  for directory in ("src", "node_modules/pkg", ".vscode"):
+    (root / directory).mkdir(parents=True)
+  for relative in ("README.md", ".DS_Store", ".editorconfig", "src/.DS_Store",
+                   "node_modules/pkg/index.js", "debug.log"):
+    (root / relative).write_text("test")
+  listing = project_files(root, "build")
+  assert {file["path"] for file in listing["files"]} == {"README.md", ".editorconfig", "debug.log"}
+  assert "node_modules" not in listing["directories"]
+  (root / ".vscode" / "settings.json").write_text(
+    '{ /* comment */ "files.exclude": {"**/node_modules": false, ".editorconfig": true, "**/*.log": true, }, }')
+  listing = project_files(root, "build")
+  assert {file["path"] for file in listing["files"]} == {
+    "README.md", "node_modules/pkg/index.js", ".vscode/settings.json"}
+  assert "node_modules" in listing["directories"]
+
+
 def test_file_preview_enforces_scope_and_reports_binary_and_size_limits(tmp_path):
   from texsys.studio.files import project_file, MAX_PREVIEW_BYTES
   root = tmp_path / "project"

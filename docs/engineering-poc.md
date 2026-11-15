@@ -1545,3 +1545,9 @@ GitHub Linux x86_64 的两个数据中心回归由构建报告定位到 `datacen
 本轮以 `403935a` 为基线。用户反馈缩进仍偏大；对 vscode.dev 大纲做绝对几何复测（相对 pane：行左 4、名称 56/64、引导线 20），换算行内坐标得每层缩进实为 8 px——上一轮误将 indent 宽度与 twistie 内边距叠加成 16 px。修正行缩进为 8 px＋每层 8 px、引导线 16 px＋每层 8 px。DDR-0005 大纲章节同步修订。
 
 验证：tsc、ESLint、Prettier、typography 与 71 项前端测试通过。按用户约束不新开页面，在既有 8710 标签页内注入静态大纲行 DOM 复用应用样式表实测：名称起点 52/60/68 px、引导线 16/24 px、行高 22、字号 13，与参照行内坐标逐像素一致。并行会话正在重构欢迎工作区（大纲接线暂置空），本轮仅提交大纲样式与文档，不触碰其暂存成果。本轮为工作台视觉对标，不扩大物理覆盖或工程结论；AIDC 参考设计的工程判定沿用上一轮记录。
+
+### 2026-11-15：统一文件可见性契约对标 VS Code，欢迎页保留原生选择器
+
+本轮以 `17a62e6` 为基线（并行会话的大纲提交不纳入本轮）。用户以 vscode.dev 参照指出欢迎页多出 `.DS_Store` 等文件：根因是欢迎页浏览器 handle 原始列举无任何过滤，与服务器 `project_files` 基线过滤分叉。本轮建立单一可见性契约：VS Code 默认 `files.exclude`（`**/.git`、`**/.DS_Store` 等）加产品性能跳过（`node_modules`、`.venv` 等）为默认，工作区 `.vscode/settings.json` 的 `files.exclude` 逐模式覆盖（true 隐藏／false 显示，JSONC 容错）；服务器 `files.py` 与客户端 `file-excludes.ts` 同语义实现，欢迎页本地列举、刷新与展开接入契约；本地文本限额与措辞统一为服务器契约（1 MiB、「该文件不能以 UTF-8 文本编辑。」）。`.git`／`.hg`／`.svn` 读写保护不随配置放宽。曾实现服务器路径输入＋`POST /api/workspace` 重绑根方向，用户对照 vscode.dev 否决（原生选择器交互不一致），已回退；欢迎页保留原生 `showDirectoryPicker`／`showOpenFilePicker` 与 IndexedDB 最近列表。DDR-0022 记录契约与备选，spec/studio/01-workbench.md 同步。
+
+验证：`tests/test_studio.py` 24 项通过（新增排除默认与设置覆盖正反例）；`tools/test_file_excludes.mjs` 4 项与后端同组用例 parity，其余前端套件 107 项通过；tsc、ESLint、Prettier 通过。常驻容器按文档流程 restart，8710 `/api/files` 实测正常。阻碍：本会话无法接入既有 Chrome（无调试端口，browser-use 为隔离应用内浏览器，按约定不使用），DOM 走查未执行；原生选择器授权需用户实际操作，欢迎页授权仓库根后 `.DS_Store`／`node_modules` 不可见、`.editorconfig` 可见由双侧 parity 测试覆盖。本轮为工作台文件行为对标，不扩大物理覆盖或工程结论；AIDC 参考设计的工程判定沿用上一轮记录。

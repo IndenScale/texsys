@@ -18,6 +18,7 @@ from zipfile import BadZipFile, ZipFile
 from texsys.formal import _atomic_write
 from texsys.project import ProjectError
 from .files import file_operation, project_file, workspace_path
+from .jsonc import strip_jsonc
 from .runtime import Conflict
 
 REGISTRY = "https://open-vsx.org"
@@ -26,15 +27,6 @@ VERSION = re.compile(r"\d+\.\d+\.\d+(?:[-+][a-zA-Z0-9.+-]+)?")
 MIB = 1024 * 1024
 RECOMMENDATIONS = ".vscode/extensions.json"
 DEFAULT_RECOMMENDATIONS = ("robole.markdown-snippets", "EricSia.pythonsnippets3")
-JSONC_TOKENS = re.compile(r'"(?:[^"\\]|\\.)*"|//[^\r\n]*|/\*[\s\S]*?\*/')
-TRAILING_COMMA = re.compile(r'"(?:[^"\\]|\\.)*"|,(?=\s*[}\]])')
-
-
-def _jsonc_source(text):
-  # Keep offsets for edits to the recommendation array.
-  text = JSONC_TOKENS.sub(lambda match: match[0] if match[0].startswith('"') else
-                         re.sub(r"[^\r\n]", " ", match[0]), text)
-  return TRAILING_COMMA.sub(lambda match: " " if match[0] == "," else match[0], text)
 
 
 def _asset(url):
@@ -250,7 +242,7 @@ def _snippets(archive, contributions):
     total_size += archive.getinfo(member_path).file_size
     if total_size > 8 * MIB:
       raise ProjectError("VSIX 的代码片段总大小超过限制。")
-    definitions = json.loads(_jsonc_source(_read_member(archive, member_path)))
+    definitions = json.loads(strip_jsonc(_read_member(archive, member_path)))
     for name, value in definitions.items():
       prefixes = _strings(value.get("prefix", name))
       body = _strings(value.get("body"))
@@ -304,7 +296,7 @@ def _recommendation_file(root, build):
   file = project_file(root, RECOMMENDATIONS, build)
   if not file["previewable"]:
     raise ProjectError(file["reason"])
-  config = json.loads(_jsonc_source(file["content"]))
+  config = json.loads(strip_jsonc(file["content"]))
   if not isinstance(config, dict):
     raise ProjectError(f"{RECOMMENDATIONS} 必须包含一个 JSON 对象。")
   return file, config
@@ -323,7 +315,7 @@ def recommend(root, build, identity):
                                 "content": json.dumps({"recommendations": [identity.lower()]}, indent=2) + "\n"})
     return
   text = file["content"]
-  source = _jsonc_source(text)
+  source = strip_jsonc(text)
   decoder = json.JSONDecoder()
   # Traverse top-level fields, retaining comments, indentation and unrelated settings.
   cursor = source.index("{") + 1

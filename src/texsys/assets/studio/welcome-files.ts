@@ -19,20 +19,27 @@ export async function requestFileAccess(entry: LocalEntry, mode: "read" | "readw
 
 export async function readLocalText(handle: FileSystemFileHandle) {
   const file = await handle.getFile();
-  if (file.size > 2_000_000) throw new Error("只能打开不超过 2 MB 的 UTF-8 文本文件。");
+  if (file.size > 1024 * 1024) throw new Error("文件超过 1 MiB，暂不提供文本编辑。");
   const bytes = await file.arrayBuffer();
   try {
     const value = new TextDecoder("utf-8", { fatal: true, ignoreBOM: true }).decode(bytes);
     if (value.includes("\0")) throw new Error();
     return value;
   } catch {
-    throw new Error("只能打开不超过 2 MB 的 UTF-8 文本文件。");
+    throw new Error("该文件不能以 UTF-8 文本编辑。");
   }
 }
 
-export async function listLocalFolder(folder: LocalFolder) {
+export async function listLocalFolder(
+  folder: LocalFolder,
+  parent: string,
+  excluded: (relative: string) => boolean,
+) {
   const entries: LocalEntry[] = [];
-  for await (const entry of folder.values()) entries.push(entry);
+  for await (const entry of folder.values()) {
+    if (excluded(parent ? parent + "/" + entry.name : entry.name)) continue;
+    entries.push(entry);
+  }
   return entries.sort((a, b) =>
     a.kind === b.kind
       ? a.name.localeCompare(b.name, undefined, { numeric: true })

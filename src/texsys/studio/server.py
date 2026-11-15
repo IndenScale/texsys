@@ -149,8 +149,12 @@ def create_server(runtime: StudioRuntime, port=8710, frontend=None, token=None, 
   ai_settings = AiSettings()
   extensions = StudioExtensions()
   terminals = TerminalService()
-  scene = ScenePreview(runtime.root, runtime.project.build)
-  previews = ProjectPreview(runtime.root, runtime.project.build)
+
+  def scene_preview():
+    return ScenePreview(runtime.root, runtime.build)
+
+  def project_previews():
+    return ProjectPreview(runtime.root, runtime.build)
 
   def scm_root(scope):
     if scope not in {"project", "repository"}:
@@ -248,7 +252,7 @@ def create_server(runtime: StudioRuntime, port=8710, frontend=None, token=None, 
           self._send(200, extensions.state(runtime.root))
         elif parsed.path == "/api/extensions/recommendations":
           with runtime.lock:
-            self._send(200, extensions.recommendations(runtime.root, runtime.project.build))
+            self._send(200, extensions.recommendations(runtime.root, runtime.build))
         elif parsed.path == "/api/extensions/search":
           query = parse_qs(parsed.query)
           self._send(200, extension_search(query.get("q", [""])[0], int(query.get("offset", ["0"])[0]),
@@ -264,27 +268,27 @@ def create_server(runtime: StudioRuntime, port=8710, frontend=None, token=None, 
 
           self._send(200, library_index(runtime.root, runtime.project.source, []))
         elif parsed.path == "/api/preview":
-          self._send(200, previews.read(parse_qs(parsed.query).get("root", [""])[0]))
+          self._send(200, project_previews().read(parse_qs(parsed.query).get("root", [""])[0]))
         elif parsed.path == "/api/preview/artifact":
           query = parse_qs(parsed.query)
-          self._send(200, previews.artifact(query.get("run", [""])[0], query.get("target", [""])[0], query.get("id", [""])[0]))
+          self._send(200, project_previews().artifact(query.get("run", [""])[0], query.get("target", [""])[0], query.get("id", [""])[0]))
         elif parsed.path == "/api/scene":
           query = parse_qs(parsed.query)
           if "path" in query:
-            self._send(200, scene.read_file(query["path"][0], query.get("revision", [""])[0], version=query.get("version", [""])[0]))
+            self._send(200, scene_preview().read_file(query["path"][0], query.get("revision", [""])[0], version=query.get("version", [""])[0]))
           else:
-            self._send(200, scene.read(query.get("revision", [""])[0], run=query.get("run", [""])[0],
+            self._send(200, scene_preview().read(query.get("revision", [""])[0], run=query.get("run", [""])[0],
                                       target=query.get("target", [""])[0], artifact=query.get("artifact", [""])[0]))
         elif parsed.path == "/api/ai/settings":
           self._send(200, ai_settings.read().public())
         elif parsed.path == "/api/files":
-          self._send(200, project_files(runtime.root, runtime.project.build))
+          self._send(200, project_files(runtime.root, runtime.build))
         elif parsed.path == "/api/file":
           relative = parse_qs(parsed.query).get("path", [""])[0]
-          self._send(200, project_file(runtime.root, relative, runtime.project.build))
+          self._send(200, project_file(runtime.root, relative, runtime.build))
         elif parsed.path == "/api/search":
           query = parse_qs(parsed.query)
-          self._send(200, search_project(runtime.root, runtime.project.build, query.get("q", [""])[0],
+          self._send(200, search_project(runtime.root, runtime.build, query.get("q", [""])[0],
                      case_sensitive=query.get("case", [""])[0] == "true", include=query.get("include", [""])[0],
                      exclude=query.get("exclude", [""])[0], whole_word=query.get("word", [""])[0] == "true",
                      regex=query.get("regex", [""])[0] == "true"))
@@ -292,7 +296,7 @@ def create_server(runtime: StudioRuntime, port=8710, frontend=None, token=None, 
           with runtime.lock:
             scope = parse_qs(parsed.query).get("scope", ["project"])[0]
             root = scm_root(scope)
-            result = source_status(root, runtime.project.build if root == runtime.root else "build")
+            result = source_status(root, runtime.build if root == runtime.root else "build")
             result["project_prefix"] = runtime.root.relative_to(root).as_posix() if root != runtime.root else ""
             self._send(200, result)
         elif parsed.path == "/api/scm/branches":
@@ -313,12 +317,12 @@ def create_server(runtime: StudioRuntime, port=8710, frontend=None, token=None, 
           query = parse_qs(parsed.query)
           with runtime.lock:
             root = scm_root(query.get("scope", ["project"])[0])
-            self._send(200, source_diff(root, runtime.project.build if root == runtime.root else "build", query.get("path", [""])[0],
+            self._send(200, source_diff(root, runtime.build if root == runtime.root else "build", query.get("path", [""])[0],
                        staged=query.get("staged", [""])[0] == "true"))
         elif parsed.path == "/api/artifact":
           relative = parse_qs(parsed.query).get("path", [""])[0]
           file = (runtime.root / relative).resolve()
-          build = (runtime.root / runtime.project.build).resolve()
+          build = (runtime.root / runtime.build).resolve()
           if not file.is_relative_to(build) or not file.is_file() or is_ai_config_path(file):
             self._send(404, {"error": "Artifact not found."})
           elif file.suffix not in {".json", ".svg", ".drawio", ".log", ".csv", ".mo", ".txt"}:
@@ -347,8 +351,8 @@ def create_server(runtime: StudioRuntime, port=8710, frontend=None, token=None, 
           result = extensions.change(runtime.root, body)
         elif self.path == "/api/extensions/recommendations":
           with runtime.lock:
-            recommend(runtime.root, runtime.project.build, body.get("id"))
-            result = extensions.recommendations(runtime.root, runtime.project.build)
+            recommend(runtime.root, runtime.build, body.get("id"))
+            result = extensions.recommendations(runtime.root, runtime.build)
         elif self.path == "/api/library":
           from .library_sources import library_index, reference_library_entry
 
@@ -361,21 +365,21 @@ def create_server(runtime: StudioRuntime, port=8710, frontend=None, token=None, 
             raise ProjectError("Unknown library operation.")
         elif self.path == "/api/search/replace":
           with runtime.lock:
-            result = replacement(runtime.root, runtime.project.build, body)
+            result = replacement(runtime.root, runtime.build, body)
         elif self.path == "/api/scene":
           if not isinstance(body.get("content"), str):
             raise ProjectError("Scene preview requires the current document text.")
-          result = scene.read_file(body.get("path"), version=body.get("version", ""), content=body["content"])
+          result = scene_preview().read_file(body.get("path"), version=body.get("version", ""), content=body["content"])
         elif self.path == "/api/file":
           with runtime.lock:
-            result = file_operation(runtime.root, runtime.project.build, body)
+            result = file_operation(runtime.root, runtime.build, body)
         elif self.path == "/api/scm/branches":
           with runtime.lock:
             result = switch_source_branch(runtime.project, body)
         elif self.path == "/api/scm":
           with runtime.lock:
             root = scm_root(body.get("scope", "project"))
-            result = source_operation(root, runtime.project.build if root == runtime.root else "build", body)
+            result = source_operation(root, runtime.build if root == runtime.root else "build", body)
             result["project_prefix"] = runtime.root.relative_to(root).as_posix() if root != runtime.root else ""
         elif self.path == "/api/ai/settings":
           workspace = (repository(runtime.root) if shutil.which("git") else None) or runtime.root
@@ -398,7 +402,7 @@ def create_server(runtime: StudioRuntime, port=8710, frontend=None, token=None, 
           snapshot = body.get("snapshot")
           with runtime.lock:
             root = scm_root(body.get("scope", "project"))
-            build = runtime.project.build if root == runtime.root else "build"
+            build = runtime.build if root == runtime.root else "build"
             diff = staged_commit_diff(root, build, snapshot)
           ai_settings.verify(connection)
           message = draft_commit_message(connection, diff, locale)
@@ -431,7 +435,7 @@ def serve(root: Path, port=8710, open_browser=False, *, empty_workspace=False):
   runtime = StudioRuntime(root)
   server = create_server(runtime, port, empty_workspace=empty_workspace)
   url = f"http://127.0.0.1:{server.server_port}"
-  print(f"Tex Studio: {url}\nProject: {runtime.project.name}\nPress Ctrl+C to stop.", flush=True)
+  print(f"Tex Studio: {url}\nProject: {runtime.name}\nPress Ctrl+C to stop.", flush=True)
   if open_browser:
     import webbrowser
     webbrowser.open(url)
@@ -504,7 +508,7 @@ export default defineConfig({{
     if not line:
       raise ProjectError("Vite failed to start; see the development server output above.")
     url = line.strip().split()[-1]
-    print(f"Tex Studio HMR: {url}\nProject: {runtime.project.name}\nPress Ctrl+C to stop.", flush=True)
+    print(f"Tex Studio HMR: {url}\nProject: {runtime.name}\nPress Ctrl+C to stop.", flush=True)
     if open_browser:
       import webbrowser
       webbrowser.open(url)

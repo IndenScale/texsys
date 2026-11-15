@@ -117,8 +117,10 @@ class StudioRuntime:
     self.project = inspect_project(self.root)
     if self.project is None:
       raise ProjectError("Initialize a texsys project before opening Studio.")
+    self.build = self.project.build
+    self.name = self.project.name
     self.plugins, self.diagnostics = discover_plugins() if plugins is None else (plugins, [])
-    self.directory = self.root / self.project.build / "studio"
+    self.directory = self.root / self.build / "studio"
     self.directory.mkdir(parents=True, exist_ok=True)
     self.lock = threading.RLock()
     self.processes = {}

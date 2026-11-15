@@ -1,6 +1,7 @@
 """Project-scoped file browsing, text editing and bounded literal search."""
 
 import hashlib
+import json
 import os
 import re
 from pathlib import Path
@@ -9,10 +10,19 @@ import tempfile
 
 from texsys.project import ProjectError
 from .ai import is_ai_config_path
+from .jsonc import strip_jsonc
 from .preview import ProjectPreview
 
-SKIP_DIRECTORIES = {".git", ".hg", ".svn", ".venv", "venv", "node_modules", "__pycache__",
-                    ".pytest_cache", ".mypy_cache", ".ruff_cache"}
+PROTECTED_DIRECTORIES = {".git", ".hg", ".svn"}
+# VS Code default files.exclude plus product performance skips. Workspace
+# .vscode/settings.json may override each pattern with true (hide) / false (show).
+DEFAULT_EXCLUDES = {
+    "**/.git": True, "**/.svn": True, "**/.hg": True, "**/CVS": True,
+    "**/.DS_Store": True, "**/Thumbs.db": True,
+    "**/node_modules": True, "**/.venv": True, "**/venv": True,
+    "**/__pycache__": True, "**/.pytest_cache": True, "**/.mypy_cache": True,
+    "**/.ruff_cache": True,
+}
 MAX_FILES = 5000
 MAX_PREVIEW_BYTES = 1024 * 1024
 MAX_SEARCH_MATCHES = 1000
@@ -31,11 +41,55 @@ def _private_build_path(file: Path, output: Path) -> bool:
                           or any(part.startswith(".") for part in parts))
 
 
+def load_excludes(root: Path) -> dict:
+  excludes = dict(DEFAULT_EXCLUDES)
+  try:
+    settings = json.loads(strip_jsonc((root / ".vscode" / "settings.json").read_text(encoding="utf-8")))
+  except (OSError, ValueError):
+    return excludes
+  overrides = settings.get("files.exclude") if isinstance(settings, dict) else None
+  if isinstance(overrides, dict):
+    for pattern, value in overrides.items():
+      if isinstance(pattern, str) and isinstance(value, bool):
+        excludes[pattern] = value
+  return excludes
+
+
+def _exclude_regex(pattern: str) -> re.Pattern:
+  if "/" not in pattern:
+    pattern = "**/" + pattern
+  parts = []
+  index = 0
+  while index < len(pattern):
+    char = pattern[index]
+    if char == "*":
+      if pattern[index:index + 3] == "**/":
+        parts.append("(?:[^/]+/)*")
+        index += 3
+        continue
+      if pattern[index:index + 2] == "**":
+        parts.append(".*")
+        index += 2
+        continue
+      parts.append("[^/]*")
+    elif char == "?":
+      parts.append("[^/]")
+    else:
+      parts.append(re.escape(char))
+    index += 1
+  return re.compile("^" + "".join(parts) + "$")
+
+
+def exclude_matcher(root: Path):
+  rules = [_exclude_regex(pattern) for pattern, hide in load_excludes(root).items() if hide]
+  return lambda relative: any(rule.match(relative) for rule in rules)
+
+
 def workspace_path(root: Path, relative: str, build: str, *, missing=False) -> Path:
   if not isinstance(relative, str) or not relative or "\0" in relative:
     raise ProjectError("请输入项目内的相对路径。")
   path = Path(relative)
-  if path.is_absolute() or ".." in path.parts or not path.parts or any(part in SKIP_DIRECTORIES for part in path.parts):
+  if path.is_absolute() or ".." in path.parts or not path.parts or any(part in PROTECTED_DIRECTORIES for part in path.parts):
     raise ProjectError("File must be inside the project source workspace.")
   root = root.resolve()
   candidate = root / path
@@ -63,10 +117,12 @@ def _file_path(root: Path, relative: str, build: str) -> Path:
 def project_files(root: Path, build: str) -> dict:
   root = root.resolve()
   output = (root / build).resolve()
+  excluded = exclude_matcher(root)
   metadata = {entry["path"]: entry for entry in ProjectPreview(root, build).file_entries(previews_only=True)}
   entries, folders = [], []
   for parent, directories, names in os.walk(root, followlinks=False):
-    directories[:] = sorted(name for name in directories if name not in SKIP_DIRECTORIES
+    directories[:] = sorted(name for name in directories
+                            if not excluded((Path(parent) / name).relative_to(root).as_posix())
                             and not (Path(parent) / name).is_symlink()
                             # The root is canonical and symlink directories are
                             # excluded before descent, so these paths need no
@@ -77,7 +133,8 @@ def project_files(root: Path, build: str) -> dict:
       return {"files": entries, "directories": folders[:MAX_FILES], "truncated": True}
     for name in sorted(names):
       file = Path(parent) / name
-      if name == ".DS_Store" or _private_build_path(file, output):
+      relative = file.relative_to(root)
+      if excluded(relative.as_posix()) or _private_build_path(file, output):
         continue
       try:
         info = file.stat(follow_symlinks=False)
@@ -85,7 +142,6 @@ def project_files(root: Path, build: str) -> dict:
           continue
       except OSError:
         continue
-      relative = file.relative_to(root)
       entry = {**metadata.get(relative.as_posix(), {}), "path": relative.as_posix(), "name": name,
                "parent": "" if relative.parent == Path(".") else relative.parent.as_posix(), "size": info.st_size}
       if file.is_relative_to(output):
