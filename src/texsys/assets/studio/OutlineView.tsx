@@ -22,10 +22,16 @@ export function OutlineView({
   document,
   cursor,
   onNavigate,
+  open,
+  onOpenChange,
+  bodyHeight,
 }: {
   document?: { name: string; value: string };
   cursor?: { line: number; column: number };
   onNavigate: (range: OutlineRange) => void;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  bodyHeight?: number;
 }) {
   const [followCursor, setFollowCursor] = useState(true);
   const [filterOnType, setFilterOnType] = useState(true);
@@ -175,7 +181,11 @@ export function OutlineView({
   };
 
   return (
-    <details className="welcome-side-section welcome-outline-section">
+    <details
+      className="welcome-side-section welcome-outline-section"
+      open={open}
+      onToggle={(event) => onOpenChange?.(event.currentTarget.open)}
+    >
       <summary>
         <Icon name="chevron" size={14} />
         <span>{t("大纲")}</span>
@@ -195,7 +205,10 @@ export function OutlineView({
           <NavigatorMenu label={t("大纲更多操作")} items={menuItems} />
         </span>
       </summary>
-      <div className="outline-body">
+      <div
+        className="outline-body"
+        style={bodyHeight === undefined ? undefined : { height: bodyHeight }}
+      >
         {!document ? (
           <p className="core-hint">{t("打开文档后可查看大纲。")}</p>
         ) : !supportsOutline(language) ? (

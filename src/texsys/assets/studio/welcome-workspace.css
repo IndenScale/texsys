@@ -13,11 +13,6 @@
 
 .welcome-side-sections {
   margin-top: auto;
-  border-top: 1px solid var(--ui-chrome-border-subtle);
-}
-
-.welcome-side-section + .welcome-side-section {
-  border-top: 1px solid var(--ui-chrome-border-subtle);
 }
 
 .welcome-side-section summary {

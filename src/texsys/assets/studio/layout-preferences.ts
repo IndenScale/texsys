@@ -116,6 +116,20 @@ export function readLayoutPreferences(project: string, defaults: StudioLayout): 
                   ...(typeof layout.explorerTimeline === "boolean" && {
                     explorerTimeline: layout.explorerTimeline,
                   }),
+                  ...(typeof layout.outlineHeight === "number" && {
+                    outlineHeight: dimension(
+                      layout.outlineHeight,
+                      44,
+                      defaults.outlineHeight ?? 320,
+                    ),
+                  }),
+                  ...(typeof layout.timelineHeight === "number" && {
+                    timelineHeight: dimension(
+                      layout.timelineHeight,
+                      44,
+                      defaults.timelineHeight ?? 160,
+                    ),
+                  }),
                   ...(layout.activityBarPosition === "side" ||
                   layout.activityBarPosition === "top" ||
                   layout.activityBarPosition === "bottom"

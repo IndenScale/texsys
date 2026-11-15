@@ -16,6 +16,8 @@ export type StudioLayout = {
   explorerFolders?: boolean;
   explorerOutline?: boolean;
   explorerTimeline?: boolean;
+  outlineHeight?: number;
+  timelineHeight?: number;
   activityBarPosition?: "side" | "top" | "bottom";
   activityBarSize?: "default" | "compact";
   hiddenActivities?: string[];

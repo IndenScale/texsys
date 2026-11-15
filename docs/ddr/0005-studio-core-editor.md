@@ -108,3 +108,16 @@ Tex Studio 以项目 Editor 为主体。文件资源管理器、全文搜索、�
 - 规则只约束内容驱动的自适应；用户显式动作（折叠节、视图菜单隐藏分区）仍按既有行为改变占用高度。
 
 验证：CI 参数 tsc、ESLint、typography 通过，Prettier 对改动文件通过；`node --test tools/test_studio_ui.mjs` 72 项（新增各空态固定主体存在、提示位于主体内与筛选无匹配主体不消失断言）。既有 Chrome 的 8710 标签页 DOM 实测（1512×719，经 AppleScript 操作既有标签页，不另起浏览器）：有符号（README.md 6 行）、不支持（.editorconfig）、无文档、全部折叠（1 行）、全部展开、筛选无匹配六态下大纲节顶缘 198.6 px、高 315.6 px、主体 287.6 px，时间线顶缘 514.2 px、高 172.8 px、主体 143.8 px，文件树高 97.6 px，全部不变；空态提示位于固定主体内。截图存本地忽略目录 `output/playwright/section-height/`。并行会话同期推进项目模式时间线，其未提交中间态使 `tools/test_navigator_menu.mjs` 1 项失败（CoreWorkspace 的 TimelineView 未定义 React），与本轮无关；该会话成果保留在工作区，不纳入本轮提交。
+
+## 文件资源管理器 - 分节高度把手与调节（2026-11-15）
+
+按参照为侧栏分节补拖拽把手（sash）与高度调节能力；高度只随用户动作变化，上一章节的内容无关规则继续成立：
+
+- 把手：首个可见节顶边界与大纲／时间线边界各一个 8 px 命中区，叠放 1 px 分隔线；悬停、键盘聚焦与拖拽时显示 4 px 工作台主色条（对应参照蓝条），光标 row-resize，拖拽期间全局锁定光标与选择。
+- 方向语义：边界随指针移动。首把手向下拖扩大文件树、收缩其下节；大纲／时间线把手向下拖扩大大纲、收缩时间线（两者总量不变）。首版首把手方向反了（底对齐容器使把手逆指针移动），本轮修正并回归。
+- 钳制：节主体最小 44 px；首把手在文件夹视图可见时为文件树保留至少 60 px；转移把手受两节最小值限制。拖拽折叠节自动展开。
+- 键盘与复位：把手可聚焦（role=separator，aria-valuemin/max/now），ArrowUp/Down ±8 px、Shift ±32 px；双击恢复默认高度（大纲 `min(320px, 40vh)`、时间线 `min(160px, 20vh)`）。
+- 持久化：`outlineHeight`／`timelineHeight` 写入 StudioLayout，沿 layout-preferences 既有路径以 welcome 键保存、重载恢复；释放／键盘／双击时提交，提交值由拖拽自身 base+dy 计算，不依赖渲染时机。
+- 视图菜单隐藏分区、显式折叠节仍按既有行为改变占用高度；仅一个节可见时单把手调节该节。
+
+验证：CI 参数 tsc、ESLint、typography 通过，Prettier 对改动文件通过；新增 `tools/test_side_sections.mjs` 6 项（拖拽实时改高与释放提交、双向钳制、转移、键盘／双击、折叠自动展开与内容态稳定、单节／无节），与 `test_studio_ui.mjs` 合计 79 项通过。既有 Chrome 8710 标签页实测：首把手下拖 40 px 把手顶缘 195→235 随指针、大纲 288→248；转移把手下拖 30 px 边界 511→541、大纲 +30／时间线 -30；释放写入 layouts[""]（258/144）且重载恢复同值；README 与 .editorconfig 两内容态节高一致；拖拽中截图可见主色把手条。截图存 `output/playwright/section-height/`（sash-dragging.png、sash-final.png）。osascript 无辅助功能权限，键盘以页内合成事件验证同一处理器。并行会话的项目模式时间线中间态与本轮无关，其成果保留在工作区，不纳入本轮提交。

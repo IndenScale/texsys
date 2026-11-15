@@ -1559,4 +1559,8 @@ export const englishMessages: Record<string, string> = {
   场景响应与当前文件不匹配: "Scene response does not match the current file",
   包络几何: "Envelope geometry",
   网格几何: "Mesh geometry",
+  调整大纲高度: "Adjust outline height",
+  调整时间线高度: "Adjust timeline height",
+  调整大纲与时间线高度: "Adjust outline and timeline heights",
+  "拖拽调整高度，双击恢复默认": "Drag to resize; double-click to reset",
 };

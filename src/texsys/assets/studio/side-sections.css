@@ -1,0 +1,40 @@
+.side-sash {
+  position: relative;
+  z-index: 6;
+  height: 8px;
+  margin-block: -4px;
+  cursor: row-resize;
+  touch-action: none;
+}
+
+.side-sash::before {
+  content: "";
+  position: absolute;
+  inset: 50% 0 auto;
+  height: 1px;
+  background: var(--ui-chrome-border-subtle);
+}
+
+.side-sash::after {
+  content: "";
+  position: absolute;
+  inset: 2px 0;
+  background: var(--ui-chrome-accent, #087f72);
+  opacity: 0;
+  transition: opacity var(--motion-fast);
+}
+
+.side-sash:hover::after,
+.side-sash:focus-visible::after,
+.side-sash.dragging::after {
+  opacity: 1;
+}
+
+.side-sash:focus-visible {
+  outline: none;
+}
+
+body.side-sash-dragging {
+  cursor: row-resize;
+  user-select: none;
+}

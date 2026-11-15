@@ -4,9 +4,9 @@ import { WorkspaceTabStrip } from "./atomstudio/WorkspaceTabs";
 import { WorkbenchBottomPanel } from "./BottomPanel";
 import { coreItems, coreSidebarTitles, isCoreActivity, type Activity } from "./CoreWorkspace";
 import { ExplorerTree } from "./ExplorerTree";
+import { ExplorerSideSections } from "./ExplorerSideSections";
 import { NavigatorMenu, type NavigatorMenuItem } from "./NavigatorMenu";
 import { NavigatorButton, NavigatorPage, NavigatorPanel, NavigatorToolbar } from "./NavigatorPanel";
-import { OutlineView } from "./OutlineView";
 import { SourceEditor, revealSourceOutline, type SourceModels } from "./SourceEditor";
 import { t } from "./i18n";
 import { closeDocumentCommand } from "./menus";
@@ -559,39 +559,25 @@ export function WelcomeWorkspace({
                     ))}
                 </>
               )}
-              {(showOutline || showTimeline) && (
-                <div className="welcome-side-sections">
-                  {showOutline && (
-                    <OutlineView
-                      document={
-                        current && active !== welcomeId
-                          ? { name: current.name, value: current.value }
-                          : undefined
-                      }
-                      cursor={cursor}
-                      onNavigate={(range) => {
-                        if (current)
-                          revealSourceOutline(
-                            current.id + "/" + current.name,
-                            models.current,
-                            range,
-                          );
-                      }}
-                    />
-                  )}
-                  {showTimeline && (
-                    <details className="welcome-side-section welcome-timeline-section">
-                      <summary>
-                        <Icon name="chevron" size={14} />
-                        <span>{t("时间线")}</span>
-                      </summary>
-                      <div className="timeline-body">
-                        <p className="core-hint">{t("打开文件后可查看时间线。")}</p>
-                      </div>
-                    </details>
-                  )}
-                </div>
-              )}
+              <ExplorerSideSections
+                showOutline={showOutline}
+                showTimeline={showTimeline}
+                foldersVisible={showFolders}
+                activeDocument={
+                  current && active !== welcomeId
+                    ? { name: current.name, value: current.value }
+                    : undefined
+                }
+                cursor={cursor}
+                onNavigate={(range) => {
+                  if (current)
+                    revealSourceOutline(current.id + "/" + current.name, models.current, range);
+                }}
+                initialHeights={{ outline: layout.outlineHeight, timeline: layout.timelineHeight }}
+                onCommit={(heights) =>
+                  changeLayout({ outlineHeight: heights.outline, timelineHeight: heights.timeline })
+                }
+              />
             </div>
           </NavigatorPage>
           {(Object.keys(activityEmptyHints) as Exclude<Activity, "explorer">[]).map((id) => (
