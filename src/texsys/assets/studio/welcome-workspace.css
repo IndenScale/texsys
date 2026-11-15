@@ -35,30 +35,17 @@
 
 .welcome-side-section summary > svg {
   color: var(--ui-text-muted);
+  transform: rotate(-90deg);
   transition: transform var(--motion-fast);
 }
 
 .welcome-side-section[open] summary > svg {
-  transform: rotate(90deg);
+  transform: rotate(0deg);
 }
 
 .welcome-side-section > p {
   margin: 0;
   padding: 0 12px 8px calc(var(--navigator-gutter) + 20px);
-}
-
-.welcome-explorer-caption {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  padding: 6px 10px 6px var(--navigator-gutter);
-}
-
-.welcome-explorer-caption strong {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .welcome-explorer-note {

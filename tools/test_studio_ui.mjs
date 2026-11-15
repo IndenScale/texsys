@@ -614,8 +614,8 @@ test("locale selection accepts supported values and defaults malformed preferenc
 });
 
 test("translations preserve identifiers, literal replacement text, and optional fallbacks", () => {
-  assert.equal(translate("zh-CN", "文件资源管理器"), "文件资源管理器");
-  assert.equal(translate("en", "文件资源管理器"), "Explorer");
+  assert.equal(translate("zh-CN", "资源管理器"), "资源管理器");
+  assert.equal(translate("en", "资源管理器"), "Explorer");
   assert.equal(translate("en", "源代码管理"), "Source Control");
   assert.equal(translate("en", "搜索"), "Search");
   assert.equal(

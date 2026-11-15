@@ -130,7 +130,7 @@ export const studioMenus: MenuGroup[] = [
       { id: "view.open", label: "打开视图…", icon: "search", keywords: "Open View" },
       {
         id: "workspace.explorer",
-        label: "文件资源管理器",
+        label: "资源管理器",
         icon: "files",
         keywords: "Explorer 文件树",
       },

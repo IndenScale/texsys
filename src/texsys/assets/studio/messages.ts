@@ -280,7 +280,7 @@ export const englishMessages: Record<string, string> = {
   搜索范围: "Search scope",
   全部: "All",
   命令: "Commands",
-  文件资源管理器: "Explorer",
+  资源管理器: "Explorer",
   搜索: "Search",
   源代码管理: "Source Control",
   "文件有未保存的编辑，已打开文件；请保存后再按磁盘搜索结果定位。":
@@ -293,7 +293,7 @@ export const englishMessages: Record<string, string> = {
   "Explorer 更多操作": "Explorer actions",
   更多操作: "More actions",
   刷新资源: "Refresh resources",
-  文件资源管理器内容: "Explorer contents",
+  资源管理器内容: "Explorer contents",
   "项目 {0}": "Project {0}",
   项目文件操作: "Project file actions",
   新建文件: "New file",
@@ -340,7 +340,7 @@ export const englishMessages: Record<string, string> = {
     "No text differences. Only file permissions may have changed.",
   "差异超过 1 MiB，显示已截断。": "Diff exceeds 1 MiB and has been truncated.",
   "打开文件，开始编辑": "Open a file to start editing",
-  "从文件资源管理器选择文件，或使用 ⌘ / Ctrl + P 快速打开。":
+  "从资源管理器选择文件，或使用 ⌘ / Ctrl + P 快速打开。":
     "Select a file in Explorer, or press ⌘ / Ctrl + P to open one.",
   打开专业预览: "Open discipline preview",
   正在打开文件: "Opening file",

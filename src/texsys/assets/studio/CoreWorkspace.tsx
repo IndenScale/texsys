@@ -184,7 +184,7 @@ const CoreContext = createContext<Core | null>(null);
 export const useCoreWorkspace = () => useContext(CoreContext);
 const emptyListing: FileListing = { files: [], directories: [], truncated: false };
 export const coreItems: { id: Activity; label: string; icon: string; shortcutKey?: string }[] = [
-  { id: "explorer", label: "文件资源管理器", icon: "files", shortcutKey: "E" },
+  { id: "explorer", label: "资源管理器", icon: "files", shortcutKey: "E" },
   { id: "search", label: "搜索", icon: "search", shortcutKey: "F" },
   { id: "scm", label: "源代码管理", icon: "branch", shortcutKey: "G" },
   { id: "extensions", label: "扩展", icon: "extensions", shortcutKey: "X" },
@@ -192,7 +192,7 @@ export const coreItems: { id: Activity; label: string; icon: string; shortcutKey
   { id: "instances", label: "项目实例", icon: "system" },
 ];
 export const coreSidebarTitles: Record<Activity, string> = {
-  explorer: "文件资源管理器",
+  explorer: "资源管理器",
   search: "搜索",
   scm: "源代码管理",
   extensions: "扩展",
@@ -2048,7 +2048,7 @@ export function CoreWorkspaceProvider({
     >
       <NavigatorPage
         hidden={activity !== "explorer"}
-        aria-label={t("文件资源管理器内容")}
+        aria-label={t("资源管理器内容")}
         onPointerDown={(event) => {
           if (!creation || creating || event.button !== 0) return;
           const target = event.target;
@@ -3061,7 +3061,7 @@ export function CoreWorkspaceProvider({
       <div className="core-welcome">
         <Icon name="system" size={44} />
         <h2>{t("打开文件，开始编辑")}</h2>
-        <p>{t("从文件资源管理器选择文件，或使用 ⌘ / Ctrl + P 快速打开。")}</p>
+        <p>{t("从资源管理器选择文件，或使用 ⌘ / Ctrl + P 快速打开。")}</p>
         <div className="core-welcome-shortcuts">
           <div className="core-welcome-shortcut">
             <span>{t("命令面板…")}</span>

@@ -260,7 +260,7 @@
   display: flex;
   align-items: center;
   gap: 0;
-  height: 24px;
+  height: 22px;
   width: 100%;
   text-align: left;
   padding: 0 10px 0 calc(var(--tree-base) + var(--tree-depth) * var(--tree-indent));
@@ -327,11 +327,6 @@
     var(--tree-base) + var(--tree-twistie-size) / 2 + var(--guide-depth) * var(--tree-indent)
   );
   border-left: 1px solid var(--tree-guide-color);
-  opacity: 0;
-}
-.core-file-tree:hover .core-tree-guide,
-.core-file-tree:focus-within .core-tree-guide {
-  opacity: 1;
 }
 .core-file-tree:is(:hover, :focus-within) .core-tree-guide.active {
   border-color: var(--tree-active-guide-color);
@@ -647,9 +642,6 @@
 .core-domain-tabs {
   flex-shrink: 0;
   min-width: 0;
-}
-.core-domain-tabs .page-tabs {
-  overflow: visible;
 }
 .core-surface-content,
 .core-document-content,

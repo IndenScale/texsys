@@ -150,7 +150,7 @@ export function ExplorerTree({
         <span className="core-tree-twistie" aria-hidden="true">
           {entry.directory && !split && <Icon name="chevron" size={12} expanded={entryExpanded} />}
         </span>
-        {!isRoot && (
+        {!isRoot && (entry.icon || split || !entry.directory) && (
           <span className="core-tree-icon" aria-hidden="true">
             {entry.icon || entry.directory ? (
               <Icon name={entry.icon ?? "folder"} size={16} />

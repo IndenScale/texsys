@@ -251,7 +251,7 @@ test("activity context actions target the clicked entry, and blank space can res
     bottomTab: "terminal",
   };
   const items = [
-    { id: "explorer", label: "文件资源管理器", icon: "Explorer" },
+    { id: "explorer", label: "资源管理器", icon: "Explorer" },
     { id: "search", label: "搜索", icon: "Search" },
     { id: "scm", label: "源代码管理", icon: "Git", count: 2 },
   ];
@@ -304,7 +304,7 @@ test("activity context actions target the clicked entry, and blank space can res
   assert.deepEqual(selected, []);
 
   await context(document.querySelector(".activity-bar"));
-  assert.equal(item("隐藏“文件资源管理器”"), undefined);
+  assert.equal(item("隐藏“资源管理器”"), undefined);
   assert.equal(item("搜索").getAttribute("aria-checked"), "false");
   await click(item("搜索"));
   assert.ok(tab("search"));
