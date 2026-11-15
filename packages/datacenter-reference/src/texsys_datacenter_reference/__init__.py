@@ -5,6 +5,9 @@ from texsys.packages import TexsysPackage
 from texsys.project import inspect_project
 from texsys.targets import Artifact, TargetDefinition, TargetResult
 
+from .air_routing import build_air_coordination, build_air_routing, build_air_scene
+from .air_study import build_air_check, build_air_study
+from .air_views import build_air_view
 from .architecture import build_architecture
 from .bom import project_reference_bom
 from .building_views import build_building_view
@@ -49,7 +52,7 @@ from .wet_utility_views import build_wet_view
 
 class DatacenterReferencePackage(TexsysPackage):
   name = "datacenter-reference"
-  version = "0.14.1"
+  version = "0.15.0"
 
   def targets(self) -> tuple[TargetDefinition, ...]:
     return (
@@ -177,6 +180,23 @@ class DatacenterReferencePackage(TexsysPackage):
                        dependencies=("dcr:tcs-routing",), input_patterns=(), named_output=True),
       TargetDefinition("dcr:tcs-study-view", self.name, self.version, build_tcs_view,
                        dependencies=("dcr:tcs-study",), input_patterns=(), named_output=True),
+      TargetDefinition("dcr:air-routing", self.name, self.version, build_air_routing, dependencies=("dcr:pod-layout",),
+                       input_patterns=spatial_inputs("*.sdl.json", "*/module.toml", "design-basis.json",
+                                                     "placement.study.json", "air-routing.json")),
+      TargetDefinition("dcr:air-coordination", self.name, self.version, build_air_coordination,
+                       dependencies=("dcr:air-routing", "dcr:tcs-routing", "dcr:fire-systems"), input_patterns=()),
+      TargetDefinition("dcr:air-scene", self.name, self.version, build_air_scene,
+                       dependencies=("dcr:air-coordination", "dcr:tcs-coordination"), input_patterns=()),
+      TargetDefinition("dcr:air-study", self.name, self.version, build_air_study,
+                       dependencies=("dcr:air-routing", "dcr:tcs-study"),
+                       input_patterns=spatial_inputs("*.sdl.json", "*/module.toml", "design-basis.json",
+                                                     "placement.study.json", "air-study.json")),
+      TargetDefinition("dcr:air-check", self.name, self.version, build_air_check,
+                       dependencies=("dcr:air-study",), input_patterns=()),
+      TargetDefinition("dcr:air-layout-view", self.name, self.version, build_air_view,
+                       dependencies=("dcr:air-routing",), input_patterns=(), named_output=True),
+      TargetDefinition("dcr:air-study-view", self.name, self.version, build_air_view,
+                       dependencies=("dcr:air-study",), input_patterns=(), named_output=True),
       TargetDefinition("dcr:structure-model", self.name, self.version, build_structure, dependencies=("dcr:layout",),
                        input_patterns=spatial_inputs("structure.json")),
       TargetDefinition("dcr:structure-gravity", self.name, self.version, build_gravity,

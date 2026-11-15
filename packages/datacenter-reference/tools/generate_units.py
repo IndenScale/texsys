@@ -104,9 +104,8 @@ def it_container() -> dict:
       connections.append(conn(len(connections) + 1, f"{supply}.out_{i}", f"Rack{i:02d}.tcs_in_{path}"))
       connections.append(conn(len(connections) + 1, f"Rack{i:02d}.tcs_out_{path}", f"{ret}.in_{i}"))
     connections.append(conn(len(connections) + 1, f"{ret}.out", f"{cdu}.tcs_return"))
-  for units, racks, path in ((("PaA1", "PaA2"), range(1, 9), "a"),
-                              (("PaB1", "PaB2"), range(1, 9), "b")):
-    for unit, group in zip(units, (list(racks)[:4], list(racks)[4:])):
+  for units, path in ((("PaA1", "PaA2"), "a"), (("PaB1", "PaB2"), "b")):
+    for unit, group in zip(units, ((1, 2, 5, 6), (3, 4, 7, 8)), strict=True):
       for i in group:
         connections.append(conn(len(connections) + 1, f"{unit}.supply", f"Rack{i:02d}.air_in_{path}"))
         connections.append(conn(len(connections) + 1, f"Rack{i:02d}.air_out_{path}", f"{unit}.return"))
@@ -152,6 +151,7 @@ def it_container() -> dict:
     "geometry_layout": {},
     "construction": {
       "wall_thickness_m": .08,
+      "flank_skin_m": .016,
       "roof_thickness_m": .08,
       "doors": {"D-S": {"side": "south", "center_x_m": 3.7, "clear_width_m": 1.10, "clear_height_m": 2.17},
                 "D-N": {"side": "north", "center_x_m": 3.7, "clear_width_m": 1.10, "clear_height_m": 2.17}},

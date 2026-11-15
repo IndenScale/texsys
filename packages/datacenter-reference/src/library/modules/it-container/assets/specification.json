@@ -212,6 +212,7 @@
   },
   "construction": {
     "wall_thickness_m": 0.08,
+    "flank_skin_m": 0.016,
     "roof_thickness_m": 0.08,
     "doors": {
       "D-S": {

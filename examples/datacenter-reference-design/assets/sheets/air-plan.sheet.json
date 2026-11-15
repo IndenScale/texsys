@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "template": "sheet:a3-landscape",
+  "metadata": "assets/sheets/air-plan.title.json",
+  "texts": {
+    "notes": "assets/sheets/air-plan.txt",
+    "footer": "assets/sheets/footer.txt"
+  },
+  "views": {
+    "main": {
+      "path": "build/drawings/views/air-plan.svg",
+      "scale": "1:30"
+    }
+  }
+}

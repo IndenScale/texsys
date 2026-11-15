@@ -70,7 +70,7 @@ def test_aidc_deliverables_bind_to_the_same_geometry_and_recompute_the_fws_head(
   assert dossier["evidence_complete"]
   assert dossier["input_digest"] == _read(baseline.report)["input_digest"]
   assert dossier["engineering_acceptance"] == "pending-responsible-review"
-  assert len(list((root / "build/drawings/sheets").glob("*.svg"))) == 42
+  assert len(list((root / "build/drawings/sheets").glob("*.svg"))) == 45
   old_dossier = file_digest(root / "build/review/aidc-discipline-review.json")
   drawing = root / "build/drawings/sheets/fws-network.svg"
   old_route_drawing = file_digest(drawing)
@@ -87,6 +87,7 @@ def test_aidc_deliverables_bind_to_the_same_geometry_and_recompute_the_fws_head(
   _check_wet_utility_delivery(root)
   _check_pod_delivery(root)
   _check_tcs_delivery(root)
+  _check_air_delivery(root)
   report = root / MODEL / "fws-network-study.json"
   before = _read(report)
   path = root / "src/fws-network.json"
@@ -1120,5 +1121,111 @@ def test_tcs_recomputes_head_and_rejects_collisions_and_joint_thermal_duty(tmp_p
   assert "rack-temperature" in cases["fws-peak:plant-off:CoolContainer1:local-cdu-off:A"]["pods"]["IT01"]["limiting_checks"]
 
   design.write_bytes(original)
+  result, records = _run(root)
+  assert result.status == "pass" and records["review-package"]["execution"] == "cached"
+
+
+def _check_air_delivery(root):
+  source = root / MODEL / "air-routing.json"
+  layout = _read(source)
+  study = _read(root / MODEL / "air-study.json")
+  coordination = _read(root / MODEL / "air-coordination.json")
+  assert len(layout["pods"]) == coordination["pods_checked"] == 16
+  assert coordination["installation_volumes"] == 320
+  assert not coordination["issues"] and study["air_digest"] == file_digest(source)
+  assert study["tcs_digest"] == file_digest(root / MODEL / "tcs-study.json")
+  first = layout["pods"]["IT01"]
+  assert len(first["racks"]) == 8 and len(first["units"]) == 4
+  assert first["binding"]["A"]["Rack05"]["unit"] == "PaA1"
+  assert first["binding"]["B"]["Rack04"]["unit"] == "PaB2"
+  cable = _read(REPO / "packages/datacenter-reference/src/library/modules/it-container/it-container.sdl.json")
+  for side, entries in first["binding"].items():
+    assert {row[leg] for row in entries.values() for leg in ("supply_sdl", "return_sdl")} == set(
+      cable["components"]["ItContainer"]["nets"][f"Air{side}"]["connections"])
+  shaft = first["racks"]["Rack01"]
+  assert shaft["gap_m"] == pytest.approx(.064)
+  assert shaft["flow_area_m2"] == pytest.approx(.064*(.8-.048))
+  assert shaft["upflow_length_m"] == pytest.approx(2.32-1.1)
+  assert len(study["cases"]) == 11 and all(not records["failed_pods"] for records in study["cases"].values())
+  normal = study["cases"]["normal"]["pods"]["IT01"]
+  assert normal["active_units"] == ["PaA1", "PaA2"]
+  assert normal["sensible_load_kw"] == pytest.approx(120-90+3)
+  assert normal["supplied_m3_s"] == pytest.approx(2*.64*.15*15)
+  hot = 21.5+normal["sensible_load_kw"]/(normal["captured_m3_s"]*1.2*1.006)
+  first_rack = normal["racks"]["Rack01"]
+  assert first_rack["inlet_c"] == pytest.approx(21.5+(hot-21.5)*first_rack["recirculated_fraction"])
+  assert abs(normal["energy_residual_kw"]) < 1e-9
+  assert abs(normal["hot_pool_residual_kw"]) < 1e-9
+  bus = study["cases"]["electrical-train-off:A"]
+  assert bus["tcs_case"] == "local-cdu-off:A"
+  assert bus["pods"]["IT01"]["active_units"] == ["PaB1", "PaB2"]
+  assert bus["pods"]["IT01"]["pipe_dew_margin_k"] == pytest.approx(27-12)
+  assert study["cases"]["unit-off:PaA1"]["pods"]["IT01"]["active_units"] == ["PaB1", "PaA2"]
+
+  stage = Usd.Stage.Open(str(root / "build/scenes/aidc-it-pod-air.usda"))
+  vent = stage.GetPrimAtPath("/AIDC/Air/IT01/Rack01_EX")
+  assert vent.GetAttribute("texsys:identity").Get() == "IT01/Rack01-EX"
+  assert stage.GetPrimAtPath("/AIDC/TCS/IT01/A_S_Rack01")
+  plan = ET.parse(root / "build/drawings/views/air-plan.svg")
+  assert {tag.get("data-air-unit") for tag in plan.findall(f".//{SVG}g[@data-air-unit]")} == set(first["units"])
+  environment = ET.parse(root / "build/drawings/views/air-environment.svg")
+  for tag in environment.findall(f".//{SVG}rect[@data-rack]"):
+    expected = bus["pods"]["IT01"]["racks"][tag.get("data-rack")]["inlet_c"]
+    assert float(tag.get("data-temperature")) == pytest.approx(expected, abs=1e-6)
+
+
+def test_air_geometry_and_spare_changes_recompile_without_hiding_failed_environment(tmp_path):
+  root = _checkout(tmp_path)
+  result, _ = _run(root)
+  assert result.status == "pass", result.diagnostics
+  route = root / "src/air-routing.json"
+  previous = route.read_bytes()
+  source = _read(route)
+  model = root / MODEL / "air-study.json"
+  normal = _read(model)["cases"]["normal"]["pods"]["IT01"]
+  source["supply"]["duct_width_m"] = .68
+  write_json(route, source)
+  result, records = _run(root)
+  assert result.status == "pass", result.diagnostics
+  assert records["dcr:tcs-study"]["execution"] == "cached"
+  assert records["sheet-air-environment"]["execution"] == "executed"
+  changed = _read(model)["cases"]["normal"]["pods"]["IT01"]
+  assert changed["supplied_m3_s"] > normal["supplied_m3_s"]
+  assert changed["racks"]["Rack01"]["inlet_c"] < normal["racks"]["Rack01"]["inlet_c"]
+
+  source["supply"]["duct_width_m"] = .32
+  write_json(route, source)
+  result, records = _run(root)
+  assert result.status == "fail" and records["review-package"]["execution"] == "blocked"
+  assert records["dcr:air-coordination"]["status"] == "pass"
+  assert records["sheet-air-environment"]["status"] == "pass"
+  branch = _read(model)["cases"]["normal"]["pods"]["IT01"]
+  assert any(not row["checks"]["inlet-temperature"] for row in branch["racks"].values())
+  route.write_bytes(previous)
+
+  placement = root / "src/pod-layout.json"
+  original = placement.read_bytes()
+  posed = _read(placement)
+  posed["installation_overrides"] = {"IT01": {"Rack01": {"minimum_m": [.11, .055, 0]}}}
+  write_json(placement, posed)
+  result, records = _run(root)
+  assert result.status == "fail"
+  assert records["dcr:pod-coordination"]["status"] == "pass"
+  assert "AIDC_AIR_REAR_GAP" in result.diagnostics
+  assert records["sheet-air-section"]["status"] == "pass"
+  placement.write_bytes(original)
+
+  design = root / "src/air-study.json"
+  original = design.read_bytes()
+  settings = _read(design)
+  settings["unavailable_units"] = ["IT01/PaA1", "IT01/PaB1"]
+  write_json(design, settings)
+  result, records = _run(root)
+  assert result.status == "fail" and records["sheet-air-environment"]["status"] == "pass"
+  broken = _read(model)["cases"]["normal"]["pods"]["IT01"]
+  assert not broken["checks"]["spare-coverage"]
+  assert broken["racks"]["Rack01"]["directed_supply_m3_s"] == 0
+  design.write_bytes(original)
+
   result, records = _run(root)
   assert result.status == "pass" and records["review-package"]["execution"] == "cached"

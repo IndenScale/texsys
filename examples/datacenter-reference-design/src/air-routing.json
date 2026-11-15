@@ -1,0 +1,26 @@
+{
+  "schema_version": 1,
+  "state": "assumed",
+  "basis": "精密空调顶部短风管向公共冷通道送风，机柜背部通过独立窄腔向上排至舱内共用回风空间，空调面板直接回风。按机柜面板和舱侧围护净距反注排风截面。冷热空气的混合、旁流和回流按候选等效阻力计算。",
+  "nets": {"A": "AirA", "B": "AirB"},
+  "supply": {
+    "port_depth_m": 0.15,
+    "duct_width_m": 0.64,
+    "duct_bottom_m": 2.105,
+    "duct_height_m": 0.18,
+    "aisle_inset_m": 0.12,
+    "roughness_factor": 0.025,
+    "elbow_k": 0.44,
+    "terminal_k": 0.46,
+    "maximum_velocity_m_s": 15.0
+  },
+  "return_grille": {"width_m": 0.58, "height_m": 0.30, "depth_m": 0.024, "local_loss_k": 0.39},
+  "rack_riser": {
+    "side_inset_m": 0.024,
+    "bottom_m": 0.90,
+    "outlet_m": 2.32,
+    "minimum_gap_m": 0.045,
+    "roughness_factor": 0.032,
+    "turn_k": 0.84
+  }
+}

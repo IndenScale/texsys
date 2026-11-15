@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "template": "sheet:a3-landscape",
+  "metadata": "assets/sheets/air-section.title.json",
+  "texts": {
+    "notes": "assets/sheets/air-section.txt",
+    "footer": "assets/sheets/footer.txt"
+  },
+  "views": {
+    "main": {
+      "path": "build/drawings/views/air-section.svg",
+      "scale": "1:25"
+    }
+  }
+}

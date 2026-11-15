@@ -753,40 +753,40 @@
         {
           "from": "PaA1.supply",
           "id": "link-067",
-          "to": "Rack03.air_in_a"
+          "to": "Rack05.air_in_a"
         },
         {
-          "from": "Rack03.air_out_a",
+          "from": "Rack05.air_out_a",
           "id": "link-068",
           "to": "PaA1.return"
         },
         {
           "from": "PaA1.supply",
           "id": "link-069",
-          "to": "Rack04.air_in_a"
+          "to": "Rack06.air_in_a"
         },
         {
-          "from": "Rack04.air_out_a",
+          "from": "Rack06.air_out_a",
           "id": "link-070",
           "to": "PaA1.return"
         },
         {
           "from": "PaA2.supply",
           "id": "link-071",
-          "to": "Rack05.air_in_a"
+          "to": "Rack03.air_in_a"
         },
         {
-          "from": "Rack05.air_out_a",
+          "from": "Rack03.air_out_a",
           "id": "link-072",
           "to": "PaA2.return"
         },
         {
           "from": "PaA2.supply",
           "id": "link-073",
-          "to": "Rack06.air_in_a"
+          "to": "Rack04.air_in_a"
         },
         {
-          "from": "Rack06.air_out_a",
+          "from": "Rack04.air_out_a",
           "id": "link-074",
           "to": "PaA2.return"
         },
@@ -833,40 +833,40 @@
         {
           "from": "PaB1.supply",
           "id": "link-083",
-          "to": "Rack03.air_in_b"
+          "to": "Rack05.air_in_b"
         },
         {
-          "from": "Rack03.air_out_b",
+          "from": "Rack05.air_out_b",
           "id": "link-084",
           "to": "PaB1.return"
         },
         {
           "from": "PaB1.supply",
           "id": "link-085",
-          "to": "Rack04.air_in_b"
+          "to": "Rack06.air_in_b"
         },
         {
-          "from": "Rack04.air_out_b",
+          "from": "Rack06.air_out_b",
           "id": "link-086",
           "to": "PaB1.return"
         },
         {
           "from": "PaB2.supply",
           "id": "link-087",
-          "to": "Rack05.air_in_b"
+          "to": "Rack03.air_in_b"
         },
         {
-          "from": "Rack05.air_out_b",
+          "from": "Rack03.air_out_b",
           "id": "link-088",
           "to": "PaB2.return"
         },
         {
           "from": "PaB2.supply",
           "id": "link-089",
-          "to": "Rack06.air_in_b"
+          "to": "Rack04.air_in_b"
         },
         {
-          "from": "Rack06.air_out_b",
+          "from": "Rack04.air_out_b",
           "id": "link-090",
           "to": "PaB2.return"
         },

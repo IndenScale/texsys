@@ -102,7 +102,8 @@
         "build/scenes/aidc-it-pod-typical.usda",
         "build/scenes/aidc-pods-coordinated.usda",
         "build/schedules/aidc-pod-equipment.csv",
-        "build/datacenter-reference/spatial/tcs-coordination.json"
+        "build/datacenter-reference/spatial/tcs-coordination.json",
+        "build/datacenter-reference/spatial/air-coordination.json"
       ],
       "pending": [
         "设备真实规格、机柜舱内完整布置及检修",
@@ -215,12 +216,27 @@
         "build/scenes/aidc-tcs-coordinated.usda",
         "build/scenes/aidc-it-pod-tcs.usda",
         "build/schedules/aidc-tcs-pipes.csv",
-        "build/schedules/aidc-tcs-rack-duty.csv"
+        "build/schedules/aidc-tcs-rack-duty.csv",
+        "build/drawings/sheets/air-plan.svg",
+        "build/drawings/sheets/air-plan-sheet.json",
+        "build/drawings/sheets/air-section.svg",
+        "build/drawings/sheets/air-section-sheet.json",
+        "build/drawings/sheets/air-environment.svg",
+        "build/drawings/sheets/air-environment-sheet.json",
+        "build/datacenter-reference/spatial/air-routing.json",
+        "build/datacenter-reference/spatial/air-coordination.json",
+        "build/datacenter-reference/spatial/air-study.json",
+        "build/datacenter-reference/spatial/air-check.json",
+        "build/scenes/aidc-air-coordinated.usda",
+        "build/scenes/aidc-it-pod-air.usda",
+        "build/schedules/aidc-air-sections.csv",
+        "build/schedules/aidc-air-rack-duty.csv"
       ],
       "pending": [
         "承压缓冲罐及锚固专项、实测设备与罐内压损和混合、泵阀水锤与排空、共因故障、支吊架及穿越详图",
         "冷却水厂商选型曲线与湿球、压力保持和气蚀、阀组及支架及供电控制联锁专项复核",
-        "TCS CDU 厂家泵曲线和换热性能、软管弯曲及检修、阀组及支架、泄漏检测、泵阀切换瞬态与泵热反注"
+        "TCS CDU 厂家泵曲线和换热性能、软管弯曲及检修、阀组及支架、泄漏检测、泵阀切换瞬态与泵热反注",
+        "风机外静压与风口送回风实测、局部冷热混合与冷通道组织、逐柜风扇曲线、湿度动态、实际封板防火和检修"
       ]
     },
     "plumbing": {

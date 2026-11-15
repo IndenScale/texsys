@@ -78,6 +78,9 @@ def _shell(size, raw, headroom):
   length, width, height = size
   t = number(raw["wall_thickness_m"], "module wall thickness")
   roof = number(raw["roof_thickness_m"], "module roof thickness")
+  skin = number(raw.get("flank_skin_m", t), "flank enclosure thickness")
+  if skin > t:
+    raise ValueError("The flank skin must fit within the wall allocation.")
   ax, a, bx, b = vector(raw["working_aisle_bounds_m"], 4, "working aisle bounds")
   if not (t <= ax < bx <= length-t and t <= a < b <= width-t and height-roof >= headroom):
     raise ValueError("Working aisle needs containment within the clear pod envelope and sufficient headroom.")
@@ -94,7 +97,7 @@ def _shell(size, raw, headroom):
     side = entry["side"]
     if not ax <= lo < hi <= bx or not headroom <= high < height-roof or side not in {"north", "south"}:
       raise ValueError(f"{key}: place a full-height doorway wholly within reach of the working aisle.")
-    low, upper = (0., t) if side == "south" else (width-t, width)
+    low, upper = (0., skin) if side == "south" else (width-skin, width)
     exterior, end = (0., a) if side == "south" else (width, b)
     for suffix, x0, x1, z0 in (("L", t, lo, 0), ("R", hi, length-t, 0), ("H", lo, hi, high)):
       shell[f"{key}-{suffix}"] = _box((x0, low, z0), (x1, upper, height-roof))

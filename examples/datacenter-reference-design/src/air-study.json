@@ -1,0 +1,21 @@
+{
+  "schema_version": 1,
+  "state": "assumed",
+  "basis": "按项目 IT 负荷扣除已有 TCS 液侧负荷。空气按稳态公共回风池与机柜受限捕获计算。空调回风共用舱内空气，双路电源下各有两台精密空调，按东西分区进行工作／备用切换。",
+  "air": {"density_kg_m3": 1.2, "cp_kj_kg_k": 1.006},
+  "supply_c": 21.5,
+  "dew_point_c": 12,
+  "minimum_relative_humidity": 0.30,
+  "maximum_relative_humidity": 0.65,
+  "minimum_pipe_dew_margin_k": 2,
+  "maximum_mixed_return_c": 34,
+  "rack_fan_flow_m3_s": 0.40,
+  "minimum_rack_recirculation": 0.075,
+  "maximum_rack_recirculation": 0.30,
+  "other_room_sensible_kw": 3,
+  "candidate_external_static_pa": 190,
+  "equivalent_distribution_resistance": 28,
+  "equivalent_path_resistance_per_m": 30,
+  "unit_bypass_conductance": 0.006,
+  "unavailable_units": []
+}
