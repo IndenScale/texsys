@@ -27,7 +27,7 @@ class DependencySpec:
   name: str
   root: Path | None
   version: str | None
-  registry: Path | None = None
+  registry: Path | str | None = None
 
 
 @dataclass
@@ -39,7 +39,7 @@ class LockedPackage:
   dependencies: tuple[str, ...] = ()
   direct: bool = False
   source: str = "path"
-  registry: Path | None = None
+  registry: Path | str | None = None
   archive_digest: str | None = None
 
 
@@ -77,15 +77,18 @@ def _dependency_specs(data: dict[str, Any], base: Path, *, registry_origin: Path
     if set(declaration) - {"path", "registry", "version"} or ("path" in declaration) == ("registry" in declaration):
       raise ProjectError(f"Dependency '{name}' requires exactly one of 'path' or 'registry', plus optional exact version.")
     if "registry" in declaration:
+      from texsys.registry import parse_registry
       raw_registry = declaration["registry"]
       version = declaration.get("version")
       if not isinstance(raw_registry, str) or not raw_registry or not isinstance(version, str) or not version:
-        raise ProjectError(f"Registry dependency '{name}' requires a registry directory and exact version.")
+        raise ProjectError(f"Registry dependency '{name}' requires a registry directory or HTTP origin and exact version.")
       _validate_name(version)
-      origin = registry_origin if raw_registry == "." and registry_origin is not None else Path(raw_registry).expanduser()
-      if not origin.is_absolute():
-        origin = base / origin
-      specs.append(DependencySpec(name, None, version, origin.resolve()))
+      origin = registry_origin if raw_registry == "." and registry_origin is not None else parse_registry(raw_registry)
+      if isinstance(origin, Path):
+        if not origin.is_absolute():
+          origin = base / origin
+        origin = origin.resolve()
+      specs.append(DependencySpec(name, None, version, origin))
       continue
     raw_path = declaration.get("path")
     if not isinstance(raw_path, str) or not raw_path:
@@ -104,9 +107,13 @@ def _relative_path(root: Path, target: Path) -> str:
   return Path(os.path.relpath(target, root)).as_posix()
 
 
+def _registry_text(root: Path, registry: Path | str) -> str:
+  return registry if isinstance(registry, str) else _relative_path(root, registry)
+
+
 def _manifest_digest(specs: tuple[DependencySpec, ...], root: Path) -> str:
   canonical = [
-    ({"name": spec.name, "registry": _relative_path(root, spec.registry), "version": spec.version}
+    ({"name": spec.name, "registry": _registry_text(root, spec.registry), "version": spec.version}
      if spec.registry is not None else
      {"name": spec.name, "path": _relative_path(root, spec.root), "version": spec.version})
     for spec in specs
@@ -218,7 +225,7 @@ def _lock_text(
         f"name = {json.dumps(package.name, ensure_ascii=False)}",
         f"version = {json.dumps(package.version, ensure_ascii=False)}",
         f"source = {json.dumps(package.source)}",
-        *( [f"registry = {json.dumps(_relative_path(root, package.registry), ensure_ascii=False)}",
+        *( [f"registry = {json.dumps(_registry_text(root, package.registry), ensure_ascii=False)}",
              f"archive_digest = {json.dumps(package.archive_digest)}"] if package.source == "registry" else
            [f"path = {json.dumps(_relative_path(root, package.root), ensure_ascii=False)}"] ),
         f'digest = "{package.digest}"',
@@ -385,16 +392,17 @@ def _read_lock(root: Path) -> tuple[str, tuple[LockedPackage, ...]]:
     registry = None
     archive_digest = None
     if source == "registry":
-      from texsys.registry import cache_path
+      from texsys.registry import cache_path, parse_registry
       raw_registry = item.get("registry")
       archive_digest = item.get("archive_digest")
       if (data["schema_version"] != LOCK_SCHEMA_VERSION or not isinstance(raw_registry, str) or not raw_registry
           or not isinstance(archive_digest, str) or re.fullmatch(r"sha256:[0-9a-f]{64}", archive_digest) is None):
         raise ProjectError(f"Invalid locked registry package: {name}")
-      registry = Path(raw_registry).expanduser()
-      if not registry.is_absolute():
-        registry = root / registry
-      registry = registry.resolve()
+      registry = parse_registry(raw_registry)
+      if isinstance(registry, Path):
+        if not registry.is_absolute():
+          registry = root / registry
+        registry = registry.resolve()
       package_root = cache_path(digest)
       project = inspect_project(root)
       installed = root / project.build / "dependencies" / name
@@ -674,12 +682,16 @@ def _change_document(root: Path, request: dict, before: tuple[bytes, bytes | Non
   else:
     raw_registry = request.get("registry")
   if not isinstance(raw_registry, str) or not raw_registry:
-    raise ProjectError("Package add requires a registry directory.")
-  registry = Path(raw_registry).expanduser()
-  if not registry.is_absolute():
-    registry = root / registry
+    raise ProjectError("Package add requires a registry directory or HTTP origin.")
+  from texsys.registry import parse_registry
+  registry = parse_registry(raw_registry)
   declaration = tomlkit.inline_table()
-  declaration["registry"] = _relative_path(root, registry.resolve())
+  if isinstance(registry, str):
+    declaration["registry"] = registry
+  else:
+    if not registry.is_absolute():
+      registry = root / registry
+    declaration["registry"] = _relative_path(root, registry.resolve())
   declaration["version"] = version
   declarations[name] = declaration
   return document
@@ -731,7 +743,7 @@ def apply_dependency_change(path: Path, request: dict, plan: str) -> dict:
             "packages": [_package_row(item, root) for item in result.packages]}
 
 
-def add_registry_dependency(path: Path, name: str, version: str, registry: Path) -> LockResult:
+def add_registry_dependency(path: Path, name: str, version: str, registry: Path | str) -> LockResult:
   root = path.expanduser().resolve()
   with project_write_lock(root):
     before = _dependency_inputs(root)

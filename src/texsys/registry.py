@@ -1,4 +1,4 @@
-"""Immutable engineering packages in a shared filesystem registry."""
+"""Immutable engineering packages in a shared filesystem or read-only HTTP registry."""
 
 from contextlib import contextmanager
 from functools import wraps
@@ -10,6 +10,8 @@ from pathlib import Path, PurePosixPath
 import shutil
 import stat
 import tempfile
+import urllib.parse
+import urllib.request
 import zipfile
 
 import tomlkit
@@ -23,6 +25,7 @@ HEADER = "texsys-package.json"
 MAX_ARCHIVE_BYTES = 512 * 1024 * 1024
 MAX_MEMBER_BYTES = 128 * 1024 * 1024
 MAX_FILES = 20000
+METADATA_LIMIT_BYTES = 16 * 1024 * 1024
 
 
 def _io_errors(function):
@@ -70,6 +73,59 @@ def _canonical_member(name: str) -> str:
       or any(part in {"", ".", ".."} for part in name.split("/")) or path.as_posix() != name):
     raise ProjectError(f"Unsafe package member: {name!r}")
   return name
+
+
+def parse_registry(raw: str) -> Path | str:
+  """Normalize a registry declaration into a local directory or an HTTP origin."""
+  if not isinstance(raw, str) or not raw:
+    raise ProjectError("Registry must be a directory path or an http(s) origin.")
+  if raw.startswith(("http://", "https://")):
+    parts = urllib.parse.urlsplit(raw)
+    if (not parts.netloc or "@" in parts.netloc or parts.query or parts.fragment
+        or "\\" in raw):
+      raise ProjectError(f"Invalid registry origin: {raw}")
+    return f"{parts.scheme}://{parts.netloc}{parts.path.rstrip('/')}"
+  if "://" in raw:
+    raise ProjectError(f"Unsupported registry scheme: {raw}")
+  return Path(raw).expanduser()
+
+
+class _NoRedirect(urllib.request.HTTPRedirectHandler):
+  def redirect_request(self, req, fp, code, msg, headers, newurl):
+    raise ProjectError(f"Registry redirects are not allowed: {newurl}")
+
+
+def _http_get(url: str, limit: int) -> bytes:
+  request = urllib.request.Request(url, headers={"User-Agent": "texsys-package-client"})
+  opener = urllib.request.build_opener(_NoRedirect)
+  try:
+    with opener.open(request, timeout=30) as response:
+      chunks: list[bytes] = []
+      size = 0
+      while chunk := response.read(65536):
+        size += len(chunk)
+        if size > limit:
+          raise ProjectError(f"Registry response exceeds the size limit: {url}")
+        chunks.append(chunk)
+      return b"".join(chunks)
+  except ProjectError:
+    raise
+  except (OSError, ValueError) as error:
+    raise ProjectError(f"Registry request failed: {url}: {error}") from error
+
+
+def _remote_release(origin: str, name: str, version: str) -> tuple[dict, str]:
+  import re
+  _identity(name, version)
+  base = f"{origin}/packages/{name}/{version}"
+  metadata = _json(_http_get(f"{base}/package.json", METADATA_LIMIT_BYTES))
+  if metadata.get("name") != name or metadata.get("version") != version:
+    raise ProjectError(f"Registry release metadata mismatch: {name}@{version}")
+  for key in ("digest", "archive_digest"):
+    value = metadata.get(key)
+    if not isinstance(value, str) or re.fullmatch(r"sha256:[0-9a-f]{64}", value) is None:
+      raise ProjectError(f"Registry release has an invalid {key}: {name}@{version}")
+  return metadata, f"{base}/artifact.texpkg"
 
 
 def package_metadata(root: Path) -> dict:
@@ -308,7 +364,10 @@ def _release_path(registry: Path, name: str, version: str) -> Path:
   return path
 
 
-def package_details(registry: Path, name: str, version: str) -> dict:
+def package_details(registry: Path | str, name: str, version: str) -> dict:
+  if isinstance(registry, str):
+    metadata, artifact = _remote_release(registry, name, version)
+    return {**metadata, "registry": registry, "artifact": artifact}
   root = registry.expanduser().resolve()
   release = _release_path(root, name, version)
   metadata_file = release / "package.json"
@@ -325,6 +384,8 @@ def package_details(registry: Path, name: str, version: str) -> dict:
 
 
 def search_packages(registry: Path, query: str = "") -> dict:
+  if isinstance(registry, str):
+    raise ProjectError("Browsing packages requires a local registry directory.")
   root = registry.expanduser().resolve()
   if not root.is_dir():
     raise ProjectError(f"Registry directory does not exist: {root}")
@@ -443,7 +504,7 @@ def cache_path(digest: str) -> Path:
 
 
 @_io_errors
-def materialize_package(registry: Path, name: str, version: str, digest: str, archive_digest: str,
+def materialize_package(registry: Path | str, name: str, version: str, digest: str, archive_digest: str,
                         *, allow_fetch: bool = True, installed: Path | None = None) -> Path:
   """Return a verified immutable tree, using a local copy before registry access."""
   from texsys.dependencies import _package_digest, _read_manifest
@@ -460,13 +521,27 @@ def materialize_package(registry: Path, name: str, version: str, digest: str, ar
     return candidate
   if not allow_fetch:
     raise ProjectError(f"Package {name}@{version} is not materialized; run texsys sync.")
-  release = package_details(registry, name, version)
-  if release["digest"] != digest or release["archive_digest"] != archive_digest:
-    raise ProjectError(f"Locked registry release changed: {name}@{version}")
+  if isinstance(registry, str):
+    release, artifact = _remote_release(registry, name, version)
+    if release["digest"] != digest or release["archive_digest"] != archive_digest:
+      raise ProjectError(f"Locked registry release changed: {name}@{version}")
+    content = _http_get(artifact, MAX_ARCHIVE_BYTES)
+  else:
+    release = package_details(registry, name, version)
+    if release["digest"] != digest or release["archive_digest"] != archive_digest:
+      raise ProjectError(f"Locked registry release changed: {name}@{version}")
   cached.parent.mkdir(parents=True, exist_ok=True)
   staged = Path(tempfile.mkdtemp(prefix=".package-", dir=cached.parent))
   try:
-    actual = read_archive(Path(release["artifact"]), staged)
+    if isinstance(registry, str):
+      with tempfile.TemporaryDirectory(prefix="texsys-fetch-") as directory:
+        archive = Path(directory) / "artifact.texpkg"
+        archive.write_bytes(content)
+        actual = read_archive(archive, staged)
+      if actual != release:
+        raise ProjectError("Registry release metadata mismatch.")
+    else:
+      actual = read_archive(Path(release["artifact"]), staged)
     if actual["digest"] != digest or actual["archive_digest"] != archive_digest:
       raise ProjectError("Registry archive changed while extracting.")
     if cached.exists():

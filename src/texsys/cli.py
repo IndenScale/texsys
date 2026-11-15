@@ -154,7 +154,7 @@ def add_command(
     str | None,
     typer.Option("--version", help="Require an exact package version."),
   ] = None,
-  registry: Annotated[Path | None, typer.Option("--registry", help="Shared package repository directory.")] = None,
+  registry: Annotated[str | None, typer.Option("--registry", help="Shared package repository directory or read-only HTTP origin.")] = None,
 ) -> None:
   """Add a local or released dependency, lock its graph and synchronize it."""
   try:
@@ -162,9 +162,13 @@ def add_command(
       result = add_dependency(path, Path(source), version)
     else:
       from texsys.dependencies import add_registry_dependency
+      from texsys.registry import parse_registry
       if version is None:
         raise ProjectError("Registry packages require an explicit --version.")
-      result = add_registry_dependency(path, source, version, registry.expanduser().resolve())
+      origin = parse_registry(registry)
+      if isinstance(origin, Path):
+        origin = origin.resolve()
+      result = add_registry_dependency(path, source, version, origin)
   except ProjectError as error:
     _print_error(error)
   typer.echo(f"Added dependency; locked and synced {len(result.packages)} package(s).")
@@ -216,12 +220,15 @@ def package_list_command(
 def package_show_command(
   name: Annotated[str, typer.Argument(help="Released package name.")],
   version: Annotated[str, typer.Option("--version", help="Exact package version.")],
-  registry: Annotated[Path, typer.Option("--registry", help="Shared package repository directory.")],
+  registry: Annotated[str, typer.Option("--registry", help="Shared package repository directory or read-only HTTP origin.")],
 ) -> None:
   """Show package contents, capabilities, scope and runtime requirements."""
-  from texsys.registry import package_details
+  from texsys.registry import package_details, parse_registry
   try:
-    result = package_details(registry, name, version)
+    origin = parse_registry(registry)
+    if isinstance(origin, Path):
+      origin = origin.resolve()
+    result = package_details(origin, name, version)
   except ProjectError as error:
     _print_error(error)
   typer.echo(json.dumps(result, ensure_ascii=False, indent=2))
