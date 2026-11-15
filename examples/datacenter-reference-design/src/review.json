@@ -125,12 +125,25 @@
         "build/scenes/aidc-braced-frame.usda",
         "build/scenes/aidc-lateral-coordinated.usda",
         "build/schedules/aidc-lateral-brace-forces.csv",
-        "build/schedules/aidc-lateral-pad-reactions.csv"
+        "build/schedules/aidc-lateral-pad-reactions.csv",
+        "build/drawings/sheets/roof-transfer-plan.svg",
+        "build/drawings/sheets/roof-transfer-plan-sheet.json",
+        "build/drawings/sheets/roof-transfer-detail.svg",
+        "build/drawings/sheets/roof-transfer-detail-sheet.json",
+        "build/drawings/sheets/roof-transfer-demands.svg",
+        "build/drawings/sheets/roof-transfer-demands-sheet.json",
+        "build/datacenter-reference/spatial/roof-transfer.json",
+        "build/datacenter-reference/spatial/roof-transfer-coordination.json",
+        "build/datacenter-reference/spatial/roof-transfer-results.json",
+        "build/scenes/aidc-roof-transfer.usda",
+        "build/scenes/aidc-roof-transfer-coordinated.usda",
+        "build/schedules/aidc-roof-transfer-forces.csv",
+        "build/schedules/aidc-roof-transfer-joints.csv"
       ],
       "pending": [
         "实测地勘、真实风荷载和场地地震谱、楼板与设备基础、地基和基础配筋设计",
         "钢承板局部承载、洞口加强、檩条座连接和屋盖抗风揭",
-        "屋面集力与抗侧力构造、柱脚锚栓、拉杆与端板节点、二阶效应、土体弹簧与动态响应"
+        "屋面集力梁局部稳定、梁柱节点板与螺栓、预张拉施工及长期损失、柱脚锚栓、二阶效应、土体弹簧与动态响应"
       ]
     },
     "it": {

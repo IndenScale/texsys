@@ -1,0 +1,21 @@
+{
+  "schema_version": 1,
+  "state": "assumed",
+  "basis": "主机房八跨水平交叉拉杆、沿轴钢梁集力和预张拉的候选构造。材料、连接和张拉验收门限需结合厂家与现场资料复核。将屋面水平作用归并于钢承板底，集力节点需传递杆件与作用标高的偏心。",
+  "panels": ["RF-1-2-A-B", "RF-1-2-B-C", "RF-2-3-A-B", "RF-2-3-B-C", "RF-3-4-A-B", "RF-3-4-B-C", "RF-4-5-A-B", "RF-4-5-B-C"],
+  "below_beam_top_m": {"upper": 0.13, "lower": 0.22},
+  "plan_offset_m": {"upper": 0.0, "lower": 0.075},
+  "joint_setback_m": 0.44,
+  "diameter_m": 0.032,
+  "installation_clearance_m": 0.01,
+  "joint_weight_kn_each": 0.08,
+  "rod_net_area_fraction": 0.75,
+  "rod_candidate_stress_mpa": 170,
+  "rod_pretension_kn": 31,
+  "minimum_retained_tension_kn": 4,
+  "joint_candidate_axial_kn": 105,
+  "collector_joint_candidate_moment_kn_m": 52,
+  "collector_screen_axial_kn": 350,
+  "collector_euler_fraction": 0.65,
+  "edge_collection_share": 0.65
+}

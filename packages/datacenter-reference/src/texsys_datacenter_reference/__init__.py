@@ -49,6 +49,9 @@ from .review import build_review_package
 from .roof import build_roof
 from .roof_coordination import build_roof_coordination, build_roof_scene
 from .roof_study import build_roof_actions, build_roof_drainage, build_roof_drainage_check, build_roof_gravity_check
+from .roof_transfer import build_roof_transfer, build_roof_transfer_coordination
+from .roof_transfer_delivery import build_roof_transfer_results, build_roof_transfer_scenes
+from .roof_transfer_views import build_roof_transfer_view
 from .roof_views import build_roof_view
 from .site_grading import build_site_grading, build_site_grading_check
 from .site_storm import build_site_storm
@@ -72,7 +75,7 @@ from .wet_utility_views import build_wet_view
 
 class DatacenterReferencePackage(TexsysPackage):
   name = "datacenter-reference"
-  version = "0.20.0"
+  version = "0.21.0"
 
   def targets(self) -> tuple[TargetDefinition, ...]:
     return (
@@ -222,7 +225,7 @@ class DatacenterReferencePackage(TexsysPackage):
       TargetDefinition("dcr:structure-model", self.name, self.version, build_structure, dependencies=("dcr:layout",),
                        input_patterns=spatial_inputs("structure.json")),
       TargetDefinition("dcr:structure-gravity", self.name, self.version, build_gravity,
-                       dependencies=("dcr:roof-actions",), input_patterns=spatial_inputs("structure-loads.json")),
+                       dependencies=("dcr:roof-actions", "dcr:roof-transfer"), input_patterns=spatial_inputs("structure-loads.json")),
       TargetDefinition("dcr:lateral-bracing", self.name, self.version, build_lateral_bracing,
                        dependencies=("dcr:structure-model",), input_patterns=spatial_inputs("lateral-bracing.json")),
       TargetDefinition("dcr:lateral-coordination", self.name, self.version, build_lateral_coordination,
@@ -242,6 +245,19 @@ class DatacenterReferencePackage(TexsysPackage):
       TargetDefinition("dcr:roof-assembly", self.name, self.version, build_roof,
                        dependencies=("dcr:architecture", "dcr:structure-model", "dcr:fws-network", "dcr:power-routing"),
                        input_patterns=spatial_inputs("roof.json")),
+      TargetDefinition("dcr:roof-transfer", self.name, self.version, build_roof_transfer,
+                       dependencies=("dcr:roof-assembly",), input_patterns=spatial_inputs("roof-transfer.json")),
+      TargetDefinition("dcr:roof-transfer-coordination", self.name, self.version, build_roof_transfer_coordination,
+                       dependencies=("dcr:roof-transfer", "dcr:lateral-bracing", "dcr:telecom", "dcr:fire-systems"),
+                       input_patterns=()),
+      TargetDefinition("dcr:roof-transfer-results", self.name, self.version, build_roof_transfer_results,
+                       dependencies=("dcr:lateral-study",), input_patterns=()),
+      TargetDefinition("dcr:roof-transfer-scene", self.name, self.version, build_roof_transfer_scenes,
+                       dependencies=("dcr:roof-transfer-coordination", "dcr:lateral-scene"), input_patterns=()),
+      TargetDefinition("dcr:roof-transfer-layout-view", self.name, self.version, build_roof_transfer_view,
+                       dependencies=("dcr:roof-transfer", "dcr:lateral-bracing"), input_patterns=(), named_output=True),
+      TargetDefinition("dcr:roof-transfer-study-view", self.name, self.version, build_roof_transfer_view,
+                       dependencies=("dcr:lateral-study",), input_patterns=(), named_output=True),
       TargetDefinition("dcr:site-grading", self.name, self.version, build_site_grading,
                        dependencies=("dcr:roof-assembly",), input_patterns=spatial_inputs("site-grading.json", "site-storm.json")),
       TargetDefinition("dcr:site-grading-check", self.name, self.version, build_site_grading_check,

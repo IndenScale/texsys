@@ -70,7 +70,7 @@ def test_aidc_deliverables_bind_to_the_same_geometry_and_recompute_the_fws_head(
   assert dossier["evidence_complete"]
   assert dossier["input_digest"] == _read(baseline.report)["input_digest"]
   assert dossier["engineering_acceptance"] == "pending-responsible-review"
-  assert len(list((root / "build/drawings/sheets").glob("*.svg"))) == 65
+  assert len(list((root / "build/drawings/sheets").glob("*.svg"))) == 68
   old_dossier = file_digest(root / "build/review/aidc-discipline-review.json")
   drawing = root / "build/drawings/sheets/fws-network.svg"
   old_route_drawing = file_digest(drawing)
@@ -81,6 +81,7 @@ def test_aidc_deliverables_bind_to_the_same_geometry_and_recompute_the_fws_head(
   _check_facility_power(root)
   _check_roof_delivery(root)
   _check_lateral_delivery(root)
+  _check_roof_transfer_delivery(root)
   _check_storm_delivery(root)
   _check_fws_network_delivery(root)
   _check_building_delivery(root)
@@ -507,7 +508,7 @@ def _check_lateral_delivery(root):
   assert frame["members"]["P-1-B"]["parts"][0]["size"] == pytest.approx([1.7, 1.7, .48])
   case = study["cases"]["wind-strength/x+1/ecc+1"]
   force, cross, _ = case["load_kn"]
-  height = model["upper_joint_m"]-model["lower_joint_m"]
+  height = study["action_elevation_m"]-model["lower_joint_m"]
   assert case["overturning_couple_kn_m"] == pytest.approx([height*force, height*cross])
   assert sum(row["shear_kn"][0] for row in case["foundations"].values()) == pytest.approx(force)
   for pad in case["foundations"].values():
@@ -522,6 +523,51 @@ def _check_lateral_delivery(root):
   package = _read(root / "build/review/aidc-discipline-review.json")
   paths = {row["file"] for row in package["disciplines"]["structure"]["artifacts"]}
   assert "build/drawings/sheets/lateral-foundations.svg" in paths
+
+
+def _check_roof_transfer_delivery(root):
+  geometry = _read(root / MODEL / "roof-transfer.json")
+  fit = _read(root / MODEL / "roof-transfer-coordination.json")
+  roof = _read(root / MODEL / "roof-assembly.json")
+  gravity = _read(root / MODEL / "structure-gravity.json")
+  study = _read(root / MODEL / "lateral-study.json")
+  assert len(geometry["ties"]) == 16
+  assert len(geometry["collectors"]) == 22
+  assert fit["minimum_tie_separation_m"] == pytest.approx(.058)
+  diameter_backfeed = sum(tie["free_length_m"]*tie["area_m2"]*77 for tie in geometry["ties"].values())
+  hardware = 2*.08*len(geometry["ties"])
+  assert sum(gravity["roof_transfer_weight_by_node_kn"].values()) == pytest.approx(diameter_backfeed+hardware)
+  assert study["pretension_equilibrium_residual_kn"] < 1e-10
+  for case in study["cases"].values():
+    response = case["brace_storey"]
+    assert response["equilibrium_residual"]["max_node_kn"] < 1e-8
+    assert sum(row[0] for row in response["node_loads_kn"].values()) == pytest.approx(case["load_kn"][0])
+    assert {row["role"] for row in case["roof_members"].values()} == {"collector", "roof-tie"}
+    assert all(row["total_kn"] > row["tension_floor_kn"] for row in case["roof_members"].values()
+               if row["role"] == "roof-tie")
+  stage = Usd.Stage.Open(str(root / "build/scenes/aidc-roof-transfer.usda"))
+  rod = stage.GetPrimAtPath("/Frame/RoofTransfer/RF_1_2_A_B/lower")
+  assert list(rod.GetAttribute("texsys:columns").Get()) == ["C-2-A", "C-1-B"]
+  view = ET.parse(root / "build/drawings/views/roof-transfer-plan.svg")
+  assert len(view.findall(f".//{SVG}circle[@data-roof-opening]")) == len(roof["openings"])
+
+
+def test_aidc_roof_transfer_rejects_riser_clash_and_loss_of_retained_tension(tmp_path):
+  root = _checkout(tmp_path)
+  config = root / "src/roof-transfer.json"
+  original = _read(config)
+  crossed = {**original, "plan_offset_m": {"upper": 0, "lower": 0}}
+  write_json(config, crossed)
+  result, rows = _run(root, "dcr:roof-transfer-coordination", "sheet-roof-transfer-plan")
+  assert result.status == "fail"
+  assert any(issue["objects"] == ["HB-1-2-A-B-L", "A-IT01"]
+             for issue in rows["dcr:roof-transfer-coordination"]["diagnostics"])
+  assert rows["sheet-roof-transfer-plan"]["status"] == "pass"
+  write_json(config, {**original, "rod_pretension_kn": 6})
+  result, rows = _run(root, "dcr:lateral-check", "sheet-roof-transfer-demands")
+  assert result.status == "fail"
+  assert {issue["rule"] for issue in rows["dcr:lateral-check"]["diagnostics"]} == {"AIDC_ROOF_TRANSFER_TENSION"}
+  assert rows["sheet-roof-transfer-demands"]["status"] == "pass"
 
 
 def test_aidc_lateral_reacts_to_mass_and_rejects_directional_mechanism(tmp_path):

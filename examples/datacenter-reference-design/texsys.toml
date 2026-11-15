@@ -12,7 +12,7 @@ build = "build"
 default_targets = ["review-package"]
 
 [dependencies]
-datacenter-reference = { path = "../../packages/datacenter-reference", version = "0.20.0" }
+datacenter-reference = { path = "../../packages/datacenter-reference", version = "0.21.0" }
 sheet = { path = "../../packages/sheet", version = "0.2.0" }
 
 [build.targets.review-package]
@@ -31,6 +31,8 @@ dependencies = [
   "dcr:structure-gravity",
   "dcr:lateral-check",
   "dcr:lateral-scene",
+  "dcr:roof-transfer-scene",
+  "dcr:roof-transfer-results",
   "dcr:roof-gravity-check",
   "dcr:roof-drainage-check",
   "dcr:roof-scene",
@@ -85,6 +87,9 @@ dependencies = [
   "sheet-lateral-plan",
   "sheet-lateral-elevations",
   "sheet-lateral-foundations",
+  "sheet-roof-transfer-plan",
+  "sheet-roof-transfer-detail",
+  "sheet-roof-transfer-demands",
   "sheet-it-hall",
   "sheet-pod-plan",
   "sheet-pod-section",
@@ -842,3 +847,36 @@ using = "sheet:compose"
 dependencies = ["plan-lateral-foundations"]
 scope = { source = "assets/sheets/lateral-foundations.sheet.json" }
 output = "build/drawings/sheets/lateral-foundations.svg"
+
+[build.targets.plan-roof-transfer-plan]
+using = "dcr:roof-transfer-layout-view"
+output = "build/drawings/views/roof-transfer-plan.svg"
+scope = { view = "plan" }
+
+[build.targets.sheet-roof-transfer-plan]
+using = "sheet:compose"
+dependencies = ["plan-roof-transfer-plan"]
+scope = { source = "assets/sheets/roof-transfer-plan.sheet.json" }
+output = "build/drawings/sheets/roof-transfer-plan.svg"
+
+[build.targets.plan-roof-transfer-detail]
+using = "dcr:roof-transfer-layout-view"
+output = "build/drawings/views/roof-transfer-detail.svg"
+scope = { view = "detail" }
+
+[build.targets.sheet-roof-transfer-detail]
+using = "sheet:compose"
+dependencies = ["plan-roof-transfer-detail"]
+scope = { source = "assets/sheets/roof-transfer-detail.sheet.json" }
+output = "build/drawings/sheets/roof-transfer-detail.svg"
+
+[build.targets.plan-roof-transfer-demands]
+using = "dcr:roof-transfer-study-view"
+output = "build/drawings/views/roof-transfer-demands.svg"
+scope = { view = "schedule" }
+
+[build.targets.sheet-roof-transfer-demands]
+using = "sheet:compose"
+dependencies = ["plan-roof-transfer-demands"]
+scope = { source = "assets/sheets/roof-transfer-demands.sheet.json" }
+output = "build/drawings/sheets/roof-transfer-demands.svg"

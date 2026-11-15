@@ -6,10 +6,12 @@ from math import hypot, isclose
 from texsys.evidence import file_digest
 from texsys.targets import TargetResult
 from texsys_structure.foundation import footing_contact
-from texsys_structure.lateral import BraceBay, LateralMechanism, solve_braced_frame
+from texsys_structure.lateral import LateralMechanism
 
 from .lateral_bracing import MODEL
 from .roof import MODEL as ROOF, _schedule, roof_surfaces
+from .roof_transfer import MODEL as TRANSFER
+from .roof_truss import RoofTruss, assess_roof_members
 from .spatial_design import MODELS, missing_input, model_report, number, source_path, staged_json
 from .structure import MODEL as FRAME, _assumptions, _sections
 
@@ -54,22 +56,30 @@ def _weights(frame, bracing, gravity, roof_actions, config):
       live[start] += force*(1-share_end)
       live[end] += force*share_end
   dead = {name: gravity["checks"][name]["base_kn"]["service"]-force for name, force in live.items()}
+  roof_tie_weight = sum(gravity["roof_transfer_weight_by_node_kn"].values())
   if (not isclose(sum(live.values()), roof_actions["live_weight_kn"], abs_tol=1e-7)
-      or not isclose(sum(dead.values()), roof_actions["dead_weight_kn"]+sum(steel.values()), abs_tol=1e-7)):
+      or not isclose(sum(dead.values()), roof_actions["dead_weight_kn"]+sum(steel.values())+roof_tie_weight, abs_tol=1e-7)):
     raise ValueError("The permanent and live roof reactions must balance at the primary columns.")
   rods = 0.
+  vertical_rod_by_node = dict.fromkeys(dead, 0.)
   for row in bracing["bays"].values():
     weight = sum(rod["length_m"] for rod in row["rods"].values())*bracing["area_m2"]*steel_unit_weight
     rods += weight
     for name in row["columns"]:
       dead[name] += weight/2
+      vertical_rod_by_node[name] += weight/2
   elevated_steel = sum(weight*(.5 if members[name]["kind"] == "column" else 1) for name, weight in steel.items())
   extra = number(config["additional_roof_mass_kn"], "suspended and facade seismic budget", zero=True)
-  return dead, live, {
+  nodal_mass = {name: weight-.5*(steel[name]+vertical_rod_by_node[name])+
+                config["roof_live_mass_fraction"]*live[name]+extra/len(dead) for name, weight in dead.items()}
+  components = {
     "roof_dead_kn": roof_actions["dead_weight_kn"], "steel_effective_kn": elevated_steel,
     "rods_effective_kn": rods/2, "roof_live_part_kn": config["roof_live_mass_fraction"]*sum(live.values()),
-    "additional_roof_mass_kn": extra,
+    "additional_roof_mass_kn": extra, "roof_transfer_weight_kn": roof_tie_weight,
   }
+  if not isclose(sum(nodal_mass.values()), sum(components.values()), abs_tol=1e-7):
+    raise ValueError("Lumped roof nodal weights do not sum to the effective seismic weight.")
+  return dead, live, components, nodal_mass
 
 
 def _actions(bracing, roof, frame, config, limits, seismic_weight):
@@ -100,26 +110,32 @@ def _actions(bracing, roof, frame, config, limits, seismic_weight):
   return cases, dict(zip("xy", areas, strict=True))
 
 
-def _transfer(bracing, solved):
+def _transfer(bracing, solved, height):
   actions = {key: {"shear_kn": [0., 0.], "chord_kn": 0., "chord_first_moment_kn_m": [0., 0.],
                    "torsion_kn_m": 0.} for row in bracing["bays"].values() for key in row["columns"]}
   rods = {}
-  for name, result in solved["bays"].items():
+  for name, branches in solved["bays"].items():
     bay = bracing["bays"][name]
-    axis = "xy".index(bay["axis"])
-    shear = result["shear_kn"]
-    active = f"{name}-{'P' if shear >= 0 else 'N'}"
-    eccentricity = bay["rods"][active]["eccentricity_m"]
     first, last = (actions[key] for key in bay["columns"])
-    chord = result["compression_at_end_kn"]
-    first["chord_kn"] -= chord
-    last["chord_kn"] += chord
-    first["chord_first_moment_kn_m"][1-axis] -= chord*eccentricity
-    last["chord_first_moment_kn_m"][1-axis] += chord*eccentricity
-    support = first if shear >= 0 else last
-    support["shear_kn"][axis] += shear
-    support["torsion_kn_m"] += (2*axis-1)*eccentricity*shear
-    rods[name] = {**result, "active_rod": active, "receiving_column": bay["columns"][shear < 0]}
+    translations = {}
+    for rod, result in branches.items():
+      axis = result["axis"]
+      shear = result["shear_kn"]
+      eccentricity = bay["rods"][rod]["eccentricity_m"]
+      chord = shear*height/bay["span_m"]
+      first["chord_kn"] -= chord
+      last["chord_kn"] += chord
+      first["chord_first_moment_kn_m"][1-axis] -= chord*eccentricity
+      last["chord_first_moment_kn_m"][1-axis] += chord*eccentricity
+      receives = 0 if rod.endswith("-P") else 1
+      support = (first, last)[receives]
+      support["shear_kn"][axis] += shear
+      support["torsion_kn_m"] += (2*axis-1)*eccentricity*shear
+      translations[rod] = {**result, "receiving_column": bay["columns"][receives],
+                           "compression_at_end_kn": chord}
+    lead = max(translations, key=lambda rod: translations[rod]["tension_kn"])
+    rods[name] = {**translations[lead], "active_rod": lead, "branches": translations,
+                  "shear_kn": sum(row["shear_kn"] for row in translations.values())}
   return actions, rods
 
 
@@ -200,31 +216,29 @@ def _issue(case, criterion, objects, message):
           "status": "fail", "message": f"{case}: {message}"}
 
 
-def _evaluate(frame, model, gravity, config, limits, cases, vertical):
+def _evaluate(frame, model, transfer, gravity, config, limits, cases, vertical, nodal_mass):
   stored, issues = {}, []
   elasticity = gravity["loads"]["elastic_modulus_gpa"]*1e6
-  bays = {}
-  for name, row in model["bays"].items():
-    orthogonal = 1-"xy".index(row["axis"])
-    points = tuple(tuple(value+row["offset_m"] if i == orthogonal else value for i, value in enumerate(row[key]))
-                   for key in ("start_m", "end_m"))
-    bays[name] = BraceBay(row["axis"], *points, model["area_m2"], elasticity)
+  network = RoofTruss(transfer, model, elasticity)
   low, high = (model[field] for field in ("lower_joint_m", "upper_joint_m"))
+  lever = transfer["action_elevation_m"]-low
+  if lever <= high-low:
+    raise ValueError("The candidate roof action plane must be above the vertical brace upper joints.")
   base = min(row["start_m"][2] for row in frame["members"].values() if row["kind"] == "column")
   rod_capacity = model["area_m2"]*config["rod_net_area_fraction"]*1000*limits["rod_stress_mpa"]
   for key, action in cases.items():
     try:
-      solved = solve_braced_frame({"roof": high}, low, model["plan_m"], bays, {"roof": action["load_kn"]})["roof"]
+      solved = network.solve(action, nodal_mass)
     except LateralMechanism:
-      issues.append(_issue(key, "mechanism", list(bays), "The active layout does not restrain three roof degrees of freedom."))
+      issues.append(_issue(key, "mechanism", list(model["bays"]), "The active layout does not restrain three roof degrees of freedom."))
       break
-    nodes, response = _transfer(model, solved)
+    nodes, response = _transfer(model, solved, lever)
     actual_chord_moments = [sum((frame["members"][column]["start_m"][i])*row["chord_kn"]
                                 for column, row in nodes.items()) for i in (0, 1)]
     force_residual = max(abs(value) for value in (*solved["equilibrium_residual"]["force_kn"],
                                                 solved["equilibrium_residual"]["torsion_kn_m"],
                                                 sum(row["chord_kn"] for row in nodes.values())))
-    if force_residual > 1e-7 or any(not isclose(realized, force*(high-low), abs_tol=1e-7)
+    if force_residual > 1e-7 or any(not isclose(realized, force*lever, abs_tol=1e-7)
                                     for realized, force in zip(actual_chord_moments, solved["shear_kn"], strict=True)):
       raise ValueError(f"{key}: roof force and moment transfer do not close at the column joints.")
     service = action["regime"] == "wind-service"
@@ -233,7 +247,7 @@ def _evaluate(frame, model, gravity, config, limits, cases, vertical):
     drift = (solved["max_corner_drift_ratio"]*(high-low)+stub_movement)/(high-base)
     drift_limit = {"wind-service": limits["service_drift"], "seismic": limits["seismic_drift"]}.get(action["regime"])
     if drift_limit and drift > drift_limit:
-      issues.append(_issue(key, "drift", list(bays), f"Roof drift ratio {drift:.6f} exceeds {drift_limit:.6f}."))
+      issues.append(_issue(key, "drift", list(model["bays"]), f"Roof drift ratio {drift:.6f} exceeds {drift_limit:.6f}."))
     for name, row in response.items():
       row["rod_utilization"] = row["tension_kn"]/rod_capacity
       row["gusset_utilization"] = row["tension_kn"]/limits["gusset_kn"]
@@ -247,34 +261,38 @@ def _evaluate(frame, model, gravity, config, limits, cases, vertical):
       for criterion, ratio in row["utilization"].items():
         if ratio is not None and ratio > 1:
           issues.append(_issue(key, criterion, [row["column"], pad], f"{pad} {criterion} demand/capacity = {ratio:.3f}."))
-    stored[key] = {**action, "brace_storey": solved, "drift_ratio": drift, "drift_limit_ratio": drift_limit,
+    roof_members, roof_joints, roof_issues = assess_roof_members(transfer, model, gravity, solved, key)
+    issues.extend(roof_issues)
+    stored[key] = {**action, "brace_storey": solved, "roof_members": roof_members, "roof_joints": roof_joints, "drift_ratio": drift, "drift_limit_ratio": drift_limit,
                    "stub_allowance_m": stub_movement, "overturning_couple_kn_m": actual_chord_moments,
                    "rod_capacity_kn": rod_capacity, "rods": response, "foundations": pads}
-  return stored, issues
+  return stored, issues, network.pretension_residual_kn
 
 
 def build_lateral_study(context):
   source = source_path(context, "lateral-actions.json")
   if not source.is_file():
     return missing_input(context, source, "lateral-study")
-  model, frame, gravity, roof, roof_actions = (
-    staged_json(context, path) for path in (MODEL, FRAME, GRAVITY, ROOF, ROOF_ACTIONS))
+  paths = (MODEL, FRAME, GRAVITY, ROOF, ROOF_ACTIONS, TRANSFER)
+  model, frame, gravity, roof, roof_actions, transfer = (staged_json(context, path) for path in paths)
   config = _assumptions(source)
   limits = _limits(config)
-  dead, live, mass = _weights(frame, model, gravity, roof_actions, config)
+  dead, live, mass, nodal_mass = _weights(frame, model, gravity, roof_actions, config)
   actions, projected = _actions(model, roof, frame, config, limits, sum(mass.values()))
-  cases, issues = _evaluate(frame, model, gravity, config, limits, actions, (dead, live))
+  cases, issues, pretension_residual = _evaluate(
+    frame, model, transfer, gravity, config, limits, actions, (dead, live), nodal_mass)
   report = model_report(context, "lateral-study", {
-    "input_digests": {path: file_digest(context.build_path / path) for path in (MODEL, FRAME, GRAVITY, ROOF, ROOF_ACTIONS)},
+    "input_digests": {path: file_digest(context.build_path / path) for path in paths},
     "assumptions": config, "projected_area_m2": projected, "effective_weight_kn": sum(mass.values()),
     "lumped_weight_components_kn": mass, "column_dead_kn": dead, "column_roof_live_kn": live,
-    "cases": cases, "issues": issues,
+    "cases": cases, "issues": issues, "nodal_effective_weight_kn": nodal_mass,
+    "action_elevation_m": transfer["action_elevation_m"], "pretension_equilibrium_residual_kn": pretension_residual,
     "intended_cases": len(actions), "checks": "fail" if issues else "pass",
-    "coverage": "Rigid virtual roof plane and elastic tension-only X bays. Collector, end plate and anchor stiffness "
-                "remain to be demonstrated. Independent compression-only pad contact checks lower dead weight for "
-                "stability and evaluates both declared vertical load bounds for bearing and column stress. "
-                "The column stub flexure allowance uses a fixed base. P-Delta, vertical wind uplift, orthogonal wind "
-                "overlap, site-specific response spectra, steel connection design and soil spring effects remain open.",
+    "coverage": "Axial members model the installed prestressed roof truss. Each vertical rod engages only if its "
+                "upper node stretches the rod. Gross section elastic stiffness and transparent candidate capacities "
+                "are used. The additional overturning lever at the roof plane is assigned to the associated pairs "
+                "of columns. Connection stiffness, local stability, prestress losses, soil springs and dynamic "
+                "site-specific design remain pending.",
   })
   table = _schedule(context, "aidc-lateral-brace-forces.csv",
                     ("case", "bay", "active_rod", "shear_kn", "tension_kn", "rod_utilization",

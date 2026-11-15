@@ -170,7 +170,7 @@ def build_structure(context):
   return TargetResult(report.status, (*report.artifacts, *_deliver_members(context, members)), report.diagnostics)
 
 
-def _gravity_check(model, loads, roof):
+def _gravity_check(model, loads, roof, roof_transfer):
   members = model["members"]
   sections = _sections(model["settings"])
   steel = number(loads["steel_kn_m3"], "steel unit weight")
@@ -211,7 +211,7 @@ def _gravity_check(model, loads, roof):
                    "deflection": service["deflection_m"] / (length / slenderness)}
     checks[key] = {"kind": kind, "response": response, "utilization": utilization}
   for key, forces in columns.items():
-    own = members[key]["physical_volume_m3"] * steel
+    own = members[key]["physical_volume_m3"] * steel + roof_transfer[key]
     for case, (permanent, _) in combinations.items():
       steel_weight[case] += own * permanent
       forces[case] += own * permanent
@@ -248,10 +248,23 @@ def build_gravity(context):
   model = staged_json(context, MODEL)
   roof_model = f"{MODELS}/roof-actions.json"
   roof = staged_json(context, roof_model)
-  checks, equilibrium, failures = _gravity_check(model, loads, roof)
+  path_model = f"{MODELS}/roof-transfer.json"
+  transfer = staged_json(context, path_model)
+  end_weight = number(transfer["assumptions"]["joint_weight_kn_each"], "roof rod end weight", zero=True)
+  steel = number(loads["steel_kn_m3"], "steel unit weight")
+  weights = dict.fromkeys(transfer["nodes"], 0.)
+  for row in transfer["ties"].values():
+    for node in row["nodes"]:
+      weights[node] += row["free_length_m"]*row["area_m2"]*steel/2+end_weight
+  checks, equilibrium, failures = _gravity_check(model, loads, roof, weights)
+  combined = (roof["dead_weight_kn"]+sum(weights.values()))/roof["gross_area_m2"]
+  if combined > roof["dead_budget_kpa"]:
+    failures.append({"rule": "AIDC_GRAVITY_ROOF_DEAD", "status": "fail", "objects": ["roof", "roof-transfer"],
+                     "message": f"Roof with load-transfer steel weighs {combined:.3f} kPa versus the roof budget."})
   return model_report(context, "structure-gravity", {
     "model_digest": file_digest(context.build_path / MODEL), "loads": loads, "checks": checks,
     "roof_actions_digest": file_digest(context.build_path / roof_model), "roof_reactions": roof["girder_actions"],
-    "equilibrium": equilibrium,
-    "method": "Elastic steel beams loaded by extracted purlin point reactions, axial columns and concentric footing bearing.",
+    "roof_transfer_digest": file_digest(context.build_path/path_model), "roof_transfer_weight_by_node_kn": weights,
+    "roof_dead_with_transfer_kpa": combined, "equilibrium": equilibrium,
+    "method": "Purlin point reactions, roof tie weight at end joints, axial columns and concentric footing bearing.",
   }, failures)
