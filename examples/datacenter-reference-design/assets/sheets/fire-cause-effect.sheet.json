@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "template": "sheet:a3-landscape",
+  "metadata": "assets/sheets/fire-cause-effect.title.json",
+  "texts": {
+    "notes": "assets/sheets/fire-cause-effect.txt",
+    "footer": "assets/sheets/footer.txt"
+  },
+  "views": {
+    "main": {
+      "path": "build/drawings/views/fire-cause-effect.svg",
+      "scale": "fit"
+    }
+  }
+}

@@ -1,0 +1,11 @@
+{
+  "schema_version": 1,
+  "state": "assumed",
+  "basis": "概念系统按双探测确认、预警和通风隔离、延时、反馈与停止抑制验证动作许可。模拟输出用于审查联动逻辑。灭火介质、设备型式和消防验收另行落实。",
+  "max_loop_length_m": 115,
+  "max_addresses_per_loop": 32,
+  "unavailable_ring_runs": [],
+  "release_delay_s": 30,
+  "release_permissives": ["fan_stopped", "damper_closed", "actuator_healthy"],
+  "abort_inhibits_release": true
+}

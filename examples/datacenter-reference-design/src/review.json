@@ -40,15 +40,29 @@
       "required_artifacts": [
         "build/drawings/sheets/fire-egress.svg",
         "build/drawings/sheets/fire-egress-sheet.json",
+        "build/drawings/sheets/fire-alarm.svg",
+        "build/drawings/sheets/fire-alarm-sheet.json",
+        "build/drawings/sheets/fire-agent-pod.svg",
+        "build/drawings/sheets/fire-agent-pod-sheet.json",
+        "build/drawings/sheets/fire-cause-effect.svg",
+        "build/drawings/sheets/fire-cause-effect-sheet.json",
         "build/datacenter-reference/spatial/egress-model.json",
         "build/datacenter-reference/spatial/fire-egress.json",
         "build/datacenter-reference/spatial/building-coordination.json",
+        "build/datacenter-reference/spatial/fire-systems.json",
+        "build/datacenter-reference/spatial/fire-systems-study.json",
+        "build/datacenter-reference/spatial/fire-systems-coordination.json",
+        "build/scenes/aidc-fire-systems-coordinated.usda",
         "build/schedules/aidc-egress-routes.csv",
         "build/schedules/aidc-firestop-reservations.csv",
-        "build/schedules/aidc-telecom-wall-openings.csv"
+        "build/schedules/aidc-telecom-wall-openings.csv",
+        "build/schedules/aidc-fire-equipment.csv",
+        "build/schedules/aidc-fire-runs.csv",
+        "build/schedules/aidc-fire-circuit-cases.csv",
+        "build/schedules/aidc-fire-cause-effect.csv"
       ],
       "pending": [
-        "厂家方舱门位与舱内疏散、真实使用人数及疏散条件、灭火与报警系统、穿越构造和防火封堵选型"
+        "厂家舱门、人群疏散与探测和声光现场验证、介质与喷放专项设计、控制柜型式、穿越构造和封堵产品"
       ]
     },
     "structure": {

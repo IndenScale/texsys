@@ -12,6 +12,10 @@ from .checks import evaluate_design_checks
 from .coordination import build_building_coordination, build_coordinated_scene, build_fws_network_coordination
 from .electrical import build_power_study, build_power_topology
 from .fire_egress import build_egress_check, build_egress_model
+from .fire_systems import build_fire_systems
+from .fire_systems_coordination import build_fire_systems_coordination
+from .fire_systems_study import build_fire_systems_study
+from .fire_systems_views import build_fire_systems_view
 from .fws_design import build_hydraulics, build_routes
 from .fws_network import build_network
 from .fws_network_study import build_network_study
@@ -30,7 +34,7 @@ from .telecom_views import build_telecom_view
 
 class DatacenterReferencePackage(TexsysPackage):
   name = "datacenter-reference"
-  version = "0.7.0"
+  version = "0.8.0"
 
   def targets(self) -> tuple[TargetDefinition, ...]:
     return (
@@ -57,6 +61,17 @@ class DatacenterReferencePackage(TexsysPackage):
                        dependencies=("dcr:architecture", "dcr:structure-model"), input_patterns=()),
       TargetDefinition("dcr:fire-egress", self.name, self.version, build_egress_check, dependencies=("dcr:egress-model",),
                        input_patterns=spatial_inputs("design-basis.json")),
+      TargetDefinition("dcr:fire-systems", self.name, self.version, build_fire_systems, dependencies=("dcr:architecture",),
+                       input_patterns=spatial_inputs("*.sdl.json", "*/module.toml", "fire-systems.json",
+                                                     "design-basis.json", "placement.study.json")),
+      TargetDefinition("dcr:fire-systems-study", self.name, self.version, build_fire_systems_study,
+                       dependencies=("dcr:fire-systems",), input_patterns=spatial_inputs("fire-systems-study.json")),
+      TargetDefinition("dcr:fire-systems-coordination", self.name, self.version, build_fire_systems_coordination,
+                       dependencies=("dcr:fire-systems", "dcr:telecom-coordination"), input_patterns=()),
+      TargetDefinition("dcr:fire-systems-view", self.name, self.version, build_fire_systems_view,
+                       dependencies=("dcr:fire-systems",), input_patterns=(), named_output=True),
+      TargetDefinition("dcr:fire-effect-view", self.name, self.version, build_fire_systems_view,
+                       dependencies=("dcr:fire-systems-study",), input_patterns=(), named_output=True),
       TargetDefinition("dcr:architecture-view", self.name, self.version, build_building_view,
                        dependencies=("dcr:architecture",), input_patterns=(), named_output=True),
       TargetDefinition("dcr:egress-view", self.name, self.version, build_building_view,

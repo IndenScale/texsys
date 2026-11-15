@@ -12,7 +12,7 @@ build = "build"
 default_targets = ["review-package"]
 
 [dependencies]
-datacenter-reference = { path = "../../packages/datacenter-reference", version = "0.7.0" }
+datacenter-reference = { path = "../../packages/datacenter-reference", version = "0.8.0" }
 sheet = { path = "../../packages/sheet", version = "0.2.0" }
 
 [build.targets.review-package]
@@ -26,6 +26,8 @@ dependencies = [
   "dcr:structure-gravity",
   "dcr:power-study",
   "dcr:fire-egress",
+  "dcr:fire-systems-study",
+  "dcr:fire-systems-coordination",
   "dcr:building-coordination",
   "dcr:telecom-study",
   "dcr:telecom-coordination",
@@ -36,6 +38,9 @@ dependencies = [
   "sheet-architecture-l01",
   "sheet-architecture-exit",
   "sheet-fire-egress",
+  "sheet-fire-alarm",
+  "sheet-fire-agent-pod",
+  "sheet-fire-cause-effect",
   "sheet-structure-l01",
   "sheet-structure-footings",
   "sheet-structure-section-b",
@@ -126,6 +131,39 @@ using = "sheet:compose"
 dependencies = ["plan-fire-egress"]
 scope = { source = "assets/sheets/fire-egress.sheet.json" }
 output = "build/drawings/sheets/fire-egress.svg"
+
+[build.targets.plan-fire-alarm]
+using = "dcr:fire-systems-view"
+output = "build/drawings/views/fire-alarm.svg"
+scope = { view = "alarm" }
+
+[build.targets.sheet-fire-alarm]
+using = "sheet:compose"
+dependencies = ["plan-fire-alarm"]
+scope = { source = "assets/sheets/fire-alarm.sheet.json" }
+output = "build/drawings/sheets/fire-alarm.svg"
+
+[build.targets.plan-fire-agent-pod]
+using = "dcr:fire-systems-view"
+output = "build/drawings/views/fire-agent-pod.svg"
+scope = { view = "pod", pod = "IT01" }
+
+[build.targets.sheet-fire-agent-pod]
+using = "sheet:compose"
+dependencies = ["plan-fire-agent-pod"]
+scope = { source = "assets/sheets/fire-agent-pod.sheet.json" }
+output = "build/drawings/sheets/fire-agent-pod.svg"
+
+[build.targets.plan-fire-cause-effect]
+using = "dcr:fire-effect-view"
+output = "build/drawings/views/fire-cause-effect.svg"
+scope = { view = "cause-effect" }
+
+[build.targets.sheet-fire-cause-effect]
+using = "sheet:compose"
+dependencies = ["plan-fire-cause-effect"]
+scope = { source = "assets/sheets/fire-cause-effect.sheet.json" }
+output = "build/drawings/sheets/fire-cause-effect.svg"
 
 [build.targets.plan-structure-l01]
 using = "dcr:structure-view"

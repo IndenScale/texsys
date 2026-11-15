@@ -68,7 +68,7 @@ def test_aidc_deliverables_bind_to_the_same_geometry_and_recompute_the_fws_head(
   assert dossier["evidence_complete"]
   assert dossier["input_digest"] == _read(baseline.report)["input_digest"]
   assert dossier["engineering_acceptance"] == "pending-responsible-review"
-  assert len(list((root / "build/drawings/sheets").glob("*.svg"))) == 23
+  assert len(list((root / "build/drawings/sheets").glob("*.svg"))) == 26
   old_dossier = file_digest(root / "build/review/aidc-discipline-review.json")
   drawing = root / "build/drawings/sheets/fws-network.svg"
   old_route_drawing = file_digest(drawing)
@@ -77,6 +77,7 @@ def test_aidc_deliverables_bind_to_the_same_geometry_and_recompute_the_fws_head(
   _check_fws_network_delivery(root)
   _check_building_delivery(root)
   _check_telecom_delivery(root)
+  _check_fire_systems_delivery(root)
   report = root / MODEL / "fws-network-study.json"
   before = _read(report)
   path = root / "src/fws-network.json"
@@ -239,6 +240,44 @@ def _check_telecom_delivery(root):
   partition = stage.GetPrimAtPath("/AIDC/Architecture/W_DIVIDE")
   assert partition.IsA(UsdGeom.Xform) and len(partition.GetChildren()) == 7
   assert stage.GetPrimAtPath("/AIDC/Telecom/TA_S03").GetAttribute("texsys:identity").Get() == "TA-S03"
+
+
+def _check_fire_systems_delivery(root):
+  model = root / MODEL / "fire-systems.json"
+  geometry = _read(model)
+  study = _read(root / MODEL / "fire-systems-study.json")
+  assert study["source_digest"] == file_digest(model)
+  assert len(geometry["pods"]) == 16
+  first = geometry["pods"]["IT01"]
+  assert first["controller"] == "IT01/FirePanel1"
+  assert set(first["power_sdl_links"]) == {"power_a", "power_b"}
+  assert len(first["nozzles"]) == len(first["detectors"]) == 2
+  assert first["pipes"]["AP-IT01-01"]["length_m"] == pytest.approx(1.07)
+  for room, ring in geometry["rings"].items():
+    reference = study["loops"][room]
+    assert reference["addresses"] == 20
+    assert len(reference["cells"]) == 8
+    assert len(reference["continuity"]) == len(ring["runs"])+1 == 38
+    assert all(row["pass"] for row in reference["continuity"].values())
+    assert all(row["line_trouble"] for key, row in reference["continuity"].items() if key != "configured")
+  assert study["loops"]["FC-S"]["cells"]["SD-FC-S-11"]["worst_plan_distance_m"] == pytest.approx(sqrt(4**2+(7.9/4)**2))
+  cases = study["cause_effect"]["cases"]
+  assert len(cases) == 14 and all(row["pass"] for row in cases.values())
+  assert [row["t_s"] for row in cases["dual_with_feedback"]["trace"]] == [0, 30]
+  assert not cases["abort_at_deadline"]["permission"]
+  assert not cases["feedback_revoked"]["permission"]
+  assert cases["local_confirmed_with_supervisory_open"]["trouble"]
+  assert cases["local_confirmed_with_supervisory_open"]["permission"]
+  assert not cases["supervisory_open"]["permission"]
+  figure = ET.parse(root / "build/drawings/views/fire-alarm.svg")
+  assert len(figure.findall(f".//{SVG}rect[@data-detection-cell]")) == 16
+  assert figure.find(f".//{SVG}circle[@data-fire-device='SD-FC-S-11']") is not None
+  scene = root / "build/scenes/aidc-fire-systems-coordinated.usda"
+  assert str(root) not in scene.read_text()
+  stage = Usd.Stage.Open(str(scene))
+  assert stage.GetPrimAtPath("/AIDC/FireSystems/Pods/IT01/NZ_IT01_1").GetAttribute("texsys:identity").Get() == "NZ-IT01-1"
+  assert stage.GetPrimAtPath("/AIDC/FireSystems/Hall/FACP_FC_S")
+  assert stage.GetPrimAtPath("/AIDC/Telecom/TA_S03")
 
 
 def _check_professional_delivery(root):
@@ -447,6 +486,54 @@ def test_aidc_telecom_rejects_tray_near_the_column(tmp_path):
   assert "AIDC_TELECOM_CLASH" in failed.diagnostics
   assert "C-1-B" in failed.diagnostics
   assert not (root / "build/scenes/aidc-telecom-coordinated.usda").exists()
+
+
+def test_aidc_fire_systems_reject_missing_coverage_and_loop_breaks(tmp_path):
+  root = _checkout(tmp_path)
+  design = root / "src/fire-systems.json"
+  original = design.read_bytes()
+  model = _read(design)
+  target = "SD-FC-S-11"
+  model["omitted_hall_detectors"] = [target]
+  write_json(design, model)
+  result, statuses = _run(root)
+  assert result.status == "fail" and statuses["review-package"]["execution"] == "blocked"
+  assert statuses["sheet-fire-alarm"]["status"] == "pass"
+  shape = ET.parse(root / "build/drawings/views/fire-alarm.svg")
+  assert shape.find(f".//{SVG}rect[@data-detection-cell='{target}']").get("class") == "removed"
+  assert shape.find(f".//{SVG}circle[@data-fire-device='{target}']") is None
+  design.write_bytes(original)
+  ring = _read(root / MODEL / "fire-systems.json")["rings"]["FC-S"]
+  cut = [key for key, row in ring["runs"].items() if target in row["nodes"]]
+  assert len(cut) == 2
+  checks = root / "src/fire-systems-study.json"
+  study = _read(checks)
+  study["unavailable_ring_runs"] = cut
+  write_json(checks, study)
+  result, statuses = _run(root, "dcr:fire-systems-study", "sheet-fire-alarm")
+  assert result.status == "fail" and statuses["sheet-fire-alarm"]["status"] == "pass"
+  loop = _read(root / MODEL / "fire-systems-study.json")["loops"]["FC-S"]["continuity"]["configured"]
+  assert loop["line_trouble"] and loop["missing_addresses"] == [target]
+
+
+def test_aidc_fire_systems_reject_missing_feedback_and_tray_conflict(tmp_path):
+  root = _checkout(tmp_path)
+  path = root / "src/fire-systems-study.json"
+  config = _read(path)
+  config["release_permissives"].remove("damper_closed")
+  write_json(path, config)
+  result, statuses = _run(root)
+  assert result.status == "fail" and statuses["review-package"]["execution"] == "blocked"
+  assert statuses["sheet-fire-cause-effect"]["execution"] == "blocked"
+  cause = _read(root / MODEL / "fire-systems-study.json")["cause_effect"]["cases"]["no_damper_closed"]
+  assert cause["permission"] and not cause["expected_permission"] and not cause["pass"]
+  geometry = root / "src/fire-systems.json"
+  design = _read(geometry)
+  design["loop"]["panel_offset_y_m"] = 1.08
+  write_json(geometry, design)
+  result, statuses = _run(root, "dcr:fire-systems-coordination")
+  assert result.status == "fail" and statuses["dcr:telecom-coordination"]["status"] == "pass"
+  assert "FA-FC-S-27 envelope overlaps TA-R02-01" in result.diagnostics
 
 
 def test_aidc_geometry_rejects_missing_and_clashing_placements(tmp_path):

@@ -825,7 +825,7 @@ requires-dist = [
 
 [[package]]
 name = "texsys-datacenter-reference"
-version = "0.7.0"
+version = "0.8.0"
 source = { editable = "packages/datacenter-reference" }
 dependencies = [
     { name = "scipy", version = "1.17.1", source = { registry = "https://pypi.tuna.tsinghua.edu.cn/simple" }, marker = "python_full_version < '3.12'" },
