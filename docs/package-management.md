@@ -1,6 +1,6 @@
 # 工程能力包：发布、同步与跨项目复用
 
-包管理将可复用的工程能力交给多个项目使用。项目依赖通过命令行导入和同步，仓库支持本地／共享目录；Tex Studio 复用通用文本编辑器和终端，不提供专用依赖页面。部件包是包的一种，IDE 插件拥有独立生命周期。当前契约见 [ADR-0025](adr/0025-package-component-ide-boundaries.md)，归档和锁机制沿用 ADR-0024。
+包管理将可复用的工程能力交给多个项目使用。项目依赖通过命令行导入和同步，仓库支持本地／共享目录与只读 HTTP(S) 包源；Tex Studio 复用通用文本编辑器和终端，不提供专用依赖页面。部件包是包的一种，IDE 插件拥有独立生命周期。当前契约见 [ADR-0025](adr/0025-package-component-ide-boundaries.md)，归档和锁机制沿用 ADR-0024，HTTP 分发边界见 [ADR-0031](adr/0031-read-only-http-package-registry.md)。
 
 ## 包与项目的边界
 
@@ -118,9 +118,20 @@ uv run --locked python tools/verify_package_platform.py
 
 脚本创建隔离的作者副本、文件仓库和两个消费项目，验证发布、移除作者目录后的恢复、不同项目输入下的实际计算、包测试、升级后的旧运行结果失效以及回退。输入与结果写入新的 `build/package-platform-poc/` 子目录；其中 `summary.json` 和逐命令记录供复核。可使用 CLI 将该目录中的 `registry` 引入其他项目，再在 Studio 的文本编辑器查看清单，在部件库浏览部件。示范新版只用于检验升级机制，未改变物理方程。
 
+## 只读 HTTP 包源
+
+文件 registry 目录可以原样作为静态 HTTP 源提供。开发容器在 `127.0.0.1:8711` 提供 `build/package-registry`（见 [常驻开发容器](development-container.md)）；`tools/publish_official_registry.py` 发布官方闭包并逐包校验。消费项目声明绝对源地址：
+
+```toml
+[dependencies]
+datacenter-reference = { registry = "http://127.0.0.1:8711", version = "0.1.0" }
+```
+
+`add`／`sync`／`lock` 按锁拉取归档并校验 sha256 摘要，内容进入本机缓存；锁记录绝对源地址，全新环境（无共享目录、无历史缓存）可复现。独立演示见 `aidc-reference-design` 仓库：冷启动 `sync → lock --check → build → check` 全链路留证据。HTTP 源只读，无账户与第三方上传；`package list` 浏览仍限本地目录。客户端拒绝重定向、非 http(s) 协议和带凭据／查询的源。
+
 ## 首期运行与分发边界
 
-- 支持本地及共享文件目录仓库，不提供公网账户、托管下载服务或签名发布者身份。
+- 支持本地及共享文件目录仓库与只读 HTTP(S) 包源；不提供公网账户、第三方上传、托管下载服务或签名发布者身份。
 - 发布包能够固定并提供纯 Python 能力源码；第三方 Python 库仍需要在执行环境中满足明确要求。
 - 项目能力注册和已声明模块的版本按项目锁隔离；执行进程仍复用宿主 Python 环境。本期不保证包中未声明的 Python 导入不受宿主安装影响，完整环境隔离另行验收。
 - `sync` 不安装 OpenModelica、Node.js、React、ELK 或 Studio 专业 UI。它们的独立运行要求需要另行配置，缺少时应显示不可用或由实际执行报错。
