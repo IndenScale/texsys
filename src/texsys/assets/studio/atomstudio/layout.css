@@ -3,8 +3,8 @@
  */
 .workbench-layout {
   --workbench-gap: 5px;
-  --workbench-bottom-gap: var(--statusbar-bottom-gap, var(--workbench-gap));
-  --workbench-card-radius: var(--statusbar-card-radius, 8px);
+  --workbench-bottom-gap: var(--workbench-gap);
+  --workbench-card-radius: 8px;
   --activity-width: 44px;
   --activity-button-size: 34px;
   --activity-rail-width: var(--activity-width);
