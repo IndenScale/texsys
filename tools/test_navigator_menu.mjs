@@ -236,6 +236,42 @@ test("outside dismissal and Tab clear submenu state so reopening starts clean", 
   assert.equal(f.dismissed(), 2);
 });
 
+test("menus open down-left-aligned and flip to right-aligned at the viewport edge", async (t) => {
+  const f = await fixture(t);
+  const rect = (left, top, width, height) => ({
+    left,
+    top,
+    right: left + width,
+    bottom: top + height,
+    width,
+    height,
+    x: left,
+    y: top,
+  });
+  const viewport = (width, height) => {
+    Object.defineProperty(dom.window, "innerWidth", { value: width, configurable: true });
+    Object.defineProperty(dom.window, "innerHeight", { value: height, configurable: true });
+  };
+  f.menu.getBoundingClientRect = () => rect(0, 0, 200, 260);
+
+  viewport(1440, 900);
+  f.trigger.getBoundingClientRect = () => rect(300, 40, 28, 28);
+  await click(f.trigger);
+  assert.equal(f.menu.style.left, "300px");
+  assert.equal(f.menu.style.top, "71px");
+  await click(f.trigger);
+
+  viewport(1024, 768);
+  f.trigger.getBoundingClientRect = () => rect(990, 40, 28, 28);
+  await click(f.trigger);
+  assert.equal(f.menu.style.left, "818px");
+  await click(f.trigger);
+
+  f.trigger.getBoundingClientRect = () => rect(300, 700, 28, 28);
+  await click(f.trigger);
+  assert.equal(f.menu.style.top, "437px");
+});
+
 const { ActivityBar } = loadStudioModule("atomstudio/Layout.tsx");
 const { readLayoutPreferences, writeLayoutPreferences } = loadStudioModule("layout-preferences.ts");
 

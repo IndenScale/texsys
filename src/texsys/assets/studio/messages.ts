@@ -299,6 +299,7 @@ export const englishMessages: Record<string, string> = {
   新建文件: "New file",
   新建文件夹: "New folder",
   全部折叠: "Collapse all",
+  全部展开: "Expand all",
   "正在读取文件…": "Reading files…",
   "文件列表达到上限，部分文件未显示。": "File limit reached. Some files are hidden.",
   "项目中尚无文件，可在上方新建。":

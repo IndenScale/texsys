@@ -66,6 +66,19 @@ export function OutlineView({
     walk(displayed, []);
     return chain;
   }, [displayed, highlightId]);
+  const expandableIds = useMemo(() => {
+    const ids: string[] = [];
+    const walk = (list: OutlineSymbol[]) =>
+      list.forEach((node) => {
+        if (node.children.length) {
+          ids.push(node.id);
+          walk(node.children);
+        }
+      });
+    walk(symbols);
+    return ids;
+  }, [symbols]);
+  const allCollapsed = expandableIds.length > 0 && expandableIds.every((id) => !expanded.has(id));
   const rows = useMemo(() => {
     const flat: OutlineRow[] = [];
     const walk = (list: OutlineSymbol[], depth: number, ancestors: string[]) => {
@@ -174,9 +187,10 @@ export function OutlineView({
           }}
         >
           <NavigatorButton
-            label={t("全部折叠")}
-            icon="collapse"
-            onClick={() => setExpanded(new Set())}
+            label={t(allCollapsed ? "全部展开" : "全部折叠")}
+            icon={allCollapsed ? "expand" : "collapse"}
+            disabled={expandableIds.length === 0}
+            onClick={() => setExpanded(allCollapsed ? new Set(expandableIds) : new Set())}
           />
           <NavigatorMenu label={t("大纲更多操作")} items={menuItems} />
         </span>

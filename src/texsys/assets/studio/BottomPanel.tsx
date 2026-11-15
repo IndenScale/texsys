@@ -888,7 +888,6 @@ export function WorkbenchBottomPanel({
               label={t("更多")}
               title={t("更多操作…")}
               items={moreMenuItems}
-              placement="end"
               direction="down"
               triggerClassName="panel-header-action"
               triggerIcon={<Icon name="more" size={16} strokeWidth={1.5} />}

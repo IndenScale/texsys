@@ -28,12 +28,16 @@ function placeMenu(
   menu.style.overflowY = "";
   const { width, height } = menu.getBoundingClientRect();
   const maxX = window.innerWidth - width - edge;
-  const x =
-    placement === "side" && right <= maxX
-      ? right
-      : placement === "start" || placement === "point"
-        ? left
-        : right - width;
+  // DDR-0002：优先左缘对齐向右流出；右缘越界时翻转为右缘对齐触发器。
+  let x: number;
+  if (placement === "side") x = right <= maxX ? right : right - width;
+  else if (placement === "end") {
+    x = right - width;
+    if (x < edge) x = left;
+  } else {
+    x = left;
+    if (x > maxX) x = right - width;
+  }
   const above = Math.max(0, top - gap - edge);
   const below = Math.max(0, window.innerHeight - bottom - gap - edge);
   const upward =
@@ -68,7 +72,7 @@ export function NavigatorMenu({
   point,
   onDismiss,
   onOpen,
-  placement = "end",
+  placement = "start",
   direction = "auto",
   triggerClassName,
   triggerIcon = "more",

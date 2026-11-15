@@ -100,6 +100,12 @@ const paths: Record<string, React.ReactNode> = {
       <path d="M17 3H3v14m8-3h6" />
     </>
   ),
+  expand: (
+    <>
+      <rect x="7" y="7" width="14" height="14" rx="1" />
+      <path d="M17 3H3v14M14 11v6M11 14h6" />
+    </>
+  ),
   file: (
     <>
       <path d="M14 3H5v18h14V8Z" />

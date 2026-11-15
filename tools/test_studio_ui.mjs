@@ -2006,6 +2006,13 @@ test("outline view renders symbols, navigates, collapses and filters on type", a
   });
   await act(async () => rows()[0].querySelector(".outline-twistie button").click());
   assert.deepEqual(names(), ["# Title"]);
+  const collapseToggle = container.querySelector(".outline-actions button");
+  assert.equal(collapseToggle.getAttribute("aria-label"), "全部展开");
+  await act(async () => collapseToggle.click());
+  assert.deepEqual(names(), ["# Title", "## A"]);
+  assert.equal(collapseToggle.getAttribute("aria-label"), "全部折叠");
+  await act(async () => collapseToggle.click());
+  assert.deepEqual(names(), ["# Title"]);
   await act(async () => rows()[0].querySelector(".outline-twistie button").click());
   await act(async () => rows()[0].focus());
   await act(async () =>
@@ -2032,6 +2039,7 @@ test("outline view renders symbols, navigates, collapses and filters on type", a
     ["string", "boolean"],
   );
   assert.equal(container.querySelector(".outline-detail").textContent, "texsys");
+  assert.equal(container.querySelector(".outline-actions button").disabled, true);
   await view({ document: { name: "main.py", value: "print(1)" } });
   assert.match(container.textContent, /此文件无法提供大纲信息。/);
   await view({ document: undefined });
