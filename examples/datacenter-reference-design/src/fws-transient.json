@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "state": "assumed",
+  "basis": "单冷源退出时立即使用失效工况的准稳态流量，在线冷源跟随固定供水设定点，备用冷源的可用制冷量按延时和斜坡恢复。冷源出口采用待选型的完全混合缓冲容积。初温、负荷和限值为项目假设，泵阀动作、水锤、环境换热和 CDU 二次侧待专项。",
+  "supply_setpoint_c": 20,
+  "standby_supply_c": 24,
+  "standby_return_c": 30,
+  "terminal_inlet_limit_c": 28,
+  "standby_delay_s": 24,
+  "standby_ramp_s": 32,
+  "plant_outlet_buffer_m3": 0.60,
+  "duration_s": 360,
+  "solver_step_s": 0.05,
+  "sample_interval_s": 1,
+  "peak_refinement_tolerance_c": 0.25,
+  "recovery_tolerance_c": 0.75
+}

@@ -1,7 +1,7 @@
 """Run the AIDC delivery graph through a geometry change and failed check."""
 
 import json
-from math import log10, pi, sqrt
+from math import exp, log10, pi, sqrt
 from pathlib import Path
 import shutil
 import xml.etree.ElementTree as ET
@@ -12,6 +12,7 @@ import pytest
 from project_process import build_project
 from texsys.dependencies import lock_project
 from texsys.evidence import file_digest, write_json
+from texsys_datacenter_reference.fws_transient import Circuit
 
 
 REPO = Path(__file__).resolve().parents[1]
@@ -68,7 +69,7 @@ def test_aidc_deliverables_bind_to_the_same_geometry_and_recompute_the_fws_head(
   assert dossier["evidence_complete"]
   assert dossier["input_digest"] == _read(baseline.report)["input_digest"]
   assert dossier["engineering_acceptance"] == "pending-responsible-review"
-  assert len(list((root / "build/drawings/sheets").glob("*.svg"))) == 26
+  assert len(list((root / "build/drawings/sheets").glob("*.svg"))) == 28
   old_dossier = file_digest(root / "build/review/aidc-discipline-review.json")
   drawing = root / "build/drawings/sheets/fws-network.svg"
   old_route_drawing = file_digest(drawing)
@@ -78,6 +79,7 @@ def test_aidc_deliverables_bind_to_the_same_geometry_and_recompute_the_fws_head(
   _check_building_delivery(root)
   _check_telecom_delivery(root)
   _check_fire_systems_delivery(root)
+  _check_transient_delivery(root)
   report = root / MODEL / "fws-network-study.json"
   before = _read(report)
   path = root / "src/fws-network.json"
@@ -99,6 +101,9 @@ def test_aidc_deliverables_bind_to_the_same_geometry_and_recompute_the_fws_head(
   affected = "main-isolated:S-010"
   assert after["cases"][affected]["common_header_kpa"] > before["cases"][affected]["common_header_kpa"]
   assert records["sheet-fws-isolation"]["execution"] == "executed"
+  thermal = _read(root / MODEL / "fws-thermal-parameters.json")
+  assert thermal["extracted_volume_m3"] == pytest.approx(7.376801198829914 + 4*pi*.16**2/4)
+  assert records["dcr:fws-transient"]["execution"] == "executed"
 
   # Restore exactly the original source bytes to exercise the original cache key.
   path.write_bytes(original)
@@ -278,6 +283,36 @@ def _check_fire_systems_delivery(root):
   assert stage.GetPrimAtPath("/AIDC/FireSystems/Pods/IT01/NZ_IT01_1").GetAttribute("texsys:identity").Get() == "NZ-IT01-1"
   assert stage.GetPrimAtPath("/AIDC/FireSystems/Hall/FACP_FC_S")
   assert stage.GetPrimAtPath("/AIDC/Telecom/TA_S03")
+
+
+def _check_transient_delivery(root):
+  source = root / MODEL / "fws-thermal-parameters.json"
+  report = _read(source)
+  assert report["route_digest"] == file_digest(root / MODEL / "fws-network.json")
+  assert report["extracted_volume_m3"] == pytest.approx(7.376801198829914)
+  assert report["extracted_capacity_kj_k"] == pytest.approx(report["extracted_volume_m3"]*998*4.18)
+  assert len(report["segments"]) == 130
+  segment = report["segments"]["S-010"]
+  assert segment["water_volume_m3"] == pytest.approx(segment["length_m"]*pi*.16**2/4)
+  assert segment["normal_residence_s"] == pytest.approx(segment["water_volume_m3"]/abs(segment["normal_flow_m3_s"]))
+  dynamics = _read(root / MODEL / "fws-transient.json")
+  assert dynamics["source_digests"][source.relative_to(root / "build").as_posix()] == file_digest(source)
+  assert dynamics["equilibrium_max_initial_error_c"] < 1e-7
+  assert list(dynamics["scenarios"]) == ["plant-off:CoolContainer1", "plant-off:CoolContainer2"]
+  for case in dynamics["scenarios"].values():
+    assert len(case["terminals"]) == 16
+    assert case["governing_terminal"] == "IT01"
+    assert case["standby_plant"] == "CoolContainer3"
+    assert case["terminals"]["IT01"]["comparison_peak_c"] == pytest.approx(27.2276, abs=.01)
+    assert case["pass"]
+    for analysis in ("coarse_energy", "fine_energy"):
+      balance = case[analysis]
+      assert abs(balance["residual_kj"]) < 1e-5
+      assert balance["input_kj"] == 1440*360
+      assert balance["stored_change_kj"] == pytest.approx(balance["pipe_stored_change_kj"]+balance["buffer_stored_change_kj"])
+  view = ET.parse(root / "build/drawings/views/fws-transient-plan.svg")
+  assert len(view.findall(f".//{SVG}rect[@data-peak-c]")) == 16
+  assert view.find(f".//{SVG}rect[@data-governing='IT01']") is not None
 
 
 def _check_professional_delivery(root):
@@ -534,6 +569,56 @@ def test_aidc_fire_systems_reject_missing_feedback_and_tray_conflict(tmp_path):
   result, statuses = _run(root, "dcr:fire-systems-coordination")
   assert result.status == "fail" and statuses["dcr:telecom-coordination"]["status"] == "pass"
   assert "FA-FC-S-27 envelope overlaps TA-R02-01" in result.diagnostics
+
+
+def test_fws_transport_matches_a_single_loop_with_known_transit_and_buffer():
+  route = {"nodes": ["S-P-PORT", "S-IT01-PORT", "R-IT01-PORT", "R-P-PORT"], "segments": {
+    "supply": {"leg": "supply", "from": "S-P-PORT", "to": "S-IT01-PORT"},
+    "return": {"leg": "return", "from": "R-IT01-PORT", "to": "R-P-PORT"},
+  }}
+  flow, volume = .001, .005
+  parameters = {"fluid": {"density_kg_m3": 1000, "cp_kj_kg_k": 4, "delta_t_k": 10},
+                "segments": {name: {"water_volume_m3": volume} for name in route["segments"]}}
+  case = {"terminals": {"IT01": {"flow_m3_s": flow, "heat_kw": 40}},
+          "duty": {"P": {"flow_m3_s": flow, "cooling_available_kw": 80}},
+          "pipes": {name: {"flow_m3_s": flow} for name in route["segments"]}}
+  settings = {"supply_setpoint_c": 20, "standby_supply_c": 24, "standby_return_c": 30,
+              "standby_delay_s": 12, "standby_ramp_s": 2, "duration_s": 16, "plant_outlet_buffer_m3": 0}
+  model = Circuit(route, parameters, case, case, settings)
+  t, temperature, balance = model.run(settings, "P", .05)
+  assert t[99] == pytest.approx(4.975) and temperature[99, 0] == pytest.approx(20)
+  assert t[100] == pytest.approx(5.025) and temperature[100, 0] == pytest.approx(30)
+  assert abs(balance["residual_kj"]) < 1e-8
+  settings["plant_outlet_buffer_m3"] = .002
+  t, temperature, balance = model.run(settings, "P", .05)
+  assert t[120] == pytest.approx(6.025)
+  # The parcel took five seconds through the supply pipe after the buffer outlet.
+  expected_average = 30 + (24-30)*exp(-1/2)*(1-exp(-.05/2))/(.05/2)
+  assert temperature[120, 0] == pytest.approx(expected_average)
+  assert abs(balance["residual_kj"]) < 1e-8
+
+
+def test_aidc_transient_blocks_package_but_draws_temperature_exceedances(tmp_path):
+  root = _checkout(tmp_path)
+  assert _run(root)[0].status == "pass"
+  path = root / "src/fws-transient.json"
+  config = _read(path)
+  config["standby_delay_s"] = 48
+  write_json(path, config)
+  result, records = _run(root)
+  assert result.status == "fail"
+  assert records["dcr:fws-thermal-parameters"]["execution"] == "cached"
+  assert records["dcr:fws-network-study"]["execution"] == "cached"
+  assert records["sheet-fws-transient-plan"]["status"] == "pass"
+  assert records["review-package"]["execution"] == "blocked"
+  study = _read(root / MODEL / "fws-transient.json")
+  assert study["engineering_status"] == "fail"
+  governing = study["scenarios"]["plant-off:CoolContainer1"]["terminals"]["IT01"]
+  assert governing["comparison_peak_c"] == pytest.approx(28.5542, abs=.01)
+  assert not governing["checks"]["temperature"]
+  assert governing["first_above_limit_s"] > 0
+  fig = ET.parse(root / "build/drawings/views/fws-transient-plan.svg")
+  assert fig.find(f".//{SVG}rect[@data-pod='IT01']").get("class") == "pod-fail"
 
 
 def test_aidc_geometry_rejects_missing_and_clashing_placements(tmp_path):

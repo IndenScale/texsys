@@ -282,6 +282,7 @@ def _case(model, plants, terminals, config, count, state):
     }
     duty[name] = {"pump": pump, "flow_m3_s": flow, "heat_kw": heat, "pipe_kpa": feed_loss,
                   "chiller_kpa": equipment_loss, "required_kpa": required, "available_kpa": max_head,
+                  "cooling_available_kw": plant["rating_kw"]*derating,
                   "speed_ratio": speed, "power_kw": power_kw, "checks": checks, "pass": all(checks.values())}
   checks = {"dispatch": len(pumps) == count, "pipe-velocity": all(x["pass"] for x in results.values()),
             "terminal-duty": all(x["pass"] for x in outlet.values()), "plant-duty": all(x["pass"] for x in duty.values())}

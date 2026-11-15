@@ -20,6 +20,9 @@ from .fws_design import build_hydraulics, build_routes
 from .fws_network import build_network
 from .fws_network_study import build_network_study
 from .fws_network_views import build_network_view
+from .fws_thermal_parameters import build_thermal_parameters
+from .fws_transient import build_transient, build_transient_check
+from .fws_transient_views import build_transient_view
 from .plans import build_plan
 from .power_views import build_power_view
 from .review import build_review_package
@@ -34,7 +37,7 @@ from .telecom_views import build_telecom_view
 
 class DatacenterReferencePackage(TexsysPackage):
   name = "datacenter-reference"
-  version = "0.8.0"
+  version = "0.9.0"
 
   def targets(self) -> tuple[TargetDefinition, ...]:
     return (
@@ -99,6 +102,14 @@ class DatacenterReferencePackage(TexsysPackage):
                        dependencies=("dcr:fws-network",),
                        input_patterns=spatial_inputs("*.sdl.json", "*/module.toml", "design-basis.json",
                                                      "placement.study.json", "fws-network-study.json")),
+      TargetDefinition("dcr:fws-thermal-parameters", self.name, self.version, build_thermal_parameters,
+                       dependencies=("dcr:fws-network-study",), input_patterns=spatial_inputs("fws-thermal-parameters.json")),
+      TargetDefinition("dcr:fws-transient", self.name, self.version, build_transient,
+                       dependencies=("dcr:fws-thermal-parameters",), input_patterns=spatial_inputs("fws-transient.json")),
+      TargetDefinition("dcr:fws-transient-check", self.name, self.version, build_transient_check,
+                       dependencies=("dcr:fws-transient",), input_patterns=()),
+      TargetDefinition("dcr:fws-transient-view", self.name, self.version, build_transient_view,
+                       dependencies=("dcr:fws-transient", "dcr:architecture"), input_patterns=(), named_output=True),
       TargetDefinition("dcr:fws-network-coordination", self.name, self.version, build_fws_network_coordination,
                        dependencies=("dcr:structure-model", "dcr:fws-network"), input_patterns=()),
       TargetDefinition("dcr:fws-network-view", self.name, self.version, build_network_view,

@@ -35,6 +35,7 @@ datacenter-reference 器件/单元库 → structure / architecture / hvac-equipm
 - `src/electrical.json`、`electrical-study.json`：A/B 电网边界、故障源、保护时间带及用电工况。单线图展开 SDL 方舱边界，保留每条连接的源标识。
 - `src/wbs.json`：WBS 节点与实例归属。
 - `src/fws-network.json` 声明总管和外绕环路坐标、管径、保温、管件及屋面预留，编译到 3 个冷源和 16 个 IT 方舱的全部 38 条 SDL 连接。`src/fws-network-study.json` 声明温差、设备阻力、变频运行范围和必需隔离校核。
+- `src/fws-thermal-parameters.json` 保留管段水量预算。`src/fws-transient.json` 声明切换初温、备用延时、升载和候选缓冲容积。读取编译所得管段净内径、实际长度和有符号流量以复算热输运。
 - `src/fws-routing.json`、`src/fws-hydraulics.json` 保留单回路校验夹具。正式审查包消费全网目标。
 - `src/review.json` 声明各专业所需的文件与待审项。`assets/sheets/` 定义图号、比例、图框引用、视图和说明。
 
@@ -49,7 +50,7 @@ datacenter-reference 器件/单元库 → structure / architecture / hvac-equipm
 | 核心机电与方舱布局 | 分区图核对 65 个物理实例，BOM 保留 514 条 SDL 明细。设施水与弱电协调包络和贯穿预留。弱电编译两张桥架平面、端接系统图和 128 个机柜的双路纤芯表。消防编译主机房报警平面和方舱灭火设备布置 | 实际设备尺寸、机柜跳线、支吊架、贯穿详图及灭火专项选型 |
 | 性能计算与冗余保护 | 电气 A/B 出单线图、容量证据、88 个三相故障工况及保护表。弱电校核链路光预算、单路承载 5.12 Tb/s 的配置容量及各登记构件单点断开后连通性 | 厂家曲线、接地、单相故障、多源并联、实际切换、运营商和网络协议测试 |
 | 管道布置 | `dcr:fws-network` 从设备接口生成供回水环路、支管和立管。五张图输出总平面、系统图、屋面预留、局部接驳正视投影和分段隔离图 | 支吊架、排空、阀件检修及防火封堵 |
-| 仿真与寄生反注 | `dcr:fws-network-study` 按实际管段、孔径、管件及阀门阻力计算 1440 kW 液侧负荷，覆盖正常、单冷源、单泵和 22 个单干管段隔离工况 | 制造商设备曲线、平衡阀规格、二次侧与动态切换 |
+| 仿真与寄生反注 | `dcr:fws-network-study` 复算 32 个稳态工况。`dcr:fws-thermal-parameters` 从同一套管段提取水量、热容和滞留时间。`dcr:fws-transient` 校核在役冷源分别退出后的 16 舱水温，并编译时程和峰值平面 | 真实机组控制曲线、缓冲设施布置、管壁与设备蓄热、流量切换与水锤、CDU 二次侧 |
 | 多专业签核 | `review-package` 从本次构建快照生成总图、建筑、消防、结构、机房工艺、弱电、电气和暖通审查清单与文件摘要。消防纳入疏散、报警、灭火设备、联动、断线证据和封堵预留 | 责任人在现有 Git 审查中针对指定修订处置，审查清单保留待核状态 |
 
 ## 重跑
@@ -63,9 +64,12 @@ uv run --locked texsys build -p examples/datacenter-reference-design --target dc
 uv run --locked texsys build -p examples/datacenter-reference-design --target dcr:fire-egress --target sheet-fire-egress
 uv run --locked texsys build -p examples/datacenter-reference-design --target dcr:telecom-study --target sheet-telecom-a
 uv run --locked texsys build -p examples/datacenter-reference-design --target dcr:fire-systems-study --target sheet-fire-alarm
+uv run --locked texsys build -p examples/datacenter-reference-design --target dcr:fws-transient-check --target sheet-fws-transient-plan
 ```
 
-成品图在 `build/drawings/sheets/`，包含 26 张 A3 图及各图的来源报告。可校准图纸按标题栏比例原尺寸打印。门、疏散、预留、构件、保护、水力、弱电端接及消防设备和工况表在 `build/schedules/`。带桥架、设施水、建筑结构及消防安装包络的综合场景为 `build/scenes/aidc-fire-systems-coordinated.usda`。专业审查材料在 `build/review/aidc-discipline-review.json`。用 Tex Studio 的文件资源管理器或快速打开读取上述文件。
+成品图在 `build/drawings/sheets/`，包含 28 张 A3 图及各图的来源报告。可校准图纸按标题栏比例原尺寸打印。门、疏散、预留、构件、保护、水力、弱电端接、热瞬态及消防工况表在 `build/schedules/`。带桥架、设施水、建筑结构及消防安装包络的综合场景为 `build/scenes/aidc-fire-systems-coordinated.usda`。专业审查材料在 `build/review/aidc-discipline-review.json`。用 Tex Studio 的文件资源管理器或快速打开读取上述文件。
+
+温度预算按 CDU 设施水入口 28°C。管段提取 7.377 m³ 水量。每台冷源出口计入 600 L 候选缓冲，24 s 启动加 32 s 升载时两工况的最不利入口约 27.23°C。延长启动时间或移除缓冲会在同一链路上重算热量与超限平面，并阻断审查包。温升结果假设失效后的规定流量在切换时立即成立，缓冲量作为候选设备条件保留，后续需落实容器和压损。
 
 省略 `SD-FC-S-11` 后报警平面标记未覆盖单元，审查包停止更新。断开它相邻的两个回路段可在工况表中定位失联设备。删除风阀关闭反馈会使联动反例的模拟许可与验收期望冲突，构建非零退出。消防覆盖依据项目声明的几何单元，联动模拟与任何现场设备隔离。介质量、喷放能力、实际烟气及声光覆盖、失电恢复和现场联动试验待专项校核。
 

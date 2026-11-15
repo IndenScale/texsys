@@ -12,7 +12,7 @@ build = "build"
 default_targets = ["review-package"]
 
 [dependencies]
-datacenter-reference = { path = "../../packages/datacenter-reference", version = "0.8.0" }
+datacenter-reference = { path = "../../packages/datacenter-reference", version = "0.9.0" }
 sheet = { path = "../../packages/sheet", version = "0.2.0" }
 
 [build.targets.review-package]
@@ -22,6 +22,7 @@ dependencies = [
   "dcr:design-checks",
   "dcr:bom",
   "dcr:fws-network-study",
+  "dcr:fws-transient-check",
   "dcr:fws-network-coordination",
   "dcr:structure-gravity",
   "dcr:power-study",
@@ -54,6 +55,8 @@ dependencies = [
   "sheet-fws-roof",
   "sheet-fws-section",
   "sheet-fws-isolation",
+  "sheet-fws-transient-curves",
+  "sheet-fws-transient-plan",
   "sheet-telecom-a",
   "sheet-telecom-b",
   "sheet-telecom-system",
@@ -317,6 +320,28 @@ using = "sheet:compose"
 dependencies = ["plan-fws-isolation"]
 scope = { source = "assets/sheets/fws-isolation.sheet.json" }
 output = "build/drawings/sheets/fws-isolation.svg"
+
+[build.targets.plan-fws-transient-curves]
+using = "dcr:fws-transient-view"
+output = "build/drawings/views/fws-transient-curves.svg"
+scope = { view = "curves" }
+
+[build.targets.sheet-fws-transient-curves]
+using = "sheet:compose"
+dependencies = ["plan-fws-transient-curves"]
+scope = { source = "assets/sheets/fws-transient-curves.sheet.json" }
+output = "build/drawings/sheets/fws-transient-curves.svg"
+
+[build.targets.plan-fws-transient-plan]
+using = "dcr:fws-transient-view"
+output = "build/drawings/views/fws-transient-plan.svg"
+scope = { view = "plan" }
+
+[build.targets.sheet-fws-transient-plan]
+using = "sheet:compose"
+dependencies = ["plan-fws-transient-plan"]
+scope = { source = "assets/sheets/fws-transient-plan.sheet.json" }
+output = "build/drawings/sheets/fws-transient-plan.svg"
 
 [build.targets.plan-telecom-a]
 using = "dcr:telecom-plan"
