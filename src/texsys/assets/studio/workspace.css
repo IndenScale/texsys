@@ -507,6 +507,7 @@
 }
 .core-editor-surface.no-tabs {
   grid-template-rows: minmax(0, 1fr);
+  background: transparent;
 }
 .core-editor-surface.no-tabs .core-document-tabs {
   display: none;
@@ -619,6 +620,12 @@
 }
 .core-document-tabs .core-file-tabs > .core-file-tab.active:first-child::before,
 .core-file-tabs:empty + .core-domain-tabs:not(.inactive) .page-tab.is-focused:first-child::before {
+  content: none;
+}
+.core-document-tab-list > .page-tabs > .page-tab.is-focused:first-child {
+  border-start-start-radius: 0;
+}
+.core-document-tab-list > .page-tabs > .page-tab.is-focused:first-child::before {
   content: none;
 }
 .core-document-tabs button[role="tab"]:focus-visible {

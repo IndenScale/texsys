@@ -1503,3 +1503,9 @@ GitHub Linux x86_64 的两个数据中心回归由构建报告定位到 `datacen
 本轮以 `9bd577f` 为基线，已跟踪工作区干净（仅未跟踪 `.qoder/` 知识中心本地内容，不纳入提交）；两个前端文件的改动期间由并行会话按既有工作提交为 `95bac02`，本轮补记台账。按用户反馈修正浏览器标签标题：欢迎页显示时为「欢迎 — 工作区 — Tex Studio」（英文 Welcome — Workspace — Tex Studio），其余情况（欢迎页关闭、本地文件活跃或加载工程）为「工作区 — Tex Studio」，对齐参照工作台「活跃编辑器 — 工作区 — 产品名」的标题结构。`WelcomeEditorState` 新增 `welcomeVisible`（欢迎标签存在且活跃），由 `WelcomeWorkspace` 上报，host 据此生成标题，复用既有 Welcome／Workspace 词条；命令中心名称不变。
 
 验证：tsc、ESLint、Prettier 通过；前端 95 项测试通过。现有 Chrome 往返 DOM 实测：裸入口「欢迎 — 工作区 — Tex Studio」；关闭欢迎页「工作区 — Tex Studio」；「显示欢迎页」恢复；新建文本文件（欢迎标签仍开但不活跃）「工作区 — Tex Studio」；关闭文件回退欢迎标题；`?workspace=project` 加载工程后「工作区 — Tex Studio」；恢复裸入口还原欢迎标题。本轮为工作台文案调整，不扩大物理覆盖或工程结论；AIDC 参考设计的工程判定沿用上一轮记录。
+
+### 2026-11-15：空标签显示工作区背景，欢迎首标签左缘对标右缘
+
+本轮以 `983b2c7` 为基线。编辑区卡片边框断线的根因是 outline 绘制定位子元素之下：聚焦标签（`position: relative` + `isolation`）白底覆盖左缘 outline，且 6px 标签圆角与 8px 卡片圆角错配留下灰隙；右缘无定位子元素触碰故连续。边框改叠层（`.workbench-card::after`，z-index 2，菜单层 ≥29 不受影响）由并行会话提交为 `983b2c7`，本轮保留并补齐：欢迎与项目工作区关闭所有标签后卡片透明、边框层与标签行隐藏、网格收为单行，显示工作区背景，「显示欢迎页」与项目空态提示保留为水印入口（`.workbench-editor:has(.welcome-no-editor)`、`.workbench-editor:has(.core-editor-surface.no-tabs)`，后者表面同步透明）；欢迎标签条首标签补左圆角抑制与左外扩取消，与项目工作区既有首标签规则一致。
+
+验证：8710 实例 DOM 实测（自动化浏览器无可见表面，视觉核对以计算样式断言替代，同上一轮惯例）：欢迎页首标签 `border-start-start-radius: 0`、卡片 `::after` 1px 边框 z2；关闭欢迎标签后卡片背景透明、标签行 `display: none`、「显示欢迎页」居中、标题回退「工作区 — Tex Studio」；`?workspace=project` 关闭唯一标签后 `.core-editor-surface.no-tabs` 透明、背景显示、空态提示保留。本轮为工作台视觉调整，不扩大物理覆盖或工程结论；AIDC 参考设计的工程判定沿用上一轮记录。

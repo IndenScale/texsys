@@ -78,6 +78,14 @@
   border-radius: inherit;
   pointer-events: none;
 }
+.workbench-editor:has(.welcome-no-editor),
+.workbench-editor:has(.core-editor-surface.no-tabs) {
+  background: transparent;
+}
+.workbench-editor:has(.welcome-no-editor)::after,
+.workbench-editor:has(.core-editor-surface.no-tabs)::after {
+  content: none;
+}
 .workbench-side {
   grid-column: var(--sidebar-column);
   grid-row: 1;

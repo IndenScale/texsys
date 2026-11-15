@@ -209,6 +209,13 @@
   place-items: center;
 }
 
+.editor-area:has(.welcome-no-editor) {
+  grid-template-rows: minmax(0, 1fr);
+}
+.editor-area:has(.welcome-no-editor) > .core-document-tabs {
+  display: none;
+}
+
 .welcome-document {
   display: grid;
   grid-template-rows: minmax(0, 1fr);
