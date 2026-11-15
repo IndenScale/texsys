@@ -29,6 +29,7 @@ id_ed25519
 .kimi-attachments/
 .kimi-tmp/
 .idea/
+.qoder/
 .vscode/*
 !.vscode/settings.json
 !.vscode/extensions.json
