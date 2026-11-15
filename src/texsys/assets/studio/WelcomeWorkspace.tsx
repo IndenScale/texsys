@@ -26,7 +26,12 @@ import {
 import type { TreeEntry } from "./workspace-model";
 import "./welcome-workspace.css";
 
-export type WelcomeEditorState = { canSave: boolean; canSaveAs: boolean; canClose: boolean };
+export type WelcomeEditorState = {
+  canSave: boolean;
+  canSaveAs: boolean;
+  canClose: boolean;
+  welcomeVisible: boolean;
+};
 type LocalDocument = {
   id: string;
   name: string;
@@ -83,6 +88,7 @@ export function WelcomeWorkspace({
   const canSave = !!current && (!current.handle || current.value !== current.saved) && !busy;
   const canSaveAs = !!current && !busy;
   const canClose = !!active && !busy;
+  const welcomeVisible = welcomeOpen && active === welcomeId;
   const sidebarActivity = layout.sidebarActivity ?? "explorer";
   const activity = isCoreActivity(sidebarActivity) ? sidebarActivity : "explorer";
   const lastActivityRequest = useRef(0);
@@ -104,8 +110,8 @@ export function WelcomeWorkspace({
     return () => window.removeEventListener("beforeunload", preventUnload);
   }, [dirty]);
   useEffect(() => {
-    onEditorState({ canSave, canSaveAs, canClose });
-  }, [canSave, canSaveAs, canClose, onEditorState]);
+    onEditorState({ canSave, canSaveAs, canClose, welcomeVisible });
+  }, [canSave, canSaveAs, canClose, welcomeVisible, onEditorState]);
   useEffect(() => {
     if (!focusRecent) return;
     recentSection.current?.scrollIntoView({ block: "nearest" });

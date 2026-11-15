@@ -278,8 +278,12 @@ function Studio({
     useUserPreferences();
   useEffect(() => {
     document.documentElement.lang = locale;
-    document.title = emptyWorkspace ? `${t("欢迎")} — Tex Studio` : "Tex Studio";
-  }, [emptyWorkspace, locale]);
+    const workspaceTitle = `${t("工作区")} — Tex Studio`;
+    document.title =
+      emptyWorkspace && welcomeEditor?.welcomeVisible
+        ? `${t("欢迎")} — ${workspaceTitle}`
+        : workspaceTitle;
+  }, [emptyWorkspace, locale, welcomeEditor]);
   const [fileRequest, setFileRequest] = useState<{
     path: string;
     token: number;
