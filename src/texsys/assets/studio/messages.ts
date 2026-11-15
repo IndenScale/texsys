@@ -658,7 +658,6 @@ export const englishMessages: Record<string, string> = {
   新建文本文件: "New Text File",
   "未命名-{0}": "Untitled-{0}",
   新建窗口: "New Window",
-  空白工作区: "Empty Workspace",
   尚未打开文件夹: "No folder open",
   打开已启动的项目: "Open Local Project",
   欢迎: "Welcome",

@@ -278,7 +278,7 @@ function Studio({
     useUserPreferences();
   useEffect(() => {
     document.documentElement.lang = locale;
-    document.title = emptyWorkspace ? `${t("空白工作区")} — Tex Studio` : "Tex Studio";
+    document.title = emptyWorkspace ? `${t("欢迎")} — Tex Studio` : "Tex Studio";
   }, [emptyWorkspace, locale]);
   const [fileRequest, setFileRequest] = useState<{
     path: string;
@@ -1215,7 +1215,7 @@ function Studio({
           )}
         </div>
         <CommandCenter
-          project={state?.project.name ?? t(emptyWorkspace ? "空白工作区" : "打开项目中")}
+          project={state?.project.name ?? t(emptyWorkspace ? "欢迎" : "打开项目中")}
           showTrigger={!hiddenTitlebarGroups.includes("commandCenter")}
           disabled={!state && !emptyWorkspace}
           open={commandOpen}
