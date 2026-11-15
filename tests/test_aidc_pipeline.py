@@ -70,13 +70,14 @@ def test_aidc_deliverables_bind_to_the_same_geometry_and_recompute_the_fws_head(
   assert dossier["evidence_complete"]
   assert dossier["input_digest"] == _read(baseline.report)["input_digest"]
   assert dossier["engineering_acceptance"] == "pending-responsible-review"
-  assert len(list((root / "build/drawings/sheets").glob("*.svg"))) == 45
+  assert len(list((root / "build/drawings/sheets").glob("*.svg"))) == 48
   old_dossier = file_digest(root / "build/review/aidc-discipline-review.json")
   drawing = root / "build/drawings/sheets/fws-network.svg"
   old_route_drawing = file_digest(drawing)
   original_volume = _read(root / MODEL / "fws-thermal-parameters.json")["extracted_volume_m3"]
 
   _check_professional_delivery(root)
+  _check_power_installation(root)
   _check_fws_network_delivery(root)
   _check_building_delivery(root)
   _check_telecom_delivery(root)
@@ -393,6 +394,62 @@ def _check_professional_delivery(root):
     assert power[side]["fault_cases"]["utility:main"]["current_max_ka"] == pytest.approx(
       1.05*.4/(sqrt(3)*abs(winding+utility))
     )
+
+
+def _check_power_installation(root):
+  routes = _read(root / MODEL / "power-routing.json")
+  coordination = _read(root / MODEL / "power-coordination.json")
+  installation = _read(root / MODEL / "power-installation.json")
+  fault = _read(root / MODEL / "power-study.json")
+  assert coordination["runs_checked"] == 54
+  assert not coordination["issues"]
+  assert len(coordination["penetrations"]) == 32
+  stage = Usd.Stage.Open(str(root / "build/scenes/aidc-power-coordinated.usda"))
+  roof = Usd.Stage.Open(str(root / "build/scenes/aidc-power-roof.usda"))
+  assert roof.GetPrimAtPath("/AIDC/Equipment/BuswayA1")
+  assert roof.GetPrimAtPath("/AIDC/Equipment/IT01")
+  for side in ("A", "B"):
+    train = routes["trains"][side]
+    assert len(train["busways"]) == 4
+    view = ET.parse(root / f"build/drawings/views/power-roof-{side.lower()}.svg")
+    assert len(view.findall(f".//{SVG}rect[@data-busway]")) == 4
+    assert len(view.findall(f".//{SVG}circle[@data-route]")) == 17
+    case, = (row for row in installation["cases"].values() if row["operating_train"] == side)
+    last_bus = f"Busway{side}4"
+    row = train["busways"][last_bus]
+    meter = sum(train["segments"][key]["length_m"] for key in row["segments"])
+    assert row["length_m"] == pytest.approx(meter)
+    terminal = row["terminal_paths"]["IT16"]
+    first, last = train["segments"][terminal["segment"]]["points_m"]
+    assert first[:2] == last[:2] == pytest.approx([39.32, 21.83 if side == "A" else 25])
+    plant = 536000 / (sqrt(3)*400*.9)
+    r = .072*meter / 2000
+    x = .080*meter / 2000
+    impedance = fault["trains"][side]["fault_cases"]["battery:IT16"]["path_impedance_ohm"]
+    assert impedance[row["link"]] == pytest.approx({"r": r, "x": x})
+    assert impedance[terminal["link"]]["r"] == pytest.approx(.095*31.02/1000 + .150*(first[2]-last[2])/1000)
+    assert case["busways"][last_bus]["feed_drop_v"] == pytest.approx(sqrt(3)*plant*(r*.9 + x*sqrt(1-.9**2)))
+    for scene in (stage, roof):
+      prim = scene.GetPrimAtPath(f"/AIDC/PowerRoutes/{side}/{side}_IT16")
+      assert list(prim.GetAttribute("texsys:sdlLinks").Get()) == [terminal["link"]]
+      assert scene.GetPrimAtPath(f"/AIDC/PowerRoutes/{side}/{side}_IT16_Building")
+
+
+def test_aidc_power_routing_exposes_a_water_clash_and_derated_feeders(tmp_path):
+  root = _checkout(tmp_path)
+  path = root / "src/power-routing.json"
+  config = _read(path)
+  config["trains"]["A"]["yard_elbow_y_m"] = 28.5
+  config["cables"]["feed"]["installation_factor"] = .61
+  write_json(path, config)
+  failed, records = _run(root, "dcr:power-coordination", "dcr:power-installation", "sheet-power-roof-a")
+  assert failed.status == "fail"
+  clashes = records["dcr:power-coordination"]["diagnostics"]
+  assert any(row["rule"] == "AIDC_POWER_SERVICE_CLASH" and row["objects"] == ["A-P2", "R-001"] for row in clashes)
+  faults = records["dcr:power-installation"]["diagnostics"]
+  assert sum(row["rule"] == "AIDC_POWER_FEED_AMPACITY" for row in faults) == 8
+  assert records["dcr:power-study"]["status"] == "pass"
+  assert records["sheet-power-roof-a"]["status"] == "pass"
 
 
 def _check_load_failures(root, old_dossier):

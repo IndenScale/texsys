@@ -100,14 +100,6 @@
     "generator": {
       "r_ohm": 0.001,
       "x_ohm": 0.002
-    },
-    "feeder": {
-      "r_ohm": 0.001,
-      "x_ohm": 0.002
-    },
-    "tap": {
-      "r_ohm": 0.0012,
-      "x_ohm": 0.002
     }
   },
   "breakers": {

@@ -145,10 +145,24 @@
         "build/drawings/sheets/power-one-line-b-sheet.json",
         "build/datacenter-reference/spatial/power-topology.json",
         "build/datacenter-reference/spatial/power-study.json",
-        "build/schedules/aidc-power-protection.csv"
+        "build/schedules/aidc-power-protection.csv",
+        "build/drawings/sheets/power-roof-a.svg",
+        "build/drawings/sheets/power-roof-a-sheet.json",
+        "build/drawings/sheets/power-roof-b.svg",
+        "build/drawings/sheets/power-roof-b-sheet.json",
+        "build/drawings/sheets/power-pod-section.svg",
+        "build/drawings/sheets/power-pod-section-sheet.json",
+        "build/datacenter-reference/spatial/power-routing.json",
+        "build/datacenter-reference/spatial/power-coordination.json",
+        "build/datacenter-reference/spatial/power-installation.json",
+        "build/scenes/aidc-power-coordinated.usda",
+        "build/scenes/aidc-power-roof.usda",
+        "build/schedules/aidc-power-feeders.csv",
+        "build/schedules/aidc-power-penetrations.csv"
       ],
       "pending": [
-        "厂家时间电流曲线、接地和单相故障、全场并联及动态切换试验"
+        "厂家时间电流曲线、接地和单相故障、全场并联及动态切换试验",
+        "全场非 IT 动力回路、屋面孔洞节点及封堵、耐候选型、弯曲半径与支架、载流量实测修正和谐波分析"
       ]
     },
     "mechanical": {

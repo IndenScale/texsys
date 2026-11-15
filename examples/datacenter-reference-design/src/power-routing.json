@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "state": "assumed",
+  "basis": "AIDC 候选 400 V 屋面走线。A/B 分设室外转接、屋面桥架与方舱入线；导体和安装参数是项目比较假设，需以厂家安装环境试验数据替换。",
+  "trains": {
+    "A": {"yard_elbow_y_m": 28.8, "roof_spine_x_m": 5.15},
+    "B": {"yard_elbow_y_m": 29.4, "roof_spine_x_m": 7.40}
+  },
+  "carriers": {
+    "main": {"width_m": 0.74, "depth_m": 0.18},
+    "branch": {"width_m": 0.23, "depth_m": 0.14},
+    "drop": {"width_m": 0.12, "depth_m": 0.12}
+  },
+  "cables": {
+    "feed": {"parallel": 2, "diameter_m": 0.072, "rated_a": 630, "installation_factor": 0.85,
+             "r_ohm_per_km": 0.072, "x_ohm_per_km": 0.080},
+    "tap": {"parallel": 1, "diameter_m": 0.045, "rated_a": 320, "installation_factor": 0.9,
+            "r_ohm_per_km": 0.150, "x_ohm_per_km": 0.080}
+  },
+  "busway_ohm_per_km": {"r_ohm_per_km": 0.095, "x_ohm_per_km": 0.065},
+  "penetration": {"sleeve_width_m": 0.18, "minimum_roof_edge_m": 0.12},
+  "limits": {"carrier_fill_fraction": 0.45, "critical_path_drop_pct": 3.0}
+}

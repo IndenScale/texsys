@@ -4,7 +4,9 @@
     "YARD": 0,
     "L01": 0.4,
     "RF": 4.9,
-    "YARD-LIMIT": 5.0
+    "YARD-LIMIT": 5.0,
+    "EL-ROOF": 6.8,
+    "EL-ROOF-LIMIT": 7.9
   },
   "zones": {
     "IT-HALL": {
@@ -20,6 +22,14 @@
         "5",
         "C"
       ]
+    },
+    "POWER-ROOF": {
+      "name": "主机房屋面母线布置区",
+      "functional_zone": "power",
+      "level": "EL-ROOF",
+      "ceiling": "EL-ROOF-LIMIT",
+      "minimum_axes": ["1", "A"],
+      "maximum_axes": ["5", "C"]
     },
     "POWER": {
       "name": "供配电区",

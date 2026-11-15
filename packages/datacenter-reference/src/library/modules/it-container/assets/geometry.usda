@@ -23,32 +23,32 @@ def Xform "Module"
     {
         def Xform "power_a"
         {
-            custom double3 texsys:normal = (0, -1, 0)
-            double3 xformOp:translate = (0.640, 0, 1.45)
+            custom double3 texsys:normal = (0, 0, 1)
+            double3 xformOp:translate = (7.02, 0.23, 2.9)
             uniform token[] xformOpOrder = ["xformOp:translate"]
         }
         def Xform "power_b"
         {
-            custom double3 texsys:normal = (0, -1, 0)
-            double3 xformOp:translate = (0.980, 0, 1.45)
+            custom double3 texsys:normal = (0, 0, 1)
+            double3 xformOp:translate = (7.02, 3.4, 2.9)
             uniform token[] xformOpOrder = ["xformOp:translate"]
         }
         def Xform "fws_supply"
         {
             custom double3 texsys:normal = (0, -1, 0)
-            double3 xformOp:translate = (2.810, 0, 1.45)
+            double3 xformOp:translate = (2.81, 0, 1.45)
             uniform token[] xformOpOrder = ["xformOp:translate"]
         }
         def Xform "fws_return"
         {
             custom double3 texsys:normal = (0, -1, 0)
-            double3 xformOp:translate = (4.740, 0, 1.45)
+            double3 xformOp:translate = (4.74, 0, 1.45)
             uniform token[] xformOpOrder = ["xformOp:translate"]
         }
         def Xform "alarm"
         {
             custom double3 texsys:normal = (0, -1, 0)
-            double3 xformOp:translate = (6.850, 0, 1.45)
+            double3 xformOp:translate = (6.85, 0, 1.45)
             uniform token[] xformOpOrder = ["xformOp:translate"]
         }
     }

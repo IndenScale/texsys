@@ -37,6 +37,7 @@ def _edges(instances, connections, document, *, owner="", expanded=()):
       raise ValueError(f"Incompatible SDL link {prefix}{connection['id']}.")
     if first in {"ac-power", "dc-power"}:
       edges.append({"id": prefix + connection["id"], "from": prefix + start, "to": prefix + end, "kind": first,
+                    "physical_from": prefix + connection["from"], "physical_to": prefix + connection["to"],
                     "source": document, "source_link": connection["id"]})
   return edges
 
@@ -201,7 +202,7 @@ def _source(config, key, voltage, base_current=None):
   return FaultSource(voltage, bound("minimum"), bound("maximum"), sustain_s=record.get("sustain_s"))
 
 
-def _power_study(side, train, project, config):
+def _power_study(side, train, project, config, busways):
   nodes = train["nodes"]
 
   def get(node, key, unit):
@@ -275,10 +276,12 @@ def _power_study(side, train, project, config):
     solve(f"{name}:transfer", generator, (gen_section, gen_link, transfer), train["transfer"], requires_backup=True)
   for mode, source in inverter_sources.items():
     for name, record in train["feeders"].items():
-      feeder = CircuitSection(record["feed"], voltage, impedances["feeder"], _setting(config, "feeder", voltage))
+      path = busways[name]
+      feeder = CircuitSection(record["feed"], voltage, Impedance(**path["impedance"]), _setting(config, "feeder", voltage))
       solve(f"{mode}:{name}", source, (feeder,), name, redundant=True)
       for terminal, tap in record["terminals"].items():
-        downstream = CircuitSection(tap, voltage, impedances["tap"], _setting(config, "terminal", voltage))
+        impedance = Impedance(**path["terminal_paths"][terminal]["impedance"])
+        downstream = CircuitSection(tap, voltage, impedance, _setting(config, "terminal", voltage))
         solve(f"{mode}:{terminal}", source, (feeder, downstream), terminal, redundant=True, requires_backup=True)
   return {"critical_kw": critical_kw, "facility_without_ups_kw": facility_kw, "input_kw": input_kw,
           "terminal_kw": terminal_kw, "rated_ups_kva": ups_kva, "battery_kwh": battery_kwh, "autonomy_min": autonomy,
@@ -293,7 +296,10 @@ def build_power_study(context):
   if config.get("state") != "assumed" or not isinstance(config.get("basis"), str) or not config["basis"].strip():
     raise ValueError("Electrical duty and fault assumptions must declare their engineering basis.")
   topology = staged_json(context, MODEL)
-  trains = {side: _power_study(side, train, topology, config) for side, train in topology["trains"].items()}
+  routing_model = f"{MODELS}/power-routing.json"
+  routing = staged_json(context, routing_model)
+  trains = {side: _power_study(side, train, topology, config, routing["trains"][side]["busways"])
+            for side, train in topology["trains"].items()}
   diagnostics = []
   for side, report in trains.items():
     for element, result in report["duty"].items():
@@ -307,6 +313,7 @@ def build_power_study(context):
                             "message": f"{side}/{case}: " + ", ".join(k for k, passed in response["checks"].items()
                                                                       if not passed)})
   result = model_report(context, "power-study", {"topology_digest": file_digest(context.build_path / MODEL),
+                                                "routing_digest": file_digest(context.build_path / routing_model),
                                                 "assumptions": config, "trains": trains}, diagnostics)
   schedule = context.build_path / "schedules/aidc-power-protection.csv"
   schedule.parent.mkdir(parents=True, exist_ok=True)

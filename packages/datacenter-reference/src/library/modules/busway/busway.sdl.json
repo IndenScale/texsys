@@ -42,7 +42,7 @@
             "source": "Texsys 数据中心参考设计库概念假设（公开产品水平脱敏）"
           },
           "segment_length_m": {
-            "value": 3,
+            "value": 31.35,
             "unit": "m",
             "state": "assumed",
             "source": "Texsys 数据中心参考设计库概念假设（公开产品水平脱敏）"

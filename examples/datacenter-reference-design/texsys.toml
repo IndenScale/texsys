@@ -12,7 +12,7 @@ build = "build"
 default_targets = ["review-package"]
 
 [dependencies]
-datacenter-reference = { path = "../../packages/datacenter-reference", version = "0.15.0" }
+datacenter-reference = { path = "../../packages/datacenter-reference", version = "0.16.0" }
 sheet = { path = "../../packages/sheet", version = "0.2.0" }
 
 [build.targets.review-package]
@@ -37,6 +37,8 @@ dependencies = [
   "dcr:air-scene",
   "dcr:air-check",
   "dcr:power-study",
+  "dcr:power-installation",
+  "dcr:power-scene",
   "dcr:fire-egress",
   "dcr:fire-systems-study",
   "dcr:fire-systems-coordination",
@@ -69,6 +71,9 @@ dependencies = [
   "sheet-electrical",
   "sheet-power-one-line-a",
   "sheet-power-one-line-b",
+  "sheet-power-roof-a",
+  "sheet-power-roof-b",
+  "sheet-power-pod-section",
   "sheet-cooling",
   "sheet-fws-network",
   "sheet-fws-system",
@@ -590,3 +595,36 @@ using = "sheet:compose"
 dependencies = ["view-air-environment"]
 scope = { source = "assets/sheets/air-environment.sheet.json" }
 output = "build/drawings/sheets/air-environment.svg"
+
+[build.targets.view-power-roof-a]
+using = "dcr:power-route-plan"
+output = "build/drawings/views/power-roof-a.svg"
+scope = { kind = "plan", train = "A" }
+
+[build.targets.sheet-power-roof-a]
+using = "sheet:compose"
+dependencies = ["view-power-roof-a"]
+scope = { source = "assets/sheets/power-roof-a.sheet.json" }
+output = "build/drawings/sheets/power-roof-a.svg"
+
+[build.targets.view-power-roof-b]
+using = "dcr:power-route-plan"
+output = "build/drawings/views/power-roof-b.svg"
+scope = { kind = "plan", train = "B" }
+
+[build.targets.sheet-power-roof-b]
+using = "sheet:compose"
+dependencies = ["view-power-roof-b"]
+scope = { source = "assets/sheets/power-roof-b.sheet.json" }
+output = "build/drawings/sheets/power-roof-b.svg"
+
+[build.targets.view-power-pod-section]
+using = "dcr:power-route-section"
+output = "build/drawings/views/power-pod-section.svg"
+scope = { kind = "section", pod = "IT01" }
+
+[build.targets.sheet-power-pod-section]
+using = "sheet:compose"
+dependencies = ["view-power-pod-section"]
+scope = { source = "assets/sheets/power-pod-section.sheet.json" }
+output = "build/drawings/sheets/power-pod-section.svg"

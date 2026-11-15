@@ -13,8 +13,8 @@ def Xform "Module"
         {
             color3f[] primvars:displayColor = [(0.55, 0.5, 0.35)]
             double size = 1
-            double3 xformOp:scale = (0.2, 0.15, 3.0)
-            double3 xformOp:translate = (0.1, 0.075, 1.5)
+            double3 xformOp:scale = (31.35, 0.2, 0.15)
+            double3 xformOp:translate = (15.675, 0.1, 0.075)
             uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
         }
     }
@@ -23,32 +23,32 @@ def Xform "Module"
     {
         def Xform "in"
         {
-            custom double3 texsys:normal = (0, 0, -1)
-            double3 xformOp:translate = (0.1, 0.075, 0.0)
+            custom double3 texsys:normal = (-1, 0, 0)
+            double3 xformOp:translate = (0, 0.1, 0.075)
             uniform token[] xformOpOrder = ["xformOp:translate"]
         }
         def Xform "tap_1"
         {
-            custom double3 texsys:normal = (0, 0, 1)
-            double3 xformOp:translate = (0.1, 0.075, 0.75)
+            custom double3 texsys:normal = (0, 0, -1)
+            double3 xformOp:translate = (7.02, 0.1, 0)
             uniform token[] xformOpOrder = ["xformOp:translate"]
         }
         def Xform "tap_2"
         {
-            custom double3 texsys:normal = (0, 0, 1)
-            double3 xformOp:translate = (0.1, 0.075, 1.5)
+            custom double3 texsys:normal = (0, 0, -1)
+            double3 xformOp:translate = (15.02, 0.1, 0)
             uniform token[] xformOpOrder = ["xformOp:translate"]
         }
         def Xform "tap_3"
         {
-            custom double3 texsys:normal = (0, 0, 1)
-            double3 xformOp:translate = (0.1, 0.075, 2.25)
+            custom double3 texsys:normal = (0, 0, -1)
+            double3 xformOp:translate = (23.02, 0.1, 0)
             uniform token[] xformOpOrder = ["xformOp:translate"]
         }
         def Xform "tap_4"
         {
-            custom double3 texsys:normal = (0, 0, 1)
-            double3 xformOp:translate = (0.1, 0.075, 3.0)
+            custom double3 texsys:normal = (0, 0, -1)
+            double3 xformOp:translate = (31.02, 0.1, 0)
             uniform token[] xformOpOrder = ["xformOp:translate"]
         }
     }

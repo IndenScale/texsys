@@ -33,6 +33,9 @@ from .fws_transient_views import build_transient_view
 from .plans import build_plan
 from .pod_layout import build_pod_coordination, build_pod_layout, build_pod_scene
 from .pod_views import build_pod_view
+from .power_installation import build_power_installation
+from .power_routing import build_power_coordination, build_power_routing, build_power_scene
+from .power_routing_views import build_power_routing_view
 from .power_views import build_power_view
 from .review import build_review_package
 from .spatial_design import build_grid, build_layout, build_levels, build_site, spatial_inputs
@@ -52,7 +55,7 @@ from .wet_utility_views import build_wet_view
 
 class DatacenterReferencePackage(TexsysPackage):
   name = "datacenter-reference"
-  version = "0.15.0"
+  version = "0.16.0"
 
   def targets(self) -> tuple[TargetDefinition, ...]:
     return (
@@ -209,7 +212,20 @@ class DatacenterReferencePackage(TexsysPackage):
                        input_patterns=spatial_inputs("*.sdl.json", "*/module.toml", "design-basis.json",
                                                      "placement.study.json", "electrical.json")),
       TargetDefinition("dcr:power-study", self.name, self.version, build_power_study,
-                       dependencies=("dcr:power-topology",), input_patterns=spatial_inputs("electrical-study.json")),
+                       dependencies=("dcr:power-routing",), input_patterns=spatial_inputs("electrical-study.json")),
+      TargetDefinition("dcr:power-routing", self.name, self.version, build_power_routing,
+                       dependencies=("dcr:layout", "dcr:power-topology"), input_patterns=spatial_inputs("power-routing.json")),
+      TargetDefinition("dcr:power-coordination", self.name, self.version, build_power_coordination,
+                       dependencies=("dcr:power-routing", "dcr:fire-systems", "dcr:telecom",
+                                     "dcr:structure-model", "dcr:fws-network"), input_patterns=()),
+      TargetDefinition("dcr:power-scene", self.name, self.version, build_power_scene,
+                       dependencies=("dcr:power-coordination", "dcr:air-scene"), input_patterns=()),
+      TargetDefinition("dcr:power-installation", self.name, self.version, build_power_installation,
+                       dependencies=("dcr:power-study",), input_patterns=()),
+      TargetDefinition("dcr:power-route-plan", self.name, self.version, build_power_routing_view,
+                       dependencies=("dcr:power-routing", "dcr:architecture"), input_patterns=(), named_output=True),
+      TargetDefinition("dcr:power-route-section", self.name, self.version, build_power_routing_view,
+                       dependencies=("dcr:power-coordination",), input_patterns=(), named_output=True),
       TargetDefinition("dcr:power-view", self.name, self.version, build_power_view,
                        dependencies=("dcr:power-topology",), input_patterns=(), named_output=True),
       TargetDefinition("dcr:site-plan", self.name, self.version, build_plan, dependencies=("dcr:site",),

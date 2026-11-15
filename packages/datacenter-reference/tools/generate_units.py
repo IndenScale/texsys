@@ -147,7 +147,9 @@ def it_container() -> dict:
     "title": "IT 方舱",
     "envelope": [7.4, 3.68, 2.9],
     "color": [0.3, 0.38, 0.45],
-    "ports_x": {"power_a": .64, "power_b": .98, "fws_supply": 2.81, "fws_return": 4.74, "alarm": 6.85},
+    "ports_x": {"fws_supply": 2.81, "fws_return": 4.74, "alarm": 6.85},
+    "ports_mounting": {"power_a": ([7.02, .23, 2.9], [0, 0, 1]),
+                       "power_b": ([7.02, 3.40, 2.9], [0, 0, 1])},
     "geometry_layout": {},
     "construction": {
       "wall_thickness_m": .08,
@@ -564,6 +566,17 @@ def build_sdl(name: str, unit: dict) -> dict:
   }
 
 
+def port_mounting(unit: dict) -> dict:
+  ex, _, ez = unit["envelope"]
+  count = len(unit["ports"])
+  return {
+    name: unit.get("ports_mounting", {}).get(
+      name, ([unit.get("ports_x", {}).get(name, ex * (index + 1) / (count + 1)), 0, ez / 2], [0, -1, 0])
+    )
+    for index, name in enumerate(unit["ports"])
+  }
+
+
 def build_geometry(name: str, unit: dict) -> str:
   ex, ey, ez = unit["envelope"]
   r, g, b = unit["color"]
@@ -589,13 +602,11 @@ def build_geometry(name: str, unit: dict) -> str:
       '        }',
     ]
   lines += ['    }', '', '    def Scope "Ports"', '    {']
-  n = len(unit["ports"])
-  for i, (pname, p) in enumerate(unit["ports"].items()):
-    x = unit.get("ports_x", {}).get(pname, ex * (i + 1) / (n + 1))
+  for pname, (position, normal) in port_mounting(unit).items():
     lines += [
       f'        def Xform "{pname}"', '        {',
-      '            custom double3 texsys:normal = (0, -1, 0)',
-      f'            double3 xformOp:translate = ({x:.3f}, 0, {ez / 2})',
+      f'            custom double3 texsys:normal = {tuple(normal)}',
+      f'            double3 xformOp:translate = {tuple(round(value, 3) for value in position)}',
       '            uniform token[] xformOpOrder = ["xformOp:translate"]',
       '        }',
     ]
@@ -619,8 +630,6 @@ def build_symbol(name: str, unit: dict) -> str:
 
 
 def build_specification(name: str, unit: dict) -> dict:
-  ex, ey, ez = unit["envelope"]
-  n = len(unit["ports"])
   return {
     "schema_version": 1,
     "state": "assumed",
@@ -628,9 +637,8 @@ def build_specification(name: str, unit: dict) -> dict:
     "envelope_m": unit["envelope"],
     "frame": {"origin": "module-minimum-corner", "units": "m", "up_axis": "Z"},
     "interfaces": {
-      pname: {"position_m": [unit.get("ports_x", {}).get(pname, ex * (i + 1) / (n + 1)), 0, ez / 2],
-              "normal": [0, -1, 0]}
-      for i, pname in enumerate(unit["ports"])
+      pname: {"position_m": position, "normal": normal}
+      for pname, (position, normal) in port_mounting(unit).items()
     },
     "boundary": unit["boundary"],
     "instance_layout_m": unit["layout"],
