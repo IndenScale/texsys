@@ -1573,3 +1573,11 @@ GitHub Linux x86_64 的两个数据中心回归由构建报告定位到 `datacen
 宿主机切换后，独立仓已移至同级目录，`local.texsys.tpm-registry` 正在监听 `127.0.0.1:8711`，Podman 仅转发 Studio 的 `8710`。TPM 持久目录中的 6 个包均匹配 AIDC 原锁记录的包摘要和实算归档 SHA-256。切换脚本遇到启动期连接错误，随后直接运行 AIDC 既有的 `tools/ci_demo.py`。
 
 原工作树的五步均返回 0，TPM 日志无对应请求。`texsys sync` 可复用已有的 `build/dependencies`，因此从 AIDC `f27c749` 干净副本保留原锁，使用原有 CLI、运行环境和 `tools/ci_demo.py` 重新验收。脚本使用新建临时空包缓存，TPM 日志记录 6 份元数据和 6 个归档共 12 次 HTTP 200。`sync → lock --check → build → check → package status` 五步均返回 0，通过 12 项概念设计校核，生成 512 条 BOM，两个产物摘要与原工作树运行一致。`build` 和 `check` 输出 OpenUSD 缓存行大小警告。此次完成 G09／G13 的本机 TPM 迁移验收。证据在 `build/evidence/tpm-registry/`，其中 `summary.json` 的 SHA-256 为 `8272e57a4aa78b22139a6ff27809a93191d3742a3a908540153e80001e0a0d67`。
+
+### 2026-11-15：Textual Systems 工作区迁移
+
+以 `e18bc3d` 为基线，将主仓、TPM Registry、GB 50174 规范包和 AIDC 消费项目同级迁入 `~/workspace/textual-systems/`。重建同一 Studio 容器绑定到新宿主路径，复用原三个持久卷。TPM 在同一 `8711` 地址持续提供持久目录中的包。此轮复验 G09／G13 的包分发与工程验证闭环在工作树搬迁后仍可重跑。
+
+- 现有 Chrome 标签页在 `8710` 加载 `datacenter-reference-design` 及其文件树。
+- 以 AIDC `f27c749` 的干净副本和临时空包缓存重跑 `sync → lock --check → build → check → package status`，五步退出码均为 0。TPM 日志确认 6 份元数据与 6 个归档下载成功。12 项概念校核通过，512 条 BOM 和校核报告的摘要与搬迁前一致。证据在 `build/evidence/workspace-relocation/aidc/`，其中 `summary.json` 的 SHA-256 为 `a75b8a2ee528171037d77b5aff676635581e575998ad1a8b8b19831977cc73dd`。
+- 在同级 GB 50174 规范仓重跑 `tools/verify_release.py`，21 条命令的退出码均符合各自预期，覆盖包发布、两项目锁定消费、输入变化和构建记录。证据在规范仓的 `build/verification/workspace-relocation-2026-11-15/`。
