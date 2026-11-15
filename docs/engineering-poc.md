@@ -1560,8 +1560,16 @@ GitHub Linux x86_64 的两个数据中心回归由构建报告定位到 `datacen
 
 边界：HTTP 源无传输加密，仅限本机回环；无账户、第三方上传与签名；第三方运行环境完整还原、公网托管与跨组织部署仍未完成。本轮推进 G09、G12、G13 的 CI 可复现拉取；AIDC 参考设计校核通过仍为概念判定，不构成真实工程接受。
 
-### 2026-11-15：TPM Registry 独立服务迁移准备
+### 2026-11-15：TPM Registry 独立服务迁移与验收
 
 以 `7e1323d` 为基线准备 [ADR-0032](adr/0032-independent-local-tpm-registry.md)。本机包源独立于 Studio 后，重建工作台无需中断已锁依赖的提供，推进 G09／G13 的部署复现。保留 `127.0.0.1:8711`、归档路径和客户端契约。原有只读包源回归记录的修订保留在工作树，当前会话无权写母仓 Git 索引。
 
 验证：macOS LaunchAgent 配置通过 `plutil -lint`，现有监听占用时安装器拒绝接管。用复制的发布目录校验 AIDC 锁中的 6 个包以及 12 个静态 HTTP 响应，归档和元数据字节与旧源一致。宿主权限阻止创建同级目录、操作 Podman 和监听 TCP，独立仓库暂放在母仓的忽略目录中。现有容器未重建；登录服务实时切换与 AIDC 空缓存重跑待验收。
+
+续跑以 `c594464` 为母仓基线。迁移入口复制和逐字节核对发布文件，在重跑 AIDC 前验证 TPM 登录服务的进程实际监听 `8711`，并为 AIDC 的回环请求设置代理排除。重核既有发布文件与 AIDC 旧锁，6 个包的元数据摘要和归档 SHA-256 一致。迁移在 `podman machine inspect` 预检时因 VM 锁文件权限失败，`8711` 仍由 Studio 的 Podman 转发进程监听。部署后须用 AIDC 的空包缓存复跑核对 G09／G13，证据写入消费仓库的 `build/ci-demo/`。
+
+再执行时，独立仓已提交既有脚本修订（`9c2d6fd`），LaunchAgent 配置校验通过。当前会话无法写入同级仓库目录或 TPM 持久数据目录，也无法写入 Podman VM 锁和母仓 Git 索引。Registry 回归中 24 项通过，7 项因测试 HTTP 服务无法绑定本机端口而未完成。旧服务仍占用 `8711`，独立 TPM 尚未上线，G09／G13 的迁移验收待切换后执行。
+
+宿主机切换后，独立仓已移至同级目录，`local.texsys.tpm-registry` 正在监听 `127.0.0.1:8711`，Podman 仅转发 Studio 的 `8710`。TPM 持久目录中的 6 个包均匹配 AIDC 原锁记录的包摘要和实算归档 SHA-256。切换脚本遇到启动期连接错误，随后直接运行 AIDC 既有的 `tools/ci_demo.py`。
+
+原工作树的五步均返回 0，TPM 日志无对应请求。`texsys sync` 可复用已有的 `build/dependencies`，因此从 AIDC `f27c749` 干净副本保留原锁，使用原有 CLI、运行环境和 `tools/ci_demo.py` 重新验收。脚本使用新建临时空包缓存，TPM 日志记录 6 份元数据和 6 个归档共 12 次 HTTP 200。`sync → lock --check → build → check → package status` 五步均返回 0，通过 12 项概念设计校核，生成 512 条 BOM，两个产物摘要与原工作树运行一致。`build` 和 `check` 输出 OpenUSD 缓存行大小警告。此次完成 G09／G13 的本机 TPM 迁移验收。证据在 `build/evidence/tpm-registry/`，其中 `summary.json` 的 SHA-256 为 `8272e57a4aa78b22139a6ff27809a93191d3742a3a908540153e80001e0a0d67`。

@@ -120,7 +120,14 @@ uv run --locked python tools/verify_package_platform.py
 
 ## 只读 HTTP 包源
 
-文件 registry 目录可以原样作为静态 HTTP 源提供。开发容器在 `127.0.0.1:8711` 提供 `build/package-registry`（见 [常驻开发容器](development-container.md)）；`tools/publish_official_registry.py` 发布官方闭包并逐包校验。消费项目声明绝对源地址：
+文件 registry 目录可以原样作为静态 HTTP 源提供。按 `texsys-package-manager` 的 README 安装本机服务后，`127.0.0.1:8711` 提供 `~/Library/Application Support/TexSys/TPM/registry`（见 [ADR-0032](adr/0032-independent-local-tpm-registry.md)）。从本仓库发布官方闭包并逐包校验：
+
+```bash
+uv run --locked python tools/publish_official_registry.py \
+  --registry "$HOME/Library/Application Support/TexSys/TPM/registry"
+```
+
+消费项目声明绝对源地址：
 
 ```toml
 [dependencies]

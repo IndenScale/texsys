@@ -59,3 +59,4 @@ adr/NNNN-short-title.md
 | [0029](0029-named-build-targets-and-file-refresh.md)                     | 命名构建目标、自动重建与文件视口                            | 已接受；补充 0027 与 0028                  |
 | [0030](0030-independent-sheet-components-and-content.md)                 | 独立维护图页设计组件与项目内容，通过构建链组合              | 已接受；补充 0017、0025 与 0029            |
 | [0031](0031-read-only-http-package-registry.md)                          | 只读 HTTP 工程包源，官方包 CI 可复现拉取                    | 已接受；修订 0024 与 0025 的分发边界       |
+| [0032](0032-independent-local-tpm-registry.md)                           | 由独立 TPM 仓库部署本机只读工程包源                         | 已接受；本机部署已验收                    |

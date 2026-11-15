@@ -18,7 +18,7 @@ Tex Studio 在 Podman 的 Linux 虚拟机内运行。macOS 登录当前用户后
 
 容器内的 `/workspace/texsys` 是同一份宿主工作树，包含 Git、设计源文件及构建结果；宿主修改前端文件后由 Vite 检测。Python 环境、Node 依赖和容器用户主目录分别保存在 Podman 卷中，容器重建会保留这些卷。本机 Git 全局配置、凭据和 Studio 服务端设置不会自动导入；如需在容器提交，可在容器中配置 Git 作者信息。进入 `shell` 后，可直接执行 `git diff`、`uv run --locked texsys build -p examples/hvac-dynamic-station` 或测试。
 
-容器同时在 `127.0.0.1:8711` 发布只读工程包源：入口脚本以 `python3 -m http.server` 提供 `build/package-registry` 目录，布局与文件 registry 相同（`packages/<名称>/<版本>/`）。宿主用 `uv run --locked texsys package publish <包目录> --registry build/package-registry` 发布后，消费项目即可通过 `registry = "http://127.0.0.1:8711"` 锁定和同步。该服务无鉴权，仅供本机演示与 CI 复现，不对公网发布。
+本机只读包源 `127.0.0.1:8711` 由独立的 `texsys-package-manager` 登录服务管理。已有容器需要运行 `rebuild` 才能移除旧端口映射，迁移和发布方法见 [工程能力包](package-management.md#只读-http-包源)及 [ADR-0032](adr/0032-independent-local-tpm-registry.md)。
 
 - 前端源码修改通常由 Vite 热更新。修改 Python 服务、插件入口或锁文件后运行 `/usr/bin/python3 tools/dev_container.py restart`，启动时同步依赖。
 - 修改镜像或容器启动脚本后运行 `/usr/bin/python3 tools/dev_container.py rebuild`。脚本先构建镜像，再替换本工作树的容器。
