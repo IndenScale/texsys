@@ -1,0 +1,30 @@
+{
+  "schema_version": 1,
+  "state": "assumed",
+  "basis": "主机房按 B 轴分为两个概念防火分区，两个分区各沿方舱之间的横向走道通向东西外门。样例假设方舱靠走道一侧可出入，厂家门位及舱内疏散待核。室外平台和坡道在宗地内，退界范围内的使用条件待场地复核。",
+  "zone": "IT-HALL",
+  "yard_datum": "YARD",
+  "partition_axis": "B",
+  "north_wall_instances": ["Wall01", "Wall02", "Wall03", "Wall04"],
+  "wall_thickness_m": 0.2,
+  "wall_fire_hours": 2.0,
+  "floor_thickness_m": 0.18,
+  "compartments": {
+    "FC-S": {"aisle_offset_m": 3.8, "west_exit": "D-SW", "east_exit": "D-SE"},
+    "FC-N": {"aisle_offset_m": 3.8, "west_exit": "D-NW", "east_exit": "D-NE"}
+  },
+  "doors": {
+    "D-SW": {"clear_width_m": 1.5, "clear_height_m": 2.2, "leaf_count": 2, "available": true},
+    "D-SE": {"clear_width_m": 1.5, "clear_height_m": 2.2, "leaf_count": 2, "available": true},
+    "D-NW": {"clear_width_m": 1.5, "clear_height_m": 2.2, "leaf_count": 2, "available": true},
+    "D-NE": {"clear_width_m": 1.5, "clear_height_m": 2.2, "leaf_count": 2, "available": true}
+  },
+  "ramp": {"clear_width_m": 1.6, "landing_length_m": 1.25, "run_length_m": 4.8},
+  "egress": {
+    "design_travel_limit_m": 33,
+    "minimum_clear_width_m": 1.10,
+    "minimum_clear_height_m": 2.1,
+    "maximum_ramp_slope": 0.085,
+    "walking_floor_allowance_m": 0.04
+  }
+}

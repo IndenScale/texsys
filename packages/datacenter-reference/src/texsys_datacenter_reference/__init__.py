@@ -5,10 +5,13 @@ from texsys.packages import TexsysPackage
 from texsys.project import inspect_project
 from texsys.targets import Artifact, TargetDefinition, TargetResult
 
+from .architecture import build_architecture
 from .bom import project_reference_bom
+from .building_views import build_building_view
 from .checks import evaluate_design_checks
-from .coordination import build_coordinated_scene, build_fws_network_coordination
+from .coordination import build_building_coordination, build_coordinated_scene, build_fws_network_coordination
 from .electrical import build_power_study, build_power_topology
+from .fire_egress import build_egress_check, build_egress_model
 from .fws_design import build_hydraulics, build_routes
 from .fws_network import build_network
 from .fws_network_study import build_network_study
@@ -23,7 +26,7 @@ from .structure_views import build_structure_view
 
 class DatacenterReferencePackage(TexsysPackage):
   name = "datacenter-reference"
-  version = "0.5.0"
+  version = "0.6.0"
 
   def targets(self) -> tuple[TargetDefinition, ...]:
     return (
@@ -43,6 +46,19 @@ class DatacenterReferencePackage(TexsysPackage):
       TargetDefinition("dcr:layout", self.name, self.version, build_layout, dependencies=("dcr:levels",),
                        input_patterns=spatial_inputs("*.sdl.json", "*/module.toml",
                                                      "coordination.json", "placement.study.json")),
+      TargetDefinition("dcr:architecture", self.name, self.version, build_architecture, dependencies=("dcr:layout",),
+                       input_patterns=spatial_inputs("*.sdl.json", "*/module.toml", "architecture.json",
+                                                     "design-basis.json", "placement.study.json")),
+      TargetDefinition("dcr:egress-model", self.name, self.version, build_egress_model,
+                       dependencies=("dcr:architecture", "dcr:structure-model"), input_patterns=()),
+      TargetDefinition("dcr:fire-egress", self.name, self.version, build_egress_check, dependencies=("dcr:egress-model",),
+                       input_patterns=spatial_inputs("design-basis.json")),
+      TargetDefinition("dcr:architecture-view", self.name, self.version, build_building_view,
+                       dependencies=("dcr:architecture",), input_patterns=(), named_output=True),
+      TargetDefinition("dcr:egress-view", self.name, self.version, build_building_view,
+                       dependencies=("dcr:egress-model",), input_patterns=(), named_output=True),
+      TargetDefinition("dcr:building-coordination", self.name, self.version, build_building_coordination,
+                       dependencies=("dcr:architecture", "dcr:fws-network-coordination"), input_patterns=()),
       TargetDefinition("dcr:fws-routing", self.name, self.version, build_routes, dependencies=("dcr:layout",),
                        input_patterns=spatial_inputs("system.sdl.json", "fws-routing.json")),
       TargetDefinition("dcr:fws-hydraulics", self.name, self.version, build_hydraulics,

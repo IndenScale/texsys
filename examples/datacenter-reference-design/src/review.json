@@ -23,10 +23,31 @@
         "build/drawings/sheets/zoning-sheet.json",
         "build/drawings/sheets/architecture-l01.svg",
         "build/drawings/sheets/architecture-l01-sheet.json",
+        "build/drawings/sheets/architecture-exit.svg",
+        "build/drawings/sheets/architecture-exit-sheet.json",
+        "build/scenes/aidc-architecture.usda",
+        "build/scenes/aidc-building-coordinated.usda",
+        "build/datacenter-reference/spatial/architecture.json",
+        "build/schedules/aidc-doors.csv",
         "build/datacenter-reference/spatial/levels.json"
       ],
       "pending": [
-        "完整建筑围护、楼梯和疏散、建筑与消防责任复核"
+        "实际门五金、坡道栏杆与平台节点、屋面围护和接地现场条件"
+      ]
+    },
+    "fire": {
+      "name": "消防",
+      "required_artifacts": [
+        "build/drawings/sheets/fire-egress.svg",
+        "build/drawings/sheets/fire-egress-sheet.json",
+        "build/datacenter-reference/spatial/egress-model.json",
+        "build/datacenter-reference/spatial/fire-egress.json",
+        "build/datacenter-reference/spatial/building-coordination.json",
+        "build/schedules/aidc-egress-routes.csv",
+        "build/schedules/aidc-firestop-reservations.csv"
+      ],
+      "pending": [
+        "厂家方舱门位与舱内疏散、真实使用人数及疏散条件、灭火与报警系统、穿越构造和防火封堵选型"
       ]
     },
     "structure": {

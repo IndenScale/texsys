@@ -66,7 +66,7 @@ def _dimension(parent, a, b, station, vertical):
     _text(parent, (a + b) / 2, station + .35, f"{(b-a)*1000:.0f}", .84)
 
 
-def _axes(parent, grid, bounds):
+def _axes(parent, grid, bounds, *, dimensions=True):
   x0, y0, x1, y1 = bounds
   for axis, positions in (("x", grid["x"]), ("y", grid["y"])):
     is_x = axis == "x"
@@ -80,8 +80,9 @@ def _axes(parent, grid, bounds):
       line.set("data-axis", key)
       _add(parent, "circle", cx=x, cy=-y, r=.66, **{"class": "axis"})
       _text(parent, x, y - .27, key, .78)
-    for (_, a), (_, b) in zip(visible, visible[1:]):
-      _dimension(parent, a, b, y0 - 2 if is_x else x0 - 2, vertical=not is_x)
+    if dimensions:
+      for (_, a), (_, b) in zip(visible, visible[1:]):
+        _dimension(parent, a, b, y0 - 2 if is_x else x0 - 2, vertical=not is_x)
 
 
 def _north_and_scale(parent, bounds):

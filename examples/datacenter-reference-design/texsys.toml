@@ -12,7 +12,7 @@ build = "build"
 default_targets = ["review-package"]
 
 [dependencies]
-datacenter-reference = { path = "../../packages/datacenter-reference", version = "0.5.0" }
+datacenter-reference = { path = "../../packages/datacenter-reference", version = "0.6.0" }
 sheet = { path = "../../packages/sheet", version = "0.2.0" }
 
 [build.targets.review-package]
@@ -25,11 +25,15 @@ dependencies = [
   "dcr:fws-network-coordination",
   "dcr:structure-gravity",
   "dcr:power-study",
+  "dcr:fire-egress",
+  "dcr:building-coordination",
   "sheet-parcel",
   "sheet-grid",
   "sheet-zoning",
   "sheet-coordination",
   "sheet-architecture-l01",
+  "sheet-architecture-exit",
+  "sheet-fire-egress",
   "sheet-structure-l01",
   "sheet-structure-footings",
   "sheet-structure-section-b",
@@ -86,15 +90,37 @@ scope = { source = "assets/sheets/coordination.sheet.json" }
 output = "build/drawings/sheets/coordination.svg"
 
 [build.targets.plan-architecture-l01]
-using = "dcr:plan"
+using = "dcr:architecture-view"
 output = "build/drawings/views/architecture-l01.svg"
-scope = { level = "L01", discipline = "architecture" }
+scope = { view = "floor" }
 
 [build.targets.sheet-architecture-l01]
 using = "sheet:compose"
 dependencies = ["plan-architecture-l01"]
 scope = { source = "assets/sheets/architecture-l01.sheet.json" }
 output = "build/drawings/sheets/architecture-l01.svg"
+
+[build.targets.plan-architecture-exit]
+using = "dcr:architecture-view"
+output = "build/drawings/views/architecture-exit.svg"
+scope = { view = "exit-section", door = "D-SW" }
+
+[build.targets.sheet-architecture-exit]
+using = "sheet:compose"
+dependencies = ["plan-architecture-exit"]
+scope = { source = "assets/sheets/architecture-exit.sheet.json" }
+output = "build/drawings/sheets/architecture-exit.svg"
+
+[build.targets.plan-fire-egress]
+using = "dcr:egress-view"
+output = "build/drawings/views/fire-egress.svg"
+scope = { view = "fire" }
+
+[build.targets.sheet-fire-egress]
+using = "sheet:compose"
+dependencies = ["plan-fire-egress"]
+scope = { source = "assets/sheets/fire-egress.sheet.json" }
+output = "build/drawings/sheets/fire-egress.svg"
 
 [build.targets.plan-structure-l01]
 using = "dcr:structure-view"

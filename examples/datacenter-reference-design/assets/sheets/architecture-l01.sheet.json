@@ -9,7 +9,7 @@
   "views": {
     "main": {
       "path": "build/drawings/views/architecture-l01.svg",
-      "scale": "1:200"
+      "scale": "1:250"
     }
   }
 }

@@ -25,6 +25,7 @@ datacenter-reference 器件/单元库 → structure / architecture / hvac-equipm
 
 - `src/site.json`、`grid.json`、`levels.json` 定义宗地、局部坐标、轴网、标高和分区边界。
 - `src/coordination.json` 以 SDL 实例 ID 绑定轴线交点、偏移、专业和分区。物理实例使用锁定部件的 USD 几何。市电及补水等逻辑接口记录待落实的空间条件。
+- `src/architecture.json` 将既有北侧墙件接入完整主机房围护，用 B 轴定位分隔墙。东西门位由南北走道导出，并按门洞、平台和坡道坐标校核到室外场坪的通行。
 - `src/design-basis.json`：A 级分级依据、规模假设与 12 条 GB 50174 要求（3.2.1、4.2.1、5.1.1、6.1.3、7.5.2、8.1.1、8.1.7、8.1.15、13.1.2、13.2.1、13.2.4、附录 A 电气），每条绑定一个校核，并以 `rules` 记录规范包 texsys-gb50174-2017 的规则键、以 `citation` 保存条文短引与定位；阈值与规范包 A 级结构化限值一致。
 - `src/system.sdl.json`：系统装配（`tools/assemble.py` 生成并提交为源文件）。
 - `src/placement.study.json`：逻辑分区及单路带全场的设施负荷预算（2771 kW）。空间定位由 `coordination.json` 和轴线、标高提供。
@@ -41,13 +42,13 @@ datacenter-reference 器件/单元库 → structure / architecture / hvac-equipm
 | --- | --- | --- |
 | 宗地建模 | `dcr:site` 计算宗地与可建设范围面积，`sheet-parcel` 输出红线与退界图 | 实测界址、竖向基准、道路和市政接驳 |
 | 轴网划分 | `dcr:grid` 核对轴线并定位，`sheet-grid` 输出轴号和轴间尺寸 | 协调结构跨度、伸缩缝和建筑定位 |
-| 楼层标高、层内分区 | `dcr:levels` 从轴线和标高生成三维分区并检验重叠，`sheet-zoning`、`sheet-architecture-l01` 出图 | 完整围护、围护节点、疏散路径及防火分区 |
+| 楼层标高、层内分区 | `dcr:levels` 从轴线和标高生成空间分区。`dcr:architecture` 编译建筑围护和 B 轴防火分隔、四处外门及相应平台和坡道，输出建筑平面、坡道剖面、门表和 USD | 墙体、屋面及坡道的构造节点、厂家门位和现场条件 |
 | 结构建模 | `dcr:structure-model` 输出屋面钢梁与柱平面、基础平面、B 轴剖面、构件表及 USD。`dcr:structure-gravity` 编译重力计算书 | 实测地勘、抗风抗震、设备基础、节点与配筋 |
 | 核心机电与方舱布局 | 分区图核对 65 个物理实例，BOM 保留 514 条明细。设施水整网用保温包络检查相互交叉、设备和钢构件，并核对屋面预留 | 实际设备尺寸、检修净距、支吊架和贯穿详图 |
 | 性能计算与冗余保护 | A/B 单线图、失去一路后的容量证据、88 个三相故障工况与保护表，覆盖市电、单台发电机、UPS 正常及电池状态 | 厂家曲线、接地与单相故障、多源并联、共用辅助负荷互锁和实际切换 |
 | 管道布置 | `dcr:fws-network` 从设备接口生成供回水环路、支管和立管。五张图输出总平面、系统图、屋面预留、局部接驳正视投影和分段隔离图 | 支吊架、排空、阀件检修及防火封堵 |
 | 仿真与寄生反注 | `dcr:fws-network-study` 按实际管段、孔径、管件及阀门阻力计算 1440 kW 液侧负荷，覆盖正常、单冷源、单泵和 22 个单干管段隔离工况 | 制造商设备曲线、平衡阀规格、二次侧与动态切换 |
-| 多专业签核 | `review-package` 从本次构建快照生成总图、建筑、结构、机房工艺、电气、暖通审查清单和文件摘要 | 责任人在现有 Git 审查中针对指定修订处置，审查清单保留待核状态 |
+| 多专业签核 | `review-package` 从本次构建快照生成总图、建筑、消防、结构、机房工艺、电气和暖通审查清单与文件摘要。消防纳入疏散路径、分区图和屋面封堵预留表 | 责任人在现有 Git 审查中针对指定修订处置，审查清单保留待核状态 |
 
 ## 重跑
 
@@ -57,9 +58,12 @@ uv run --locked texsys lock --check -p examples/datacenter-reference-design
 uv run --locked texsys build -p examples/datacenter-reference-design
 uv run --locked texsys build -p examples/datacenter-reference-design --target sheet-fws-network
 uv run --locked texsys build -p examples/datacenter-reference-design --target dcr:structure-gravity --target dcr:power-study
+uv run --locked texsys build -p examples/datacenter-reference-design --target dcr:fire-egress --target sheet-fire-egress
 ```
 
-成品图在 `build/drawings/sheets/`，包含 18 张 A3 图及各图的来源报告。可校准图纸按标题栏比例原尺寸打印，电气单线图和设施水系统图标记 NTS。构件、保护、管件、泵工况和隔离工况表在 `build/schedules/`，整网详模为 `build/scenes/aidc-fws-network-coordinated.usda`。专业审查材料在 `build/review/aidc-discipline-review.json`。用 Tex Studio 的文件资源管理器或快速打开读取上述文件。
+成品图在 `build/drawings/sheets/`，包含 20 张 A3 图及各图的来源报告。可校准图纸按标题栏比例原尺寸打印，电气单线图和设施水系统图标记 NTS。门、疏散路径、封堵预留、构件、保护、管件和水力工况表在 `build/schedules/`，建筑、结构与设施水综合场景为 `build/scenes/aidc-building-coordinated.usda`。专业审查材料在 `build/review/aidc-discipline-review.json`。用 Tex Studio 的文件资源管理器或快速打开读取上述文件。
+
+将 `architecture.json` 中西南出口标记为不可用后，消防图改绘封闭门，南分区各方舱仅余东门可达，审查包停止更新。移动方舱占用声明通道时，疏散路径报告记录设备编号。计算从假设的舱外访问点出发，并计入室外坡道。到出口距离与到场坪距离分列，室外退界使用和场坪后的道路条件待复核。
 
 改动 `src/fws-network.json` 的供水环路坐标后重跑，安装图、管线长度和各段隔离压力随之更新。删除供水绕行段后，原 `S-010` 隔离工况中全体方舱失供，触发审查门禁。必需工况不满足或保温包络相交时构建非零退出，审查材料停止更新。查阅当前 `build/build.json` 的目标状态、输入摘要和产物发布记录。单回路夹具仍可用 `--target dcr:fws-hydraulics` 单独计算。
 

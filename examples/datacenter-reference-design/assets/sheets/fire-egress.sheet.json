@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "template": "sheet:a3-landscape",
+  "metadata": "assets/sheets/fire-egress.title.json",
+  "texts": {
+    "notes": "assets/sheets/fire-egress.txt",
+    "footer": "assets/sheets/footer.txt"
+  },
+  "views": {
+    "main": {
+      "path": "build/drawings/views/fire-egress.svg",
+      "scale": "1:250"
+    }
+  }
+}

@@ -1,6 +1,7 @@
 """Compose the detailed frame with the routed system and check their envelopes."""
 
 from itertools import combinations, pairwise
+import csv
 
 from pxr import Usd, UsdGeom
 
@@ -8,6 +9,7 @@ from texsys.evidence import file_digest
 from texsys.targets import TargetResult
 from texsys_spatial import Space
 
+from .architecture import ARCH_SCENE, MODEL as ARCH_MODEL, space
 from .fws_network import MODEL as FWS_MODEL, add_network_geometry, pipe_envelope
 from .spatial_design import MODELS, SCENE, artifact, model_report, staged_json
 from .structure import MODEL
@@ -128,3 +130,58 @@ def build_fws_network_coordination(context):
   }, issues)
   return TargetResult(report.status, (*report.artifacts, artifact(context, "fws-network-scene", output)),
                       report.diagnostics)
+
+
+def build_building_coordination(context):
+  """Compose building, steel and FWS, and locate reservations relative to fire partitions."""
+  original = context.build_path / "scenes/aidc-fws-network-coordinated.usda"
+  arch = staged_json(context, ARCH_MODEL)
+  network = staged_json(context, FWS_MODEL)
+  layout = staged_json(context, f"{MODELS}/layout.json")
+  stage = Usd.Stage.Open(str(original))
+  if stage is None:
+    raise ValueError("The staged FWS coordination layer is not readable.")
+  for row in arch["walls"].values():
+    if "sdl_instance" in row:
+      stage.RemovePrim(layout["objects"][row["sdl_instance"]]["prim_path"])
+  assembly = UsdGeom.Xform.Define(stage, "/AIDC/Architecture").GetPrim()
+  if not assembly.GetReferences().AddReference(str(context.build_path / ARCH_SCENE), "/AIDC/Architecture"):
+    raise ValueError("Could not compose the staged architecture layer.")
+  walls = {key: space(row) for key, row in arch["walls"].items()}
+  issues, penetrations = [], {}
+  for key, pipe in network["segments"].items():
+    envelope = pipe_envelope(pipe)
+    for name, wall in walls.items():
+      if envelope.intersects(wall):
+        issues.append({"rule": "AIDC_FWS_WALL_CLASH", "status": "fail", "objects": [key, name],
+                       "message": f"{key} crosses {name} without a modeled wall opening."})
+  for key, entry in network["penetrations"].items():
+    x, y, z = entry["point_m"]
+    half = entry["square_width_m"]/2
+    zone = [name for name, room in arch["rooms"].items()
+            if room["minimum_m"][0] <= x-half <= x+half <= room["maximum_m"][0]
+            and room["minimum_m"][1] <= y-half <= y+half <= room["maximum_m"][1]
+            and abs(z - room["maximum_m"][2]) < 1e-8]
+    if len(zone) != 1:
+      issues.append({"rule": "AIDC_FWS_ROOF_COMPARTMENT", "status": "fail", "objects": [key],
+                     "message": f"{key} roof reservation is outside one declared compartment lid."})
+    penetrations[key] = {**entry, "compartment": zone[0] if zone else None,
+                         "assembly_state": "pending-firestop-selection"}
+  target = context.build_path / "scenes/aidc-building-coordinated.usda"
+  if not stage.Flatten(False).Export(str(target)):
+    raise OSError(f"Could not export {target.name}.")
+  report = model_report(context, "building-coordination", {
+    "source_digests": {item: file_digest(context.build_path / item) for item in (ARCH_MODEL, FWS_MODEL)},
+    "roof_firestop_reservations": penetrations, "issues": issues,
+    "coverage": "FWS straight envelopes against modeled walls and roof opening attribution to a compartment.",
+  }, issues)
+  schedule = context.build_path / "schedules/aidc-firestop-reservations.csv"
+  schedule.parent.mkdir(parents=True, exist_ok=True)
+  with schedule.open("w", encoding="utf-8", newline="") as stream:
+    table = csv.writer(stream)
+    table.writerow(("reservation", "compartment", "pipe", "x_m", "y_m", "z_m", "square_opening_mm", "assembly_state"))
+    for key, row in penetrations.items():
+      table.writerow((key, row["compartment"], row["segment"], *row["point_m"], round(row["square_width_m"]*1000, 2),
+                      row["assembly_state"]))
+  return TargetResult(report.status, (*report.artifacts, artifact(context, "building-coordination-scene", target),
+                                       artifact(context, "firestop-reservation-schedule", schedule)), report.diagnostics)

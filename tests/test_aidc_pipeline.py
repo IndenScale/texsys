@@ -68,13 +68,14 @@ def test_aidc_deliverables_bind_to_the_same_geometry_and_recompute_the_fws_head(
   assert dossier["evidence_complete"]
   assert dossier["input_digest"] == _read(baseline.report)["input_digest"]
   assert dossier["engineering_acceptance"] == "pending-responsible-review"
-  assert len(list((root / "build/drawings/sheets").glob("*.svg"))) == 18
+  assert len(list((root / "build/drawings/sheets").glob("*.svg"))) == 20
   old_dossier = file_digest(root / "build/review/aidc-discipline-review.json")
   drawing = root / "build/drawings/sheets/fws-network.svg"
   old_route_drawing = file_digest(drawing)
 
   _check_professional_delivery(root)
   _check_fws_network_delivery(root)
+  _check_building_delivery(root)
   report = root / MODEL / "fws-network-study.json"
   before = _read(report)
   path = root / "src/fws-network.json"
@@ -166,6 +167,39 @@ def _check_fws_network_delivery(root):
   exposure = report["distribution_isolation_exposure"]
   assert exposure[header] == {"terminals": [], "unserved_liquid_kw": 0.}
   assert exposure["S-061"] == {"terminals": ["IT04"], "unserved_liquid_kw": 90.}
+
+
+def _check_building_delivery(root):
+  architecture = _read(root / MODEL / "architecture.json")
+  assert {key: room["floor_area_m2"] for key, room in architecture["rooms"].items()} == pytest.approx({"FC-S": 252.8, "FC-N": 246.4})
+  partition = architecture["walls"]["W-DIVIDE"]
+  assert partition["minimum_m"] == pytest.approx([8, 15.9, .4])
+  assert partition["maximum_m"] == pytest.approx([40, 16.1, 4.9])
+  exit_record = architecture["doors"]["D-SW"]
+  assert exit_record["ramp_slope"] == pytest.approx(.4/4.8)
+  assert exit_record["discharge_m"] == pytest.approx([.5, 11.8, 0])
+  shape = ET.parse(root / "build/drawings/views/architecture-l01.svg")
+  assert {item.get("data-door") for item in shape.findall(f".//{SVG}path[@data-door]")} == architecture["doors"].keys()
+  egress = _read(root / MODEL / "egress-model.json")
+  assert not egress["issues"] and len(egress["routes"]) == 16
+  assert egress["architecture_digest"] == file_digest(root / MODEL / "architecture.json")
+  assert egress["routes"]["IT01"]["usable_exits"] == ["D-SW", "D-SE"]
+  assert egress["routes"]["IT01"]["nearest_exit_m"] == pytest.approx(4.6)
+  path = egress["routes"]["IT01"]["paths"][0]
+  assert path["access_to_grade_m"] == pytest.approx(4.6 + .2 + 2*1.25 + sqrt(4.8**2 + .4**2))
+  report = _read(root / MODEL / "fire-egress.json")
+  assert report["status"] == "pass" and report["checked_routes"] == 32
+  assert report["nearest_exit_max_m"] == pytest.approx(12.6)
+  reserved = _read(root / MODEL / "building-coordination.json")["roof_firestop_reservations"]
+  assert set(reserved) == _read(root / MODEL / "fws-network.json")["penetrations"].keys()
+  assert {row["compartment"] for row in reserved.values()} == {"FC-S", "FC-N"}
+  assert {row["assembly_state"] for row in reserved.values()} == {"pending-firestop-selection"}
+  scene = root / "build/scenes/aidc-building-coordinated.usda"
+  assert str(root) not in scene.read_text()
+  stage = Usd.Stage.Open(str(scene))
+  for name in ("/AIDC/Architecture/W_DIVIDE", "/AIDC/Architecture/Wall01", "/AIDC/FWSIsolation/IV_S_010_A", "/AIDC/Structure/C_1_B"):
+    assert stage.GetPrimAtPath(name)
+  assert not stage.GetPrimAtPath("/AIDC/Objects/Wall01")
 
 
 def _check_professional_delivery(root):
@@ -286,6 +320,45 @@ def test_aidc_fws_rejects_single_main_isolation_when_the_bypass_is_removed(tmp_p
   assert outage["unserved_liquid_kw"] == 1440
   assert len(outage["unserved_terminals"]) == 16
   assert outage["checks"] == {"connected-duty": False, "valve-pair": True}
+
+
+def test_aidc_egress_recalculates_ramp_and_marks_a_closed_exit_on_the_sheet(tmp_path):
+  root = _checkout(tmp_path)
+  assert _run(root, "dcr:fire-egress", "sheet-fire-egress")[0].status == "pass"
+  source = root / "src/architecture.json"
+  design = _read(source)
+  design["ramp"]["run_length_m"] += .1
+  write_json(source, design)
+  rerouted, statuses = _run(root, "dcr:fire-egress", "sheet-fire-egress")
+  assert rerouted.status == "pass"
+  assert statuses["dcr:structure-model"]["execution"] == "cached"
+  assert _read(root / MODEL / "architecture.json")["doors"]["D-SW"]["ramp_slope"] == pytest.approx(.4/4.9)
+  design["doors"]["D-SW"]["available"] = False
+  write_json(source, design)
+  failed, statuses = _run(root, "review-package")
+  assert failed.status == "fail"
+  assert statuses["sheet-fire-egress"]["status"] == "pass"
+  assert statuses["review-package"]["execution"] == "blocked"
+  egress = _read(root / MODEL / "egress-model.json")
+  assert egress["routes"]["IT01"]["usable_exits"] == ["D-SE"]
+  assert egress["routes"]["IT09"]["usable_exits"] == ["D-NW", "D-NE"]
+  figure = ET.parse(root / "build/drawings/views/fire-egress.svg")
+  assert figure.find(f".//{SVG}line[@data-door='D-SW']").get("class") == "blocked"
+
+
+def test_aidc_egress_uses_current_equipment_envelopes(tmp_path):
+  root = _checkout(tmp_path)
+  source = root / "src/coordination.json"
+  design = _read(source)
+  design["placements"]["IT01"]["offset_m"][1] += .2
+  write_json(source, design)
+  failed, statuses = _run(root, "dcr:fire-egress", "sheet-fire-egress")
+  assert failed.status == "fail"
+  assert statuses["dcr:layout"]["status"] == "pass"
+  assert statuses["sheet-fire-egress"]["status"] == "pass"
+  egress = _read(root / MODEL / "egress-model.json")
+  assert egress["routes"]["IT01"]["usable_exits"] == []
+  assert "IT01" in egress["routes"]["IT02"]["paths"][0]["blockers"]
 
 
 def test_aidc_geometry_rejects_missing_and_clashing_placements(tmp_path):
