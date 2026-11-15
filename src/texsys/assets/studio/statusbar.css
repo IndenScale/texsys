@@ -4,7 +4,7 @@
   justify-content: space-between;
   gap: 8px;
   min-width: 0;
-  padding: 0 4px;
+  padding: 0 4px 3px;
   background: transparent;
   color: var(--ui-text);
   font-size: var(--ui-control-text-size);

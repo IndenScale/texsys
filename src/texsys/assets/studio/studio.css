@@ -124,7 +124,7 @@ button svg {
   background: var(--ui-workbench-backdrop);
 }
 .studio-app.has-statusbar {
-  grid-template-rows: var(--titlebar-height) minmax(0, 1fr) 24px;
+  grid-template-rows: var(--titlebar-height) minmax(0, 1fr) 27px;
 }
 .studio-titlebar {
   display: grid;
