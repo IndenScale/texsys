@@ -89,7 +89,7 @@
 }
 .scene-view-message {
   left: 12px;
-  bottom: 12px;
+  bottom: 48px;
   font-variant-numeric: tabular-nums;
 }
 .scene-preview-error {
@@ -321,4 +321,54 @@
     border-inline-end: 0;
     border-bottom: 1px solid var(--ui-border);
   }
+}
+
+.scene-camera-controls {
+  position: absolute;
+  z-index: 2;
+  inset: auto auto 8px 8px;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px;
+  background: var(--ui-canvas);
+  border: 1px solid var(--ui-border);
+  border-radius: 6px;
+  box-shadow: 0 2px 6px #172d3c16;
+}
+
+.navigator-button.scene-view-trigger {
+  width: auto;
+  height: 28px;
+  gap: 4px;
+  padding-inline: 8px 5px;
+  margin-inline-start: 3px;
+  border-inline-start: 1px solid var(--ui-border);
+  border-start-start-radius: 0;
+  border-end-start-radius: 0;
+  white-space: nowrap;
+  font-size: 12px;
+}
+
+.scene-camera-error {
+  position: absolute;
+  z-index: 2;
+  inset: auto 8px 48px 8px;
+  width: fit-content;
+  padding: 4px 7px;
+  border: 1px solid var(--ui-border);
+  border-radius: 4px;
+  background: var(--ui-canvas);
+  color: var(--ui-text);
+}
+
+.scene-camera-dialog {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--ui-text);
+}
+
+.scene-camera-dialog::backdrop {
+  background: #172d3c38;
 }

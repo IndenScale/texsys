@@ -11,6 +11,7 @@ import {
 } from "./preview-viewport";
 import { EditorActionButton } from "./EditorActionButton";
 import { EditorControlSlot } from "./EditorControlSlot";
+import { SceneCameraControls } from "./SceneCameraControls";
 import { NavigatorMenu } from "./NavigatorMenu";
 import { useUserPreferences } from "./user-preferences";
 import { SceneRenderer, type ModelObject, type SceneAxis } from "./scene-renderer";
@@ -132,6 +133,7 @@ function toggleSet(old: Set<string>, key: string) {
 export function ScenePreview({
   api,
   active,
+  projectPath = "",
   path,
   version,
   content,
@@ -143,6 +145,7 @@ export function ScenePreview({
 }: {
   api: WorkbenchProps["api"];
   active: boolean;
+  projectPath?: string;
   path: string;
   version: string;
   content: string;
@@ -656,13 +659,6 @@ export function ScenePreview({
       }
     });
   };
-  const navigation = [
-    ["iso", "等轴测"],
-    ["top", "俯视"],
-    ["front", "正视"],
-    ["side", "侧视"],
-  ] as const;
-
   return (
     <section
       className="scene-preview"
@@ -684,37 +680,6 @@ export function ScenePreview({
       }}
     >
       <EditorControlSlot>
-        <EditorActionButton
-          label={t("缩小")}
-          icon="search-minus"
-          disabled={!hasObjects}
-          onClick={() => renderer.current?.zoom(1 / 1.25)}
-        />
-        <EditorActionButton
-          label={t("放大")}
-          icon="search-plus"
-          disabled={!hasObjects}
-          onClick={() => renderer.current?.zoom(1.25)}
-        />
-        <EditorActionButton
-          label={t("适应视图")}
-          icon="fit"
-          disabled={!visible.size}
-          onClick={() => renderer.current?.fit()}
-        />
-        <NavigatorMenu
-          label={t("标准视图")}
-          editorActionIcon="cube"
-          placement="end"
-          triggerDisabled={!visible.size}
-          items={navigation.map(([direction, label]) => ({
-            label: t(label),
-            run: () => {
-              renderer.current?.fit(visible, direction);
-              focusViewport();
-            },
-          }))}
-        />
         <NavigatorMenu
           label={t("剖切")}
           editorActionIcon="scene-section"
@@ -881,6 +846,15 @@ export function ScenePreview({
                 <span>{hoveredObject.name || hoveredObject.prim_path}</span>
                 {hoverFields.length > 0 && <small>{hoverFields.join(" · ")}</small>}
               </div>
+            )}
+            {!renderError && (
+              <SceneCameraControls
+                projectPath={projectPath}
+                path={path}
+                renderer={renderer}
+                canFit={visible.size > 0}
+                focusViewport={focusViewport}
+              />
             )}
             {!visible.size && <div className="scene-view-message">{t("当前没有可见构件")}</div>}
             {measuring && (

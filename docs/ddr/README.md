@@ -60,3 +60,4 @@ ddr/NNNN-short-title.md
 | [0025](0025-file-editor-shell-and-usd-inspection.md)                     | 文件预览器复用工作台外壳，USD 属性随选择在右侧浮出                                          | 已接受 |
 | [0026](0026-usd-selection-and-inspection-layout.md)                      | USD 多选、固定属性上置和右侧等高布局                                                        | 已接受 |
 | [0027](0027-studio-usd-preview-interaction.md)                           | USD 预览器的资源、属性、导航、构件速览和修饰键多选                                          | 已接受 |
+| [0029](0029-studio-view-selector-and-scene-camera.md)                    | 统一编辑／预览区的查看方式选择器，调整场景取景与缩放入口并提供固定机位                      | 已接受 |

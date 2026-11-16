@@ -5,6 +5,7 @@
 - 取代：部分修订 [DDR-0005](0005-studio-core-editor.md) 的磁盘比较流程，以及 [DDR-0013](0013-studio-editor-actions-and-open-with.md) 的更多操作和单一打开方式展示；其余约束继续有效
 - 关联：[DDR-0012](0012-studio-file-preview-and-source.md)、[范围契约](../scope.md)
 - 后继修订：[DDR-0025](0025-file-editor-shell-and-usd-inspection.md) 统一文件预览器的界面外壳、编辑器操作和设置入口。
+- 后继修订：[DDR-0029](0029-studio-view-selector-and-scene-camera.md#查看方式选择器) 由通用查看方式选择器负责同组切换，分栏行为继续有效。
 
 ## 背景与实际观察
 

@@ -3,6 +3,7 @@
 - 状态：已接受
 - 日期：2026-11-16
 - 关联：[DDR-0024](0024-studio-usd-scene-view.md)、[DDR-0025](0025-file-editor-shell-and-usd-inspection.md)、[DDR-0026](0026-usd-selection-and-inspection-layout.md)
+- 后继修订：[DDR-0029](0029-studio-view-selector-and-scene-camera.md#场景相机) 将取景与视角操作集中于画布，并增加浏览器内的固定机位。
 
 ## 背景
 

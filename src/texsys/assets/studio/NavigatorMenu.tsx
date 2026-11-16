@@ -6,6 +6,7 @@ import { NavigatorButton } from "./NavigatorPanel";
 import { Icon } from "./ui";
 
 export type NavigatorMenuItem = {
+  id?: string;
   label: string;
   run?: () => void;
   icon?: string;
@@ -309,6 +310,7 @@ export function NavigatorMenu({
         {items.map(
           (
             {
+              id: itemId,
               label: itemLabel,
               run,
               icon,
@@ -334,7 +336,7 @@ export function NavigatorMenu({
             const hasSubmenu = Boolean(submenu && submenu.length > 0);
             return (
               <button
-                key={itemLabel}
+                key={itemId ?? itemLabel}
                 type="button"
                 role={
                   hasSubmenu

@@ -123,8 +123,9 @@ export class SceneRenderer {
   private hovered = "";
   private pickable: Mesh<BufferGeometry, MeshLambertMaterial>[] = [];
   private keys = new Set<string>();
-  private width = 1;
-  private height = 1;
+  private width = 0;
+  private height = 0;
+  private initialFitPending = false;
   private span = 2;
   private navigation = defaultScenePreferences;
   private boosted = false;
@@ -235,8 +236,9 @@ export class SceneRenderer {
     );
     this.span = 2;
     this.setSection(undefined, 0.5);
-    if (viewport?.eye && viewport.at) this.restore(viewport);
-    else this.fit();
+    this.initialFitPending = !viewport?.eye || !viewport.at;
+    if (this.initialFitPending) this.fitInitialView();
+    else if (viewport) this.restoreView(viewport);
   }
 
   resize(width: number, height: number) {
@@ -245,12 +247,13 @@ export class SceneRenderer {
     this.width = width;
     this.height = height;
     this.renderer.setSize(width, height, false);
+    if (this.initialFitPending) this.fitInitialView();
     this.updateProjection();
     this.draw();
   }
 
   private updateProjection() {
-    const aspect = this.width / this.height;
+    const aspect = this.height ? this.width / this.height : 1;
     this.perspective.aspect = aspect;
     this.perspective.updateProjectionMatrix();
     this.orthographic.top = this.span / 2;
@@ -260,76 +263,126 @@ export class SceneRenderer {
     this.orthographic.updateProjectionMatrix();
   }
 
-  private restore(view: SceneViewport) {
+  applyView(view: SceneViewport) {
+    this.restoreView(view);
+    this.saveView();
+  }
+
+  private restoreView(view: SceneViewport) {
     if (!view.eye || !view.at) return;
+    this.viewMoving();
     this.camera = view.projection === "orthographic" ? this.orthographic : this.perspective;
     this.span = view.span ?? 2;
     this.orthographic.zoom = view.zoom ?? 1;
     this.target.set(...view.at).sub(this.offset);
     this.camera.position.set(...view.eye).sub(this.offset);
+    this.setClipRange(this.camera.position.distanceTo(this.target), 0.001);
     this.camera.lookAt(this.target);
     this.updateProjection();
     this.attachOrbit();
     this.draw();
   }
 
-  private saveView() {
+  captureView(): SceneViewport {
     const at = this.controls?.target ?? this.target;
-    this.target.copy(at);
-    this.changed({
+    const center = at.clone().add(this.offset).toArray();
+    return {
       kind: "scene",
-      center: new Vector3().copy(at).add(this.offset).toArray(),
+      center,
       yaw: 0,
       pitch: 0,
       scale: 1,
       eye: this.camera.position.clone().add(this.offset).toArray(),
-      at: at.clone().add(this.offset).toArray(),
+      at: center,
       projection: this.camera === this.orthographic ? "orthographic" : "perspective",
       span: this.span,
       zoom: this.orthographic.zoom,
-    });
+    };
   }
 
-  private bounds(ids: Iterable<string>) {
-    const box = new Box3();
-    for (const id of ids) {
-      const geometry = this.meshes.get(id)?.geometry;
-      if (geometry?.boundingBox) box.union(geometry.boundingBox);
-    }
-    return box;
+  private saveView() {
+    if (this.controls) this.target.copy(this.controls.target);
+    this.changed(this.captureView());
+  }
+
+  private fitInitialView() {
+    if (!this.width || !this.height) return;
+    this.initialFitPending = false;
+    this.fit(this.visible, "iso");
   }
 
   fit(ids: Iterable<string> = this.visible, direction?: ViewDirection) {
-    const bounds = this.bounds(ids);
-    if (bounds.isEmpty()) return;
-    this.viewMoving();
+    if (!this.width || !this.height) return;
     const from = direction
       ? directions[direction].clone().normalize()
       : this.camera.position.clone().sub(this.target).normalize();
     if (from.lengthSq() === 0) from.copy(directions.iso).normalize();
-    if (direction) this.camera = direction === "iso" ? this.perspective : this.orthographic;
-    const radius = Math.max(bounds.getSize(new Vector3()).length() / 2, 0.05);
+    const right = new Vector3().crossVectors(axes.z, from).normalize();
+    if (!right.lengthSq()) right.copy(axes.x);
+    const up = new Vector3().crossVectors(from, right);
     const aspect = this.width / this.height;
-    this.span = (2.24 * radius) / Math.min(1, aspect);
+    const horizontal = 0.88;
+    // Keep the model clear of the controls even when the terminal shortens the canvas.
+    const vertical = Math.max(0.6, Math.min(0.88, 1 - 80 / this.height));
+    const tangent = Math.tan((this.perspective.fov * radians) / 2);
+    const tanX = tangent * horizontal * aspect;
+    const tanY = tangent * vertical;
+    const frame = new Box3();
+    const position = new Vector3();
+    const projected = new Vector3();
+    let minX = Infinity;
+    let minY = Infinity;
+    let maxX = -Infinity;
+    let maxY = -Infinity;
+    for (const id of ids) {
+      const vertices = this.meshes.get(id)?.geometry.getAttribute("position");
+      if (!vertices) continue;
+      for (let index = 0; index < vertices.count; index++) {
+        position.fromBufferAttribute(vertices, index);
+        const x = position.dot(right);
+        const y = position.dot(up);
+        const z = position.dot(from);
+        frame.expandByPoint(projected.set(x, y, z));
+        minX = Math.min(minX, x - z * tanX);
+        minY = Math.min(minY, y - z * tanY);
+        maxX = Math.max(maxX, x + z * tanX);
+        maxY = Math.max(maxY, y + z * tanY);
+      }
+    }
+    if (frame.isEmpty()) return;
+    this.viewMoving();
+    if (direction) this.camera = direction === "iso" ? this.perspective : this.orthographic;
+    const size = frame.getSize(new Vector3());
+    const center = frame.getCenter(new Vector3());
+    this.span = Math.max(size.x / (horizontal * aspect), size.y / vertical, 0.1);
     this.orthographic.zoom = 1;
-    const halfAngle = Math.atan(
-      Math.tan((this.perspective.fov * radians) / 2) * Math.min(1, aspect),
-    );
-    const distance = (1.16 * radius) / Math.sin(halfAngle);
-    bounds.getCenter(this.target);
+    const perspective = this.camera === this.perspective;
+    // Fit each point's screen extent at its own depth, including objects close to the camera.
+    const eyeZ = perspective
+      ? Math.max((maxX - minX) / (2 * tanX), (maxY - minY) / (2 * tanY), frame.max.z + 0.05)
+      : frame.max.z + this.span;
+    this.target
+      .copy(from)
+      .multiplyScalar(center.z)
+      .addScaledVector(right, perspective ? (maxX + minX) / 2 : center.x)
+      .addScaledVector(up, perspective ? (maxY + minY) / 2 : center.y);
+    const distance = eyeZ - center.z;
     this.camera.position.copy(this.target).addScaledVector(from, distance);
-    const far = Math.max(
-      5000,
-      distance * 100,
-      this.worldBounds.getSize(new Vector3()).length() * 5,
-    );
-    this.camera.near = Math.max(0.001, Math.min(radius / 2000, 0.2));
-    this.camera.far = far;
+    this.setClipRange(distance, Math.max(0.001, Math.min((eyeZ - frame.max.z) / 2, 0.2)));
     this.camera.lookAt(this.target);
     this.updateProjection();
     this.attachOrbit();
     this.saveView();
     this.draw();
+  }
+
+  private setClipRange(distance: number, near: number) {
+    this.camera.near = near;
+    this.camera.far = Math.max(
+      5000,
+      distance * 100,
+      this.worldBounds.getSize(new Vector3()).length() * 5,
+    );
   }
 
   zoom(factor: number) {

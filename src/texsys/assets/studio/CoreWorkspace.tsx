@@ -3168,13 +3168,6 @@ export function CoreWorkspaceProvider({
       <FileEditorActions
         kind={kind}
         presentation={presentation}
-        onPreview={() => {
-          updateView(group.id, active.path, {
-            presentation: presentation === "preview" ? "source" : "preview",
-          });
-          if (kind === "scene" && presentation !== "preview")
-            requestSceneFocus(group.id, active.path);
-        }}
         onPreviewBeside={() => splitFile(group, "preview")}
         onSplit={() => splitFile(group, presentation)}
         items={items}
@@ -3342,9 +3335,10 @@ export function CoreWorkspaceProvider({
         </div>
         {showingPreview && previewKind ? (
           <FilePreviewContent
-            key={active.path}
+            key={JSON.stringify([state.project.path, active.path])}
             api={api}
             active={!primary || (documentActive && !settingsActive)}
+            projectPath={state.project.path}
             path={active.path}
             kind={previewKind}
             content={active.content}

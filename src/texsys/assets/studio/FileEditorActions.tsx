@@ -86,7 +86,6 @@ function disableMenuItems(items: NavigatorMenuItem[]): NavigatorMenuItem[] {
 export function FileEditorActions({
   kind,
   presentation,
-  onPreview,
   onPreviewBeside,
   onSplit,
   items,
@@ -94,7 +93,6 @@ export function FileEditorActions({
 }: {
   kind?: FilePreviewKind;
   presentation: FilePresentation;
-  onPreview: () => void;
   onPreviewBeside: () => void;
   onSplit: () => void;
   items: NavigatorMenuItem[];
@@ -104,14 +102,6 @@ export function FileEditorActions({
   const showingPreview = !!kind && presentation === "preview";
   return (
     <>
-      {kind && (
-        <EditorActionButton
-          label={t(showingPreview ? "源代码" : "预览")}
-          icon={showingPreview ? "code" : "preview"}
-          disabled={disabled}
-          onClick={onPreview}
-        />
-      )}
       {kind && !showingPreview && (
         <EditorActionButton
           label={t("分栏预览")}

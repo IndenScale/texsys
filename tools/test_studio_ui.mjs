@@ -1920,7 +1920,15 @@ test("mounted artifact previews preserve their viewport when file geometry chang
 
   await render({ kind: "scene", version: "v1" });
   const controls = container.querySelector(".test-editor-controls");
-  assert.ok(controls.querySelector('[aria-label="适应视图"] svg'));
+  const cameraControls = container.querySelector(
+    '.scene-viewport [role="group"][aria-label="场景导航"]',
+  );
+  assert.ok(cameraControls.querySelector('[aria-label="适应视图"] svg'));
+  assert.ok(cameraControls.querySelector('button[aria-label="视角"][aria-haspopup="menu"]'));
+  assert.equal(controls.querySelector('[aria-label="放大"], [aria-label="适应视图"]'), null);
+  const frame = faces.at(-1);
+  assert.ok(frame.every(([x, y]) => Math.abs(x) <= 0.881 && Math.abs(y) <= 0.881));
+  assert.ok(Math.max(...frame.map(([, y]) => y)) - Math.min(...frame.map(([, y]) => y)) > 1);
   for (const button of controls.querySelectorAll(":scope > button")) {
     assert.equal(button.textContent, "");
     assert.ok(button.getAttribute("aria-label"));

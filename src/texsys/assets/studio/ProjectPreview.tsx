@@ -25,6 +25,7 @@ type Selection = { semanticRef: string; id?: string };
 export function FilePreviewContent({
   api,
   active = true,
+  projectPath,
   path,
   kind,
   content,
@@ -39,6 +40,7 @@ export function FilePreviewContent({
 }: {
   api: WorkbenchProps["api"];
   active?: boolean;
+  projectPath?: string;
   path: string;
   kind: FilePreviewKind;
   content: string;
@@ -59,6 +61,7 @@ export function FilePreviewContent({
       <ScenePreview
         api={api}
         active={active}
+        projectPath={projectPath}
         path={path}
         version={version}
         content={content}
