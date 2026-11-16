@@ -56,6 +56,7 @@ ddr/NNNN-short-title.md
 | [0021](0021-studio-statusbar-flush-and-empty-workbench-parity.md)        | 状态栏贴底、问题计数常显、移除键盘布局入口，空白工作区搜索与大纲／时间线                    | 已接受 |
 | [0022](0022-studio-unified-file-visibility-and-welcome-native-picker.md) | 统一文件可见性契约（VS Code files.exclude 默认＋设置覆盖），欢迎页原生选择器对标 vscode.dev | 已接受 |
 | [0023](0023-studio-project-explorer-outline-and-timeline.md)             | 项目模式资源管理器大纲与按文件时间线，标题视图菜单对标参照                                  | 已接受 |
-| [0024](0024-studio-usd-scene-view.md) | USD 场景的工作区全屏、键盘浏览与构件检查 | 已接受 |
-| [0025](0025-file-editor-shell-and-usd-inspection.md) | 文件预览器复用工作台外壳，USD 属性随选择在右侧浮出 | 已接受 |
-| [0026](0026-usd-selection-and-inspection-layout.md) | USD 多选、固定属性上置和右侧等高布局 | 已接受 |
+| [0024](0024-studio-usd-scene-view.md)                                    | USD 场景的工作区全屏、键盘浏览与构件检查                                                    | 已接受 |
+| [0025](0025-file-editor-shell-and-usd-inspection.md)                     | 文件预览器复用工作台外壳，USD 属性随选择在右侧浮出                                          | 已接受 |
+| [0026](0026-usd-selection-and-inspection-layout.md)                      | USD 多选、固定属性上置和右侧等高布局                                                        | 已接受 |
+| [0027](0027-studio-usd-preview-interaction.md)                           | USD 预览器的资源、属性、导航及悬浮、单选和批选设计                                          | 提议   |
