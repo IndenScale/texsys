@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { getLocale, t } from "./i18n";
 import { Icon } from "./ui";
 import "./timeline-view.css";
@@ -40,8 +40,8 @@ export function TimelineView({
   bodyHeight,
 }: {
   path?: string;
-  api: <T>(url: string) => Promise<T>;
-  token?: unknown;
+  api: <T>(url: string, body?: unknown, signal?: AbortSignal) => Promise<T>;
+  token?: string;
   onOpen: (id: string) => void;
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
@@ -49,29 +49,47 @@ export function TimelineView({
 }) {
   const [commits, setCommits] = useState<TimelineCommit[]>();
   const [error, setError] = useState("");
+  const cache = useRef(new Map<string, TimelineCommit[]>());
   useEffect(() => {
-    if (!path) {
+    if (!path || open === false) {
       setCommits(undefined);
       setError("");
       return;
     }
-    let current = true;
+    const key = JSON.stringify([path, token]);
+    const previous = token && cache.current.get(key);
+    if (previous) {
+      setCommits(previous);
+      setError("");
+      return;
+    }
+    const controller = new AbortController();
     setCommits(undefined);
     setError("");
-    api<{ commits: TimelineCommit[] }>(`/api/scm/history?limit=50&path=${encodeURIComponent(path)}`)
+    api<{ commits: TimelineCommit[] }>(
+      `/api/scm/history?limit=50&path=${encodeURIComponent(path)}`,
+      undefined,
+      controller.signal,
+    )
       .then((result) => {
-        if (current) setCommits(result.commits);
+        if (controller.signal.aborted) return;
+        cache.current.set(key, result.commits);
+        if (cache.current.size > 32) {
+          const oldest = cache.current.keys().next();
+          if (!oldest.done) cache.current.delete(oldest.value);
+        }
+        setCommits(result.commits);
       })
       .catch((cause) => {
-        if (current) {
+        if (!controller.signal.aborted) {
           setCommits([]);
           setError(cause instanceof Error ? cause.message : String(cause));
         }
       });
     return () => {
-      current = false;
+      controller.abort();
     };
-  }, [path, api, token]);
+  }, [path, api, token, open]);
 
   return (
     <details

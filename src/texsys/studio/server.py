@@ -12,6 +12,7 @@ import tempfile
 import threading
 from urllib.parse import parse_qs, urlparse
 
+from texsys.evidence import canonical_digest
 from texsys.project import ProjectError
 from .ai import AiSettings, draft_commit_message, is_ai_config_path, test_connection
 from .extensions import (StudioExtensions, check_compatibility as extension_compatibility,
@@ -150,11 +151,8 @@ def create_server(runtime: StudioRuntime, port=8710, frontend=None, token=None, 
   extensions = StudioExtensions()
   terminals = TerminalService()
 
-  def scene_preview():
-    return ScenePreview(runtime.root, runtime.build)
-
-  def project_previews():
-    return ProjectPreview(runtime.root, runtime.build)
+  project_previews = ProjectPreview(runtime.root, runtime.build, persist_index=True)
+  scene_preview = ScenePreview(runtime.root, runtime.build, previews=project_previews)
 
   def scm_root(scope):
     if scope not in {"project", "repository"}:
@@ -247,7 +245,9 @@ def create_server(runtime: StudioRuntime, port=8710, frontend=None, token=None, 
         return
       try:
         if parsed.path == "/api/state":
-          self._send(200, runtime.state())
+          query = parse_qs(parsed.query)
+          self._send(200, runtime.state(summary=query.get("summary") == ["1"],
+                                        plugin_id=query.get("plugin", [None])[0], known=query.get("revision", [""])[0]))
         elif parsed.path == "/api/extensions":
           self._send(200, extensions.state(runtime.root))
         elif parsed.path == "/api/extensions/recommendations":
@@ -268,24 +268,29 @@ def create_server(runtime: StudioRuntime, port=8710, frontend=None, token=None, 
 
           self._send(200, library_index(runtime.root, runtime.project.source, []))
         elif parsed.path == "/api/preview":
-          self._send(200, project_previews().read(parse_qs(parsed.query).get("root", [""])[0]))
+          self._send(200, project_previews.read(parse_qs(parsed.query).get("root", [""])[0]))
         elif parsed.path == "/api/preview/artifact":
           query = parse_qs(parsed.query)
-          self._send(200, project_previews().artifact(query.get("run", [""])[0], query.get("target", [""])[0], query.get("id", [""])[0]))
+          self._send(200, project_previews.artifact(query.get("run", [""])[0], query.get("target", [""])[0], query.get("id", [""])[0]))
         elif parsed.path == "/api/scene":
           query = parse_qs(parsed.query)
           if "path" in query:
-            self._send(200, scene_preview().read_file(query["path"][0], query.get("revision", [""])[0], version=query.get("version", [""])[0]))
+            self._send(200, scene_preview.read_file(query["path"][0], query.get("revision", [""])[0], version=query.get("version", [""])[0]))
           else:
-            self._send(200, scene_preview().read(query.get("revision", [""])[0], run=query.get("run", [""])[0],
+            self._send(200, scene_preview.read(query.get("revision", [""])[0], run=query.get("run", [""])[0],
                                       target=query.get("target", [""])[0], artifact=query.get("artifact", [""])[0]))
         elif parsed.path == "/api/ai/settings":
           self._send(200, ai_settings.read().public())
         elif parsed.path == "/api/files":
-          self._send(200, project_files(runtime.root, runtime.build))
+          query = parse_qs(parsed.query)
+          listing = project_files(runtime.root, runtime.build, previews=project_previews, compact=query.get("compact") == ["1"])
+          tag = canonical_digest(listing)
+          self._send(200, {"status": "unchanged", "poll_revision": tag} if query.get("revision") == [tag]
+                     else {**listing, "poll_revision": tag})
         elif parsed.path == "/api/file":
-          relative = parse_qs(parsed.query).get("path", [""])[0]
-          self._send(200, project_file(runtime.root, relative, runtime.build))
+          query = parse_qs(parsed.query)
+          self._send(200, project_file(runtime.root, query.get("path", [""])[0], runtime.build,
+                                       previews=project_previews, known=query.get("revision", [""])[0]))
         elif parsed.path == "/api/search":
           query = parse_qs(parsed.query)
           self._send(200, search_project(runtime.root, runtime.build, query.get("q", [""])[0],
@@ -308,8 +313,7 @@ def create_server(runtime: StudioRuntime, port=8710, frontend=None, token=None, 
             limit = int(query.get("limit", ["50"])[0])
           except ValueError:
             raise ProjectError("历史条数必须是整数。")
-          with runtime.lock:
-            self._send(200, source_history(runtime.root, limit, query.get("path", [None])[0]))
+          self._send(200, source_history(runtime.root, limit, query.get("path", [None])[0]))
         elif parsed.path == "/api/scm/commit":
           query = parse_qs(parsed.query)
           with runtime.lock:
@@ -370,7 +374,7 @@ def create_server(runtime: StudioRuntime, port=8710, frontend=None, token=None, 
         elif self.path == "/api/scene":
           if not isinstance(body.get("content"), str):
             raise ProjectError("Scene preview requires the current document text.")
-          result = scene_preview().read_file(body.get("path"), version=body.get("version", ""), content=body["content"])
+          result = scene_preview.read_file(body.get("path"), version=body.get("version", ""), content=body["content"])
         elif self.path == "/api/file":
           with runtime.lock:
             result = file_operation(runtime.root, runtime.build, body)

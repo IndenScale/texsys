@@ -1,15 +1,17 @@
 """Preview named USD documents, editor buffers and immutable build snapshots."""
 
 import math
+from collections import OrderedDict
 from pathlib import Path
 from threading import Lock
+from time import monotonic
 
 from pxr import Gf, Sdf, Tf, Usd, UsdGeom, UsdShade
 
 from texsys.evidence import canonical_digest, file_digest
 from texsys.project import ProjectError
 
-from .preview import ProjectPreview, _inside
+from .preview import ProjectPreview, _directory_stamp, _inside, file_stamp
 from .files import MAX_PREVIEW_BYTES, file_version, version as content_version, workspace_path
 
 
@@ -17,17 +19,21 @@ USD_SUFFIXES = {".usd", ".usda", ".usdc"}
 _MAX_LAYER_BYTES = 32 * 1024 * 1024
 _MAX_LAYERS = 64
 _MAX_ELEMENTS = 300_000
+_MAX_CACHED_SCENES = 6
+_SCENE_CACHE_BYTES = 96 * 1024 * 1024
+_DRAFT_CACHE_SECONDS = 10
 _BOX_FACES = ((0, 1, 3, 2), (4, 6, 7, 5), (0, 4, 5, 1),
               (2, 3, 7, 6), (0, 2, 6, 4), (1, 5, 7, 3))
 
 
-def _scene_layers(path: Path, root: Path, validate) -> dict[Path, Sdf.Layer]:
+def _scene_layers(path: Path, root: Path, validate, watch) -> dict[Path, Sdf.Layer]:
   layers = {}
   pending = [path]
   while pending:
     candidate = pending.pop()
     if any(part.is_symlink() for part in (candidate, *candidate.parents)):
       raise ProjectError("USD preview does not load symbolic links.")
+    watch(candidate)
     file = candidate.resolve()
     if file in layers:
       continue
@@ -63,31 +69,45 @@ def _inspectable(value):
   return None
 
 
-def _scene_metadata(prim, collections):
+def _authored_metadata(node):
+  facets, properties = {}, {}
+  for facet in _FACETS:
+    attr = node.GetAttribute(f"texsys:{facet}")
+    value = attr.Get() if attr else node.GetCustomDataByKey(f"texsys:{facet}")
+    if isinstance(value, str) and value.strip():
+      facets[facet] = value.strip()[:128]
+  path = str(node.GetPath())
+  for attr in node.GetAuthoredAttributes():
+    if len(properties) >= 32:
+      break
+    if not attr.IsCustom() or attr.GetTypeName().isArray:
+      continue
+    value = _inspectable(attr.Get())
+    if value is not None:
+      item = {"value": value, "prim": path}
+      unit = attr.GetCustomDataByKey("unit")
+      if isinstance(unit, str) and unit:
+        item["unit"] = unit[:32]
+      properties[attr.GetName()] = item
+  return facets, properties, path if node.HasAttribute("texsys:assembly") else None
+
+
+def _scene_metadata(prim, collections, authored):
   facets, properties = {}, {}
   assembly = None
   node = prim
   while node and not node.IsPseudoRoot():
-    if assembly is None and node.HasAttribute("texsys:assembly"):
-      assembly = str(node.GetPath())
-    for facet in _FACETS:
-      if facet in facets:
-        continue
-      attr = node.GetAttribute(f"texsys:{facet}")
-      value = attr.Get() if attr else node.GetCustomDataByKey(f"texsys:{facet}")
-      if isinstance(value, str) and value.strip():
-        facets[facet] = value.strip()[:128]
-    for attr in node.GetAuthoredAttributes():
-      name = attr.GetName()
-      if name in properties or len(properties) >= 32 or not attr.IsCustom() or attr.GetTypeName().isArray:
-        continue
-      value = _inspectable(attr.Get())
-      if value is not None:
-        item = {"value": value, "prim": str(node.GetPath())}
-        unit = attr.GetCustomDataByKey("unit")
-        if isinstance(unit, str) and unit:
-          item["unit"] = unit[:32]
-        properties[name] = item
+    path = node.GetPath()
+    if path not in authored:
+      authored[path] = _authored_metadata(node)
+    local_facets, local_properties, local_assembly = authored[path]
+    assembly = assembly or local_assembly
+    for name, value in local_facets.items():
+      facets.setdefault(name, value)
+    for name, value in local_properties.items():
+      if len(properties) >= 32:
+        break
+      properties.setdefault(name, value)
     node = node.GetParent()
   if "material" not in facets:
     material, _ = UsdShade.MaterialBindingAPI(prim).ComputeBoundMaterial()
@@ -112,6 +132,7 @@ def _geometry(stage, source_map):
           and UsdGeom.GetStageUpAxis(stage) == UsdGeom.Tokens.y)
   meters = 1 if legacy_layout and not stage.HasAuthoredMetadata("metersPerUnit") else UsdGeom.GetStageMetersPerUnit(stage)
   objects = []
+  authored = {}
   elements = 0
   for prim in prims:
     kind = prim.GetTypeName()
@@ -158,7 +179,7 @@ def _geometry(stage, source_map):
       owner = owner.GetParent()
     prim_path = str(prim.GetPath())
     source = source_map.get(prim_path) or source_map.get(identity)
-    metadata = _scene_metadata(prim, collections)
+    metadata = _scene_metadata(prim, collections, authored)
     objects.append({"id": prim_path, "prim_path": prim_path, "name": identity or prim.GetName(),
                     "semantic_ref": identity, "source": source, "type": kind,
                     "owner_path": str(owner.GetPath()) if identity else prim_path,
@@ -168,31 +189,117 @@ def _geometry(stage, source_map):
 
 
 class ScenePreview:
-  def __init__(self, root: Path, build: str):
+  def __init__(self, root: Path, build: str, *, previews: ProjectPreview | None = None):
     self.root = root.resolve()
     self.build = self.root / build
-    self.previews = ProjectPreview(self.root, build)
+    self.previews = previews if previews is not None else ProjectPreview(self.root, build)
+    # OpenUSD's layer registry is shared. A miss can reload layers, so keep
+    # composition serialized while allowing verified hits during extraction.
     self.lock = Lock()
-    self.scene = None
+    self._cache_lock = Lock()
+    self._scenes = OrderedDict()
+    self._draft = None
+    self._cache_bytes = 0
+
+  @staticmethod
+  def _watch(stamps, file):
+    for parent in file.parents:
+      if parent not in stamps:
+        stamps[parent] = (_directory_stamp, _directory_stamp(parent))
+    if file not in stamps:
+      stamps[file] = (file_stamp, file_stamp(file))
+
+  @staticmethod
+  def _unchanged(stamps):
+    try:
+      return all(read(path) == stamp for path, (read, stamp) in stamps.items())
+    except (OSError, ProjectError):
+      return False
+
+  def _cached(self, key, matches, *, draft=False):
+    with self._cache_lock:
+      if self._draft and self._draft[3] <= monotonic():
+        self._draft = None
+      if draft:
+        entry = self._draft[:3] if self._draft and self._draft[0] == key else None
+        if entry:
+          _, scene, stamps = entry
+      else:
+        entry = self._scenes.get(key)
+        if entry:
+          scene, stamps, _ = entry
+    if entry and matches(scene) and self._unchanged(stamps):
+      if not draft:
+        with self._cache_lock:
+          if self._scenes.get(key) is entry:
+            self._scenes.move_to_end(key)
+      return scene
+    return None
+
+  def _remember(self, key, scene, stamps, *, draft=False):
+    # Estimate Python object storage, including the geometry's boxed numbers.
+    weight = 1024 * len(scene["objects"]) + sum(
+      176 * len(obj["points"]) + 144 * len(obj["faces"])
+      + sum(256 + 4 * len(str(prop["value"])) for prop in obj["properties"].values())
+      for obj in scene["objects"])
+    with self._cache_lock:
+      if draft:
+        if weight <= _SCENE_CACHE_BYTES // 8:
+          self._draft = (key, scene, stamps, monotonic() + _DRAFT_CACHE_SECONDS)
+        return
+      previous = self._scenes.pop(key, None)
+      if previous:
+        self._cache_bytes -= previous[2]
+      if weight > _SCENE_CACHE_BYTES:
+        return
+      self._scenes[key] = (scene, stamps, weight)
+      self._cache_bytes += weight
+      while len(self._scenes) > _MAX_CACHED_SCENES or self._cache_bytes > _SCENE_CACHE_BYTES:
+        _, (_, _, removed) = self._scenes.popitem(last=False)
+        self._cache_bytes -= removed
 
   def read_file(self, relative: str, known_revision: str = "", *, version: str = "", content: str | None = None) -> dict:
     """Preview the current document or an unsaved USDA buffer without writing it."""
     from .runtime import Conflict
 
+    build = self.build.relative_to(self.root).as_posix()
+    path = workspace_path(self.root, relative, build)
+    if not path.is_file() or path.suffix.lower() not in USD_SUFFIXES:
+      raise ProjectError("Scene preview requires a USD document.")
+    if content is not None and (not isinstance(content, str) or "\0" in content or len(content.encode("utf-8")) > MAX_PREVIEW_BYTES):
+      raise ProjectError("场景预览文本必须是最多 1 MiB 的 UTF-8 字符串。")
+    draft = content is not None
+    draft_digest = content_version(content.encode("utf-8")) if draft else None
+    key = ("file", relative, draft_digest)
+
+    def mapping():
+      declarations = self.previews.file_entries(relative, include_artifact=False) if path.is_relative_to(self.build) else []
+      source = declarations[0].get("preview", {}).get("source_map", {}) if declarations else {}
+      return source if isinstance(source, dict) else {}
+
+    def response(scene):
+      if version and version != scene["version"]:
+        raise Conflict("文件已被外部修改，请刷新后预览。")
+      if known_revision == scene["revision"]:
+        return {"status": "unchanged", "path": relative, "version": scene["version"]}
+      return scene
+
+    source_map = mapping()
+    cached = self._cached(key, lambda scene: scene["source_map"] == source_map, draft=draft)
+    if cached:
+      return response(cached)
     with self.lock:
-      build = self.build.relative_to(self.root).as_posix()
-      path = workspace_path(self.root, relative, build)
-      if not path.is_file() or path.suffix.lower() not in USD_SUFFIXES:
-        raise ProjectError("Scene preview requires a USD document.")
+      # A request waiting for composition must use the publication visible
+      # now, which may be newer than the one observed before it entered.
+      source_map = mapping()
+      cached = self._cached(key, lambda scene: scene["source_map"] == source_map, draft=draft)
+      if cached:
+        return response(cached)
+      stamps = {}
+      self._watch(stamps, path)
       baseline = file_version(path)
       if version and version != baseline:
         raise Conflict("文件已被外部修改，请刷新后预览。")
-      if content is not None and (not isinstance(content, str) or "\0" in content or len(content.encode("utf-8")) > MAX_PREVIEW_BYTES):
-        raise ProjectError("场景预览文本必须是最多 1 MiB 的 UTF-8 字符串。")
-      declarations = self.previews.file_entries(relative)
-      source_map = declarations[0].get("preview", {}).get("source_map", {}) if declarations else {}
-      if not isinstance(source_map, dict):
-        source_map = {}
       digests = {}
 
       def validate(file):
@@ -210,7 +317,7 @@ class ScenePreview:
 
       try:
         if content is None:
-          layers = _scene_layers(path, self.root, validate)
+          layers = _scene_layers(path, self.root, validate, lambda file: self._watch(stamps, file))
           layer = layers[path]
           document_digest = digests[path]
         else:
@@ -223,32 +330,29 @@ class ScenePreview:
           layers = {}
           for name in dependencies:
             dependency = path.parent / name
-            layers.update(_scene_layers(dependency, self.root, validate))
+            layers.update(_scene_layers(dependency, self.root, validate, lambda file: self._watch(stamps, file)))
             if len(layers) >= _MAX_LAYERS:
               raise ProjectError("USD layer limit exceeded for scene preview.")
             # The anonymous layer has no file anchor. Bind only dependencies
             # already validated against the original document's directory.
             layer.UpdateCompositionAssetDependency(name, str(dependency.resolve()))
-          document_digest = content_version(content.encode("utf-8"))
+          document_digest = draft_digest
         revision = canonical_digest({"path": relative, "content": document_digest,
                                      "layers": {str(file): value for file, value in digests.items()}, "source_map": source_map})
-        if self.scene is None or self.scene["revision"] != revision:
-          stage = Usd.Stage.Open(layer, load=Usd.Stage.LoadAll)
-          if stage is None:
-            raise ProjectError("Cannot open the current USD document.")
-          objects = _geometry(stage, source_map)
-          for file in digests:
-            validate(file)
-          if file_version(path) != baseline:
-            raise Conflict("文件在预览期间发生变化，请重试。")
-          self.scene = {"status": "ready", "path": relative, "revision": revision, "version": baseline,
-                        "content_digest": document_digest, "objects": objects, "source_map": source_map}
+        stage = Usd.Stage.Open(layer, load=Usd.Stage.LoadAll)
+        if stage is None:
+          raise ProjectError("Cannot open the current USD document.")
+        objects = _geometry(stage, source_map)
+        for file in digests:
+          validate(file)
+        if not self._unchanged(stamps) or file_version(path) != baseline or mapping() != source_map:
+          raise Conflict("文件或来源映射在预览期间发生变化，请重试。")
+        scene = {"status": "ready", "path": relative, "revision": revision, "version": baseline,
+                 "content_digest": document_digest, "objects": objects, "source_map": source_map}
       except Tf.ErrorException as error:
         raise ProjectError(f"Cannot preview current USD document: {error}") from error
-      self.scene["version"] = baseline
-      if known_revision == self.scene["revision"]:
-        return {"status": "unchanged", "path": relative, "version": baseline}
-      return self.scene
+      self._remember(key, scene, stamps, draft=draft)
+      return response(scene)
 
   def read(self, known_revision: str = "", *, run: str = "", target: str = "", artifact: str = "") -> dict:
     with self.lock:
@@ -278,21 +382,26 @@ class ScenePreview:
       source_map = record["preview"].get("source_map", {})
       if not isinstance(source_map, dict):
         raise ProjectError("Scene source map must be an object.")
+      key = ("snapshot", run, target, artifact)
+      cached = self._cached(key, lambda scene: scene["artifact"] == selected)
+      if cached:
+        return {"status": "unchanged"} if known_revision == cached["revision"] else cached
+      stamps = {}
       try:
-        layers = _scene_layers(path, snapshot, validate)
+        layers = _scene_layers(path, snapshot, validate, lambda file: self._watch(stamps, file))
         revision = canonical_digest({"artifact": selected, "layers": {str(file): file_digest(file) for file in layers}})
-        if self.scene is None or self.scene["revision"] != revision:
-          stage = Usd.Stage.Open(layers[path.resolve()], load=Usd.Stage.LoadAll)
-          if stage is None:
-            raise ProjectError(f"Cannot open USD stage: {record['path']}")
-          objects = _geometry(stage, source_map)
-          for file in layers:
-            validate(file)
-          self.scene = {"status": "ready", "path": record["path"], "revision": revision,
-                        "objects": objects, "artifact": selected, "source_map": source_map,
-                        "current": selected["current"], "freshness": selected["freshness"]}
+        stage = Usd.Stage.Open(layers[path.resolve()], load=Usd.Stage.LoadAll)
+        if stage is None:
+          raise ProjectError(f"Cannot open USD stage: {record['path']}")
+        objects = _geometry(stage, source_map)
+        for file in layers:
+          validate(file)
+        if not self._unchanged(stamps):
+          raise ProjectError("USD snapshot changed while reading; retry the preview.")
+        scene = {"status": "ready", "path": record["path"], "revision": revision,
+                 "objects": objects, "artifact": selected, "source_map": source_map,
+                 "current": selected["current"], "freshness": selected["freshness"]}
       except Tf.ErrorException as error:
         raise ProjectError(f"Cannot preview {record['path']}: {error}") from error
-      if known_revision == self.scene["revision"]:
-        return {"status": "unchanged"}
-      return self.scene
+      self._remember(key, scene, stamps)
+      return {"status": "unchanged"} if known_revision == revision else scene

@@ -26,6 +26,36 @@ type Scene = {
   source_map?: Record<string, PreviewSource>;
 };
 type Response = Scene | { status: "empty"; directory: string } | { status: "unchanged" };
+const sceneBuffers = new WeakMap<
+  WorkbenchProps["api"],
+  Map<string, { scene: Scene; weight: number }>
+>();
+const sceneBufferBudget = 32 * 1024 * 1024;
+
+function rememberScene(
+  cache: Map<string, { scene: Scene; weight: number }>,
+  key: string,
+  scene: Scene,
+) {
+  const weight = scene.objects.reduce(
+    (total, object) =>
+      total +
+      1024 +
+      128 * object.points.length +
+      96 * object.faces.length +
+      256 * Object.keys(object.properties ?? {}).length,
+    0,
+  );
+  cache.delete(key);
+  if (weight > sceneBufferBudget) return;
+  cache.set(key, { scene, weight });
+  let used = [...cache.values()].reduce((size, item) => size + item.weight, 0);
+  for (const [oldest, entry] of cache) {
+    if (cache.size <= 4 && used <= sceneBufferBudget) break;
+    cache.delete(oldest);
+    used -= entry.weight;
+  }
+}
 
 const categories = [
   ["discipline", "专业"],
@@ -39,6 +69,8 @@ type Category = (typeof categories)[number][0];
 type Filters = Partial<Record<Category, Set<string>>>;
 type ViewportPointer = { x: number; y: number };
 const hoverDelay = 300;
+const treeRowHeight = 24;
+const treeOverscan = 10;
 const valuesFor = (object: ModelObject, key: Category): string[] =>
   key === "collection"
     ? (object.collections ?? [])
@@ -145,8 +177,23 @@ export function ScenePreview({
     if (!active) return;
     const controller = new AbortController();
     let timer: ReturnType<typeof setTimeout>;
-    let revision = "";
+    let cache = sceneBuffers.get(api);
+    if (!cache) {
+      cache = new Map();
+      sceneBuffers.set(api, cache);
+    }
+    const saved = dirty ? undefined : cache.get(request.key);
+    if (saved) {
+      cache.delete(request.key);
+      cache.set(request.key, saved);
+    }
+    let loaded = false;
+    let pending = false;
+    let revision = saved?.scene.revision ?? "";
+    const pageVisible = () => document.visibilityState !== "hidden";
     const read = async () => {
+      if (pending || !pageVisible() || controller.signal.aborted) return;
+      pending = true;
       try {
         const url =
           revision && !dirty
@@ -157,24 +204,41 @@ export function ScenePreview({
         if (response.status === "ready" && (response.path !== path || response.version !== version))
           throw new Error(t("场景响应与当前文件不匹配"));
         setFailure(undefined);
-        if (response.status !== "unchanged") {
+        if (response.status === "unchanged") {
+          if (!loaded && saved) setResult({ key: request.key, value: saved.scene });
+        } else {
           revision = response.status === "ready" ? response.revision : "";
+          if (!dirty && response.status === "ready") rememberScene(cache, request.key, response);
+          else cache.delete(request.key);
           setResult({ key: request.key, value: response });
         }
+        loaded = true;
       } catch (error) {
         if (controller.signal.aborted) return;
         revision = "";
+        cache.delete(request.key);
         setResult(undefined);
         setFailure({ key: request.key, message: String(error) });
       } finally {
-        // A clean USD root can keep its bytes while its composition layers change.
-        if (!controller.signal.aborted && !dirty) timer = setTimeout(() => void read(), 2000);
+        pending = false;
+        // Check composed layers even when the root document stays unchanged.
+        if (!controller.signal.aborted && !dirty && pageVisible())
+          timer = setTimeout(() => void read(), 2000);
       }
     };
+    const onVisibility = () => {
+      if (document.visibilityState === "hidden") clearTimeout(timer);
+      else if (!dirty || !loaded) {
+        clearTimeout(timer);
+        void read();
+      }
+    };
+    document.addEventListener("visibilitychange", onVisibility);
     void read();
     return () => {
       controller.abort();
       clearTimeout(timer);
+      document.removeEventListener("visibilitychange", onVisibility);
     };
   }, [active, api, request, path, version, dirty]);
   const [query, setQuery] = useState("");
@@ -184,7 +248,13 @@ export function ScenePreview({
   const [isolated, setIsolated] = useState<Set<string>>();
   const [expanded, setExpanded] = useState(new Map<string, boolean>());
   const [treeFocus, setTreeFocus] = useState("");
-  const treeElement = useRef<HTMLDivElement>(null);
+  const {
+    element: treeElement,
+    setElement: setTreeElement,
+    size: treeSize,
+  } = usePreviewSize<HTMLDivElement>();
+  const [treeScroll, setTreeScroll] = useState(0);
+  const pendingTreeFocus = useRef<string | undefined>(undefined);
   const [hover, setHover] = useState<ViewportPointer & { id: string }>();
   const [previewedId, setPreviewedId] = useState<string>();
   const [axis, setAxis] = useState<SceneAxis>();
@@ -269,7 +339,18 @@ export function ScenePreview({
     );
   }, [matched, query]);
   const rows = useMemo(() => treeRows(tree, expanded, !!query.trim()), [tree, expanded, query]);
-  const treeTabStop = rows.find((row) => row.path === treeFocus)?.path ?? rows[0]?.path;
+  const rowIndexes = useMemo(() => new Map(rows.map((row, index) => [row.path, index])), [rows]);
+  const focusIndex = rowIndexes.get(treeFocus) ?? 0;
+  const treeTabStop = rows[focusIndex]?.path;
+  const windowed = rows.length > 200;
+  const start = windowed
+    ? Math.max(0, Math.min(rows.length - 1, Math.floor(treeScroll / treeRowHeight)) - treeOverscan)
+    : 0;
+  const end = windowed
+    ? Math.min(rows.length, start + Math.ceil(treeSize.height / treeRowHeight) + treeOverscan * 2)
+    : rows.length;
+  const shownRows = rows.slice(start, end);
+  if (windowed && (focusIndex < start || focusIndex >= end)) shownRows.push(rows[focusIndex]);
   const filtering = categories.some(([key]) => filters[key]?.size);
   const hoverId = hover && visible.has(hover.id) ? hover.id : undefined;
   const hoveredObject = hoverId && hoverId === previewedId ? byId.get(hoverId) : undefined;
@@ -405,20 +486,53 @@ export function ScenePreview({
       return next;
     });
   };
+  const revealRow = useCallback(
+    (path: string) => {
+      if (!treeElement) return;
+      if (!windowed) {
+        treeElement
+          .querySelector('[data-tree-path="' + CSS.escape(path) + '"]')
+          ?.scrollIntoView({ block: "nearest", inline: "nearest" });
+        return;
+      }
+      const index = rowIndexes.get(path);
+      if (index === undefined) return;
+      const top = index * treeRowHeight;
+      const bottom = top + treeRowHeight;
+      if (top < treeElement.scrollTop) treeElement.scrollTop = top;
+      else if (bottom > treeElement.scrollTop + treeElement.clientHeight)
+        treeElement.scrollTop = bottom - treeElement.clientHeight;
+      setTreeScroll(treeElement.scrollTop);
+    },
+    [treeElement, windowed, rowIndexes],
+  );
   useLayoutEffect(() => {
     const lastSelected = selected.at(-1);
-    if (lastSelected && treeElement.current && document.activeElement === canvas)
-      treeElement.current
-        .querySelector('[data-prim-path="' + CSS.escape(lastSelected) + '"]')
-        ?.scrollIntoView({ block: "nearest", inline: "nearest" });
-  }, [selected, rows, canvas]);
+    if (lastSelected && document.activeElement === canvas) revealRow(lastSelected);
+  }, [selected, canvas, revealRow]);
+  useLayoutEffect(() => {
+    const path = pendingTreeFocus.current;
+    if (path === undefined || !treeElement) return;
+    const element = treeElement.querySelector<HTMLElement>(
+      '[data-tree-path="' + CSS.escape(path) + '"]',
+    );
+    if (!element) return;
+    pendingTreeFocus.current = undefined;
+    element.focus({ preventScroll: true });
+  }, [treeElement, treeFocus, rows, start, end]);
   const changeBranch = (row: TreeRow) =>
     setExpanded((previous) => new Map(previous).set(row.path, !row.open));
   const focusRow = (path: string | undefined) => {
-    if (path)
-      treeElement.current
-        ?.querySelector<HTMLElement>('[data-tree-path="' + CSS.escape(path) + '"]')
-        ?.focus();
+    if (!path || !treeElement) return;
+    revealRow(path);
+    const element = treeElement.querySelector<HTMLElement>(
+      '[data-tree-path="' + CSS.escape(path) + '"]',
+    );
+    if (element) element.focus({ preventScroll: true });
+    else {
+      pendingTreeFocus.current = path;
+      setTreeFocus(path);
+    }
   };
   const closeProperties = (id: string) => {
     changeInspection({
@@ -472,8 +586,8 @@ export function ScenePreview({
       if (hit?.id !== hoverTarget.current) {
         hoverTarget.current = hit?.id;
         setPreviewedId(undefined);
+        setHover(hit ? { ...current, id: hit.id } : undefined);
       }
-      setHover(hit ? { ...current, id: hit.id } : undefined);
     });
   };
   const navigation = [
@@ -968,11 +1082,14 @@ export function ScenePreview({
                 )}
               </div>
               <div
-                ref={treeElement}
+                ref={setTreeElement}
                 className="scene-preview-objects"
                 role="tree"
                 aria-multiselectable="true"
                 aria-label={t("场景对象")}
+                onScroll={(event) => {
+                  if (windowed) setTreeScroll(event.currentTarget.scrollTop);
+                }}
                 onKeyDown={(event) => {
                   const additive = event.ctrlKey || event.metaKey;
                   if (
@@ -982,7 +1099,7 @@ export function ScenePreview({
                   )
                     return;
                   const path = (event.target as HTMLElement).dataset.treePath;
-                  const index = rows.findIndex((row) => row.path === path);
+                  const index = path ? (rowIndexes.get(path) ?? -1) : -1;
                   const row = rows[index];
                   if (!row) return;
                   switch (event.key) {
@@ -1017,65 +1134,82 @@ export function ScenePreview({
                   event.preventDefault();
                 }}
               >
-                {rows.map((row) => {
-                  const { path, object, depth, children, open } = row;
-                  return (
-                    <div
-                      key={path}
-                      role="treeitem"
-                      aria-level={depth + 1}
-                      aria-expanded={children.size ? open : undefined}
-                      aria-selected={object ? selection.has(object.id) : undefined}
-                      className="scene-tree-row"
-                      data-tree-path={path}
-                      data-prim-path={object?.id}
-                      data-hidden={object && !visible.has(object.id) ? "true" : undefined}
-                      tabIndex={treeTabStop === path ? 0 : -1}
-                      style={{ paddingInlineStart: depth * 11 + 4 }}
-                      title={object?.semantic_ref ?? path}
-                      onFocus={() => setTreeFocus(path)}
-                      onContextMenu={(event) => {
-                        if (object && event.ctrlKey) event.preventDefault();
-                      }}
-                      onPointerUp={(event) => {
-                        if (
-                          !object ||
-                          !event.ctrlKey ||
-                          (event.button !== 0 && event.button !== 2) ||
-                          (event.target as Element).closest(".scene-tree-expand")
-                        )
-                          return;
-                        event.currentTarget.focus();
-                        selectObject(object.id, true);
-                      }}
-                      onClick={(event) => {
-                        if (object && event.ctrlKey) return;
-                        event.currentTarget.focus();
-                        if (object) selectObject(object.id, event.metaKey);
-                        else if (children.size) changeBranch(row);
-                      }}
-                    >
-                      <span
-                        aria-hidden="true"
-                        className="scene-tree-expand"
-                        onClick={
-                          children.size
-                            ? (event) => {
-                                event.stopPropagation();
-                                focusRow(path);
-                                changeBranch(row);
-                              }
-                            : undefined
-                        }
+                <div
+                  role="presentation"
+                  style={
+                    windowed
+                      ? { height: rows.length * treeRowHeight, position: "relative" }
+                      : undefined
+                  }
+                >
+                  {shownRows.map((row) => {
+                    const { path, object, depth, children, open } = row;
+                    return (
+                      <div
+                        key={path}
+                        role="treeitem"
+                        aria-level={depth + 1}
+                        aria-expanded={children.size ? open : undefined}
+                        aria-selected={object ? selection.has(object.id) : undefined}
+                        className="scene-tree-row"
+                        data-tree-path={path}
+                        data-prim-path={object?.id}
+                        data-hidden={object && !visible.has(object.id) ? "true" : undefined}
+                        tabIndex={treeTabStop === path ? 0 : -1}
+                        style={{
+                          paddingInlineStart: depth * 11 + 4,
+                          ...(windowed && {
+                            position: "absolute",
+                            insetInline: 0,
+                            top: rowIndexes.get(path)! * treeRowHeight,
+                            height: treeRowHeight,
+                          }),
+                        }}
+                        title={object?.semantic_ref ?? path}
+                        onFocus={() => setTreeFocus(path)}
+                        onContextMenu={(event) => {
+                          if (object && event.ctrlKey) event.preventDefault();
+                        }}
+                        onPointerUp={(event) => {
+                          if (
+                            !object ||
+                            !event.ctrlKey ||
+                            (event.button !== 0 && event.button !== 2) ||
+                            (event.target as Element).closest(".scene-tree-expand")
+                          )
+                            return;
+                          event.currentTarget.focus();
+                          selectObject(object.id, true);
+                        }}
+                        onClick={(event) => {
+                          if (object && event.ctrlKey) return;
+                          event.currentTarget.focus();
+                          if (object) selectObject(object.id, event.metaKey);
+                          else if (children.size) changeBranch(row);
+                        }}
                       >
-                        {children.size ? (open ? "▾" : "▸") : ""}
-                      </span>
-                      <Icon name={object ? "cube" : "layers"} size={14} />
-                      <span className="scene-tree-label">{object?.name ?? row.label}</span>
-                    </div>
-                  );
-                })}
-                {!rows.length && <div className="scene-no-selection">{t("没有匹配的构件")}</div>}
+                        <span
+                          aria-hidden="true"
+                          className="scene-tree-expand"
+                          onClick={
+                            children.size
+                              ? (event) => {
+                                  event.stopPropagation();
+                                  focusRow(path);
+                                  changeBranch(row);
+                                }
+                              : undefined
+                          }
+                        >
+                          {children.size ? (open ? "▾" : "▸") : ""}
+                        </span>
+                        <Icon name={object ? "cube" : "layers"} size={14} />
+                        <span className="scene-tree-label">{object?.name ?? row.label}</span>
+                      </div>
+                    );
+                  })}
+                  {!rows.length && <div className="scene-no-selection">{t("没有匹配的构件")}</div>}
+                </div>
               </div>
             </div>
           </aside>

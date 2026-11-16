@@ -107,6 +107,35 @@ def test_empty_host_is_a_valid_explicit_state(station):
   assert state["plugins"] == [] and state["data"] == {} and state["jobs"] == []
 
 
+def test_state_poll_skips_plugin_and_detects_source_and_publication_changes(station):
+  class CountingPlugin:
+    manifest = {"id": "counting"}
+
+    def state(self, root, artifacts):
+      calls.append(root)
+      return {"ready": True}
+
+  calls = []
+  runtime = StudioRuntime(station, plugins={"counting": CountingPlugin()})
+  initial = runtime.state(summary=True)
+  tag = initial["poll_revision"]
+  assert initial["data"] == {} and calls == []
+  assert runtime.state(summary=True, known=tag) == {"status": "unchanged", "poll_revision": tag}
+  document = station / runtime.project.source / "poll-test.json"
+  document.write_text("[]")
+  after_create = runtime.state(summary=True, known=tag)
+  document.write_text("{}")
+  after_edit = runtime.state(summary=True, known=after_create["poll_revision"])
+  assert after_edit["project"]["revision"] != after_create["project"]["revision"]
+  write_json(station / runtime.build / "build.json", {"run_id": "test"})
+  after_publish = runtime.state(summary=True, known=after_edit["poll_revision"])
+  assert after_publish["project"]["build_revision"] != after_edit["project"]["build_revision"]
+  assert calls == []
+  full = runtime.state(plugin_id="counting")
+  assert full["project"] == after_publish["project"]
+  assert full["data"] == {"counting": {"ready": True}} and calls == [station]
+
+
 def test_external_build_publication_changes_studio_listing_revision(station):
   runtime = StudioRuntime(station, plugins={})
   initial = runtime.state()["project"]

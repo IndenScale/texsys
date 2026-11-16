@@ -1627,7 +1627,7 @@ test("mounted artifact previews preserve their viewport when file geometry chang
       'export { EditorControlTarget } from "./src/texsys/assets/studio/EditorControlSlot";',
   );
   t.mock.timers.enable({ apis: ["setTimeout"] });
-  const dom = new JSDOM("<main></main>");
+  const dom = new JSDOM("<main></main>", { pretendToBeVisual: true });
   const { window } = dom;
   let frameId = 0;
   const frames = new Map();
@@ -1662,6 +1662,7 @@ test("mounted artifact previews preserve their viewport when file geometry chang
   Object.assign(window.HTMLCanvasElement.prototype, {
     getBoundingClientRect: () => ({ left: 0, top: 0, width: 400, height: 300 }),
     setPointerCapture() {},
+    releasePointerCapture() {},
     hasPointerCapture: () => false,
   });
   window.HTMLElement.prototype.scrollIntoView = () => {};
@@ -1705,10 +1706,17 @@ test("mounted artifact previews preserve their viewport when file geometry chang
       objects:
         version === "v1"
           ? [room]
-          : [
-              room,
-              { ...extension, name: composition === "layer-v1" ? "Extension" : "Changed layer" },
-            ],
+          : version === "large"
+            ? Array.from({ length: 240 }, (_, index) => ({
+                ...room,
+                id: `/Element${index}`,
+                prim_path: `/Element${index}`,
+                name: `Element ${index}`,
+              }))
+            : [
+                room,
+                { ...extension, name: composition === "layer-v1" ? "Extension" : "Changed layer" },
+              ],
     };
   };
   let latestViewport;
@@ -1744,9 +1752,21 @@ test("mounted artifact previews preserve their viewport when file geometry chang
   }
   const container = window.document.querySelector("main");
   const root = createRoot(container);
-  const render = (props) =>
-    act(async () => root.render(createElement(Harness, { key: props.kind, ...props })));
-  const zoom = () => act(() => container.querySelector('[aria-label="放大"]').click());
+  const flushFrames = () =>
+    act(() => {
+      for (const [id, callback] of [...frames]) {
+        frames.delete(id);
+        callback(performance.now());
+      }
+    });
+  const render = async (props) => {
+    await act(async () => root.render(createElement(Harness, { key: props.kind, ...props })));
+    await flushFrames();
+  };
+  const zoom = async () => {
+    await act(() => container.querySelector('[aria-label="放大"]').click());
+    await flushFrames();
+  };
   const firstPlan =
     '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect width="50" height="50"/></svg>';
   const nextPlan = firstPlan.replace("100 100", "500 500");
@@ -1906,6 +1926,7 @@ test("mounted artifact previews preserve their viewport when file geometry chang
   composition = "layer-v2";
   faces.length = 0;
   await act(async () => t.mock.timers.tick(2000));
+  await flushFrames();
   assert.equal(requests.at(-1).searchParams.get("version"), "v2");
   assert.equal(requests.at(-1).searchParams.get("revision"), "layer-v1");
   assert.match(container.querySelector(".scene-preview-objects").textContent, /Changed layer/);
@@ -2055,6 +2076,18 @@ test("mounted artifact previews preserve their viewport when file geometry chang
   assert.deepEqual(cards(), ["/Extension"]);
   await act(() => container.querySelector('[aria-label="关闭构件属性"]').click());
   assert.deepEqual(cards(), []);
+  await render({ kind: "scene", version: "large" });
+  const sceneTree = container.querySelector(".scene-preview-objects");
+  const rows = () => sceneTree.querySelectorAll('[role="treeitem"]');
+  assert.ok(rows().length < 50);
+  await act(() => rows()[0].focus());
+  await act(() => key(window.document.activeElement, "keydown", "End"));
+  assert.equal(window.document.activeElement.dataset.primPath, "/Element239");
+  assert.ok(sceneTree.scrollTop > 0);
+  await act(() => key(window.document.activeElement, "keydown", "Enter"));
+  assert.deepEqual(cards(), ["/Element239"]);
+  await act(() => key(window.document.activeElement, "keydown", "Home"));
+  assert.equal(window.document.activeElement.dataset.primPath, "/Element0");
   await act(() => root.unmount());
 });
 
@@ -2195,6 +2228,8 @@ test("outline view renders symbols, navigates, collapses and filters on type", a
         }),
       ),
     );
+  await view({ open: false });
+  assert.equal(container.querySelectorAll('[role="treeitem"]').length, 0);
   await view();
   const body = () => container.querySelector(".outline-body");
   assert.ok(body(), "outline body present with symbols");
@@ -2345,7 +2380,9 @@ test("timeline view lists per-file commits, opens diffs and reports empty states
         }),
       ),
     );
-  await view();
+  await view({ open: false, token: id });
+  assert.deepEqual(urls, []);
+  await view({ open: true, token: id });
   assert.ok(urls.every((url) => url.includes("path=README.md")));
   const row = container.querySelector(".timeline-row");
   assert.ok(row);
@@ -2353,6 +2390,9 @@ test("timeline view lists per-file commits, opens diffs and reports empty states
   assert.ok(row.querySelector(".timeline-when").textContent);
   await act(async () => row.click());
   assert.deepEqual(opened, [id]);
+  await view({ open: false, token: id });
+  await view({ open: true, token: id });
+  assert.equal(urls.length, 1);
   await view({ path: undefined });
   assert.match(container.textContent, /打开文件后可查看时间线。/);
   await view({

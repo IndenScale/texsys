@@ -227,6 +227,63 @@ def test_scoped_metadata_keeps_cross_path_supersession_and_invalid_snapshot_fall
   assert "artifact" not in project_file(project, new[1], "build")
 
 
+def test_shared_file_index_reuses_negative_lookup_and_notices_historical_changes(project, monkeypatch):
+  older = drawing(project, "build/old.json", "drawing")
+  preview_record(project, "one", (older,))
+  new = drawing(project, "build/new.json", "drawing")
+  preview_record(project, "two", (new,), previous="one", status="error")
+  (project / "build/unregistered.json").write_text("{}")
+  previews = ProjectPreview(project, "build")
+  original = previews._report
+  history_reads = []
+
+  def report_read(run=""):
+    history_reads.append(run)
+    return original(run)
+
+  monkeypatch.setattr(previews, "_report", report_read)
+  path = "build/unregistered.json"
+  base = project_file(project, path, "build", previews=previews)
+  assert history_reads == ["", "one"]
+  assert project_file(project, path, "build", previews=previews, known=base["poll_revision"])["status"] == "unchanged"
+  assert history_reads == ["", "one"]
+  # Keep the current file bytes and replace only its published-history input.
+  (project / "build/runs/one/build.json").write_text("{ corrupt")
+  project_file(project, path, "build", previews=previews)
+  assert history_reads.count("one") == 2
+
+
+def test_private_file_index_survives_restart_and_rebuilds_on_corruption(project, monkeypatch):
+  earlier = drawing(project, "build/earlier.json", "drawing")
+  preview_record(project, "one", (earlier,))
+  latest = drawing(project, "build/latest.json", "drawing")
+  preview_record(project, "two", (latest,), previous="one")
+  notebook = project / "build/studio"
+  notebook.mkdir(exist_ok=True)
+  path = latest[1]
+  original = ProjectPreview._report
+  reads = []
+
+  def observed(previews, run=""):
+    reads.append(run)
+    return original(previews, run)
+
+  monkeypatch.setattr(ProjectPreview, "_report", observed)
+  first = ProjectPreview(project, "build", persist_index=True).file_entries(path)
+  assert reads == ["", "one"]
+  stored = notebook / "file-preview-index.json"
+  assert stored.is_file()
+  with pytest.raises(ProjectError):
+    project_file(project, stored.relative_to(project).as_posix(), "build")
+  reads.clear()
+  second = ProjectPreview(project, "build", persist_index=True).file_entries(path)
+  assert second == first and reads == [""]
+  reads.clear()
+  stored.write_text("{ corrupt")
+  assert ProjectPreview(project, "build", persist_index=True).file_entries(path) == first
+  assert reads == ["", "one"]
+
+
 def test_file_metadata_tolerates_invalid_artifact_identity(project):
   item = drawing(project)
   report = preview_record(project, "one", (item,))

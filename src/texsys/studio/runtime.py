@@ -6,6 +6,7 @@ import os
 from pathlib import Path
 import shutil
 import signal
+from stat import S_ISLNK, S_ISREG
 import subprocess
 import sys
 import threading
@@ -50,11 +51,53 @@ def input_records(root: Path) -> list[dict]:
     files.extend(sorted((root / name).rglob("*")))
   records = []
   for file in files:
-    if file.is_file() and file.name != ".gitkeep":
-      if not file.resolve().is_relative_to(root):
-        raise ProjectError("Studio inputs must remain inside the project.")
-      records.append({"path": file.relative_to(root).as_posix(), "digest": file_digest(file)})
+    if not file.is_file() or file.name == ".gitkeep":
+      continue
+    if not file.resolve().is_relative_to(root):
+      raise ProjectError("Studio inputs must remain inside the project.")
+    records.append({"path": file.relative_to(root).as_posix(), "digest": file_digest(file)})
   return sorted(records, key=lambda item: item["path"])
+
+
+def _summary_inputs(root: Path, previous):
+  project = inspect_project(root)
+  if project is None:
+    raise ProjectError("Initialize a texsys project before opening Studio.")
+  updated, records = {}, []
+
+  def add(file):
+    if file.name == ".gitkeep":
+      return
+    try:
+      info = file.lstat()
+      if S_ISLNK(info.st_mode):
+        if not file.resolve().is_relative_to(root):
+          if file.is_file():
+            raise ProjectError("Studio inputs must remain inside the project.")
+          return
+        info = file.stat()
+    except FileNotFoundError:
+      return
+    if not S_ISREG(info.st_mode):
+      return
+    stamp = (info.st_dev, info.st_ino, info.st_size, info.st_mtime_ns, info.st_ctime_ns)
+    entry = previous.get(file)
+    digest = entry[1] if entry and entry[0] == stamp else file_digest(file)
+    updated[file] = stamp, digest
+    records.append({"path": file.relative_to(root).as_posix(), "digest": digest})
+
+  add(root / "texsys.toml")
+  add(root / "texsys.lock")
+  for name in (project.source, project.assets):
+    for parent, _, names in os.walk(root / name, followlinks=False):
+      directory = Path(parent)
+      # A single check covers the regular entries of this directory. File
+      # symlinks still have their targets checked individually by add().
+      if not directory.resolve().is_relative_to(root):
+        raise ProjectError("Studio inputs must remain inside the project.")
+      for filename in names:
+        add(directory / filename)
+  return canonical_digest(sorted(records, key=lambda item: item["path"])), updated
 
 
 def revision(root: Path) -> str:
@@ -123,6 +166,8 @@ class StudioRuntime:
     self.directory = self.root / self.build / "studio"
     self.directory.mkdir(parents=True, exist_ok=True)
     self.lock = threading.RLock()
+    self._summary_lock = threading.Lock()
+    self._summary_digests = {}
     self.processes = {}
     self.jobs = {}
     for file in sorted((self.directory / "jobs").glob("*/job.json")):
@@ -157,28 +202,34 @@ class StudioRuntime:
       write_json(self.directory / "jobs" / identity / "job.json", job)
       self.processes.pop(identity)
 
-  def state(self):
+  def state(self, *, summary=False, plugin_id=None, known=""):
     with self.lock:
       self._refresh_jobs()
+      jobs = sorted((dict(job) for job in self.jobs.values()), key=lambda item: item["created_at"], reverse=True)
+    if summary:
+      with self._summary_lock:
+        current, self._summary_digests = _summary_inputs(self.root, self._summary_digests)
+    else:
       current = revision(self.root)
-      jobs = sorted(self.jobs.values(), key=lambda item: item["created_at"], reverse=True)
-      result = {}
-      for identity, plugin in self.plugins.items():
-        artifacts = []
-        for job in jobs:
-          if job["plugin"] == identity and job["state"] == "completed":
-            artifacts.append({**job, "current": job["revision"] == current,
-                              "root": self.directory / "jobs" / job["id"] / "project"})
-        try:
-          result[identity] = plugin.state(self.root, artifacts)
-        except Exception as error:
-          result[identity] = {"error": str(error)}
-      return {"api_version": 1, "project": {"name": self.project.name, "path": str(self.root), "revision": current,
-                                            "build_revision": _build_revision(self.root, self.project.build),
-                                            "branch": git_context(self.root)},
-              "plugins": [plugin.manifest for plugin in self.plugins.values()], "data": result,
-              "jobs": [{**job, "current": job["revision"] == current} for job in jobs],
-              "diagnostics": self.diagnostics}
+    state = {"api_version": 1, "project": {"name": self.project.name, "path": str(self.root), "revision": current,
+                                         "build_revision": _build_revision(self.root, self.project.build),
+                                         "branch": git_context(self.root)},
+             "plugins": [plugin.manifest for plugin in self.plugins.values()], "data": {},
+             "jobs": [{**job, "current": job["revision"] == current} for job in jobs],
+             "diagnostics": self.diagnostics}
+    if summary:
+      tag = canonical_digest(state)
+      return {"status": "unchanged", "poll_revision": tag} if known == tag else {**state, "poll_revision": tag}
+    selected = self.plugins.items() if plugin_id is None else [(plugin_id, self._plugin(plugin_id))]
+    for identity, plugin in selected:
+      artifacts = [{**job, "current": job["revision"] == current,
+                    "root": self.directory / "jobs" / job["id"] / "project"}
+                   for job in jobs if job["plugin"] == identity and job["state"] == "completed"]
+      try:
+        state["data"][identity] = plugin.state(self.root, artifacts)
+      except Exception as error:
+        state["data"][identity] = {"error": str(error)}
+    return state
 
   def edit(self, request):
     with self.lock:

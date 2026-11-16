@@ -5,10 +5,10 @@ import json
 import os
 import re
 from pathlib import Path
-from stat import S_ISREG
 import tempfile
 
 from texsys.project import ProjectError
+from texsys.evidence import canonical_digest
 from .ai import is_ai_config_path
 from .jsonc import strip_jsonc
 from .preview import ProjectPreview
@@ -114,36 +114,48 @@ def _file_path(root: Path, relative: str, build: str) -> Path:
   return candidate
 
 
-def project_files(root: Path, build: str) -> dict:
+def project_files(root: Path, build: str, *, previews: ProjectPreview | None = None, compact=False) -> dict:
   root = root.resolve()
   output = (root / build).resolve()
   excluded = exclude_matcher(root)
-  metadata = {entry["path"]: entry for entry in ProjectPreview(root, build).file_entries(previews_only=True)}
+  if compact:
+    # The Explorer and quick picker need names and paths. Opening a document
+    # resolves its actual preview and validates any claimed build identity.
+    metadata = {}
+  else:
+    previews = previews if previews is not None else ProjectPreview(root, build)
+    metadata = {entry["path"]: entry for entry in previews.file_entries(previews_only=True)}
   entries, folders = [], []
-  for parent, directories, names in os.walk(root, followlinks=False):
-    directories[:] = sorted(name for name in directories
-                            if not excluded((Path(parent) / name).relative_to(root).as_posix())
-                            and not (Path(parent) / name).is_symlink()
-                            # The root is canonical and symlink directories are
-                            # excluded before descent, so these paths need no
-                            # repeated realpath walk across the shared volume.
-                            and not _private_build_path(Path(parent) / name, output))
-    folders.extend((Path(parent) / name).relative_to(root).as_posix() for name in directories)
+  pending = [root]
+  while pending:
+    parent = pending.pop()
+    if parent != root and parent.is_symlink():
+      continue
+    directories, names = [], []
+    try:
+      with os.scandir(parent) as items:
+        for item in sorted(items, key=lambda item: item.name):
+          file = parent / item.name
+          relative = file.relative_to(root).as_posix()
+          if excluded(relative) or _private_build_path(file, output):
+            continue
+          if item.is_dir(follow_symlinks=False):
+            directories.append(file)
+            folders.append(relative)
+          elif item.is_file(follow_symlinks=False) and not is_ai_config_path(file):
+            try:
+              size = {} if compact else {"size": item.stat(follow_symlinks=False).st_size}
+            except OSError:
+              continue
+            names.append((file, relative, size))
+    except OSError:
+      continue
+    pending.extend(reversed(directories))
     if len(folders) >= MAX_FILES:
       return {"files": entries, "directories": folders[:MAX_FILES], "truncated": True}
-    for name in sorted(names):
-      file = Path(parent) / name
-      relative = file.relative_to(root)
-      if excluded(relative.as_posix()) or _private_build_path(file, output):
-        continue
-      try:
-        info = file.stat(follow_symlinks=False)
-        if not S_ISREG(info.st_mode) or is_ai_config_path(file):
-          continue
-      except OSError:
-        continue
-      entry = {**metadata.get(relative.as_posix(), {}), "path": relative.as_posix(), "name": name,
-               "parent": "" if relative.parent == Path(".") else relative.parent.as_posix(), "size": info.st_size}
+    relative_parent = parent.relative_to(root).as_posix() if parent != root else ""
+    for file, relative, size in names:
+      entry = {**metadata.get(relative, {}), "path": relative, "name": file.name, "parent": relative_parent, **size}
       if file.is_relative_to(output):
         entry["generated"] = True
       entries.append(entry)
@@ -204,19 +216,25 @@ def _encode_text(text, request, original_format=None, original_bytes=None):
   return (_UTF8_BOM if (encoding or original["encoding"]) == "utf8bom" else b"") + raw
 
 
-def project_file(root: Path, relative: str, build: str) -> dict:
+def project_file(root: Path, relative: str, build: str, *, previews: ProjectPreview | None = None, known="") -> dict:
   root = root.resolve()
   file = _file_path(root, relative, build)
   metadata = {}
   if file.is_relative_to((root / build).resolve()):
     metadata["generated"] = True
-    declarations = ProjectPreview(root, build).file_entries(relative)
+    previews = previews if previews is not None else ProjectPreview(root, build)
+    declarations = previews.file_entries(relative)
     if declarations:
       metadata.update({key: value for key, value in declarations[0].items()
                        if key in {"artifact", "preview", "preview_error"}})
   info = file.stat()
   size = info.st_size
-  result = {"path": file.relative_to(root).as_posix(), "size": size, "previewable": False, "version": _stat_version(info), **metadata}
+  path = file.relative_to(root).as_posix()
+  stamp = _stat_version(info)
+  tag = canonical_digest({"path": path, "file": stamp, "metadata": metadata})
+  if known == tag:
+    return {"status": "unchanged", "path": path, "poll_revision": tag}
+  result = {"path": path, "size": size, "previewable": False, "version": stamp, "poll_revision": tag, **metadata}
   if size > MAX_PREVIEW_BYTES:
     return {**result, "reason": "文件超过 1 MiB，暂不提供文本编辑。"}
   with file.open("rb") as stream:

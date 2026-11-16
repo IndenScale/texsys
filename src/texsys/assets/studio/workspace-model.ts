@@ -137,6 +137,7 @@ export type GitStatus = {
   entries: GitEntry[];
   snapshot: string;
   truncated?: boolean;
+  head?: string;
 };
 export type GitDiff = {
   path: string;
@@ -280,6 +281,7 @@ export function fileDocumentSnapshot(path: string, file: FilePreview) {
     saved: file.content ?? "",
     content: file.content ?? "",
     version: file.version ?? "",
+    pollRevision: file.poll_revision,
     ...(file.textFormat ? { textFormat: file.textFormat, formatChange: undefined } : {}),
     reason: file.reason,
     generated: !!file.generated,

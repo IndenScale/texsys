@@ -2,11 +2,14 @@
 
 import hashlib
 import json
+from collections import OrderedDict, defaultdict
 from pathlib import Path
 import re
+from stat import S_ISDIR, S_ISREG
+from threading import RLock
 from typing import Any
 
-from texsys.evidence import canonical_digest, file_digest
+from texsys.evidence import canonical_digest, file_digest, write_json
 from texsys.project import ProjectError, inspect_project
 
 PREVIEW_KINDS = {"bom", "topology", "schematic", "scene", "report"}
@@ -14,6 +17,34 @@ MAX_REPORT_BYTES = 16 * 1024 * 1024
 MAX_ARTIFACT_BYTES = 8 * 1024 * 1024
 MAX_HISTORY = 100
 _RUN = re.compile(r"[A-Za-z0-9_-]{1,128}\Z")
+_MAX_HISTORICAL_REPORT_BYTES = 16 * 1024 * 1024
+_INDEX_FORMAT = 1
+_MAX_DISK_INDEX_BYTES = 8 * 1024 * 1024
+
+
+def file_stamp(path: Path):
+  try:
+    info = path.lstat()
+  except FileNotFoundError:
+    return None
+  if not S_ISREG(info.st_mode):
+    raise ProjectError("Preview input must be a regular file.")
+  return (info.st_dev, info.st_ino, info.st_mode, info.st_size, info.st_mtime_ns, info.st_ctime_ns)
+
+
+def _directory_stamp(path: Path):
+  try:
+    info = path.lstat()
+  except FileNotFoundError:
+    return None
+  if not S_ISDIR(info.st_mode):
+    raise ProjectError("Preview directory cannot use symbolic links.")
+  return (info.st_dev, info.st_ino, info.st_mode)
+
+
+def _identity(record):
+  target, identifier = record.get("target"), record.get("id")
+  return (target, identifier) if all(isinstance(value, str) and value for value in (target, identifier)) else None
 
 
 def _inside(root: Path, relative: str, boundary: Path) -> Path:
@@ -52,11 +83,183 @@ def _freshness(root: Path, report: dict) -> dict:
 
 
 class ProjectPreview:
-  def __init__(self, root: Path, build: str):
+  def __init__(self, root: Path, build: str, *, persist_index=False):
     self.root = root.resolve()
     self.build = (self.root / build).resolve()
     if not self.build.is_relative_to(self.root):
       raise ProjectError("Project build directory must remain inside the project.")
+    self._metadata_lock = RLock()
+    self._latest_metadata = None
+    self._indexed_metadata = None
+    self._historical_metadata = OrderedDict()
+    self._verified_locations = OrderedDict()
+    self._index_file = self.build / "studio" / "file-preview-index.json" if persist_index else None
+
+  def _history_stamp(self, run):
+    try:
+      return file_stamp(self.build / "runs" / run / "build.json")
+    except (OSError, ProjectError):
+      return None
+
+  def _metadata_report(self):
+    path = self.build / "build.json"
+    try:
+      parents = tuple(_directory_stamp(parent) for parent in path.parents if parent.is_relative_to(self.root))
+      stamp = (parents, file_stamp(path))
+    except (OSError, ProjectError):
+      self._latest_metadata = self._indexed_metadata = None
+      return None
+    if self._latest_metadata is not None and self._latest_metadata[0] == stamp:
+      return self._latest_metadata[1]
+    self._indexed_metadata = None
+    try:
+      report = self._report()
+    except (OSError, ValueError, ProjectError):
+      report = None
+    self._latest_metadata = (stamp, report)
+    return report
+
+  def _load_index(self, latest, runs):
+    path = self._index_file
+    if path is None:
+      return None
+    try:
+      if _directory_stamp(path.parent) is None or file_stamp(path) is None:
+        return None
+      envelope = _json(path, _MAX_DISK_INDEX_BYTES)
+      index = envelope["index"]
+      if (index["schema"] != _INDEX_FORMAT or index["project"] != str(self.root)
+          or index["publication"] != latest["record_digest"]
+          or index["runs"] != (list(runs) if runs else None)
+          or envelope["digest"] != canonical_digest(index)):
+        return None
+      reports = index["reports"]
+      stamps = {run: tuple(stamp) if stamp is not None else None for run, stamp in index["stamps"].items()}
+      if (not reports or reports[0] != latest["run_id"] or len(reports) > MAX_HISTORY
+          or len(stamps) > MAX_HISTORY or any(not _RUN.fullmatch(run) for run in stamps)
+          or any(run not in stamps for run in reports[1:])
+          or any(self._history_stamp(run) != stamp for run, stamp in stamps.items())):
+        return None
+      records = {(target, identifier): matches for target, identifier, matches in index["records"]}
+      identities = {path: {tuple(identity) for identity in matching} for path, matching in index["paths"].items()}
+      return runs, stamps, reports, identities, records
+    except (AttributeError, KeyError, OSError, TypeError, ValueError, ProjectError):
+      return None
+
+  def _save_index(self, latest, cached):
+    path = self._index_file
+    if path is None:
+      return
+    runs, stamps, reports, identities, records = cached
+    index = {"schema": _INDEX_FORMAT, "project": str(self.root), "publication": latest["record_digest"],
+             "runs": runs, "stamps": stamps, "reports": reports,
+             "paths": {name: sorted(matching) for name, matching in identities.items()},
+             "records": [[target, identifier, matches] for (target, identifier), matches in records.items()]}
+    try:
+      if _directory_stamp(path.parent) is not None:
+        envelope = {"index": index, "digest": canonical_digest(index)}
+        if len(json.dumps(envelope, indent=2, ensure_ascii=False).encode("utf-8")) <= _MAX_DISK_INDEX_BYTES:
+          write_json(path, envelope)
+    except (OSError, ValueError, ProjectError):
+      # The private cache is optional. The verified in-memory index can
+      # still serve this process on read-only workspaces or a full disk.
+      pass
+
+  def _metadata_history(self, latest, relative):
+    cached = self._indexed_metadata
+    try:
+      info = (self.build / "runs").lstat()
+      if not S_ISDIR(info.st_mode):
+        raise ProjectError("Preview directory cannot use symbolic links.")
+      # Replacement of any run directory changes its parent. Otherwise only
+      # the manifest's own stamp is needed to detect in-place edits.
+      runs = (info.st_dev, info.st_ino, info.st_mtime_ns, info.st_ctime_ns)
+    except FileNotFoundError:
+      runs = None
+    except (OSError, ProjectError):
+      return () if latest is None else ((latest, latest["artifacts"]),)
+    if cached is not None and (cached[0] != runs or any(
+        self._history_stamp(run) != stamp for run, stamp in cached[1].items())):
+      cached = None
+    cached = cached if cached is not None else self._load_index(latest, runs)
+    if cached is None:
+      reports = []
+      identities = defaultdict(set)
+      records = defaultdict(list)
+      stamps = {}
+      latest_ids = {_identity(record) for record in latest["artifacts"]}
+      targets = {item.get("id"): item for item in latest["targets"] if isinstance(item.get("id"), str)}
+      report = latest
+      visited = set()
+      while report and len(reports) < MAX_HISTORY and report["run_id"] not in visited:
+        index = len(reports)
+        visited.add(report["run_id"])
+        reports.append(report["run_id"])
+        for position, record in enumerate(report["artifacts"]):
+          identity = _identity(record)
+          path = record.get("path")
+          if identity is None:
+            continue
+          target = targets.get(identity[0])
+          if index and (target is None or
+                        (target.get("status") == "pass" and target.get("execution") != "blocked"
+                         and identity not in latest_ids)):
+            continue
+          if isinstance(path, str):
+            identities[path].add(identity)
+          records[identity].append((index, position))
+        previous = report.get("previous_run_id")
+        if not isinstance(previous, str) or not _RUN.fullmatch(previous) or previous in visited or len(reports) >= MAX_HISTORY:
+          break
+        stamps[previous] = self._history_stamp(previous)
+        try:
+          report = self._report(previous)
+        except (OSError, ValueError, ProjectError):
+          break
+      cached = (runs, stamps, reports, identities, records)
+      self._save_index(latest, cached)
+    self._indexed_metadata = cached
+    _, stamps, reports, identities, records = cached
+    if relative is None:
+      selected = records.keys()
+    else:
+      selected = identities.get(relative, ())
+    grouped = defaultdict(list)
+    for identity in selected:
+      for index, position in records[identity]:
+        grouped[index].append(position)
+
+    def selected_reports():
+      yield latest, [latest["artifacts"][position] for position in sorted(grouped.get(0, ()))]
+      for index in sorted(i for i in grouped if i):
+        run = reports[index]
+        report = self._history_details(run, stamps[run])
+        if report is None:
+          break
+        yield report, [report["artifacts"][position] for position in sorted(grouped[index])]
+
+    return selected_reports()
+
+  def _history_details(self, run, stamp):
+    with self._metadata_lock:
+      if stamp is None or self._history_stamp(run) != stamp:
+        return None
+      entry = self._historical_metadata.get(run)
+      if entry and entry[0] == stamp:
+        self._historical_metadata.move_to_end(run)
+        return entry[1]
+      try:
+        report = self._report(run)
+      except (OSError, ValueError, ProjectError):
+        return None
+      if self._history_stamp(run) != stamp:
+        return None
+      size = stamp[3]
+      self._historical_metadata[run] = (stamp, report, size)
+      self._historical_metadata.move_to_end(run)
+      while sum(item[2] for item in self._historical_metadata.values()) > _MAX_HISTORICAL_REPORT_BYTES:
+        self._historical_metadata.popitem(last=False)
+      return report
 
   def _report(self, run: str = "") -> dict | None:
     if not isinstance(run, str) or run and not _RUN.fullmatch(run):
@@ -107,6 +310,28 @@ class ProjectPreview:
       raise ProjectError("Preview artifact digest does not match the build manifest.")
     return file
 
+  def _metadata_location(self, report: dict, record: dict) -> Path:
+    stored = record.get("stored_path")
+    digest = record.get("digest")
+    if not isinstance(stored, str) or not isinstance(digest, str):
+      return self._location(report, record)
+    key = (report["run_id"], stored, digest)
+    snapshot = self.build / "runs" / report["run_id"] / "files"
+    file = _inside(self.root, stored, snapshot)
+    stamp = file_stamp(file)
+    with self._metadata_lock:
+      if stamp and self._verified_locations.get(key) == stamp:
+        self._verified_locations.move_to_end(key)
+        return file
+    verified = self._location(report, record)
+    with self._metadata_lock:
+      if stamp and file_stamp(file) == stamp:
+        self._verified_locations[key] = stamp
+        self._verified_locations.move_to_end(key)
+        if len(self._verified_locations) > 512:
+          self._verified_locations.popitem(last=False)
+    return verified
+
   def _describe(self, report: dict, record: dict, validity: dict, fallback: bool = False, *, allow_unpreviewed=False, verify_location=True) -> dict:
     preview = record.get("preview")
     if not isinstance(preview, dict) or preview.get("kind") not in PREVIEW_KINDS:
@@ -126,37 +351,31 @@ class ProjectPreview:
             "diagnostics": target.get("diagnostics", []), "open_items": target.get("open_items", [])}
     if verify_location:
       try:
-        self._location(report, record)
+        if allow_unpreviewed:
+          self._metadata_location(report, record)
+        else:
+          self._location(report, record)
       except (OSError, ValueError, ProjectError) as error:
         item.update(available=False, current=False, freshness="artifact-invalid", error=str(error))
     return item
 
-  def _select(self, latest: dict | None, root: str = "", *, file_metadata=False, relative: str | None = None) -> dict:
+  def _select(self, latest: dict | None, root: str = "", *, file_metadata=False, relative: str | None = None,
+              indexed=None) -> dict:
     result = {"build": None, "artifacts": []}
     seen: dict[tuple[str, str], dict] = {}
     latest_targets = {item.get("id"): item for item in latest["targets"]} if latest else {}
     invalid_current = set()
-    reports = self._history(latest)
-    identities = None
-    if relative is not None:
-      # Select identities before reading snapshot bytes. Include their other
-      # paths so a newer publication can still supersede an older path.
-      reports = list(reports)
-      identities = {(record.get("target"), record.get("id")) for report in reports
-                    for record in report["artifacts"] if record.get("path") == relative
-                    and all(isinstance(record.get(key), str) for key in ("target", "id"))}
-    for index, report in enumerate(reports):
+    reports = indexed if indexed is not None else ((report, report["artifacts"]) for report in self._history(latest))
+    for index, (report, artifacts) in enumerate(reports):
       validity = {"current": False, "freshness": "historical"}
       if report is latest:
         validity = {"current": False, "freshness": "unchecked"} if file_metadata else _freshness(self.root, report)
       if latest and index == 0:
         result["build"] = {"run_id": report["run_id"], "status": report.get("status"), **validity,
                            "targets": report["targets"], "diagnostics": report.get("diagnostics", [])}
-      for record in report["artifacts"]:
-        identity = (record.get("target"), record.get("id"))
-        if not all(isinstance(value, str) and value for value in identity):
-          continue
-        if identities is not None and identity not in identities:
+      for record in artifacts:
+        identity = _identity(record)
+        if identity is None:
           continue
         metadata = record.get("preview") if isinstance(record, dict) else None
         if not isinstance(metadata, dict) or metadata.get("kind") not in PREVIEW_KINDS:
@@ -224,7 +443,7 @@ class ProjectPreview:
       raise ProjectError("Internal build storage is not an Explorer document.")
     return file
 
-  def file_entries(self, relative: str | None = None, *, previews_only=False) -> list[dict]:
+  def file_entries(self, relative: str | None = None, *, previews_only=False, include_artifact=True) -> list[dict]:
     """Expose declared canonical files, preserving the bytes the user opens.
 
     Snapshot selection only supplies a possible preview identity. It never
@@ -234,16 +453,15 @@ class ProjectPreview:
     """
     manifest = (self.build / "build.json").relative_to(self.root).as_posix()
     candidates: dict[str, list[dict]] = {} if previews_only else {manifest: []}
-    try:
-      latest = self._report()
-    except (OSError, ValueError, ProjectError):
-      latest = None
-    matching = ([record for record in latest["artifacts"] if record.get("path") == relative]
-                if latest and relative is not None else [])
-    ordinary = matching and all(record.get("published") is not False and
-                                (not isinstance(record.get("preview"), dict)
-                                 or record["preview"].get("kind") not in PREVIEW_KINDS) for record in matching)
-    selected = (self._select(latest, file_metadata=True, relative=relative)["artifacts"]
+    with self._metadata_lock:
+      latest = self._metadata_report()
+      matching = ([record for record in latest["artifacts"] if record.get("path") == relative]
+                  if latest and relative is not None else [])
+      ordinary = matching and all(record.get("published") is not False and
+                                  (not isinstance(record.get("preview"), dict)
+                                   or record["preview"].get("kind") not in PREVIEW_KINDS) for record in matching)
+      indexed = self._metadata_history(latest, relative) if latest and relative not in (None, manifest) and not ordinary else None
+    selected = (self._select(latest, file_metadata=True, relative=relative, indexed=indexed)["artifacts"]
                 if latest and relative != manifest and not ordinary else [])
     for item in selected:
       if isinstance(item.get("path"), str) and (not previews_only or item["kind"] in PREVIEW_KINDS):
@@ -272,7 +490,7 @@ class ProjectPreview:
           item = previews[0]
           if item["kind"] in {"schematic", "topology", "scene"}:
             entry["preview"] = {"kind": item["kind"], "source_map": item["preview"].get("source_map", {})}
-          if item["available"] and file_digest(file) == item["digest"]:
+          if include_artifact and item["available"] and file_digest(file) == item["digest"]:
             entry["artifact"] = item
       entries.append(entry)
     return entries

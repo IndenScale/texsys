@@ -232,13 +232,21 @@ def test_current_scene_http_uses_file_version_and_previews_buffer_without_writin
   from types import SimpleNamespace
 
   from texsys.project import inspect_project
-  from texsys.studio import server
+  from texsys.studio import scene, server
   from texsys.studio.files import project_file
 
   initialize_project(tmp_path)
   _cube(tmp_path / "build/scene.usda", 4)
   document = project_file(tmp_path, "build/scene.usda", "build")
   before = (tmp_path / "build/scene.usda").read_bytes()
+  calls = []
+  geometry = scene._geometry
+
+  def observed_geometry(*args):
+    calls.append(True)
+    return geometry(*args)
+
+  monkeypatch.setattr(scene, "_geometry", observed_geometry)
   monkeypatch.setattr(server, "StudioServer", lambda address, handler, terminals: handler)
   inspected = inspect_project(tmp_path)
   runtime = SimpleNamespace(root=tmp_path, project=inspected, build=inspected.build)
@@ -263,9 +271,45 @@ def test_current_scene_http_uses_file_version_and_previews_buffer_without_writin
   current = request("/api/scene?path=build/scene.usda&version=" + document["version"])
   assert current[0] == 200 and current[1]["status"] == "ready"
   assert current[1]["version"] == document["version"]
+  conditional = "/api/scene?path=build/scene.usda&revision=" + current[1]["revision"]
+  assert request(conditional)[1]["status"] == "unchanged"
+  assert len(calls) == 1
   content = document["content"].replace("double size = 4", "double size = 12")
   assert request("/api/scene", content, authorized=False)[0] == 403
   memory = request("/api/scene", content)
   assert memory[0] == 200 and memory[1]["objects"][0]["points"][0] == (-6, -6, -6)
+  assert request(conditional)[1]["status"] == "unchanged"
+  assert len(calls) == 2
   assert (tmp_path / "build/scene.usda").read_bytes() == before
   assert request("/api/scene?path=build/scene.usda&version=stale")[0] == 409
+
+
+def test_cached_scene_reloads_when_only_a_sublayer_changes(tmp_path, monkeypatch):
+  from texsys.studio import scene
+
+  initialize_project(tmp_path)
+  layer = tmp_path / "build/layer.usda"
+  _cube(layer, 4)
+  (tmp_path / "build/root.usda").write_text(
+    '#usda 1.0\n(\n subLayers = [@layer.usda@]\n metersPerUnit = 1\n upAxis = "Z"\n)\n'
+  )
+  preview = ScenePreview(tmp_path, "build")
+  baseline = preview.read_file("build/root.usda")
+  reload = scene._scene_layers
+  reloads = []
+
+  def observed_reload(*args):
+    reloads.append(True)
+    return reload(*args)
+
+  monkeypatch.setattr(scene, "_scene_layers", observed_reload)
+  assert preview.read_file("build/root.usda", baseline["revision"])["status"] == "unchanged"
+  assert reloads == []
+  layer.write_text(layer.read_text().replace("double size = 4", "double size = 8"))
+  updated = preview.read_file("build/root.usda", baseline["revision"], version=baseline["version"])
+  assert updated["revision"] != baseline["revision"]
+  assert updated["objects"][0]["points"][0] == (-4, -4, -4)
+  assert len(reloads) == 1
+  layer.unlink()
+  with pytest.raises(ProjectError):
+    preview.read_file("build/root.usda", updated["revision"])

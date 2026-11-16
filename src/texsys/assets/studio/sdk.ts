@@ -77,7 +77,7 @@ export type ProjectFile = {
   path: string;
   name: string;
   parent: string;
-  size: number;
+  size?: number;
   generated?: boolean;
   preview?: FilePreviewFormat;
   artifact?: PreviewArtifact;
@@ -99,6 +99,7 @@ export type FilePreview = {
   content?: string;
   reason?: string;
   version?: string;
+  poll_revision?: string;
   generated?: boolean;
   preview?: FilePreviewFormat;
   artifact?: PreviewArtifact;

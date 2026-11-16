@@ -129,6 +129,7 @@ type Document = {
   formatChange?: TextFormatChange;
   content: string;
   version: string;
+  pollRevision?: string;
   reason?: string;
   loading?: boolean;
   error?: string;
@@ -806,20 +807,17 @@ export function CoreWorkspaceProvider({
     setDiffActive(false);
   }, [focusGroup]);
   const listingReadSequence = useRef(0);
+  const listingRevision = useRef("");
   const readFiles = useCallback(async () => {
     const sequence = ++listingReadSequence.current;
     setLoadingFiles(true);
     try {
-      const next = await api<FileListing>("/api/files");
-      if (sequence !== listingReadSequence.current) return;
-      setListing(next);
-      const byPath = new Map(next.files.map((entry) => [entry.path, entry]));
-      setDocuments((previous) =>
-        previous.map((item) => {
-          const file = byPath.get(item.path);
-          return file ? { ...item, generated: !!file.generated, preview: file.preview } : item;
-        }),
+      const next = await api<FileListing & { status?: "unchanged"; poll_revision: string }>(
+        `/api/files?compact=1&revision=${encodeURIComponent(listingRevision.current)}`,
       );
+      if (sequence !== listingReadSequence.current) return;
+      listingRevision.current = next.poll_revision;
+      if (next.status !== "unchanged") setListing(next);
       setListingError("");
     } catch (error) {
       if (sequence === listingReadSequence.current) setListingError(String(error));
@@ -1302,12 +1300,12 @@ export function CoreWorkspaceProvider({
       if (!read) return;
       cancelReads.set(path, read.cancel);
       try {
-        const file = await api<FilePreview>(
-          `/api/file?path=${encodeURIComponent(path)}`,
+        const file = await api<FilePreview & { status?: "unchanged" }>(
+          `/api/file?${new URLSearchParams({ path, revision: original.error ? "" : (original.pollRevision ?? "") })}`,
           undefined,
           read.signal,
         );
-        if (closed || !read.isCurrent()) return;
+        if (closed || !read.isCurrent() || file.status === "unchanged") return;
         fileDocumentSnapshot(path, file);
         setDocuments((previous) =>
           read.update(previous, (items) =>
@@ -2271,7 +2269,7 @@ export function CoreWorkspaceProvider({
               <TimelineView
                 path={timelineRepoPath}
                 api={api}
-                token={gitStatus}
+                token={gitStatus?.head}
                 onOpen={(id) =>
                   void openScmDiff(
                     `/api/scm/commit?${new URLSearchParams({

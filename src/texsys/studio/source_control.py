@@ -246,7 +246,7 @@ def _source_status(root: Path, build: str) -> tuple[dict, str, str]:
   branch = git(root, "symbolic-ref", "--quiet", "--short", "HEAD", accepted=(0, 1)).decode().strip()
   snapshot = hashlib.sha256(json.dumps([head, branch, index_digest, signature], ensure_ascii=True).encode()).hexdigest()
   return {"available": True, "repository": str(repo), "scope": root.relative_to(repo).as_posix(),
-          "branch": branch or head[:8], "detached": not bool(branch),
+          "branch": branch or head[:8], "detached": not bool(branch), "head": head,
           "entries": entries[:MAX_CHANGES], "truncated": len(entries) > MAX_CHANGES, "snapshot": snapshot}, head, index_digest
 
 

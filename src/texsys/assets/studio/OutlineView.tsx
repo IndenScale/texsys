@@ -45,9 +45,11 @@ export function OutlineView({
   const rowRefs = useRef(new Map<string, HTMLDivElement>());
   const language = document ? detectedSourceLanguage(document.name) : "plaintext";
   const docKey = document?.name;
+  const content = document?.value;
+  const expandedDocument = useRef<string | undefined>(undefined);
   const symbols = useMemo(
-    () => (document ? outlineForDocument(language, document.value) : []),
-    [document, language],
+    () => (open !== false && content !== undefined ? outlineForDocument(language, content) : []),
+    [open, content, language],
   );
   const filtering = filterOpen && filterQuery.trim() !== "";
   const displayed = useMemo(
@@ -99,6 +101,8 @@ export function OutlineView({
   }, [displayed, expanded, filtering]);
 
   useEffect(() => {
+    if (open === false || expandedDocument.current === docKey) return;
+    expandedDocument.current = docKey;
     setSelectedId(undefined);
     setActiveId(undefined);
     setFilterQuery("");
@@ -111,7 +115,7 @@ export function OutlineView({
       });
     walk(symbols);
     setExpanded(all);
-  }, [docKey]);
+  }, [docKey, open, symbols]);
 
   useLayoutEffect(() => {
     if (!followCursor || !cursor || !document) {

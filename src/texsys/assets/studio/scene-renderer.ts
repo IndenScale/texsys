@@ -1,10 +1,10 @@
 import {
   Box3,
+  BufferAttribute,
   BufferGeometry,
   Color,
   DirectionalLight,
   DoubleSide,
-  Float32BufferAttribute,
   GridHelper,
   Group,
   HemisphereLight,
@@ -119,6 +119,9 @@ export class SceneRenderer {
   private offset = new Vector3();
   private visible = new Set<string>();
   private ghost = new Set<string>();
+  private selected: ReadonlySet<string> = new Set();
+  private hovered = "";
+  private pickable: Mesh<BufferGeometry, MeshLambertMaterial>[] = [];
   private keys = new Set<string>();
   private width = 1;
   private height = 1;
@@ -127,6 +130,7 @@ export class SceneRenderer {
   private boosted = false;
   private lastFrame = 0;
   private frame = 0;
+  private drawFrame = 0;
   private cut?: Plane;
   private measureLine?: Line<BufferGeometry, LineBasicMaterial>;
 
@@ -194,19 +198,24 @@ export class SceneRenderer {
     this.meshes.clear();
     this.model.clear();
     this.worldBounds.makeEmpty();
+    const vertex = new Vector3();
     for (const object of objects) {
-      for (const point of object.points) this.worldBounds.expandByPoint(new Vector3(...point));
+      for (const point of object.points) this.worldBounds.expandByPoint(vertex.set(...point));
     }
     this.offset = this.worldBounds.getCenter(new Vector3());
     this.visible = new Set(objects.map((object) => object.id));
+    this.ghost = new Set();
+    this.selected = new Set();
+    this.hovered = "";
     for (const [index, object] of objects.entries()) {
-      const positions = object.points.flatMap(([x, y, z]) => [
-        x - this.offset.x,
-        y - this.offset.y,
-        z - this.offset.z,
-      ]);
+      const positions = new Float32Array(3 * object.points.length);
+      for (const [vertexIndex, [x, y, z]] of object.points.entries()) {
+        positions[vertexIndex * 3] = x - this.offset.x;
+        positions[vertexIndex * 3 + 1] = y - this.offset.y;
+        positions[vertexIndex * 3 + 2] = z - this.offset.z;
+      }
       const geometry = new BufferGeometry();
-      geometry.setAttribute("position", new Float32BufferAttribute(positions, 3));
+      geometry.setAttribute("position", new BufferAttribute(positions, 3));
       geometry.setIndex(triangles(object.points, object.faces));
       geometry.computeVertexNormals();
       geometry.computeBoundingBox();
@@ -218,6 +227,7 @@ export class SceneRenderer {
       this.meshes.set(object.id, mesh);
       this.model.add(mesh);
     }
+    this.pickable = [...this.meshes.values()];
     const size = this.worldBounds.getSize(new Vector3());
     this.grid.scale.setScalar(Math.max(size.x, size.y, 1) * 0.59);
     this.grid.position.setZ(
@@ -336,12 +346,28 @@ export class SceneRenderer {
   }
 
   setState({ visible, ghost, selected, hovered }: ViewState) {
+    const visibilityChanged = this.visible !== visible;
+    const appearanceChanged = this.ghost !== ghost || this.selected !== selected;
+    const dirtyIds = visibilityChanged
+      ? this.meshes.keys()
+      : new Set([
+          ...(appearanceChanged ? [...this.ghost, ...ghost, ...this.selected, ...selected] : []),
+          this.hovered,
+          hovered,
+        ]);
+    if (!visibilityChanged && !appearanceChanged && this.hovered === hovered) return;
     this.visible = visible;
     this.ghost = ghost;
-    for (const [id, mesh] of this.meshes) {
+    this.selected = selected;
+    this.hovered = hovered;
+    let changed = false;
+    for (const id of dirtyIds) {
+      const mesh = this.meshes.get(id);
+      if (!mesh) continue;
+      if (mesh.visible !== visible.has(id)) changed = true;
       mesh.visible = visible.has(id);
       if (!mesh.visible) continue;
-      mesh.material = this.material(
+      const material = this.material(
         mesh.userData.color as Color,
         ghost.has(id)
           ? "ghost"
@@ -351,8 +377,13 @@ export class SceneRenderer {
               ? "hovered"
               : "normal",
       );
+      if (mesh.material !== material) {
+        mesh.material = material;
+        changed = true;
+      }
     }
-    this.draw();
+    if (visibilityChanged) this.pickable = [...this.meshes.values()].filter((mesh) => mesh.visible);
+    if (changed) this.draw();
   }
 
   setSection(axis: SceneAxis | undefined, fraction: number) {
@@ -388,15 +419,19 @@ export class SceneRenderer {
   }
 
   pick(x: number, y: number): Hit | undefined {
+    this.camera.updateMatrixWorld();
     this.raycaster.setFromCamera(
       new Vector2((x / this.width) * 2 - 1, 1 - (y / this.height) * 2),
       this.camera,
     );
+    // Vertices are in a shared scene coordinate system. Reject mesh bounds
+    // there before asking Three.js to intersect individual triangles.
+    const candidates = this.pickable.filter(
+      ({ geometry }) =>
+        !geometry.boundingBox || this.raycaster.ray.intersectsBox(geometry.boundingBox),
+    );
     const hits = this.raycaster
-      .intersectObjects(
-        [...this.visible].flatMap((id) => this.meshes.get(id) ?? []),
-        false,
-      )
+      .intersectObjects(candidates, false)
       .filter(({ point }) => !this.cut || this.cut.distanceToPoint(point) >= -0.00001);
     const hit = hits.find(({ object }) => !this.ghost.has(object.userData.id)) ?? hits[0];
     if (hit)
@@ -481,11 +516,16 @@ export class SceneRenderer {
   };
 
   private draw() {
-    this.renderer.render(this.scene, this.camera);
+    if (this.drawFrame) return;
+    this.drawFrame = requestAnimationFrame(() => {
+      this.drawFrame = 0;
+      this.renderer.render(this.scene, this.camera);
+    });
   }
 
   dispose() {
     if (this.frame) cancelAnimationFrame(this.frame);
+    if (this.drawFrame) cancelAnimationFrame(this.drawFrame);
     this.controls?.dispose();
     for (const mesh of this.meshes.values()) mesh.geometry.dispose();
     for (const material of this.materials.values()) material.dispose();

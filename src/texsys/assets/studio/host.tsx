@@ -458,6 +458,8 @@ function Studio({
   const [toast, setToast] = useState<{ message: string; error?: boolean }>();
   const mounted = useRef(true),
     refreshing = useRef(false);
+  const pollRevision = useRef("");
+  const [professionalRefresh, requestProfessionalRefresh] = useState(0);
   const [notices, setNotices] = useState<StudioNotice[]>([]);
   const noticeSequence = useRef(0);
   const notify = useCallback((message: string, isError = false) => {
@@ -465,13 +467,18 @@ function Studio({
     const notice = { id: ++noticeSequence.current, message, error: isError, time: Date.now() };
     setNotices((previous) => [notice, ...previous].slice(0, 25));
   }, []);
-  const refresh = useCallback(async () => {
+  const pollState = useCallback(async () => {
     if (emptyWorkspace || refreshing.current) return;
     refreshing.current = true;
     try {
-      const next = await api<StudioState>("/api/state");
+      const next = await api<StudioState & { status?: "unchanged"; poll_revision: string }>(
+        `/api/state?summary=1&revision=${encodeURIComponent(pollRevision.current)}`,
+      );
       if (mounted.current) {
-        setState(next);
+        pollRevision.current = next.poll_revision;
+        setError("");
+        if (next.status === "unchanged") return;
+        setState((previous) => ({ ...next, data: previous?.data ?? {} }));
         setWorkbench((previous) => {
           const project = next.project.path;
           const preferences =
@@ -485,7 +492,6 @@ function Studio({
             ? preferences
             : { ...preferences, discipline };
         });
-        setError("");
       }
     } catch (error) {
       if (mounted.current) setError(error instanceof Error ? error.message : String(error));
@@ -493,6 +499,10 @@ function Studio({
       refreshing.current = false;
     }
   }, [defaultLayout, emptyWorkspace]);
+  const refresh = useCallback(async () => {
+    await pollState();
+    requestProfessionalRefresh((value) => value + 1);
+  }, [pollState]);
   useEffect(() => {
     if (project) writeLayoutPreferences(project, { discipline: active, layouts });
     else if (emptyWorkspace) writeLayoutPreferences("welcome", { discipline: active, layouts });
@@ -510,9 +520,9 @@ function Studio({
   useEffect(() => {
     if (emptyWorkspace) return;
     mounted.current = true;
-    void refresh();
+    void pollState();
     const refreshVisible = () => {
-      if (document.visibilityState !== "hidden") void refresh();
+      if (document.visibilityState !== "hidden") void pollState();
     };
     const timer = setInterval(refreshVisible, 2500);
     document.addEventListener("visibilitychange", refreshVisible);
@@ -521,7 +531,7 @@ function Studio({
       clearInterval(timer);
       document.removeEventListener("visibilitychange", refreshVisible);
     };
-  }, [emptyWorkspace, refresh]);
+  }, [emptyWorkspace, pollState]);
   useEffect(() => {
     if (!toast) return;
     const timer = setTimeout(() => setToast(undefined), 6500);
@@ -539,6 +549,56 @@ function Studio({
       },
     }));
   const layout = layouts[active] ?? defaultLayout;
+  const professionalVisible = !coreHistory.active || layout.sidebarActivity === "instances";
+  const activePlugin = state?.plugins.find((plugin) => plugin.id === active)?.id;
+  const professionalRevision = state?.project.revision;
+  const professionalBuild = state?.project.build_revision;
+  const professionalLoaded = active && state && Object.hasOwn(state.data, active);
+  useEffect(() => {
+    if (!activePlugin) return;
+    if (!professionalVisible && professionalLoaded) return;
+    const controller = new AbortController();
+    let busy = false;
+    const read = async () => {
+      if (controller.signal.aborted || busy || document.visibilityState === "hidden") return;
+      busy = true;
+      try {
+        const next = await api<StudioState>(
+          `/api/state?plugin=${encodeURIComponent(activePlugin)}`,
+          undefined,
+          controller.signal,
+        );
+        if (controller.signal.aborted) return;
+        setState((previous) =>
+          previous?.project.revision === next.project.revision &&
+          previous.project.build_revision === next.project.build_revision
+            ? { ...previous, data: { ...previous.data, [activePlugin]: next.data[activePlugin] } }
+            : previous,
+        );
+      } catch (error) {
+        if (!controller.signal.aborted) notify(String(error), true);
+      } finally {
+        busy = false;
+      }
+    };
+    void read();
+    const timer = professionalVisible ? setInterval(() => void read(), 30000) : undefined;
+    const visible = () => void read();
+    document.addEventListener("visibilitychange", visible);
+    return () => {
+      controller.abort();
+      clearInterval(timer);
+      document.removeEventListener("visibilitychange", visible);
+    };
+  }, [
+    activePlugin,
+    professionalRevision,
+    professionalBuild,
+    professionalVisible,
+    professionalLoaded,
+    professionalRefresh,
+    notify,
+  ]);
   const available = plugins.filter((plugin) =>
     state?.plugins.some((item) => item.id === plugin.manifest.id),
   );
@@ -1089,7 +1149,7 @@ function Studio({
     let current = true;
     setFilesLoading(true);
     setFilesError("");
-    void api<{ files: ProjectFile[]; truncated: boolean }>("/api/files")
+    void api<{ files: ProjectFile[]; truncated: boolean }>("/api/files?compact=1")
       .then((data) => {
         if (current) {
           setFiles(data.files);
