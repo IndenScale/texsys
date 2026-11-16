@@ -1301,6 +1301,7 @@ export const englishMessages: Record<string, string> = {
   "轮廓、接管与标注锚点由同一几何函数计算。":
     "Outlines, nozzles, and annotation anchors share the same geometry function.",
   显示诊断标记: "Show diagnostic markers",
+  缩放: "Zoom",
   缩小: "Zoom out",
   放大: "Zoom in",
   系统图纸画布: "System drawing canvas",

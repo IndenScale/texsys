@@ -1924,8 +1924,20 @@ test("mounted artifact previews preserve their viewport when file geometry chang
     '.scene-viewport [role="group"][aria-label="场景导航"]',
   );
   assert.ok(cameraControls.querySelector('[aria-label="适应视图"] svg'));
-  assert.ok(cameraControls.querySelector('button[aria-label="视角"][aria-haspopup="menu"]'));
-  assert.equal(controls.querySelector('[aria-label="放大"], [aria-label="适应视图"]'), null);
+  const zoomSlider = () => container.querySelector('.scene-zoom-control input[type="range"]');
+  const angle = cameraControls.querySelector('button[aria-label="视角"][aria-haspopup="menu"]');
+  assert.equal(angle.textContent, "");
+  assert.equal(angle.querySelectorAll("svg").length, 2);
+  assert.equal(zoomSlider().getAttribute("aria-valuetext"), "100%");
+  assert.equal(controls.querySelector('[aria-label="缩放"], [aria-label="适应视图"]'), null);
+  const setZoom = async (value) => {
+    await act(() => {
+      const slider = zoomSlider();
+      slider.value = String(value);
+      slider.dispatchEvent(new window.Event("input", { bubbles: true }));
+    });
+    await flushFrames();
+  };
   const frame = faces.at(-1);
   assert.ok(frame.every(([x, y]) => Math.abs(x) <= 0.881 && Math.abs(y) <= 0.881));
   assert.ok(Math.max(...frame.map(([, y]) => y)) - Math.min(...frame.map(([, y]) => y)) > 1);
@@ -1937,11 +1949,15 @@ test("mounted artifact previews preserve their viewport when file geometry chang
     container.querySelector(".scene-preview [role=toolbar], .scene-preview footer"),
     null,
   );
-  await zoom();
+  await setZoom(0.15);
+  assert.equal(zoomSlider().getAttribute("aria-valuetext"), "111%");
+  await setZoom(0.32);
+  assert.equal(zoomSlider().getAttribute("aria-valuetext"), "125%");
   const oldRoom = faces.at(-1);
   assert.equal(oldRoom.length, 3);
   faces.length = 0;
   await render({ kind: "scene", version: "v2" });
+  assert.equal(zoomSlider().getAttribute("aria-valuetext"), "125%");
   assert.equal(container.querySelectorAll('.scene-preview-objects [role="treeitem"]').length, 2);
   assert.ok(faces.some((face) => JSON.stringify(face) === JSON.stringify(oldRoom)));
   composition = "layer-v2";
@@ -1983,10 +1999,10 @@ test("mounted artifact previews preserve their viewport when file geometry chang
   await movePointer();
   await act(() => t.mock.timers.tick(299));
   assert.equal(quickLook(), null);
-  await zoom();
+  await setZoom(0.64);
   await act(() => t.mock.timers.tick(1));
   assert.equal(quickLook(), null);
-  await act(() => container.querySelector('[aria-label="缩小"]').click());
+  await setZoom(0.32);
   const clickCanvas = (modifiers = {}) =>
     act(async () => {
       const options = { ...pointer, ...modifiers };

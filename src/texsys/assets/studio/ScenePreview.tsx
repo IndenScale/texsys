@@ -852,6 +852,7 @@ export function ScenePreview({
                 projectPath={projectPath}
                 path={path}
                 renderer={renderer}
+                scale={viewport?.projection === "orthographic" ? viewport.zoom : viewport?.scale}
                 canFit={visible.size > 0}
                 focusViewport={focusViewport}
               />

@@ -43,12 +43,14 @@ export function SceneCameraControls({
   projectPath,
   path,
   renderer,
+  scale = 1,
   canFit,
   focusViewport,
 }: {
   projectPath: string;
   path: string;
   renderer: RefObject<SceneRenderer | null>;
+  scale?: number;
   canFit: boolean;
   focusViewport: () => void;
 }) {
@@ -115,38 +117,44 @@ export function SceneCameraControls({
   return (
     <>
       <div className="scene-camera-controls" role="group" aria-label={t("场景导航")}>
-        <EditorActionButton
-          label={t("缩小")}
-          icon="search-minus"
-          onClick={() => renderer.current?.zoom(1 / 1.25)}
-        />
-        <EditorActionButton
-          label={t("放大")}
-          icon="search-plus"
-          onClick={() => renderer.current?.zoom(1.25)}
-        />
-        <EditorActionButton
-          label={t("适应视图")}
-          icon="fit"
-          disabled={!canFit}
-          onClick={() => renderer.current?.fit()}
-        />
-        <NavigatorMenu
-          label={t("视角")}
-          items={items}
-          direction="up"
-          triggerClassName="scene-view-trigger"
-          onOpen={() => {
-            setError("");
-            setViews(readViews(storageKey));
-          }}
-          triggerIcon={
-            <>
-              <span>{t("视角")}</span>
-              <Icon name="chevron" size={14} />
-            </>
-          }
-        />
+        <div className="scene-zoom-control">
+          <Icon name="search-plus" size={16} />
+          <input
+            type="range"
+            aria-label={t("缩放")}
+            aria-valuetext={`${Math.round(scale * 100)}%`}
+            title={t("缩放")}
+            min={-3}
+            max={3}
+            step={0.01}
+            value={Math.max(-3, Math.min(3, Math.log2(scale)))}
+            onInput={(event) => renderer.current?.setZoom(2 ** event.currentTarget.valueAsNumber)}
+          />
+        </div>
+        <div className="scene-view-controls">
+          <EditorActionButton
+            label={t("适应视图")}
+            icon="fit"
+            disabled={!canFit}
+            onClick={() => renderer.current?.fit()}
+          />
+          <NavigatorMenu
+            label={t("视角")}
+            items={items}
+            direction="up"
+            triggerClassName="scene-view-trigger"
+            onOpen={() => {
+              setError("");
+              setViews(readViews(storageKey));
+            }}
+            triggerIcon={
+              <>
+                <Icon name="cube" size={16} />
+                <Icon name="chevron-up" size={14} />
+              </>
+            }
+          />
+        </div>
       </div>
       {error && !dialog.current?.open && (
         <div className="scene-camera-error" role="status">

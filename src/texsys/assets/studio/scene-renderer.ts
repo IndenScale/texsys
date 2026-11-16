@@ -127,6 +127,7 @@ export class SceneRenderer {
   private height = 0;
   private initialFitPending = false;
   private span = 2;
+  private fitDistance = 1;
   private navigation = defaultScenePreferences;
   private boosted = false;
   private lastFrame = 0;
@@ -276,7 +277,10 @@ export class SceneRenderer {
     this.orthographic.zoom = view.zoom ?? 1;
     this.target.set(...view.at).sub(this.offset);
     this.camera.position.set(...view.eye).sub(this.offset);
-    this.setClipRange(this.camera.position.distanceTo(this.target), 0.001);
+    const distance = this.camera.position.distanceTo(this.target);
+    const scale = Number.isFinite(view.scale) && view.scale > 0 ? view.scale : 1;
+    this.fitDistance = Math.max(distance, 0.000001) * scale;
+    this.setClipRange(distance, 0.001);
     this.camera.lookAt(this.target);
     this.updateProjection();
     this.attachOrbit();
@@ -291,7 +295,7 @@ export class SceneRenderer {
       center,
       yaw: 0,
       pitch: 0,
-      scale: 1,
+      scale: this.zoomScale(),
       eye: this.camera.position.clone().add(this.offset).toArray(),
       at: center,
       projection: this.camera === this.orthographic ? "orthographic" : "perspective",
@@ -367,6 +371,7 @@ export class SceneRenderer {
       .addScaledVector(right, perspective ? (maxX + minX) / 2 : center.x)
       .addScaledVector(up, perspective ? (maxY + minY) / 2 : center.y);
     const distance = eyeZ - center.z;
+    this.fitDistance = distance;
     this.camera.position.copy(this.target).addScaledVector(from, distance);
     this.setClipRange(distance, Math.max(0.001, Math.min((eyeZ - frame.max.z) / 2, 0.2)));
     this.camera.lookAt(this.target);
@@ -383,6 +388,16 @@ export class SceneRenderer {
       distance * 100,
       this.worldBounds.getSize(new Vector3()).length() * 5,
     );
+  }
+
+  private zoomScale() {
+    if (this.camera === this.orthographic) return this.orthographic.zoom;
+    const distance = this.camera.position.distanceTo(this.controls?.target ?? this.target);
+    return this.fitDistance / Math.max(distance, 0.000001);
+  }
+
+  setZoom(scale: number) {
+    this.zoom(scale / this.zoomScale());
   }
 
   zoom(factor: number) {

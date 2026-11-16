@@ -329,25 +329,53 @@
   inset: auto auto 8px 8px;
   display: flex;
   align-items: center;
-  gap: 2px;
-  padding: 2px;
+  gap: 6px;
+  max-width: calc(100% - 16px);
+}
+
+.scene-zoom-control,
+.scene-view-controls {
+  display: flex;
+  align-items: center;
+  height: 34px;
+  box-sizing: border-box;
   background: var(--ui-canvas);
   border: 1px solid var(--ui-border);
   border-radius: 6px;
   box-shadow: 0 2px 6px #172d3c16;
 }
 
+.scene-zoom-control {
+  gap: 7px;
+  min-width: 0;
+  padding: 0 9px;
+  color: var(--ui-text-muted);
+}
+
+.scene-zoom-control > svg {
+  flex: 0 0 auto;
+}
+
+.scene-zoom-control > input {
+  width: 108px;
+  min-width: 0;
+  margin: 0;
+  accent-color: var(--ui-proof);
+  cursor: pointer;
+}
+
+.scene-view-controls {
+  flex: 0 0 auto;
+  gap: 2px;
+  padding: 2px;
+}
+
 .navigator-button.scene-view-trigger {
   width: auto;
   height: 28px;
   gap: 4px;
-  padding-inline: 8px 5px;
-  margin-inline-start: 3px;
-  border-inline-start: 1px solid var(--ui-border);
-  border-start-start-radius: 0;
-  border-end-start-radius: 0;
-  white-space: nowrap;
-  font-size: 12px;
+  padding-inline: 5px;
+  color: var(--ui-text-muted);
 }
 
 .scene-camera-error {
