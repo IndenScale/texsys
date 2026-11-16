@@ -12,7 +12,7 @@ build = "build"
 default_targets = ["review-package"]
 
 [dependencies]
-datacenter-reference = { path = "../../packages/datacenter-reference", version = "0.23.0" }
+datacenter-reference = { path = "../../packages/datacenter-reference", version = "0.24.0" }
 sheet = { path = "../../packages/sheet", version = "0.2.0" }
 
 [build.targets.review-package]
@@ -70,6 +70,13 @@ dependencies = [
   "dcr:fire-egress",
   "dcr:exit-access-check",
   "dcr:exit-access-scene",
+  "dcr:emergency-lighting-check",
+  "dcr:emergency-lighting-scene",
+  "sheet-emergency-lighting-hall",
+  "sheet-emergency-lighting-site",
+  "sheet-emergency-lighting-section",
+  "sheet-emergency-lighting-circuits",
+  "sheet-emergency-lighting-checks",
   "dcr:fire-systems-study",
   "dcr:fire-systems-coordination",
   "dcr:building-coordination",
@@ -992,3 +999,58 @@ using = "sheet:compose"
 dependencies = ["plan-evacuation-site-verification"]
 scope = { source = "assets/sheets/evacuation-site-verification.sheet.json" }
 output = "build/drawings/sheets/evacuation-site-verification.svg"
+
+[build.targets.plan-emergency-lighting-hall]
+using = "dcr:emergency-lighting-view"
+output = "build/drawings/views/emergency-lighting-hall.svg"
+scope = { view = "hall" }
+
+[build.targets.sheet-emergency-lighting-hall]
+using = "sheet:compose"
+dependencies = ["plan-emergency-lighting-hall"]
+scope = { source = "assets/sheets/emergency-lighting-hall.sheet.json" }
+output = "build/drawings/sheets/emergency-lighting-hall.svg"
+
+[build.targets.plan-emergency-lighting-site]
+using = "dcr:emergency-lighting-view"
+output = "build/drawings/views/emergency-lighting-site.svg"
+scope = { view = "site" }
+
+[build.targets.sheet-emergency-lighting-site]
+using = "sheet:compose"
+dependencies = ["plan-emergency-lighting-site"]
+scope = { source = "assets/sheets/emergency-lighting-site.sheet.json" }
+output = "build/drawings/sheets/emergency-lighting-site.svg"
+
+[build.targets.plan-emergency-lighting-section]
+using = "dcr:emergency-lighting-view"
+output = "build/drawings/views/emergency-lighting-section.svg"
+scope = { view = "section" }
+
+[build.targets.sheet-emergency-lighting-section]
+using = "sheet:compose"
+dependencies = ["plan-emergency-lighting-section"]
+scope = { source = "assets/sheets/emergency-lighting-section.sheet.json" }
+output = "build/drawings/sheets/emergency-lighting-section.svg"
+
+[build.targets.plan-emergency-lighting-circuits]
+using = "dcr:emergency-lighting-view"
+output = "build/drawings/views/emergency-lighting-circuits.svg"
+scope = { view = "circuits" }
+
+[build.targets.sheet-emergency-lighting-circuits]
+using = "sheet:compose"
+dependencies = ["plan-emergency-lighting-circuits"]
+scope = { source = "assets/sheets/emergency-lighting-circuits.sheet.json" }
+output = "build/drawings/sheets/emergency-lighting-circuits.svg"
+
+[build.targets.plan-emergency-lighting-checks]
+using = "dcr:emergency-lighting-view"
+output = "build/drawings/views/emergency-lighting-checks.svg"
+scope = { view = "checks" }
+
+[build.targets.sheet-emergency-lighting-checks]
+using = "sheet:compose"
+dependencies = ["plan-emergency-lighting-checks"]
+scope = { source = "assets/sheets/emergency-lighting-checks.sheet.json" }
+output = "build/drawings/sheets/emergency-lighting-checks.svg"

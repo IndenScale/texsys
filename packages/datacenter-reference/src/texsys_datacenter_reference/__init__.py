@@ -17,6 +17,10 @@ from .cw_network import build_cw_coordination, build_cw_network
 from .cw_study import build_cw_check, build_cw_study
 from .cw_views import build_cw_view
 from .electrical import build_power_study, build_power_topology
+from .emergency_lighting import build_emergency_lighting
+from .emergency_lighting_scene import build_emergency_lighting_scene
+from .emergency_lighting_study import build_emergency_lighting_check, build_emergency_lighting_study
+from .emergency_lighting_views import build_emergency_lighting_view
 from .equipment_foundation_coordination import build_equipment_foundation_coordination, build_equipment_foundation_scene
 from .equipment_foundation_study import build_equipment_foundation_check, build_equipment_foundation_study
 from .equipment_foundation_views import build_equipment_foundation_view
@@ -83,7 +87,7 @@ from .wet_utility_views import build_wet_view
 
 class DatacenterReferencePackage(TexsysPackage):
   name = "datacenter-reference"
-  version = "0.23.0"
+  version = "0.24.0"
 
   def targets(self) -> tuple[TargetDefinition, ...]:
     return (
@@ -123,6 +127,19 @@ class DatacenterReferencePackage(TexsysPackage):
                        dependencies=("dcr:exit-access",), input_patterns=(), named_output=True),
       TargetDefinition("dcr:exit-access-study-view", self.name, self.version, build_exit_access_view,
                        dependencies=("dcr:exit-access-study",), input_patterns=(), named_output=True),
+      TargetDefinition("dcr:emergency-lighting", self.name, self.version, build_emergency_lighting,
+                       dependencies=("dcr:exit-access", "dcr:site-grading"),
+                       input_patterns=spatial_inputs("emergency-lighting.json")),
+      TargetDefinition("dcr:emergency-lighting-study", self.name, self.version, build_emergency_lighting_study,
+                       dependencies=("dcr:emergency-lighting", "dcr:egress-model", "dcr:equipment-foundations",
+                                     "dcr:fire-systems", "dcr:telecom", "dcr:power-routing", "dcr:facility-power",
+                                     "dcr:cw-network", "dcr:site-storm", "dcr:wet-utilities"), input_patterns=()),
+      TargetDefinition("dcr:emergency-lighting-check", self.name, self.version, build_emergency_lighting_check,
+                       dependencies=("dcr:emergency-lighting-study",), input_patterns=()),
+      TargetDefinition("dcr:emergency-lighting-scene", self.name, self.version, build_emergency_lighting_scene,
+                       dependencies=("dcr:emergency-lighting-check", "dcr:exit-access-scene"), input_patterns=()),
+      TargetDefinition("dcr:emergency-lighting-view", self.name, self.version, build_emergency_lighting_view,
+                       dependencies=("dcr:emergency-lighting-study",), input_patterns=(), named_output=True),
       TargetDefinition("dcr:fire-systems", self.name, self.version, build_fire_systems, dependencies=("dcr:architecture",),
                        input_patterns=spatial_inputs("*.sdl.json", "*/module.toml", "fire-systems.json",
                                                      "design-basis.json", "placement.study.json")),

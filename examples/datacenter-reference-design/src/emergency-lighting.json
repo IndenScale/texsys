@@ -1,0 +1,39 @@
+{
+  "schema_version": 1,
+  "state": "assumed",
+  "basis": "主机房公共通道、室外坡道、场区步道与集合面的候选消防应急照明。配光、蓄电与充电边界均为项目试算输入。",
+  "reference_context": {
+    "GB 55037-2022": "https://www.mohurd.gov.cn/gongkai/zc/wjk/art/2023/art_17339_770016.html",
+    "GB 51309-2018": "https://ebook.chinabuilding.com.cn/c/2018-07-27/72340.shtml",
+    "GB 17945-2024": "https://std.samr.gov.cn/gb/search/gbDetailed?id=174881CA8A1E51C6E06397BE0A0A0EBB"
+  },
+  "photometry": {
+    "hall": {"peak_cd": 275, "exponent": 1.2, "maintained_factor": 0.78, "end_factor": 0.86},
+    "outdoor": {"peak_cd": 380, "exponent": 1.3, "maintained_factor": 0.72, "end_factor": 0.84}
+  },
+  "battery": {
+    "hall": {"nominal_wh": 18, "input_w": 6, "charge_w": 8, "aging_factor": 0.8, "temperature_factor": 0.9, "usable_factor": 0.87},
+    "outdoor": {"nominal_wh": 29, "input_w": 9, "charge_w": 12, "aging_factor": 0.8, "temperature_factor": 0.77, "usable_factor": 0.87},
+    "sign": {"nominal_wh": 9, "input_w": 2, "charge_w": 3, "aging_factor": 0.8, "temperature_factor": 0.77, "usable_factor": 0.87}
+  },
+  "mounting": {
+    "hall_height_m": 2.54,
+    "hall_maximum_spacing_m": 1.9,
+    "hall_lateral_offset_m": 0.0,
+    "ramp_offsets_m": [1.2, 2.77, 4.42, 5.65],
+    "ramp_lateral_m": 1.10,
+    "pole_height_m": 2.8,
+    "pole_arm_m": 0.45,
+    "path_spacing_m": 3.65,
+    "path_offset_m": 0.89,
+    "assembly_offset_m": 0.42,
+    "pole_base_depth_m": 0.38
+  },
+  "criteria": {
+    "required_minutes": 90,
+    "sample_spacing_m": 0.25,
+    "maximum_ray_m": 14,
+    "minimum_headroom_m": 2.1,
+    "minimum_lux": {"hall": 5, "ramp": 5, "path": 1.5, "assembly": 1.5}
+  }
+}

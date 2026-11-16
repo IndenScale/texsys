@@ -30,6 +30,7 @@ datacenter-reference 器件/单元库 → structure / architecture / hvac-equipm
 - `src/roof-transfer.json` 从屋面板跨、主梁、柱头和安装标高编译双层拉杆及沿轴集力路径，声明候选预张拉、节点和杆件限值。
 - `src/equipment-foundations.json` 从场区设备、锁定模块额定质量和地形生成基础轮廓、垫层、锚栓及两面双向钢筋。缓冲罐、补水箱的液量从已编译容积提取。
 - `src/exit-access.json` 声明门扇开启角、坡道扶手、场区铺装线路、集合范围和人数。门槛与门洞仍由 `architecture.json` 定位，坡脚标高引用竖向模型。
+- `src/emergency-lighting.json` 声明灯具候选光度和电池、安装高度、交错分组、持续时间和照度条件。照度采样面继承建筑出口、坡道、步道和集合面。
 - `src/coordination.json` 以 SDL 实例 ID 绑定轴线交点、偏移、专业和分区。物理实例使用锁定部件的 USD 几何。市电及补水等逻辑接口记录待落实的空间条件。
 - `src/architecture.json` 将既有北侧墙件接入完整主机房围护，用 B 轴定位分隔墙。东西门位由南北走道导出，并按门洞、平台和坡道坐标校核到室外场坪的通行。
 - `src/air-routing.json` 声明送风短管、空调回风口、机柜背部排风后腔及空气流通尺寸。`src/air-study.json` 声明候选风机、风量、露点、回流和额外显热。
@@ -60,10 +61,10 @@ datacenter-reference 器件/单元库 → structure / architecture / hvac-equipm
 | 楼层标高、层内分区 | `dcr:levels` 从轴线和标高生成空间分区。`dcr:architecture` 编译建筑围护和 B 轴防火分隔、四处外门及相应平台和坡道，输出建筑平面、坡道剖面、门表和 USD。屋盖由钢梁顶以上的檩条、钢承板、找坡保温层及防水层闭合，出屋面平面、横剖、洞口详图和墙头构造协调 | 墙头变形与耐火封堵、屋面防水、坡道节点及现场条件 |
 | 结构建模 | `dcr:structure-model` 输出钢梁、柱、基础及剖面。`dcr:roof-actions` 提取屋盖自重和檩条反力。沿轴集力梁、双层屋面拉杆、纵横向支撑和独立基础共同编译定位平面、纵横立面、节点投影、基础及杆力控制表、专业与综合 USD。候选侧向荷载从围护及屋面质量分配到节点，联算屋面杆力、柱脚反力、基础接触与抗滑。场区三组基础定位、发电机方舱锚栓横剖及控制值表共享 19 座设备基础模型 | 实测地勘、风参数和反应谱、抗风揭、设备基础、集力梁局部稳定、节点板、端板、锚栓、张拉验收与配筋 |
 | 核心机电与方舱布局 | 分区图核对 67 个物理实例，BOM 保留 515 条 SDL 明细。16 舱装配锁定的机柜、CDU 和精密空调尺寸，编译设备布置、通道横剖面、设备表和可查看的典型舱剖切场景。设施水与弱电协调包络和贯穿预留。弱电编译两张桥架平面、端接系统图和 128 个机柜的双路纤芯表。消防编译主机房报警平面和方舱灭火设备布置 | 厂商制造尺寸、舱内二次侧接管、机柜跳线、支吊架和灭火专项选型 |
-| 性能计算与冗余保护 | 电气 A/B 出单线图及屋面布置、单路带全部 16 舱的电压降和载流校核、88 个三相故障工况及保护表。馈线长度、母线段和下引电缆阻抗进入三相故障复算。动力区 A/B 到三列冷源、泵塔及辅助柜共 15 回路，交付排管平面、泵塔平面、入线剖面和保护表。逐列校核单路、冷源柜或泵塔退出，发电机启动控制的共因依赖保留待核。弱电校核链路光预算、单路承载 5.12 Tb/s 的配置容量及各登记构件单点断开后连通性 | 厂家曲线、接地、单相故障、多源并联、弯曲半径、谐波、照明与水处理等其余动力、发电机黑启动和实际切换、运营商和网络协议测试 |
+| 性能计算与冗余保护 | 电气编译主机房和室外应急布灯平面、坡道安装剖面、正常充电负荷与独立电池续航。校核任一灯组失效后的维持照度。关键供电 A/B 出单线图及屋面布置、单路带全部 16 舱的电压降和载流校核、88 个三相故障工况及保护表。馈线长度、母线段和下引电缆阻抗进入三相故障复算。动力区 A/B 到三列冷源、泵塔及辅助柜共 15 回路，交付排管平面、泵塔平面、入线剖面和保护表。逐列校核单路、冷源柜或泵塔退出，发电机启动控制的共因依赖保留待核。弱电校核链路光预算、单路承载 5.12 Tb/s 的配置容量及各登记构件单点断开后连通性 | 厂家曲线、接地、单相故障、多源并联、弯曲半径、谐波、厂家应急光度、正常照明与水处理等其余动力、发电机黑启动和实际切换、运营商和网络协议测试 |
 | 管道布置 | `dcr:fws-network` 从设备接口生成供回水环路、支管和立管。五张图输出总平面、系统图、屋面预留、局部接驳正视投影和分段隔离图。三个冷凝器侧闭式回路从实际法兰取点，编译冷却水平面、横剖面、系统图、管段工程量和跨专业碰撞检查。场区给排水编译补水排污平面、排污纵断面、系统图和管段表。屋面雨水经双侧檐沟和四处落水接入场区雨水管网。室外雨水编译总图、纵断面、调蓄池及限流孔剖面，给水及工艺排污沿各自路径交接。发电机区汇入独立密闭池。TCS 从机柜和 CDU 的实际端口生成独立 A/B 管网、接管平面、机柜顶横剖面和系统图。风侧生成空调顶部短管、回风口和机柜排风后腔，编译送回风图及协调模型 | 支吊架、排空、阀件检修及防火封堵 |
 | 仿真与寄生反注 | `dcr:fws-network-study` 复算 32 个稳态工况。`dcr:fws-thermal-parameters` 从同一套管段提取水量、热容和滞留时间。`dcr:fws-transient` 校核在役冷源分别退出后的 16 舱水温，并编译温升曲线、峰值平面、缓冲设备表和接管图。冷却水侧使用同批 FWS 冷源负荷，核算排热、流量、压损和温度，另验证六个冷却水泵或塔退出工况。喷淋水量及水质由上述排热量驱动，校核市政动压、各塔余压、重力排水、停水储备和恢复时间。TCS 读取 FWS 正常、主干隔离和冷源退出算例，以及冷源切换一次侧峰温；编译逐机柜可供流量、冷量、压差、实际管段储液量和驻留时间。舱内风侧按配对备用空调、风道与后腔压损及公共回风混合，生成机柜进风温湿度及空调静压，并与 TCS 联算。屋面和场坪雨水按降雨汇流，使用物理池容和限流孔复算逐时出流和峰值水位 | 真实机组控制曲线、承压缓冲罐选型与锚固、管壁与设备蓄热、流量切换与水锤、CDU 厂家实测曲线及二次侧泵阀切换瞬态 |
-| 多专业签核 | `review-package` 从本次构建快照生成总图、建筑、消防、结构、机房工艺、弱电、电气、暖通和给排水审查清单与文件摘要。建筑、总图和消防共同复核实际门扇、坡道扶手、室外路线与集合容量。消防纳入报警、灭火设备、联动、断线证据、封堵和发电机区密闭收集。电气纳入 A/B 平剖、桥架与洞口协调、动力排管与局部支路、馈线表及三相保护证据 | 责任人在现有 Git 审查中针对指定修订处置，审查清单保留待核状态 |
+| 多专业签核 | `review-package` 从本次构建快照生成总图、建筑、消防、结构、机房工艺、弱电、电气、暖通和给排水审查清单与文件摘要。建筑、总图和消防共同复核实际门扇、坡道扶手、室外路线与集合容量。消防纳入报警、灭火设备、联动、断线证据、封堵和发电机区密闭收集。电气和消防校审照明、蓄电和失效工况。电气纳入 A/B 平剖、桥架与洞口协调、动力排管与局部支路、馈线表及三相保护证据 | 责任人在现有 Git 审查中针对指定修订处置，审查清单保留待核状态 |
 
 ## 重跑
 
@@ -91,7 +92,7 @@ uv run --locked texsys build -p examples/datacenter-reference-design --target dc
 uv run --locked texsys build -p examples/datacenter-reference-design --target dcr:air-coordination --target dcr:air-check --target sheet-air-environment
 ```
 
-成品图在 `build/drawings/sheets/`，包含 77 张 A3 图及各图的来源报告。可校准图纸按标题栏比例原尺寸打印。门、疏散、预留、构件、保护、馈线、洞口定位、水力、弱电端接、热瞬态及消防工况表在 `build/schedules/`。综合交付包含 `build/scenes/aidc-exit-access-coordinated.usda` 场区疏散协调、`build/scenes/aidc-exit-access.usda` 建筑出口专业场景、`build/scenes/aidc-equipment-foundations-coordinated.usda` 全场设备基础协调、`build/scenes/aidc-equipment-foundations.usda` 场区基础锚栓专业场景、`build/scenes/aidc-roof-transfer-coordinated.usda` 全场屋面传力协调、`build/scenes/aidc-roof-transfer.usda` 主体屋面传力专业场景、`build/scenes/aidc-lateral-coordinated.usda` 全场结构支撑协调、`build/scenes/aidc-braced-frame.usda` 主体结构支撑、`build/scenes/aidc-facility-power-coordinated.usda` 全场动力协调、`build/scenes/aidc-facility-power.usda` 冷源动力专业场景、`build/scenes/aidc-site-storm-underground.usda` 雨水地下工程剖切场景、`build/scenes/aidc-roof-assembly.usda` 屋盖专项场景、`build/scenes/aidc-power-roof.usda` 电气专业屋面场景及 `build/scenes/aidc-it-pod-air.usda` 典型舱内送回风、TCS 与设备剖切场景。专业审查材料在 `build/review/aidc-discipline-review.json`。用 Tex Studio 的文件资源管理器或快速打开读取上述文件。
+成品图在 `build/drawings/sheets/`，包含 82 张 A3 图及各图的来源报告。可校准图纸按标题栏比例原尺寸打印。门、疏散、预留、构件、保护、馈线、洞口定位、水力、弱电端接、热瞬态及消防工况表在 `build/schedules/`。综合交付包含 `build/scenes/aidc-emergency-lighting-coordinated.usda` 应急照明全场协调、`build/scenes/aidc-emergency-lighting.usda` 应急照明专业场景、`build/scenes/aidc-exit-access-coordinated.usda` 场区疏散协调、`build/scenes/aidc-exit-access.usda` 建筑出口专业场景、`build/scenes/aidc-equipment-foundations-coordinated.usda` 全场设备基础协调、`build/scenes/aidc-equipment-foundations.usda` 场区基础锚栓专业场景、`build/scenes/aidc-roof-transfer-coordinated.usda` 全场屋面传力协调、`build/scenes/aidc-roof-transfer.usda` 主体屋面传力专业场景、`build/scenes/aidc-lateral-coordinated.usda` 全场结构支撑协调、`build/scenes/aidc-braced-frame.usda` 主体结构支撑、`build/scenes/aidc-facility-power-coordinated.usda` 全场动力协调、`build/scenes/aidc-facility-power.usda` 冷源动力专业场景、`build/scenes/aidc-site-storm-underground.usda` 雨水地下工程剖切场景、`build/scenes/aidc-roof-assembly.usda` 屋盖专项场景、`build/scenes/aidc-power-roof.usda` 电气专业屋面场景及 `build/scenes/aidc-it-pod-air.usda` 典型舱内送回风、TCS 与设备剖切场景。专业审查材料在 `build/review/aidc-discipline-review.json`。用 Tex Studio 的文件资源管理器或快速打开读取上述文件。
 
 主机房屋盖在 +4.900 m 主体钢梁顶以上形成 +5.200 m 钢承板底及最高 +5.476 m 完成面。64 个设施水及关键电气预留逐层切空，并由同一套坐标更新设施水和电气剖面。本例编译屋面与檩条候选自重约 480.82 kN，逐檩条支座力用于计算主体钢梁和基础。四处屋面落水在设计雨强下单点约 6.79 L/s，从场坪以上 0.40 m 落水口转接至室外受水井。闭合屋面综合视图隐藏此视角下位于舱内的细密 TCS 管线；管线与舱内设备可从已有 TCS 与典型舱场景查看。
 
@@ -113,13 +114,23 @@ TCS 按每舱 90 kW、每台 11.25 kW 机柜液侧负荷编译。两套独立冷
 
 将 `telecom.json` 的西侧柜外移会改变对应的光缆长度和光损耗。用 `telecom-study.json` 声明 A 路入口失效后，机柜仍有 B 路可达，正常双路校核与随后再失去 B 路的工况失败，触发审查门禁。布置检查还覆盖桥架撞柱和穿墙孔能否容纳。
 
-将 `architecture.json` 中西南出口标记为不可用后，消防图改绘封闭门，南分区各方舱仅余东门可达，审查包停止更新。移动方舱占用声明通道时，疏散路径报告记录设备编号。路线从朝向公共通道的舱门访问点出发，经建筑出口和室外坡道延伸到东、西两个候选集合点。16 舱共 32 条路线，到建筑出口、坡道分流点及集合点的里程分别记录。两个集合点各按本例的 40 人满员假设核对，最长路线为 75.67 m。建筑出 A-008 门扇与坡道平面、A-009 坡道与扶手剖面。消防出 F-005 室外疏散与集合点平面、F-006 路线及集合核对表。门扇角度、扶手、铺装与模型的标高和净空计算使用同一源，门及场区铺装另出明细表。实际占用、门锁释放、启闭力及五金、扶手锚固、室外照明、消防车道和围栏仍需核对。
+将 `architecture.json` 中西南出口标记为不可用后，消防图改绘封闭门，南分区各方舱仅余东门可达，审查包停止更新。移动方舱占用声明通道时，疏散路径报告记录设备编号。路线从朝向公共通道的舱门访问点出发，经建筑出口和室外坡道延伸到东、西两个候选集合点。16 舱共 32 条路线，到建筑出口、坡道分流点及集合点的里程分别记录。两个集合点各按本例的 40 人满员假设核对，最长路线为 75.67 m。建筑出 A-008 门扇与坡道平面、A-009 坡道与扶手剖面。消防出 F-005 室外疏散与集合点平面、F-006 路线及集合核对表。门扇角度、扶手、铺装与模型的标高和净空计算使用同一源，门及场区铺装另出明细表。实际占用、门锁释放、启闭力及五金、扶手锚固、夜间现场照度、消防车道和围栏仍需核对。
 
 ```bash
 uv run --locked texsys build -p examples/datacenter-reference-design \
   --target dcr:exit-access-check --target dcr:exit-access-scene \
   --target sheet-exit-access-plan --target sheet-exit-access-section \
   --target sheet-evacuation-site-plan --target sheet-evacuation-site-verification
+```
+
+应急照明从两个防火分区的通道和 16 个方舱门、四处坡道、步道、转角以及两个集合面提取采样点。灯具交错编组，设独立蓄电。按候选 90 min 的维持直射照度，校核全部灯具及任一组退出，逐点扣除墙、门扇、设备和机电设施的视线遮挡。出口各设两个独立标志灯，检查三个距离的中央视线并记录两侧探针。交付 E-011 至 E-014 和 F-007，包括平面、剖面、充电分组、电池续航和低照度点，另出逐点计算和 CSV。光度为候选曲线，正常充电布线、指示系统控制、动态烟气、现场照度和产品认证需责任专业核证。
+
+```bash
+uv run --locked texsys build -p examples/datacenter-reference-design \
+  --target dcr:emergency-lighting-check --target dcr:emergency-lighting-scene \
+  --target sheet-emergency-lighting-hall --target sheet-emergency-lighting-site \
+  --target sheet-emergency-lighting-section --target sheet-emergency-lighting-circuits \
+  --target sheet-emergency-lighting-checks
 ```
 
 改动 `src/fws-network.json` 的供水环路坐标后重跑，安装图、管线长度和各段隔离压力随之更新。删除供水绕行段后，原 `S-010` 隔离工况中全体方舱失供，触发审查门禁。必需工况不满足或保温包络相交时构建非零退出，审查材料停止更新。查阅当前 `build/build.json` 的目标状态、输入摘要和产物发布记录。单回路夹具仍可用 `--target dcr:fws-hydraulics` 单独计算。

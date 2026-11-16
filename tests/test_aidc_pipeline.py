@@ -72,7 +72,7 @@ def test_aidc_deliverables_bind_to_the_same_geometry_and_recompute_the_fws_head(
   assert dossier["engineering_acceptance"] == "pending-responsible-review"
   compiled_sheets = sorted((root / "build/drawings/sheets").glob("*.svg"))
   drawing_numbers = {ET.parse(path).getroot().get("data-drawing-number") for path in compiled_sheets}
-  assert len(compiled_sheets) == len(drawing_numbers) == 77 and None not in drawing_numbers
+  assert len(compiled_sheets) == len(drawing_numbers) == 82 and None not in drawing_numbers
   old_dossier = file_digest(root / "build/review/aidc-discipline-review.json")
   drawing = root / "build/drawings/sheets/fws-network.svg"
   old_route_drawing = file_digest(drawing)
@@ -86,6 +86,7 @@ def test_aidc_deliverables_bind_to_the_same_geometry_and_recompute_the_fws_head(
   _check_roof_transfer_delivery(root)
   _check_equipment_foundation_delivery(root)
   _check_exit_access_delivery(root)
+  _check_emergency_lighting_delivery(root)
   _check_storm_delivery(root)
   _check_fws_network_delivery(root)
   _check_building_delivery(root)
@@ -634,6 +635,55 @@ def _check_exit_access_delivery(root):
   stage = Usd.Stage.Open(str(root / "build/scenes/aidc-exit-access-coordinated.usda"))
   door = stage.GetPrimAtPath("/AIDC/ExitAccess/Ramps/D_NW/Leaf_L1")
   assert door.GetAttribute("texsys:identity").Get() == "EA-D-NW-L1"
+
+
+def _check_emergency_lighting_delivery(root):
+  model = _read(root / MODEL / "emergency-lighting.json")
+  study = _read(root / MODEL / "emergency-lighting-study.json")
+  assert not study["issues"]
+  assert len(study["zones"]) == 16
+  assert len(study["signs"]) == 8 and all(row["clear_sightline"] for row in study["signs"].values())
+  assert sum(row["samples"] for row in study["zones"].values()) > 1500
+  for region, rows in study["points"].items():
+    assert len(rows) == study["zones"][region]["samples"]
+    for row in rows:
+      assert row["intact_lx"] == pytest.approx(row["off_A_lx"]+row["off_B_lx"])
+      assert min(row["off_A_lx"],row["off_B_lx"]) >= study["zones"][region]["minimum_required_lx"]
+  lamp = study["battery_families"]["outdoor"]
+  assert lamp["runtime_min"] == pytest.approx((29*.8*.77*.87)/9*60)
+  stage = Usd.Stage.Open(str(root / "build/scenes/aidc-emergency-lighting-coordinated.usda"))
+  prim = stage.GetPrimAtPath("/AIDC/EmergencyLighting/EL_D_NW_01/Body")
+  assert prim.GetAttribute("texsys:identity").Get() == "EL-D-NW-01"
+  x, y, z = model["fixtures"]["EL-D-NW-01"]["point_m"]
+  assert tuple(UsdGeom.XformCache().GetLocalToWorldTransform(prim).ExtractTranslation()) == pytest.approx((x,y,z+.04))
+
+
+def test_aidc_emergency_lighting_keeps_drawings_for_failed_battery_and_lux(tmp_path):
+  root = _checkout(tmp_path)
+  path = root / "src/emergency-lighting.json"
+  original = _read(path)
+  target = "dcr:emergency-lighting-check"
+  drawing = "sheet-emergency-lighting-checks"
+  original["battery"]["outdoor"]["nominal_wh"] = 19
+  write_json(path, original)
+  result, targets = _run(root, target, drawing)
+  assert result.status == "fail" and targets[drawing]["status"] == "pass"
+  assert {item["rule"] for item in targets[target]["diagnostics"]} >= {
+      "AIDC_EMERGENCY_LIGHTING_AUTONOMY", "AIDC_EMERGENCY_LIGHTING_ILLUMINANCE"}
+  original["battery"]["outdoor"]["nominal_wh"] = 29
+  original["photometry"]["hall"]["peak_cd"] = 150
+  write_json(path, original)
+  result, targets = _run(root, target, drawing)
+  assert result.status == "fail" and targets[drawing]["status"] == "pass"
+  assert {item["rule"] for item in targets[target]["diagnostics"]} == {"AIDC_EMERGENCY_LIGHTING_ILLUMINANCE"}
+
+
+def test_emergency_lighting_direct_illuminance_has_expected_projection():
+  from texsys_datacenter_reference.emergency_lighting_study import direct_lux
+
+  assert direct_lux((0,0,3), (0,0,0), 100, 1, .8) == pytest.approx(80/9)
+  assert direct_lux((0,0,3), (4,0,0), 100, 1, .8) == pytest.approx(80*(3/5)**2/25)
+  assert direct_lux((0,0,3), (0,0,4), 100, 1, .8) == 0
 
 
 def test_aidc_exit_access_rejects_rail_encroachment_and_small_assembly_area(tmp_path):

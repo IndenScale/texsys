@@ -20,12 +20,15 @@
         "build/drawings/sheets/equipment-foundation-generators.svg",
         "build/datacenter-reference/spatial/equipment-foundation-coordination.json",
         "build/drawings/sheets/evacuation-site-plan.svg",
-        "build/schedules/aidc-evacuation-pavement.csv"
+        "build/schedules/aidc-evacuation-pavement.csv",
+        "build/drawings/sheets/emergency-lighting-site.svg",
+        "build/drawings/sheets/emergency-lighting-site-sheet.json"
       ],
       "pending": [
         "实测宗地红线、竖向测量与市政接驳条件",
         "等高线与地形控制需实测，土类、岩土支护、回填压实及车辆接驳按实核证",
-        "室外步道收边及汇水接法，退界使用、围栏和消防车行组织"
+        "室外步道收边及汇水接法，退界使用、围栏和消防车行组织",
+        "实际灯杆基础、排水、电缆通道、车辆碰撞防护及夜间现场照度"
       ]
     },
     "architecture": {
@@ -62,11 +65,16 @@
         "build/drawings/sheets/exit-access-section-sheet.json",
         "build/datacenter-reference/spatial/exit-access.json",
         "build/schedules/aidc-exit-hardware.csv",
-        "build/scenes/aidc-exit-access.usda"
+        "build/scenes/aidc-exit-access.usda",
+        "build/drawings/sheets/emergency-lighting-hall.svg",
+        "build/drawings/sheets/emergency-lighting-hall-sheet.json",
+        "build/drawings/sheets/emergency-lighting-section.svg",
+        "build/drawings/sheets/emergency-lighting-section-sheet.json"
       ],
       "pending": [
         "实际门五金、闭门反馈、栏杆材料及锚固防腐、踏面防滑与现场净宽",
-        "屋面墙顶收口、防水泛水与耐火封堵节点，实际产品和试验资料"
+        "屋面墙顶收口、防水泛水与耐火封堵节点，实际产品和试验资料",
+        "门上灯吊装和指示标志固定，现场无遮挡及检修"
       ]
     },
     "fire": {
@@ -105,13 +113,19 @@
         "build/datacenter-reference/spatial/exit-access-study.json",
         "build/datacenter-reference/spatial/exit-access-check.json",
         "build/schedules/aidc-evacuation-to-assembly.csv",
-        "build/scenes/aidc-exit-access-coordinated.usda"
+        "build/scenes/aidc-exit-access-coordinated.usda",
+        "build/drawings/sheets/emergency-lighting-checks.svg",
+        "build/drawings/sheets/emergency-lighting-checks-sheet.json",
+        "build/datacenter-reference/spatial/emergency-lighting-study.json",
+        "build/datacenter-reference/spatial/emergency-lighting-check.json",
+        "build/schedules/aidc-emergency-lighting-checks.csv"
       ],
       "pending": [
         "厂家舱门、人群疏散与探测和声光现场验证、介质与喷放专项设计、控制柜型式、穿越构造和封堵产品",
         "实际屋盖穿越的封堵系统和材料构造核证",
         "发电机区事故液体封闭围挡、坡道阈值和密闭池抽排处置现场核证",
-        "集合点运营组织、下风向烟气、人员流、夜间照明与室外出口衔接"
+        "集合点运营组织、下风向烟气、人员流、夜间照明与室外出口衔接",
+        "厂家应急配光与衰减、烟气遮挡、指示系统型式与联动和现场验证"
       ]
     },
     "structure": {
@@ -278,12 +292,26 @@
         "build/schedules/aidc-facility-power-duty.csv",
         "build/schedules/aidc-facility-power-faults.csv",
         "build/drawings/sheets/equipment-foundation-power.svg",
-        "build/datacenter-reference/spatial/equipment-foundation-coordination.json"
+        "build/datacenter-reference/spatial/equipment-foundation-coordination.json",
+        "build/drawings/sheets/emergency-lighting-hall.svg",
+        "build/drawings/sheets/emergency-lighting-hall-sheet.json",
+        "build/drawings/sheets/emergency-lighting-site.svg",
+        "build/drawings/sheets/emergency-lighting-site-sheet.json",
+        "build/drawings/sheets/emergency-lighting-section.svg",
+        "build/drawings/sheets/emergency-lighting-section-sheet.json",
+        "build/drawings/sheets/emergency-lighting-circuits.svg",
+        "build/drawings/sheets/emergency-lighting-circuits-sheet.json",
+        "build/datacenter-reference/spatial/emergency-lighting.json",
+        "build/scenes/aidc-emergency-lighting.usda",
+        "build/scenes/aidc-emergency-lighting-coordinated.usda",
+        "build/schedules/aidc-emergency-luminaires.csv",
+        "build/schedules/aidc-emergency-lighting-loads.csv"
       ],
       "pending": [
         "厂家时间电流曲线、接地和单相故障、全场并联及动态切换试验",
         "屋面孔洞节点及封堵、耐候选型、弯曲半径与支架、载流量实测修正和谐波分析",
-        "各冷源转换柜的机械电气联锁、脱扣和电机再启动、穿管热环境、共用发电机指令及独立黑启动、补水泵与照明检修配电、电源侧中压及发电机输出安装"
+        "各冷源转换柜的机械电气联锁、脱扣和电机再启动、穿管热环境、共用发电机指令及独立黑启动、补水泵与照明检修配电、电源侧中压及发电机输出安装",
+        "正常供电来源与安装配电、电缆敷设、充电监控、整机认证及实测放电试验"
       ]
     },
     "mechanical": {
