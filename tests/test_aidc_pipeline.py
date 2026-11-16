@@ -72,7 +72,7 @@ def test_aidc_deliverables_bind_to_the_same_geometry_and_recompute_the_fws_head(
   assert dossier["engineering_acceptance"] == "pending-responsible-review"
   compiled_sheets = sorted((root / "build/drawings/sheets").glob("*.svg"))
   drawing_numbers = {ET.parse(path).getroot().get("data-drawing-number") for path in compiled_sheets}
-  assert len(compiled_sheets) == len(drawing_numbers) == 98 and None not in drawing_numbers
+  assert len(compiled_sheets) == len(drawing_numbers) == 104 and None not in drawing_numbers
   old_dossier = file_digest(root / "build/review/aidc-discipline-review.json")
   drawing = root / "build/drawings/sheets/fws-network.svg"
   old_route_drawing = file_digest(drawing)
@@ -90,6 +90,7 @@ def test_aidc_deliverables_bind_to_the_same_geometry_and_recompute_the_fws_head(
   _check_lighting_distribution_delivery(root)
   _check_earthing_delivery(root)
   _check_lightning_delivery(root)
+  _check_fuel_delivery(root)
   _check_storm_delivery(root)
   _check_fws_network_delivery(root)
   _check_building_delivery(root)
@@ -819,6 +820,74 @@ def test_rolling_sphere_contact_bound_matches_vertical_analytic_solution():
   nominal,alternative,_ = bounded_contacts(np.zeros((1,3)),np.zeros(1),np.array([[0.,0.,2.],[0.,0.,1.]]),20,0,.05)
   assert nominal == pytest.approx([2-4/40])
   assert alternative == pytest.approx([1-1/40])
+
+
+def _check_fuel_delivery(root):
+  model = _read(root / MODEL / "fuel-system.json")
+  study = _read(root / MODEL / "fuel-study.json")
+  check = _read(root / MODEL / "fuel-check.json")
+  assert check["status"] == "pass"
+  assert set(model["tanks"]) == {"TK-A","TK-B"}
+  assert len(model["day_tanks"]) == 4
+  assert len(model["runs"]) == 30
+  tank = model["tanks"]["TK-A"]
+  assert tank["nominal_l"] == pytest.approx(pi*.8**2*4.48*1000)
+  assert tank["usable_l"] == pytest.approx(8024.0566249)
+  for side,cases in study["independent_storage"].items():
+    assert len(cases) == 2
+    for case in cases.values():
+      assert case["status"]=="pass" and case["endurance_h"] == pytest.approx(tank["usable_l"]/620)
+      assert case["engines_running"][0].startswith(f"GenContainer{side}/")
+  assert all(abs(row["balance_residual_l"])<1e-9 for row in study["changeover"].values())
+  assert all(row["status"]=="pass" for row in study["overflow"].values())
+  water = study["containment"]["cases"]["longer"]
+  assert water["basis_spill_m3"] == pytest.approx(10)
+  assert water["free_storage_m3"] == pytest.approx(.7662667)
+  stage = Usd.Stage.Open(str(root / "build/scenes/aidc-fuel-coordinated.usda"))
+  assert stage.GetPrimAtPath("/AIDC/Fuel/Storage/TK_A/Shell").GetAttribute("texsys:identity").Get() == "TK-A"
+  assert stage.GetPrimAtPath("/AIDC/Fuel/DayTanks/DT_B2").IsValid()
+  assert stage.GetPrimAtPath("/AIDC/Storm/OilVault/Floor").IsValid()
+  for key,no in (("yard","M-022"),("indoor","M-023"),("sections","M-024"),("system","M-025"),("checks","M-026"),
+                 ("containment","F-009")):
+    svg = ET.parse(root / f"build/drawings/sheets/fuel-{key}.svg")
+    assert svg.getroot().get("data-drawing-number") == f"AIDC-{no}"
+
+
+def test_aidc_fuel_rejects_short_reserve_and_local_pump_loss(tmp_path):
+  root = _checkout(tmp_path)
+  source = root / "src/fuel-system.json"
+  original = _read(source)
+  gate, sheet = "dcr:fuel-check","sheet-fuel-checks"
+  result,_ = _run(root,gate,sheet)
+  assert result.status == "pass", result.diagnostics
+  report = root / MODEL / "fuel-study.json"
+  baseline = _read(report)
+  baseline_sheet = file_digest(root/"build/drawings/sheets/fuel-checks.svg")
+
+  shorter = _read(source)
+  shorter["storage"]["inner_length_m"] = 3.9
+  write_json(source,shorter)
+  result,targets = _run(root,gate,sheet)
+  assert result.status == "fail" and targets[sheet]["status"] == "pass"
+  assert {row["rule"] for row in targets[gate]["diagnostics"]} >= {
+    "AIDC_FUEL_TANK_CAPACITY","AIDC_FUEL_STORAGE_RECONCILIATION","AIDC_FUEL_INDEPENDENT_RESERVE"}
+  assert file_digest(root/"build/drawings/sheets/fuel-checks.svg") != baseline_sheet
+
+  original["hydraulics"]["unavailable_pumps"] = ["P-A-1","P-A-2"]
+  write_json(source,original)
+  result,targets = _run(root,gate,"sheet-fuel-system")
+  assert result.status == "fail" and targets["sheet-fuel-system"]["status"] == "pass"
+  broken = _read(report)
+  assert broken["changeover"]["A"]["status"]=="fail"
+  assert broken["changeover"]["B"]==baseline["changeover"]["B"]
+  assert all(row["status"]=="pass" for key,row in broken["transfer"].items() if key.startswith("B:"))
+
+
+def test_fuel_storage_segment_area_matches_half_cylinder():
+  from texsys_datacenter_reference.fuel_system import _area
+
+  assert _area(.8,.8) == pytest.approx(pi*.8**2/2)
+  assert _area(.8,.3)+_area(.8,1.3) == pytest.approx(pi*.8**2)
 
 
 def test_aidc_lighting_distribution_rejects_double_weld_and_undersized_protection(tmp_path):

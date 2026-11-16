@@ -37,6 +37,6 @@
       "ceiling_m": -0.75,
       "working_depth_m": 1.90
     },
-    "credible_spill_m3": 9
+    "credible_spill_m3": 10.0
   }
 }

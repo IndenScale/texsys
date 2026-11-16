@@ -1,0 +1,51 @@
+{
+  "schema_version": 1,
+  "state": "assumed",
+  "basis": "A/B 独立储油、双转输泵、每台机组独立日用箱。储罐油位按净截面计算。方舱内部按锁定候选占位和拟定接口编译，实际机组与柜架维护空间须用厂家尺寸替换。",
+  "references": {
+    "GB 50174-2017": "https://ebook.chinabuilding.com.cn/zbooklib/bookpdf/probation?SiteID=1&bookID=98216",
+    "Cummins T-030": "https://www.cummins.com/sites/default/files/2024-08/t030-Liquid-cooled-gen-set-application-manual.pdf"
+  },
+  "storage": {
+    "inner_diameter_m": 1.60, "inner_length_m": 4.48, "radial_jacket_m": 0.048, "end_jacket_m": 0.074,
+    "shaft_height_m": 0.955, "minimum_liquid_depth_m": 0.18, "maximum_liquid_depth_m": 1.45,
+    "pad_edge_m": 0.16, "pad_thickness_m": 0.28, "pad_top_above_grade_m": 0.065,
+    "tank_dry_kg": 2050, "pad_unit_weight_kn_m3": 24, "bearing_limit_kpa": 85,
+    "minimum_parting_m": 0.25, "minimum_nominal_l": 9000,
+    "sides": {
+      "A": {"tank_xy_m": [59.86,35.13], "skid_xy_m": [57.95,36.56], "west_pressure_x_m": 56.38,
+            "west_return_x_m": 56.62, "pressure_wall_offset_m": 0.68, "return_wall_offset_m": 0.45},
+      "B": {"tank_xy_m": [66.24,35.13], "skid_xy_m": [64.25,36.56],
+            "pressure_wall_offset_m": 0.58, "return_wall_offset_m": 0.82}
+    }
+  },
+  "cabinet": {
+    "day_size_m": [0.96,0.50,0.86], "day_y_m": 1.39, "day_bottom_m": 1.20,
+    "day_offset_from_engine_right_m": 0.74,
+    "day_low_depth_m": 0.16, "day_start_depth_m": 0.35, "day_stop_depth_m": 0.60,
+    "day_high_high_depth_m": 0.73, "day_overflow_depth_m": 0.82,
+    "transfer_header_z_m": 2.43, "overflow_wall_z_m": 1.965,
+    "return_wall_x_offset_m": 0.45,
+    "pressure_design_lph": 2400, "changeover_s": 45, "high_high_stop_s": 5,
+    "engine_supply_factor": 2.1, "engine_feed_min_kpa": 3, "engine_feed_max_kpa": 24,
+    "engine_return_max_kpa": 34
+  },
+  "pipes": {
+    "suction": {"size":"DN50","inside_m":0.051,"outside_m":0.064,"minor_k":4},
+    "transfer": {"size":"DN40","inside_m":0.041,"outside_m":0.056,"minor_k":8},
+    "overflow": {"size":"DN80","inside_m":0.078,"outside_m":0.093,"minor_k":6},
+    "engine_supply": {"size":"DN25","inside_m":0.026,"outside_m":0.037,"minor_k":9},
+    "engine_return": {"size":"DN25","inside_m":0.026,"outside_m":0.037,"minor_k":8},
+    "fill": {"size":"DN65","inside_m":0.064,"outside_m":0.080,"minor_k":8},
+    "vent": {"size":"DN50","inside_m":0.051,"outside_m":0.065,"minor_k":6}
+  },
+  "hydraulics": {
+    "density_kg_m3": 835, "warm_viscosity_pa_s": 0.003, "cold_viscosity_pa_s": 0.014, "roughness_m": 0.000045,
+    "gravity_m_s2": 9.80665, "pump_shutoff_m": 16, "pump_head_at_design_m": 10,
+    "filter_clean_kpa": 10, "filter_loaded_kpa": 27, "available_air_abs_kpa": 99, "vapor_kpa": 1,
+    "required_npsh_m": 2.5, "npsh_margin_m": 1, "minimum_overflow_grade": 0.005,
+    "overflow_manning_n": 0.013, "ignition_and_exhaust_clearance_m": 2.3,
+    "unavailable_pumps": []
+  },
+  "containment": {"retained_before_storm_m3": 1.5,"line_isolation_s": 30,"minimum_remaining_storage_m3": 0.35}
+}

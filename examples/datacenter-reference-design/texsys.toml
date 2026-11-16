@@ -12,7 +12,7 @@ build = "build"
 default_targets = ["review-package"]
 
 [dependencies]
-datacenter-reference = { path = "../../packages/datacenter-reference", version = "0.27.0" }
+datacenter-reference = { path = "../../packages/datacenter-reference", version = "0.28.0" }
 sheet = { path = "../../packages/sheet", version = "0.2.0" }
 
 [build.targets.review-package]
@@ -78,6 +78,14 @@ dependencies = [
   "dcr:earthing-scene",
   "dcr:lightning-check",
   "dcr:lightning-scene",
+  "dcr:fuel-check",
+  "dcr:fuel-scene",
+  "sheet-fuel-yard",
+  "sheet-fuel-indoor",
+  "sheet-fuel-sections",
+  "sheet-fuel-system",
+  "sheet-fuel-checks",
+  "sheet-fuel-containment",
   "sheet-lightning-roof",
   "sheet-lightning-coverage",
   "sheet-lightning-section",
@@ -1252,3 +1260,69 @@ using = "sheet:compose"
 dependencies = ["plan-lightning-checks"]
 scope = { source = "assets/sheets/lightning-checks.sheet.json" }
 output = "build/drawings/sheets/lightning-checks.svg"
+
+[build.targets.plan-fuel-yard]
+using = "dcr:fuel-view"
+output = "build/drawings/views/fuel-yard.svg"
+scope = { view = "yard" }
+
+[build.targets.sheet-fuel-yard]
+using = "sheet:compose"
+dependencies = ["plan-fuel-yard"]
+scope = { source = "assets/sheets/fuel-yard.sheet.json" }
+output = "build/drawings/sheets/fuel-yard.svg"
+
+[build.targets.plan-fuel-indoor]
+using = "dcr:fuel-view"
+output = "build/drawings/views/fuel-indoor.svg"
+scope = { view = "indoor" }
+
+[build.targets.sheet-fuel-indoor]
+using = "sheet:compose"
+dependencies = ["plan-fuel-indoor"]
+scope = { source = "assets/sheets/fuel-indoor.sheet.json" }
+output = "build/drawings/sheets/fuel-indoor.svg"
+
+[build.targets.plan-fuel-sections]
+using = "dcr:fuel-view"
+output = "build/drawings/views/fuel-sections.svg"
+scope = { view = "sections" }
+
+[build.targets.sheet-fuel-sections]
+using = "sheet:compose"
+dependencies = ["plan-fuel-sections"]
+scope = { source = "assets/sheets/fuel-sections.sheet.json" }
+output = "build/drawings/sheets/fuel-sections.svg"
+
+[build.targets.plan-fuel-system]
+using = "dcr:fuel-view"
+output = "build/drawings/views/fuel-system.svg"
+scope = { view = "system" }
+
+[build.targets.sheet-fuel-system]
+using = "sheet:compose"
+dependencies = ["plan-fuel-system"]
+scope = { source = "assets/sheets/fuel-system.sheet.json" }
+output = "build/drawings/sheets/fuel-system.svg"
+
+[build.targets.plan-fuel-checks]
+using = "dcr:fuel-view"
+output = "build/drawings/views/fuel-checks.svg"
+scope = { view = "checks" }
+
+[build.targets.sheet-fuel-checks]
+using = "sheet:compose"
+dependencies = ["plan-fuel-checks"]
+scope = { source = "assets/sheets/fuel-checks.sheet.json" }
+output = "build/drawings/sheets/fuel-checks.svg"
+
+[build.targets.plan-fuel-containment]
+using = "dcr:fuel-view"
+output = "build/drawings/views/fuel-containment.svg"
+scope = { view = "containment" }
+
+[build.targets.sheet-fuel-containment]
+using = "sheet:compose"
+dependencies = ["plan-fuel-containment"]
+scope = { source = "assets/sheets/fuel-containment.sheet.json" }
+output = "build/drawings/sheets/fuel-containment.svg"

@@ -245,23 +245,30 @@ def evaluate_design_checks(source: Path, root: Path) -> dict[str, Any]:
       if ok else f"冷却容量不足：N+1 可用 {available} kW < 需求 {required} kW。",
       chiller_count=n, unit_kw=unit_kw, available_kw=available, required_kw=required)
 
-  # GB-8.1.15: fuel storage hours at design load, N+1 gensets running.
+  # Each generator enclosure has an independent nominal storage allocation.
   min_hours = float(requirements.get("GB-8.1.15", {}).get("parameters", {}).get("min_fuel_hours", 12))
-  genset_leaves = [i for i in _all(design.instances) if i.family == "diesel-generator"]
-  prime_kw = max((_param(g, "prime_kw") for g in genset_leaves), default=0.0)
-  running = max(len(genset_leaves) - 1, 1)
-  fraction = min(facility_kw / (running * prime_kw), 1.0) if prime_kw else 0.0
-  consumption = sum(_param(g, "fuel_consumption_lph") for g in genset_leaves[:running]) \
-      * (0.3 + 0.7 * fraction)
-  storage_l = sum(_param(g, "fuel_storage_l") for g in gensets)
-  hours = round(storage_l / consumption, 1) if consumption else 0.0
-  ok = bool(gensets) and hours >= min_hours
+  groups = {}
+  for group in gensets:
+    engines = [machine for machine in _leaves(group.children) if machine.family == "diesel-generator"]
+    covered_kw, consuming = 0., 0.
+    for engine in sorted(engines,key=lambda each:_param(each,"prime_kw"),reverse=True):
+      if covered_kw>=facility_kw:
+        break
+      covered_kw += _param(engine,"prime_kw")
+      consuming += _param(engine,"fuel_consumption_lph")
+    nominal = _param(group,"fuel_storage_l")
+    endurance = nominal/consuming if consuming and covered_kw>=facility_kw else 0.
+    ratings = [_param(engine,"prime_kw") for engine in engines]
+    groups[group.name] = {"nominal_l":nominal,"rated_consumption_lph":consuming,"nominal_hours":endurance,
+                          "one_out_capacity_kw":sum(ratings)-max(ratings,default=0.)}
+  hours = min((row["nominal_hours"] for row in groups.values()),default=0.)
+  storage_l = sum(row["nominal_l"] for row in groups.values())
+  controlling = min(groups.values(),key=lambda row:row["nominal_hours"],default={})
+  ok = bool(groups) and hours>=min_hours
   add("GB-8.1.15", "pass" if ok else "fail",
-      f"储油 {storage_l} L，N+1 运行 {running} 台、负荷率 {fraction:.2f}，"
-      f"油耗约 {consumption:.0f} L/h，可供 {hours} h ≥ {min_hours} h。"
-      if ok else f"储油时长 {hours} h 不足 {min_hours} h。",
-      fuel_storage_l=storage_l, consumption_lph=round(consumption, 1),
-      fuel_hours=hours, required_hours=min_hours)
+      f"分列名义储油控制值 {hours:.2f} h，项目要求 {min_hours:g} h。实际可用量见燃油安装校核。",
+      fuel_storage_l=storage_l, consumption_lph=controlling.get("rated_consumption_lph",0.),
+      fuel_hours=round(hours,2), required_hours=min_hours, groups=groups)
 
   # GB-13.2.4: fire separation walls and slab.
   min_wall = float(requirements.get("GB-13.2.4", {}).get("parameters", {}).get("min_wall_fire_hours", 2.0))
@@ -323,12 +330,13 @@ def evaluate_design_checks(source: Path, root: Path) -> dict[str, Any]:
   transformers = [i for i in _all(design.instances) if i.family == "dry-type-transformer"]
   tx_kva = [_param(t, "rated_kva") for t in transformers]
   tx_ok = len(tx_kva) >= 2 and all(kva * power_factor >= facility_kw for kva in tx_kva)
-  genset_ok = bool(genset_leaves) and running * prime_kw >= facility_kw
+  available_generation = min((row["one_out_capacity_kw"] for row in groups.values()),default=0.)
+  genset_ok = bool(groups) and available_generation>=facility_kw
   ok = tx_ok and genset_ok
   add("GB-A.power", "pass" if ok else "fail",
       f"变压器 {tx_kva} kVA（0.9 功率因数可用 {[round(k * power_factor) for k in tx_kva]} kW）；"
-      f"发电机 N+1 可用 {running * prime_kw:.0f} kW；设施负荷 {facility_kw} kW。",
-      transformer_kva=tx_kva, genset_available_kw=running * prime_kw,
+      f"单列机组 N+1 可用 {available_generation:.0f} kW；设施负荷 {facility_kw} kW。",
+      transformer_kva=tx_kva, genset_available_kw=available_generation,
       facility_load_kw=facility_kw, facility_load_basis=design.placement.get("facility_load_breakdown", {}))
 
   failed = [c for c in checks if c["status"] != "pass"]

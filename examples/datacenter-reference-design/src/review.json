@@ -88,6 +88,9 @@
     "fire": {
       "name": "消防",
       "required_artifacts": [
+        "build/drawings/sheets/fuel-containment.svg",
+        "build/drawings/sheets/fuel-containment-sheet.json",
+        "build/datacenter-reference/spatial/fuel-study.json",
         "build/drawings/sheets/fire-egress.svg",
         "build/drawings/sheets/fire-egress-sheet.json",
         "build/drawings/sheets/fire-alarm.svg",
@@ -369,6 +372,8 @@
         "build/datacenter-reference/spatial/lightning-roof.json",
         "build/datacenter-reference/spatial/lightning-study.json",
         "build/datacenter-reference/spatial/lightning-check.json",
+        "build/datacenter-reference/spatial/fuel-check.json",
+        "build/drawings/sheets/fuel-system.svg",
         "build/schedules/aidc-lightning-conductors.csv",
         "build/schedules/aidc-lightning-coverage.csv",
         "build/schedules/aidc-lightning-spds.csv"
@@ -384,6 +389,23 @@
     "mechanical": {
       "name": "暖通",
       "required_artifacts": [
+        "build/datacenter-reference/spatial/fuel-system.json",
+        "build/datacenter-reference/spatial/fuel-study.json",
+        "build/datacenter-reference/spatial/fuel-check.json",
+        "build/drawings/sheets/fuel-yard.svg",
+        "build/drawings/sheets/fuel-yard-sheet.json",
+        "build/drawings/sheets/fuel-indoor.svg",
+        "build/drawings/sheets/fuel-indoor-sheet.json",
+        "build/drawings/sheets/fuel-sections.svg",
+        "build/drawings/sheets/fuel-sections-sheet.json",
+        "build/drawings/sheets/fuel-system.svg",
+        "build/drawings/sheets/fuel-system-sheet.json",
+        "build/drawings/sheets/fuel-checks.svg",
+        "build/drawings/sheets/fuel-checks-sheet.json",
+        "build/scenes/aidc-fuel.usda",
+        "build/scenes/aidc-fuel-coordinated.usda",
+        "build/schedules/aidc-fuel-pipe-schedule.csv",
+        "build/schedules/aidc-fuel-operating-cases.csv",
         "build/drawings/sheets/cooling.svg",
         "build/drawings/sheets/cooling-sheet.json",
         "build/drawings/sheets/fws-network.svg",
@@ -467,6 +489,7 @@
         "build/datacenter-reference/spatial/equipment-foundation-coordination.json"
       ],
       "pending": [
+        "发电机燃油接口、储罐与泵厂家资料，实际舱内净距、锚固、通气、卸油和联锁试验",
         "承压缓冲罐及锚固专项、实测设备与罐内压损和混合、泵阀水锤与排空、共因故障、支吊架及穿越详图",
         "冷却水厂商选型曲线与湿球、压力保持和气蚀、阀组及支架及供电控制联锁专项复核",
         "TCS CDU 厂家泵曲线和换热性能、软管弯曲及检修、阀组及支架、泄漏检测、泵阀切换瞬态与泵热反注",

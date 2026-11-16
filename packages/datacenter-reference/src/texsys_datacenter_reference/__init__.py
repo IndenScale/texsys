@@ -53,6 +53,9 @@ from .lateral_views import build_lateral_view
 from .earthing import build_earthing
 from .earthing_delivery import build_earthing_scene, build_earthing_view
 from .earth_fault import build_earth_fault_check, build_earth_fault_study
+from .fuel_delivery import build_fuel_scene, build_fuel_view
+from .fuel_study import build_fuel_check, build_fuel_study
+from .fuel_system import build_fuel_system
 from .lightning import build_lightning, build_lightning_check
 from .lightning_delivery import build_lightning_scene, build_lightning_view
 from .lightning_roof import build_lightning_roof
@@ -97,7 +100,7 @@ from .wet_utility_views import build_wet_view
 
 class DatacenterReferencePackage(TexsysPackage):
   name = "datacenter-reference"
-  version = "0.27.0"
+  version = "0.28.0"
 
   def targets(self) -> tuple[TargetDefinition, ...]:
     return (
@@ -182,6 +185,19 @@ class DatacenterReferencePackage(TexsysPackage):
                        dependencies=("dcr:lightning-study", "dcr:earthing-scene"), input_patterns=()),
       TargetDefinition("dcr:lightning-view", self.name, self.version, build_lightning_view,
                        dependencies=("dcr:lightning-study",), input_patterns=(), named_output=True),
+      TargetDefinition("dcr:fuel-system", self.name, self.version, build_fuel_system,
+                       dependencies=("dcr:site-storm", "dcr:equipment-foundations", "dcr:facility-power",
+                                     "dcr:telecom", "dcr:cw-network", "dcr:fire-systems", "dcr:exit-access"),
+                       input_patterns=spatial_inputs("fuel-system.json")),
+      TargetDefinition("dcr:fuel-study", self.name, self.version, build_fuel_study,
+                       dependencies=("dcr:fuel-system", "dcr:facility-power-study", "dcr:site-storm-study",
+                                     "dcr:design-checks"), input_patterns=spatial_inputs("design-basis.json")),
+      TargetDefinition("dcr:fuel-check", self.name, self.version, build_fuel_check,
+                       dependencies=("dcr:fuel-study",), input_patterns=()),
+      TargetDefinition("dcr:fuel-scene", self.name, self.version, build_fuel_scene,
+                       dependencies=("dcr:fuel-system", "dcr:lightning-scene"), input_patterns=()),
+      TargetDefinition("dcr:fuel-view", self.name, self.version, build_fuel_view,
+                       dependencies=("dcr:fuel-study",), input_patterns=(), named_output=True),
       TargetDefinition("dcr:fire-systems", self.name, self.version, build_fire_systems, dependencies=("dcr:architecture",),
                        input_patterns=spatial_inputs("*.sdl.json", "*/module.toml", "fire-systems.json",
                                                      "design-basis.json", "placement.study.json")),

@@ -194,7 +194,7 @@
       "clause": "8.1.15",
       "title": "现场储油",
       "requirement": "柴油发电机应设置现场储油装置，A 级储油宜满足 12 h 用油，本项目按不少于 12 h 验收",
-      "decision": "A/B 各设一组发电机方舱（2×3000 kW，N+1），每组储油 9000 L，合计 18000 L，N+1 运行约 18.9 h",
+      "decision": "A/B 各设一组发电机方舱（2×3000 kW，N+1）和独立 9000 L 级储罐。按当列净可用容量和额定耗油校核 12 h",
       "check": "fuel-storage",
       "parameters": {
         "min_fuel_hours": 12

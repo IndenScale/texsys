@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "template": "sheet:a3-landscape",
+  "metadata": "assets/sheets/fuel-yard.title.json",
+  "texts": {
+    "notes": "assets/sheets/fuel-yard.txt",
+    "footer": "assets/sheets/footer.txt"
+  },
+  "views": {
+    "main": {
+      "path": "build/drawings/views/fuel-yard.svg",
+      "scale": "1:100"
+    }
+  }
+}
