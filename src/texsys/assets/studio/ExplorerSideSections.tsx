@@ -5,9 +5,7 @@ import { t } from "./i18n";
 import { Icon } from "./ui";
 import { NavigatorSash } from "./NavigatorSash";
 
-export const MIN_SECTION_BODY = 44;
-export const MAX_SECTION_BODY = 4096;
-const MIN_TREE_SPACE = 60;
+const MAX_SECTION_BODY = 4096;
 const SUMMARY_HEIGHT = 28;
 
 type Heights = { outline: number; timeline: number };
@@ -38,7 +36,6 @@ function storedHeight(value: number | undefined, fallback: number) {
 export function ExplorerSideSections({
   showOutline,
   showTimeline,
-  foldersVisible,
   activeDocument,
   cursor,
   onNavigate,
@@ -48,7 +45,6 @@ export function ExplorerSideSections({
 }: {
   showOutline: boolean;
   showTimeline: boolean;
-  foldersVisible: boolean;
   activeDocument?: { name: string; value: string };
   cursor?: { line: number; column: number };
   onNavigate: (range: OutlineRange) => void;
@@ -83,22 +79,21 @@ export function ExplorerSideSections({
       : containerH > 0
         ? Math.max(0, containerH - headingH - sectionsH)
         : MAX_SECTION_BODY;
-    return Math.max(0, treeSpace - (foldersVisible ? MIN_TREE_SPACE : 0));
+    return Math.max(0, treeSpace);
   };
 
-  const shrinkSpace = (height: number) => Math.max(0, height - MIN_SECTION_BODY);
   const boundsFor = (mode: Mode, base: Heights) => {
     if (mode === "transfer") {
-      const above = base.outline ? shrinkSpace(base.outline) : availableTreeSpace(base);
+      const above = base.outline || availableTreeSpace(base);
       return {
         min: -Math.min(above, MAX_SECTION_BODY - base.timeline),
-        max: Math.min(shrinkSpace(base.timeline), MAX_SECTION_BODY - base.outline),
+        max: Math.min(base.timeline, MAX_SECTION_BODY - base.outline),
       };
     }
     const primary = mode === "first-outline" ? base.outline : base.timeline;
     return {
       min: -Math.min(availableTreeSpace(base), MAX_SECTION_BODY - primary),
-      max: shrinkSpace(primary),
+      max: primary,
     };
   };
 

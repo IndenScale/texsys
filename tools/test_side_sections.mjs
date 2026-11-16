@@ -60,7 +60,6 @@ function mount(ctx, props) {
         ctx.React.createElement(ExplorerSideSections, {
           showOutline: true,
           showTimeline: true,
-          foldersVisible: true,
           onNavigate: () => {},
           initialHeights: { outline: 300, timeline: 150 },
           onCommit: (heights) => commits.push(heights),
@@ -114,7 +113,7 @@ test("sash drag resizes the section below live and commits on release", async ()
   await ctx.act(() => root.unmount());
 });
 
-test("first sash clamps at body minimum and keeps tree space", async () => {
+test("first sash uses available tree height and collapses the outline at zero", async () => {
   const ctx = await setup();
   const { container, root, view } = mount(ctx);
   await view();
@@ -122,17 +121,22 @@ test("first sash clamps at body minimum and keeps tree space", async () => {
   const first = container.querySelector(".side-sash");
   await pointer(ctx, first, "pointerdown", 200);
   await pointer(ctx, first, "pointermove", -2000);
-  // 700 - 28 heading - (28+300 outline + 29+150 timeline) = 165 tree space; keep 60.
-  assert.equal(bodyHeight(container, ".outline-body"), "405px");
+  // 700 - 28 heading - (28+300 outline + 29+150 timeline) = 165 available.
+  assert.equal(bodyHeight(container, ".outline-body"), "465px");
   await pointer(ctx, first, "pointerup", -2000);
   await pointer(ctx, first, "pointerdown", 200);
-  await pointer(ctx, first, "pointermove", 4000);
-  assert.equal(bodyHeight(container, ".outline-body"), "44px");
+  const outline = container.querySelector(".welcome-outline-section");
+  await pointer(ctx, first, "pointermove", 664);
+  assert.equal(outline.open, true);
+  assert.equal(bodyHeight(container, ".outline-body"), "1px");
   await pointer(ctx, first, "pointerup", 4000);
+  assert.equal(outline.open, false, "release beyond the last move still collapses the panel");
+  assert.equal(first.getAttribute("aria-valuenow"), "0");
+  assert.equal(bodyHeight(container, ".outline-body"), "465px", "last open height is remembered");
   await ctx.act(() => root.unmount());
 });
 
-test("transfer sash moves height between outline and timeline with clamps", async () => {
+test("transfer sash collapses either section at the edge and reopens on reversal", async () => {
   const ctx = await setup();
   const { container, root, commits, view } = mount(ctx);
   await view();
@@ -143,10 +147,20 @@ test("transfer sash moves height between outline and timeline with clamps", asyn
   assert.equal(bodyHeight(container, ".outline-body"), "340px");
   assert.equal(bodyHeight(container, ".timeline-body"), "110px");
   await pointer(ctx, transfer, "pointermove", 4000);
-  assert.equal(bodyHeight(container, ".timeline-body"), "44px");
-  assert.equal(bodyHeight(container, ".outline-body"), "406px");
+  assert.equal(container.querySelector(".welcome-timeline-section").open, false);
+  assert.equal(bodyHeight(container, ".outline-body"), "450px");
+  await pointer(ctx, transfer, "pointermove", 449);
+  assert.equal(container.querySelector(".welcome-timeline-section").open, true);
+  assert.equal(bodyHeight(container, ".timeline-body"), "1px");
   await pointer(ctx, transfer, "pointerup", 4000);
-  assert.deepEqual(commits.at(-1), { outline: 406, timeline: 44 });
+  assert.equal(container.querySelector(".welcome-timeline-section").open, false);
+  assert.deepEqual(commits.at(-1), { outline: 450, timeline: 150 });
+  await openSections(ctx, container);
+  await pointer(ctx, transfer, "pointerdown", 500);
+  await pointer(ctx, transfer, "pointermove", -20);
+  assert.equal(container.querySelector(".welcome-outline-section").open, false);
+  assert.equal(bodyHeight(container, ".timeline-body"), "600px");
+  await pointer(ctx, transfer, "pointerup", -20);
   await ctx.act(() => root.unmount());
 });
 

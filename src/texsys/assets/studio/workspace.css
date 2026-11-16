@@ -1293,7 +1293,11 @@
 .scm-graph-list {
   overflow: auto;
   min-height: 0;
-  padding-bottom: 6px;
+}
+.scm-graph-list::after {
+  content: "";
+  display: block;
+  height: 6px;
 }
 .scm-graph-row {
   display: flex;

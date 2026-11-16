@@ -601,6 +601,11 @@ test("Explorer and Source Control use view menus without moving file or scope ac
   await key(sash(), "ArrowUp");
   assert.equal(graph.getAttribute("aria-expanded"), "true");
   assert.equal(Number(sash().getAttribute("aria-valuenow")), foldedHeight + 8);
+  await key(sash(), "ArrowDown", { shiftKey: true });
+  assert.equal(graph.getAttribute("aria-expanded"), "false");
+  assert.equal(Number(sash().getAttribute("aria-valuenow")), foldedHeight);
+  await click(graph);
+  assert.equal(Number(sash().getAttribute("aria-valuenow")), foldedHeight + 8);
 });
 
 test("welcome explorer title menu manages view visibility like the reference", async (t) => {

@@ -560,7 +560,6 @@ export function WelcomeWorkspace({
               <ExplorerSideSections
                 showOutline={showOutline}
                 showTimeline={showTimeline}
-                foldersVisible={showFolders}
                 activeDocument={
                   current && active !== welcomeId
                     ? { name: current.name, value: current.value }

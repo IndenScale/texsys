@@ -24,7 +24,6 @@ type DraftGeneration =
   | { phase: "review"; destination: Omit<StudioAiSettings, "hasApiKey">; context: object }
   | { phase: "error" | "changed"; message: string };
 
-const MIN_PANE_HEIGHT = 72;
 const CHANGES_HEADING_HEIGHT = 27;
 const GRAPH_HEADING_HEIGHT = 22;
 
@@ -89,7 +88,6 @@ export function SourceControl({
   const changesExpanded = !collapsed.changes;
   const minGraphHeight = Math.min(GRAPH_HEADING_HEIGHT, Math.floor(height / 2));
   const maxGraphHeight = Math.max(minGraphHeight, height - CHANGES_HEADING_HEIGHT);
-  const preferredMinimum = Math.min(MIN_PANE_HEIGHT, Math.floor(height / 2));
   const splitHeight = Math.min(
     maxGraphHeight,
     Math.max(minGraphHeight, dragHeight ?? graphHeight ?? Math.round(height / 2)),
@@ -99,19 +97,17 @@ export function SourceControl({
       ? splitHeight
       : maxGraphHeight
     : minGraphHeight;
-  const resizeMin = graphExpanded ? Math.min(visibleGraphHeight, preferredMinimum) : minGraphHeight;
-  const resizeMax = changesExpanded
-    ? Math.min(maxGraphHeight, Math.max(visibleGraphHeight, height - preferredMinimum))
-    : maxGraphHeight;
   const startResize = () => ({
-    minDelta: visibleGraphHeight - resizeMax,
-    maxDelta: visibleGraphHeight - resizeMin,
+    minDelta: visibleGraphHeight - maxGraphHeight,
+    maxDelta: visibleGraphHeight - minGraphHeight,
     apply: (delta: number, commit: boolean) => {
       const next = visibleGraphHeight - delta;
-      setCollapsed((previous) => ({ ...previous, changes: !changesExpanded && delta <= 0 }));
-      setGraphExpanded(graphExpanded || delta < 0);
+      const nextGraphExpanded = next > minGraphHeight;
+      const nextChangesExpanded = next < maxGraphHeight;
+      setCollapsed((previous) => ({ ...previous, changes: !nextChangesExpanded }));
+      setGraphExpanded(nextGraphExpanded);
       setDragHeight(commit || !delta ? undefined : next);
-      if (commit && delta) saveGraphHeight(next);
+      if (commit && delta && nextGraphExpanded && nextChangesExpanded) saveGraphHeight(next);
     },
   });
   const [commitAttempted, setCommitAttempted] = useState(false);
@@ -537,8 +533,8 @@ export function SourceControl({
       {showChanges && showGraph && (changesExpanded || graphExpanded) && (
         <NavigatorSash
           label={t("调整更改与图谱高度")}
-          min={resizeMin}
-          max={resizeMax}
+          min={minGraphHeight}
+          max={maxGraphHeight}
           value={visibleGraphHeight}
           startResize={startResize}
           reset={() => saveGraphHeight()}

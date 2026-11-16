@@ -8,6 +8,9 @@ type ResizeSession = {
   apply: (delta: number, commit: boolean) => void;
 };
 
+const clampDelta = ({ minDelta, maxDelta }: ResizeSession, delta: number) =>
+  Math.min(maxDelta, Math.max(minDelta, Math.round(delta)));
+
 export function NavigatorSash({
   label,
   min,
@@ -27,16 +30,15 @@ export function NavigatorSash({
   const drag = useRef<
     (ResizeSession & { pointerId: number; y: number; delta: number; moved: boolean }) | null
   >(null);
-  const clampDelta = ({ minDelta, maxDelta }: ResizeSession, delta: number) =>
-    Math.min(maxDelta, Math.max(minDelta, Math.round(delta)));
-
   const finish = useCallback((event: PointerEvent) => {
     const session = drag.current;
     if (!session || session.pointerId !== event.pointerId) return;
     drag.current = null;
     document.body.classList.remove("side-sash-dragging");
     setDragging(false);
-    if (session.moved) session.apply(session.delta, true);
+    const delta =
+      event.type === "pointerup" ? clampDelta(session, event.clientY - session.y) : session.delta;
+    if (session.moved || delta) session.apply(delta, true);
   }, []);
 
   useEffect(() => {

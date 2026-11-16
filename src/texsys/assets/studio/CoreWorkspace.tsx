@@ -2288,7 +2288,6 @@ export function CoreWorkspaceProvider({
           <ExplorerSideSections
             showOutline={showOutline}
             showTimeline={showTimeline}
-            foldersVisible
             activeDocument={outlineDocument}
             cursor={outlineCursor}
             onNavigate={(range) => {
