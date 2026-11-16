@@ -56,6 +56,8 @@ from .earth_fault import build_earth_fault_check, build_earth_fault_study
 from .fuel_delivery import build_fuel_scene, build_fuel_view
 from .fuel_study import build_fuel_check, build_fuel_study
 from .fuel_system import build_fuel_system
+from .generator_yard import build_generator_yard, build_generator_yard_check
+from .generator_yard_delivery import build_generator_yard_scene, build_generator_yard_view
 from .lightning import build_lightning, build_lightning_check
 from .lightning_delivery import build_lightning_scene, build_lightning_view
 from .lightning_roof import build_lightning_roof
@@ -100,7 +102,7 @@ from .wet_utility_views import build_wet_view
 
 class DatacenterReferencePackage(TexsysPackage):
   name = "datacenter-reference"
-  version = "0.28.0"
+  version = "0.29.0"
 
   def targets(self) -> tuple[TargetDefinition, ...]:
     return (
@@ -198,6 +200,14 @@ class DatacenterReferencePackage(TexsysPackage):
                        dependencies=("dcr:fuel-system", "dcr:lightning-scene"), input_patterns=()),
       TargetDefinition("dcr:fuel-view", self.name, self.version, build_fuel_view,
                        dependencies=("dcr:fuel-study",), input_patterns=(), named_output=True),
+      TargetDefinition("dcr:generator-yard", self.name, self.version, build_generator_yard,
+                       dependencies=("dcr:fuel-study", "dcr:wet-utilities"), input_patterns=spatial_inputs("generator-yard.json")),
+      TargetDefinition("dcr:generator-yard-check", self.name, self.version, build_generator_yard_check,
+                       dependencies=("dcr:generator-yard",), input_patterns=()),
+      TargetDefinition("dcr:generator-yard-scene", self.name, self.version, build_generator_yard_scene,
+                       dependencies=("dcr:generator-yard",), input_patterns=()),
+      TargetDefinition("dcr:generator-yard-view", self.name, self.version, build_generator_yard_view,
+                       dependencies=("dcr:generator-yard",), input_patterns=(), named_output=True),
       TargetDefinition("dcr:fire-systems", self.name, self.version, build_fire_systems, dependencies=("dcr:architecture",),
                        input_patterns=spatial_inputs("*.sdl.json", "*/module.toml", "fire-systems.json",
                                                      "design-basis.json", "placement.study.json")),

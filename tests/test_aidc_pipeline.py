@@ -72,7 +72,7 @@ def test_aidc_deliverables_bind_to_the_same_geometry_and_recompute_the_fws_head(
   assert dossier["engineering_acceptance"] == "pending-responsible-review"
   compiled_sheets = sorted((root / "build/drawings/sheets").glob("*.svg"))
   drawing_numbers = {ET.parse(path).getroot().get("data-drawing-number") for path in compiled_sheets}
-  assert len(compiled_sheets) == len(drawing_numbers) == 104 and None not in drawing_numbers
+  assert len(compiled_sheets) == len(drawing_numbers) == 108 and None not in drawing_numbers
   old_dossier = file_digest(root / "build/review/aidc-discipline-review.json")
   drawing = root / "build/drawings/sheets/fws-network.svg"
   old_route_drawing = file_digest(drawing)
@@ -91,6 +91,7 @@ def test_aidc_deliverables_bind_to_the_same_geometry_and_recompute_the_fws_head(
   _check_earthing_delivery(root)
   _check_lightning_delivery(root)
   _check_fuel_delivery(root)
+  _check_generator_yard_delivery(root)
   _check_storm_delivery(root)
   _check_fws_network_delivery(root)
   _check_building_delivery(root)
@@ -820,6 +821,35 @@ def test_rolling_sphere_contact_bound_matches_vertical_analytic_solution():
   nominal,alternative,_ = bounded_contacts(np.zeros((1,3)),np.zeros(1),np.array([[0.,0.,2.],[0.,0.,1.]]),20,0,.05)
   assert nominal == pytest.approx([2-4/40])
   assert alternative == pytest.approx([1-1/40])
+
+
+def _check_generator_yard_delivery(root):
+  yard = _read(root / MODEL / "generator-yard.json")
+  check = _read(root / MODEL / "generator-yard-check.json")
+  assert check["model_digest"] == file_digest(root / MODEL / "generator-yard.json")
+  assert check["status"] == "pass" and check["selection_status"] == "conditional"
+  assert len(yard["equipment"]) == len(yard["power_and_fuel_cases"]) == 4
+  assert all(not row["fits_axis_aligned_skids"] for row in yard["original_host_fit"].values())
+  for offline, case in yard["power_and_fuel_cases"].items():
+    assert case["running"] != offline and case["running"].split("/")[0] == offline.split("/")[0]
+    assert case["active_margin_kw"] == pytest.approx(4)
+    assert case["sensitivity_margin_kw"] == pytest.approx(-24.8)
+    assert case["sensitivity_status"] == "fail"
+    assert case["original_storage_h_on_same_duty"] == pytest.approx(11.175566)
+    assert case["endurance_h"] == pytest.approx(case["usable_l"] / 718)
+    assert case["gross_circulation_lph"] == case["net_return_lph"] + case["rated_burn_lph"]
+  assert yard["checks"]["RETENTION_longer"]["free_m3"] > 8.5
+  stage = Usd.Stage.Open(str(root / "build/scenes/aidc-generator-yard-alternative.usda"))
+  assert UsdGeom.GetStageUpAxis(stage) == UsdGeom.Tokens.z
+  plan = ET.parse(root / "build/drawings/views/generator-yard-plan.svg")
+  rect = plan.find(f".//{SVG}rect[@data-geometry='indicative_skid']")
+  asset = rect.get("data-object")
+  box = yard["equipment"][asset]["indicative_skid"]
+  assert float(rect.get("x")) == pytest.approx(box["minimum_m"][0])
+  assert float(rect.get("width")) == pytest.approx(box["maximum_m"][0] - box["minimum_m"][0])
+  slug = asset.replace("/", "_")
+  skid = stage.GetPrimAtPath(f"/AIDC/GeneratorYard/Equipment/{slug}/indicative_skid")
+  assert skid.GetAttribute("texsys:identity").Get() == asset
 
 
 def _check_fuel_delivery(root):

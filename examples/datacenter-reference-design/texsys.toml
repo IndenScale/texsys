@@ -12,7 +12,7 @@ build = "build"
 default_targets = ["review-package"]
 
 [dependencies]
-datacenter-reference = { path = "../../packages/datacenter-reference", version = "0.28.0" }
+datacenter-reference = { path = "../../packages/datacenter-reference", version = "0.29.0" }
 sheet = { path = "../../packages/sheet", version = "0.2.0" }
 
 [build.targets.review-package]
@@ -80,12 +80,18 @@ dependencies = [
   "dcr:lightning-scene",
   "dcr:fuel-check",
   "dcr:fuel-scene",
+  "dcr:generator-yard-check",
+  "dcr:generator-yard-scene",
   "sheet-fuel-yard",
   "sheet-fuel-indoor",
   "sheet-fuel-sections",
   "sheet-fuel-system",
   "sheet-fuel-checks",
   "sheet-fuel-containment",
+  "sheet-generator-yard-plan",
+  "sheet-generator-yard-section",
+  "sheet-generator-yard-adequacy",
+  "sheet-generator-yard-containment",
   "sheet-lightning-roof",
   "sheet-lightning-coverage",
   "sheet-lightning-section",
@@ -1326,3 +1332,47 @@ using = "sheet:compose"
 dependencies = ["plan-fuel-containment"]
 scope = { source = "assets/sheets/fuel-containment.sheet.json" }
 output = "build/drawings/sheets/fuel-containment.svg"
+
+[build.targets.plan-generator-yard-plan]
+using = "dcr:generator-yard-view"
+output = "build/drawings/views/generator-yard-plan.svg"
+scope = { view = "plan" }
+
+[build.targets.sheet-generator-yard-plan]
+using = "sheet:compose"
+dependencies = ["plan-generator-yard-plan"]
+scope = { source = "assets/sheets/generator-yard-plan.sheet.json" }
+output = "build/drawings/sheets/generator-yard-plan.svg"
+
+[build.targets.plan-generator-yard-section]
+using = "dcr:generator-yard-view"
+output = "build/drawings/views/generator-yard-section.svg"
+scope = { view = "section" }
+
+[build.targets.sheet-generator-yard-section]
+using = "sheet:compose"
+dependencies = ["plan-generator-yard-section"]
+scope = { source = "assets/sheets/generator-yard-section.sheet.json" }
+output = "build/drawings/sheets/generator-yard-section.svg"
+
+[build.targets.plan-generator-yard-adequacy]
+using = "dcr:generator-yard-view"
+output = "build/drawings/views/generator-yard-adequacy.svg"
+scope = { view = "adequacy" }
+
+[build.targets.sheet-generator-yard-adequacy]
+using = "sheet:compose"
+dependencies = ["plan-generator-yard-adequacy"]
+scope = { source = "assets/sheets/generator-yard-adequacy.sheet.json" }
+output = "build/drawings/sheets/generator-yard-adequacy.svg"
+
+[build.targets.plan-generator-yard-containment]
+using = "dcr:generator-yard-view"
+output = "build/drawings/views/generator-yard-containment.svg"
+scope = { view = "containment" }
+
+[build.targets.sheet-generator-yard-containment]
+using = "sheet:compose"
+dependencies = ["plan-generator-yard-containment"]
+scope = { source = "assets/sheets/generator-yard-containment.sheet.json" }
+output = "build/drawings/sheets/generator-yard-containment.svg"

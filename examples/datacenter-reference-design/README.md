@@ -96,7 +96,7 @@ uv run --locked texsys build -p examples/datacenter-reference-design --target dc
 uv run --locked texsys build -p examples/datacenter-reference-design --target dcr:air-coordination --target dcr:air-check --target sheet-air-environment
 ```
 
-成品图在 `build/drawings/sheets/`，包含 104 张 A3 图及各图的来源报告。可校准图纸按标题栏比例原尺寸打印。门、疏散、预留、构件、保护、馈线、洞口定位、水力、弱电端接、热瞬态及消防工况表在 `build/schedules/`。综合交付包含 `build/scenes/aidc-fuel-coordinated.usda` 燃油全场协调、`build/scenes/aidc-fuel.usda` 燃油专业含事故池剖切、`build/scenes/aidc-lightning-coordinated.usda` 全场防雷协调、`build/scenes/aidc-lightning.usda` 防雷专业场景、`build/scenes/aidc-earthing-coordinated.usda` 接地全场协调、`build/scenes/aidc-earthing.usda` 接地专业场景、`build/scenes/aidc-lighting-distribution-coordinated.usda` 灯控配电全场协调、`build/scenes/aidc-lighting-distribution.usda` 灯控安装专业场景、`build/scenes/aidc-emergency-lighting-coordinated.usda` 应急照明全场协调、`build/scenes/aidc-emergency-lighting.usda` 应急照明专业场景、`build/scenes/aidc-exit-access-coordinated.usda` 场区疏散协调、`build/scenes/aidc-exit-access.usda` 建筑出口专业场景、`build/scenes/aidc-equipment-foundations-coordinated.usda` 全场设备基础协调、`build/scenes/aidc-equipment-foundations.usda` 场区基础锚栓专业场景、`build/scenes/aidc-roof-transfer-coordinated.usda` 全场屋面传力协调、`build/scenes/aidc-roof-transfer.usda` 主体屋面传力专业场景、`build/scenes/aidc-lateral-coordinated.usda` 全场结构支撑协调、`build/scenes/aidc-braced-frame.usda` 主体结构支撑、`build/scenes/aidc-facility-power-coordinated.usda` 全场动力协调、`build/scenes/aidc-facility-power.usda` 冷源动力专业场景、`build/scenes/aidc-site-storm-underground.usda` 雨水地下工程剖切场景、`build/scenes/aidc-roof-assembly.usda` 屋盖专项场景、`build/scenes/aidc-power-roof.usda` 电气专业屋面场景及 `build/scenes/aidc-it-pod-air.usda` 典型舱内送回风、TCS 与设备剖切场景。专业审查材料在 `build/review/aidc-discipline-review.json`。用 Tex Studio 的文件资源管理器或快速打开读取上述文件。
+成品图在 `build/drawings/sheets/`，包含 108 张 A3 图及各图的来源报告。可校准图纸按标题栏比例原尺寸打印。门、疏散、预留、构件、保护、馈线、洞口定位、水力、弱电端接、热瞬态及消防工况表在 `build/schedules/`。综合交付包含 `build/scenes/aidc-fuel-coordinated.usda` 燃油全场协调、`build/scenes/aidc-fuel.usda` 燃油专业含事故池剖切、`build/scenes/aidc-lightning-coordinated.usda` 全场防雷协调、`build/scenes/aidc-lightning.usda` 防雷专业场景、`build/scenes/aidc-earthing-coordinated.usda` 接地全场协调、`build/scenes/aidc-earthing.usda` 接地专业场景、`build/scenes/aidc-lighting-distribution-coordinated.usda` 灯控配电全场协调、`build/scenes/aidc-lighting-distribution.usda` 灯控安装专业场景、`build/scenes/aidc-emergency-lighting-coordinated.usda` 应急照明全场协调、`build/scenes/aidc-emergency-lighting.usda` 应急照明专业场景、`build/scenes/aidc-exit-access-coordinated.usda` 场区疏散协调、`build/scenes/aidc-exit-access.usda` 建筑出口专业场景、`build/scenes/aidc-equipment-foundations-coordinated.usda` 全场设备基础协调、`build/scenes/aidc-equipment-foundations.usda` 场区基础锚栓专业场景、`build/scenes/aidc-roof-transfer-coordinated.usda` 全场屋面传力协调、`build/scenes/aidc-roof-transfer.usda` 主体屋面传力专业场景、`build/scenes/aidc-lateral-coordinated.usda` 全场结构支撑协调、`build/scenes/aidc-braced-frame.usda` 主体结构支撑、`build/scenes/aidc-facility-power-coordinated.usda` 全场动力协调、`build/scenes/aidc-facility-power.usda` 冷源动力专业场景、`build/scenes/aidc-site-storm-underground.usda` 雨水地下工程剖切场景、`build/scenes/aidc-roof-assembly.usda` 屋盖专项场景、`build/scenes/aidc-power-roof.usda` 电气专业屋面场景及 `build/scenes/aidc-it-pod-air.usda` 典型舱内送回风、TCS 与设备剖切场景。专业审查材料在 `build/review/aidc-discipline-review.json`。用 Tex Studio 的文件资源管理器或快速打开读取上述文件。
 
 主机房屋盖在 +4.900 m 主体钢梁顶以上形成 +5.200 m 钢承板底及最高 +5.476 m 完成面。64 个设施水及关键电气预留逐层切空，并由同一套坐标更新设施水和电气剖面。本例编译屋面与檩条候选自重约 480.82 kN，逐檩条支座力用于计算主体钢梁和基础。四处屋面落水在设计雨强下单点约 6.79 L/s，从场坪以上 0.40 m 落水口转接至室外受水井。闭合屋面综合视图隐藏此视角下位于舱内的细密 TCS 管线；管线与舱内设备可从已有 TCS 与典型舱场景查看。
 
@@ -176,7 +176,6 @@ uv run --locked texsys build -p examples/datacenter-reference-design \
 
 E-020 至 E-024 提供场区、主机房、跨管剖面、接地极放样及保护校核。导体清单、逐工况计算及接地极退出记录随图交付。源侧中性点及转换极数、接地故障保护级配、内部三处柱脚接头、现场土壤及跨步／接触电压、场区独立设施防雷及现场测试列入专业待审事项。
 
-
 ## 主机房防雷与浪涌防护
 
 沿屋面轴线生成约 191.01 m 接闪带、12 根桅杆及 12 根引下线。引下线通过柱脚连接套用保护接地环网和接地极编号。以 45 m 候选滚球及所声明的周边地面下界，对屋面和外露桥架、设施水管进行连续面片与接触方向校核。北侧 B-P3 为最不利包络。记录单桅杆失效时需复核的面片，并验证逐条引下线断开后接闪端至接地极的金属连续性。接闪带约 1.26 kN 分配到檩条，桅杆约 7.80 kN 经对应柱头进入重力与候选地震重量。屋盖含新增附件为 0.799 kPa，接近 0.800 kPa 候选自重限值。SPD 定位到柜内实际转换和关键出线母线，以本地引线和浪涌前沿复算合成保护电平。
@@ -189,7 +188,6 @@ uv run --locked texsys build -p examples/datacenter-reference-design \
 ```
 
 E-025 至 E-029 交付屋面、覆盖平面、北墙剖面、SPD 系统及校核图。导体、覆盖及浪涌计算表随图交付。全场防雷视图采用闭合屋面，默认隐藏舱内风路。在舱内风侧专业场景可查看风道和设备。真实风险定级和场外地形、桅杆连接和风作用传力、场区独立冷源和发电油区、触及和跨步电压、信号及中压进线、SPD 产品配合和现场测试列入专业审查。
-
 
 ## 备用发电燃油及事故液
 
@@ -205,3 +203,16 @@ uv run --locked texsys build -p examples/datacenter-reference-design \
 ```
 
 舱内设备仍使用锁定候选占位尺寸，实际 3000 kW 机组和日用箱检修空间保留专业核证。实际储罐通气、高温回油、锚固、卸油和外部车辆、联锁接线、转输黑启动供电、密闭池材料及第三方验收待深化。
+
+### 400 V 备用发电区备选
+
+以 MTU 20V4000 DS4000 DCC 3F 的 400 V、50 Hz 公开数据为输入，对照原 12 m 双机方舱。厂家表列参考机座的两台总长度已超过原方舱，原罐按 718 L/h 只能使用 11.18 h。候选区按四台独立机位、分列主罐及供回油改布。每列的净油量约 10,340 L，带载约 14.40 h。以 2,771 kW 设施预算和 105 kW 散热风机计算时，机组净余量 4 kW，折减 1% 时出现 24.8 kW 缺口。机座尺寸和干重沿用厂家表中 11 kV 示例作为占位参考。400 V 成套图、场地降容曲线、供回油接口、排烟及保护试验等待专业审查。[厂家数据表 16120831](https://www.mtu-solutions.com/content/dam/mtu/products/power-generation/powergeneration-product-list-latest/16120831_PG_spec_20V4000DS4000_3630kVA_3F_NEA_50Hz.pdf/_jcr_content/renditions/original./16120831_PG_spec_20V4000DS4000_3630kVA_3F_NEA_50Hz.pdf)
+
+备选输入为 `src/generator-yard.json`。输出 E-030 总平面、M-027 剖面、E-031 接口及工况、F-010 联合容量、OpenUSD 油区剖切和工况 CSV。总平面索引引用 M-027 剖面，备选场景在 `build/scenes/aidc-generator-yard-alternative.usda`，可独立检查机座、基础、散热器、管路和池体。备选与当前方舱设计并列审查，各自使用自己的布置和运行假设。
+
+```bash
+uv run --locked texsys build -p examples/datacenter-reference-design \
+  --target dcr:generator-yard-check --target dcr:generator-yard-scene \
+  --target sheet-generator-yard-plan --target sheet-generator-yard-section \
+  --target sheet-generator-yard-adequacy --target sheet-generator-yard-containment
+```

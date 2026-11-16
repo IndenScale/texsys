@@ -1,0 +1,50 @@
+{
+  "schema_version": 1,
+  "state": "assumed",
+  "basis": "单台带整列负载的 400 V 备选布置。厂家值用于限界初筛，散热器、罩体、基础、接口和场地折减按本项目候选值建模。",
+  "reference": {
+    "model": "MTU 20V4000 DS4000 DCC 3F",
+    "document": "16120831",
+    "url": "https://www.mtu-solutions.com/content/dam/mtu/products/power-generation/powergeneration-product-list-latest/16120831_PG_spec_20V4000DS4000_3630kVA_3F_NEA_50Hz.pdf/_jcr_content/renditions/original./16120831_PG_spec_20V4000DS4000_3630kVA_3F_NEA_50Hz.pdf",
+    "voltage_v": 400, "frequency_hz": 50, "gross_kw": 2880, "gross_kva": 3600,
+    "radiator_kw": 105, "radiator_reference_c": 40, "rated_fuel_lph": 718,
+    "maximum_fuel_circulation_lpm": 27, "maximum_fuel_lift_m": 5,
+    "indicative_skid_m": [6.343, 1.810, 2.421], "indicative_dry_kg": 20810,
+    "skid_basis": "数据表外形和干重为所列 11 kV 版的示例值。400 V 机组与散热器组合总装图待取得。"
+  },
+  "electrical": {
+    "site_derate_fraction": 0, "sensitivity_derate_fraction": 0.01,
+    "facility_pf": 0.8, "radiator_pf": 0.8,
+    "generator_feeder_ampacity_a": 6300, "facility_transfer_ampacity_a": 6300
+  },
+  "yard": {
+    "extent_m": [55.4, 28.25, 77.8, 43.65],
+    "formation_m": 0.10, "bund_crest_m": 0.26,
+    "collector_xy_m": [74.90, 36.1], "collector_rim_m": -0.12,
+    "collector_pipe_invert_m": -0.66, "basin_pipe_invert_m": -0.72, "collector_pipe_inside_m": 0.20,
+    "minimum_surface_slope": 0.006, "utility_clearance_m": 0.35,
+    "basin_inner_extent_m": [76.52, 32.5, 79.1, 40.6],
+    "basin_bottom_m": -3.36, "basin_ceiling_m": -0.60, "basin_working_depth_m": 2.22
+  },
+  "equipment": {
+    "overall_reservation_m": [9.15, 3.25, 3.70], "minimum_access_m": 0.80,
+    "radiator_reservation_m": [1.90, 2.85, 3.25],
+    "pad_z_m": 0.37, "pad_thickness_m": 0.45, "pad_edge_m": 0.14,
+    "wet_design_kg": 30000, "concrete_kn_m3": 24, "bearing_limit_kpa": 85,
+    "origins_m": {
+      "GenContainerA/Genset1": [56.56, 29.22],
+      "GenContainerA/Genset2": [66.82, 29.22],
+      "GenContainerB/Genset1": [56.56, 39.49],
+      "GenContainerB/Genset2": [66.82, 39.49]
+    }
+  },
+  "fuel": {
+    "inner_diameter_m": 1.80, "inner_length_m": 4.58, "jacket_m": 0.05,
+    "minimum_oil_depth_m": 0.20, "maximum_oil_depth_m": 1.62,
+    "tank_bottom_m": 0.25, "day_tank_freeboard_m": 0.16, "unavailable_pumps": [],
+    "tanks": {
+      "A": {"center_xy_m": [59.5, 34.65], "pump_xy_m": [56.5, 34.65], "transfer_y_m": 33.20},
+      "B": {"center_xy_m": [68.8, 37.25], "pump_xy_m": [65.82, 37.25], "transfer_y_m": 38.68}
+    }
+  }
+}
