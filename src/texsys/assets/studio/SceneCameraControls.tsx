@@ -83,7 +83,6 @@ export function SceneCameraControls({
   const [name, setName] = useState("");
   const [error, setError] = useState("");
   const [dragPosition, setDragPosition] = useState<SceneControlsPosition>();
-  const [lastStandardView, setLastStandardView] = useState<ViewDirection | undefined>("iso");
   const drag = useRef<ControlsDrag | undefined>(undefined);
   const { x, y } = dragPosition ?? position;
   const dialog = useRef<HTMLDialogElement>(null);
@@ -105,12 +104,7 @@ export function SceneCameraControls({
   };
   const switchView = (direction: ViewDirection) => {
     renderer.current?.fit(undefined, direction);
-    setLastStandardView(direction);
     focusViewport();
-  };
-  const nextView = () => {
-    const current = standardViews.findIndex(([direction]) => direction === lastStandardView);
-    switchView(standardViews[(current + 1) % standardViews.length][0]);
   };
   const items: NavigatorMenuItem[] = standardViews.map(([direction, label]) => ({
     label: t(label),
@@ -125,7 +119,6 @@ export function SceneCameraControls({
         icon: "cube",
         run: () => {
           renderer.current?.applyView(viewport);
-          setLastStandardView(undefined);
           focusViewport();
         },
       })),
@@ -213,10 +206,10 @@ export function SceneCameraControls({
         </div>
         <div className="scene-view-controls">
           <EditorActionButton
-            label={t("切换视角")}
+            label={t("等轴测")}
             icon="cube"
             disabled={!canFit}
-            onClick={nextView}
+            onClick={() => switchView("iso")}
           />
           <NavigatorMenu
             label={t("选择视角")}

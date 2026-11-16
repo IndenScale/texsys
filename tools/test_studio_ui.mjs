@@ -1926,10 +1926,10 @@ test("mounted artifact previews preserve their viewport when file geometry chang
   assert.ok(controls.querySelector('[aria-label="适应视图"] svg'));
   assert.equal(cameraControls.querySelector('[aria-label="适应视图"]'), null);
   const zoomSlider = () => container.querySelector('.scene-zoom-control input[type="range"]');
-  const cycle = cameraControls.querySelector('button[aria-label="切换视角"]');
+  const isometric = cameraControls.querySelector('button[aria-label="等轴测"]');
   const angle = cameraControls.querySelector('button[aria-label="选择视角"][aria-haspopup="menu"]');
-  assert.equal(cycle.querySelectorAll("svg").length, 1);
-  assert.equal(cycle.hasAttribute("aria-haspopup"), false);
+  assert.equal(isometric.querySelectorAll("svg").length, 1);
+  assert.equal(isometric.hasAttribute("aria-haspopup"), false);
   assert.equal(angle.querySelectorAll("svg").length, 1);
   assert.equal(zoomSlider().getAttribute("aria-valuetext"), "100%");
   assert.equal(controls.querySelector('[aria-label="缩放"], [aria-label="选择视角"]'), null);
@@ -1963,13 +1963,20 @@ test("mounted artifact previews preserve their viewport when file geometry chang
   assert.equal(cameraControls.hasAttribute("data-dragging"), false);
   assert.equal(zoomSlider().getAttribute("aria-valuetext"), "100%");
 
-  for (const projection of ["orthographic", "orthographic", "orthographic", "perspective"]) {
-    const previousEye = latestViewport.eye;
-    await act(() => cycle.click());
-    assert.equal(latestViewport.projection, projection);
-    assert.notDeepEqual(latestViewport.eye, previousEye);
-    assert.equal(angle.getAttribute("aria-expanded"), "false");
-  }
+  const viewMenu = cameraControls.querySelector('[role="menu"][aria-label="选择视角"]');
+  viewMenu.hidePopover = () => {};
+  const topView = Array.from(viewMenu.querySelectorAll("button")).find(
+    (button) => button.textContent === "俯视",
+  );
+  await act(() => topView.click());
+  assert.equal(latestViewport.projection, "orthographic");
+  await act(() => isometric.click());
+  assert.equal(latestViewport.projection, "perspective");
+  assert.equal(angle.getAttribute("aria-expanded"), "false");
+  const isometricEye = latestViewport.eye;
+  await act(() => isometric.click());
+  assert.equal(latestViewport.projection, "perspective");
+  assert.deepEqual(latestViewport.eye, isometricEye);
   await flushFrames();
   const setZoom = async (value) => {
     await act(() => {

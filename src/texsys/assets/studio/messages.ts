@@ -43,7 +43,6 @@ export const englishMessages: Record<string, string> = {
   集合: "Collection",
   适应视图: "Fit visible objects",
   场景导航: "Scene navigation",
-  切换视角: "Cycle view",
   选择视角: "Choose view",
   保存当前机位: "Save current camera view",
   "保存当前机位…": "Save current camera view…",
