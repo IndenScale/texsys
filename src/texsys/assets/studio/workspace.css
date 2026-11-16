@@ -22,7 +22,7 @@
   color: var(--ui-text);
   white-space: nowrap;
 }
-.core-sidebar[data-activity="explorer"] > .navigator-heading,
+.core-sidebar:is([data-activity="explorer"], [data-activity="scm"]) > .navigator-heading,
 .core-workspace-heading,
 .core-open-editors-heading {
   user-select: none;
@@ -987,10 +987,49 @@
   padding-inline: var(--scm-start) var(--scm-end);
   margin-block: 4px 6px;
 }
-.scm-working {
+.scm-repository {
+  flex: none;
+  border-bottom: 1px solid var(--ui-chrome-border-subtle);
+}
+.scm-repository-row:not([hidden]),
+.scm-status-error {
+  display: flex;
+  align-items: center;
+}
+.scm-repository-row {
+  gap: 6px;
+  min-height: 28px;
+  padding-inline: var(--scm-start) var(--scm-end);
+}
+.scm-repository-row > svg {
+  flex: none;
+  color: var(--ui-text-muted);
+}
+.scm-repository-row > span {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.scm-status-error {
+  justify-content: space-between;
+  padding-inline-end: var(--scm-end);
+}
+.scm-views,
+.scm-working:not([hidden]) {
+  flex: 1 1 0;
   display: flex;
   flex-direction: column;
   min-height: 0;
+}
+.scm-working:not([hidden]).collapsed {
+  flex: none;
+}
+.scm-working-content {
+  min-height: 0;
+  overflow: auto;
+  scrollbar-width: thin;
 }
 .scm-section-heading {
   display: flex;
@@ -998,9 +1037,6 @@
   flex: none;
   min-height: 22px;
   padding-inline: var(--navigator-gutter) var(--scm-end);
-}
-.scm-changes-heading {
-  min-height: 27px;
 }
 .scm-changes-heading:has(> .scm-section-toggle:focus-visible) {
   outline: 2px solid var(--accent);
@@ -1167,11 +1203,6 @@
 .scm-clean {
   padding: 6px var(--scm-end) 8px var(--scm-start);
 }
-.scm-file-list {
-  overflow: auto;
-  min-height: 0;
-  scrollbar-width: thin;
-}
 .scm-group-rows {
   position: relative;
 }
@@ -1242,20 +1273,19 @@
     500 12px/1 system-ui,
     sans-serif;
 }
-.scm-graph {
+.scm-graph:not([hidden]) {
   --scm-lane-0: #3689d3;
   --scm-lane-1: #b277c6;
   --scm-lane-2: #20947f;
   --scm-lane-3: #bd882e;
-  flex: 1 0 min(32%, 176px);
+  flex: 1 1 0;
   min-height: 0;
+  overflow: hidden;
   display: flex;
   flex-direction: column;
-  border-top: 1px solid var(--ui-border);
 }
-.scm-graph.collapsed {
-  flex: 0 0 auto;
-  margin-top: auto;
+.scm-graph:not([hidden]).collapsed {
+  flex: none;
 }
 .scm-graph > .scm-section-heading {
   flex-shrink: 0;

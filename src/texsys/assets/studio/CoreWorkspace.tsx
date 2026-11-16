@@ -151,9 +151,9 @@ type EditorGroupContent = {
   editorActions: ReactNode;
   editor: ReactNode;
 };
-type ExplorerHeading = "panel" | "workspace" | "editors";
-type ExplorerHeadingMenu = {
-  heading: ExplorerHeading;
+type SidebarHeading = "panel" | "workspace" | "editors" | "scm";
+type SidebarHeadingMenu = {
+  heading: SidebarHeading;
   x: number;
   y: number;
   anchor: HTMLElement;
@@ -467,7 +467,7 @@ export function CoreWorkspaceProvider({
   }, [api, libraryFolders, libraryRevision, state.project.revision, state.project.path]);
   const [expanded, setExpanded] = useState(new Set<string>(["src", "assets"]));
   const [explorerMenu, setExplorerMenu] = useState<{ x: number; y: number; path: string }>();
-  const [headingMenu, setHeadingMenu] = useState<ExplorerHeadingMenu>();
+  const [headingMenu, setHeadingMenu] = useState<SidebarHeadingMenu>();
   const [workspaceOpen, setWorkspaceOpen] = useState(true);
   const [openEditorsExpanded, setOpenEditorsExpanded] = useState(true);
   const workspaceTreeId = React.useId();
@@ -552,7 +552,9 @@ export function CoreWorkspaceProvider({
   const [searchGeneration, setSearchGeneration] = useState(0);
   const [gitScope, setGitScope] = useState<"project" | "repository">("project");
   const [gitRefreshGeneration, setGitRefreshGeneration] = useState(0);
-  const [gitGraphExpanded, setGitGraphExpanded] = useState<boolean>();
+  const [gitGraphExpanded, setGitGraphExpanded] = useState(true);
+  const [gitRepositoryExpanded, setGitRepositoryExpanded] = useState(true);
+  const gitRepositoryId = React.useId();
   const [gitStatus, setGitStatus] = useState<GitStatus>(),
     [gitError, setGitError] = useState("");
   const [message, setMessage] = useState(""),
@@ -1934,8 +1936,8 @@ export function CoreWorkspaceProvider({
     setExplorerMenu(undefined);
     setHeadingMenu(undefined);
   }, [activity, layout.sidebarOpen]);
-  const openExplorerHeadingMenu = (
-    heading: ExplorerHeading,
+  const openSidebarHeadingMenu = (
+    heading: SidebarHeading,
     event: React.MouseEvent<HTMLElement> | React.KeyboardEvent<HTMLElement>,
   ) => {
     const keyboard = "key" in event;
@@ -1947,7 +1949,7 @@ export function CoreWorkspaceProvider({
     const anchor =
       button && !button.disabled
         ? button
-        : heading === "panel"
+        : heading === "panel" || heading === "scm"
           ? event.currentTarget
           : (event.currentTarget.querySelector("button") ?? event.currentTarget);
     anchor.focus({ preventScroll: true });
@@ -1959,9 +1961,9 @@ export function CoreWorkspaceProvider({
       anchor,
     });
   };
-  const explorerHeadingEvents = (heading: ExplorerHeading): React.HTMLAttributes<HTMLElement> => ({
-    onContextMenu: (event) => openExplorerHeadingMenu(heading, event),
-    onKeyDown: (event) => openExplorerHeadingMenu(heading, event),
+  const sidebarHeadingEvents = (heading: SidebarHeading): React.HTMLAttributes<HTMLElement> => ({
+    onContextMenu: (event) => openSidebarHeadingMenu(heading, event),
+    onKeyDown: (event) => openSidebarHeadingMenu(heading, event),
   });
   const requiredFolders = t("文件夹是必需的视图。");
   const toggleOpenEditors = () =>
@@ -2021,6 +2023,29 @@ export function CoreWorkspaceProvider({
     ...explorerViewActions.map((item, index) =>
       index === 0 ? { ...item, separator: true } : item,
     ),
+  ];
+  const showScmRepositories = layout.scmRepositories === true;
+  const showScmChanges = layout.scmChanges !== false;
+  const showScmGraph = layout.scmGraph !== false;
+  const scmViewActions: NavigatorMenuItem[] = [
+    {
+      label: t("存储库"),
+      checkbox: true,
+      checked: showScmRepositories,
+      run: () => changeLayout({ scmRepositories: !showScmRepositories }),
+    },
+    {
+      label: t("更改"),
+      checkbox: true,
+      checked: showScmChanges,
+      run: () => changeLayout({ scmChanges: !showScmChanges }),
+    },
+    {
+      label: t("图谱"),
+      checkbox: true,
+      checked: showScmGraph,
+      run: () => changeLayout({ scmGraph: !showScmGraph }),
+    },
   ];
   const refreshScm = () => {
     void readGit();
@@ -2082,35 +2107,7 @@ export function CoreWorkspaceProvider({
     ) : activity === "explorer" ? (
       <NavigatorMenu key="explorer" label={t("资源管理器更多操作")} items={explorerTitleActions} />
     ) : activity === "scm" ? (
-      <NavigatorMenu
-        key="scm"
-        label={t("源码管理范围")}
-        title={gitScope === "project" ? state.project.path : gitStatus?.repository}
-        triggerClassName="scm-scope-trigger"
-        triggerIcon={
-          <>
-            <span>{t(gitScope === "project" ? "当前项目" : "整个仓库")}</span>
-            <Icon name="scm-chevron" size={13} />
-          </>
-        }
-        items={[
-          {
-            label: t("当前项目"),
-            checked: gitScope === "project",
-            reason: state.project.path,
-            run: busy || !gitStatus?.available ? undefined : () => changeScmScope("project"),
-          },
-          {
-            label: t("整个仓库"),
-            checked: gitScope === "repository",
-            reason: gitStatus?.repository,
-            run: busy || !gitStatus?.available ? undefined : () => changeScmScope("repository"),
-          },
-          ...(gitStatus?.available
-            ? []
-            : [{ label: t("刷新源代码管理"), run: busy ? undefined : refreshScm }]),
-        ]}
-      />
+      <NavigatorMenu key="scm" label={t("源代码管理视图")} items={scmViewActions} />
     ) : activity === "extensions" ? (
       extensions.actions
     ) : activity === "library" ? (
@@ -2131,10 +2128,12 @@ export function CoreWorkspaceProvider({
       actions={sidebarActions}
       headingProps={
         activity === "explorer"
-          ? { ...explorerHeadingEvents("panel"), tabIndex: -1 }
-          : activity === "extensions"
-            ? extensions.headingProps
-            : undefined
+          ? { ...sidebarHeadingEvents("panel"), tabIndex: -1 }
+          : activity === "scm"
+            ? { ...sidebarHeadingEvents("scm"), tabIndex: -1 }
+            : activity === "extensions"
+              ? extensions.headingProps
+              : undefined
       }
     >
       <NavigatorPage
@@ -2156,7 +2155,7 @@ export function CoreWorkspaceProvider({
         <div className="core-explorer">
           {layout.explorerOpenEditors && (
             <>
-              <div className="core-open-editors-heading" {...explorerHeadingEvents("editors")}>
+              <div className="core-open-editors-heading" {...sidebarHeadingEvents("editors")}>
                 <button
                   type="button"
                   className="core-open-editors-toggle"
@@ -2175,7 +2174,7 @@ export function CoreWorkspaceProvider({
               </div>
             </>
           )}
-          <div className="core-workspace-heading" {...explorerHeadingEvents("workspace")}>
+          <div className="core-workspace-heading" {...sidebarHeadingEvents("workspace")}>
             <button
               ref={workspaceToggleRef}
               className="core-workspace-toggle"
@@ -2331,10 +2330,65 @@ export function CoreWorkspaceProvider({
         hidden={activity !== "scm"}
         aria-label={t("源代码管理内容")}
       >
+        {showScmRepositories && (
+          <section className="scm-repository">
+            <div className="scm-section-heading">
+              <button
+                type="button"
+                className="scm-section-toggle"
+                aria-expanded={gitRepositoryExpanded}
+                aria-controls={gitRepositoryId}
+                onClick={() => setGitRepositoryExpanded(!gitRepositoryExpanded)}
+              >
+                <Icon name="scm-chevron" size={14} />
+                <strong>{t("存储库")}</strong>
+              </button>
+            </div>
+            <div
+              className="scm-repository-row"
+              id={gitRepositoryId}
+              hidden={!gitRepositoryExpanded}
+            >
+              <Icon name="repository" size={16} />
+              <span title={gitStatus?.repository}>
+                {gitStatus?.repository?.split("/").at(-1) ?? state.project.name}
+              </span>
+              <NavigatorMenu
+                label={t("源码管理范围")}
+                title={gitScope === "project" ? state.project.path : gitStatus?.repository}
+                triggerClassName="scm-scope-trigger"
+                triggerDisabled={busy || !gitStatus?.available}
+                triggerIcon={
+                  <>
+                    <span>{t(gitScope === "project" ? "当前项目" : "整个仓库")}</span>
+                    <Icon name="scm-chevron" size={13} />
+                  </>
+                }
+                items={[
+                  {
+                    label: t("当前项目"),
+                    checked: gitScope === "project",
+                    reason: state.project.path,
+                    run: () => changeScmScope("project"),
+                  },
+                  {
+                    label: t("整个仓库"),
+                    checked: gitScope === "repository",
+                    reason: gitStatus?.repository,
+                    run: () => changeScmScope("repository"),
+                  },
+                ]}
+              />
+            </div>
+          </section>
+        )}
         {gitError && (
-          <p className="core-error" role="alert">
-            {gitError}
-          </p>
+          <div className="scm-status-error">
+            <p className="core-error" role="alert">
+              {gitError}
+            </p>
+            <Tool label={t("刷新源代码管理")} icon="refresh" onClick={refreshScm} disabled={busy} />
+          </div>
         )}
         {!gitStatus ? (
           <p className="core-hint">{t("正在读取 Git 状态…")}</p>
@@ -2367,8 +2421,12 @@ export function CoreWorkspaceProvider({
               api={api}
               refreshGeneration={gitRefreshGeneration}
               refresh={refreshScm}
-              graphExpanded={gitGraphExpanded ?? gitStatus.entries.length === 0}
+              showChanges={showScmChanges}
+              showGraph={showScmGraph}
+              graphExpanded={gitGraphExpanded}
               setGraphExpanded={setGitGraphExpanded}
+              graphHeight={layout.scmGraphHeight}
+              saveGraphHeight={(scmGraphHeight) => changeLayout({ scmGraphHeight })}
               openCommit={(id) =>
                 openScmDiff(`/api/scm/commit?${new URLSearchParams({ id, scope: gitScope })}`)
               }
@@ -2395,31 +2453,37 @@ export function CoreWorkspaceProvider({
           )}
         </NavigatorPage>
       ))}
-      {headingMenu && activity === "explorer" && layout.sidebarOpen && (
-        <NavigatorMenu
-          label={t(
-            headingMenu.heading === "panel"
-              ? "资源管理器更多操作"
-              : headingMenu.heading === "workspace"
-                ? "工作区视图操作"
-                : "打开的编辑器视图操作",
-          )}
-          point={headingMenu}
-          items={
-            headingMenu.heading === "panel"
-              ? explorerTitleActions
-              : explorerSectionActions(headingMenu.heading)
-          }
-          onDismiss={() => {
-            setHeadingMenu(undefined);
-            if (document.activeElement !== document.body) return;
-            const anchor = headingMenu.anchor.isConnected
-              ? headingMenu.anchor
-              : workspaceToggleRef.current;
-            if (!anchor?.closest("[hidden], [inert]")) anchor?.focus({ preventScroll: true });
-          }}
-        />
-      )}
+      {headingMenu &&
+        (headingMenu.heading === "scm" ? activity === "scm" : activity === "explorer") &&
+        layout.sidebarOpen && (
+          <NavigatorMenu
+            label={t(
+              headingMenu.heading === "scm"
+                ? "源代码管理视图"
+                : headingMenu.heading === "panel"
+                  ? "资源管理器更多操作"
+                  : headingMenu.heading === "workspace"
+                    ? "工作区视图操作"
+                    : "打开的编辑器视图操作",
+            )}
+            point={headingMenu}
+            items={
+              headingMenu.heading === "scm"
+                ? scmViewActions
+                : headingMenu.heading === "panel"
+                  ? explorerTitleActions
+                  : explorerSectionActions(headingMenu.heading)
+            }
+            onDismiss={() => {
+              setHeadingMenu(undefined);
+              if (document.activeElement !== document.body) return;
+              const anchor = headingMenu.anchor.isConnected
+                ? headingMenu.anchor
+                : workspaceToggleRef.current;
+              if (!anchor?.closest("[hidden], [inert]")) anchor?.focus({ preventScroll: true });
+            }}
+          />
+        )}
     </NavigatorPanel>
   );
   const fileDialogTitle =

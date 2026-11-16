@@ -119,17 +119,25 @@ export function readLayoutPreferences(project: string, defaults: StudioLayout): 
                   ...(typeof layout.outlineHeight === "number" && {
                     outlineHeight: dimension(
                       layout.outlineHeight,
-                      44,
+                      1,
                       defaults.outlineHeight ?? 320,
                     ),
                   }),
                   ...(typeof layout.timelineHeight === "number" && {
                     timelineHeight: dimension(
                       layout.timelineHeight,
-                      44,
+                      1,
                       defaults.timelineHeight ?? 160,
                     ),
                   }),
+                  ...(typeof layout.scmRepositories === "boolean" && {
+                    scmRepositories: layout.scmRepositories,
+                  }),
+                  ...(typeof layout.scmChanges === "boolean" && { scmChanges: layout.scmChanges }),
+                  ...(typeof layout.scmGraph === "boolean" && { scmGraph: layout.scmGraph }),
+                  ...(Number.isSafeInteger(layout.scmGraphHeight) &&
+                    typeof layout.scmGraphHeight === "number" &&
+                    layout.scmGraphHeight > 0 && { scmGraphHeight: layout.scmGraphHeight }),
                   ...(layout.activityBarPosition === "side" ||
                   layout.activityBarPosition === "top" ||
                   layout.activityBarPosition === "bottom"

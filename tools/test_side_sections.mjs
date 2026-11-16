@@ -84,10 +84,19 @@ const key = (ctx, el, k, shiftKey = false) =>
   );
 const bodyHeight = (container, selector) => container.querySelector(selector).style.height;
 
+const openSections = (ctx, container) =>
+  ctx.act(async () => {
+    for (const section of container.querySelectorAll("details")) {
+      section.open = true;
+      section.dispatchEvent(new window.Event("toggle"));
+    }
+  });
+
 test("sash drag resizes the section below live and commits on release", async () => {
   const ctx = await setup();
   const { container, root, commits, view } = mount(ctx);
   await view();
+  await openSections(ctx, container);
   const [first, transfer] = container.querySelectorAll(".side-sash");
   assert.ok(first && transfer, "two sashes when both sections visible");
   assert.equal(first.getAttribute("role"), "separator");
@@ -109,6 +118,7 @@ test("first sash clamps at body minimum and keeps tree space", async () => {
   const ctx = await setup();
   const { container, root, view } = mount(ctx);
   await view();
+  await openSections(ctx, container);
   const first = container.querySelector(".side-sash");
   await pointer(ctx, first, "pointerdown", 200);
   await pointer(ctx, first, "pointermove", -2000);
@@ -126,6 +136,7 @@ test("transfer sash moves height between outline and timeline with clamps", asyn
   const ctx = await setup();
   const { container, root, commits, view } = mount(ctx);
   await view();
+  await openSections(ctx, container);
   const transfer = container.querySelectorAll(".side-sash")[1];
   await pointer(ctx, transfer, "pointerdown", 300);
   await pointer(ctx, transfer, "pointermove", 340);
@@ -143,6 +154,7 @@ test("sash keyboard adjusts and commits, double-click resets", async () => {
   const ctx = await setup();
   const { container, root, commits, view } = mount(ctx);
   await view();
+  await openSections(ctx, container);
   const first = container.querySelector(".side-sash");
   await key(ctx, first, "ArrowDown");
   assert.equal(bodyHeight(container, ".outline-body"), "292px");
@@ -157,24 +169,37 @@ test("sash keyboard adjusts and commits, double-click resets", async () => {
   await ctx.act(() => root.unmount());
 });
 
-test("dragging a collapsed section expands it; content changes keep heights", async () => {
+test("a collapsed section follows the first pixel of movement and folds at the starting point", async () => {
   const ctx = await setup();
-  const { container, root, view } = mount(ctx);
+  const { container, root, commits, view } = mount(ctx);
   await view();
   const outline = container.querySelector(".welcome-outline-section");
   const timeline = container.querySelector(".welcome-timeline-section");
+  const first = container.querySelector(".side-sash");
   assert.equal(outline.open, false);
   assert.equal(timeline.open, false);
-  const first = container.querySelector(".side-sash");
+  assert.equal(first.getAttribute("aria-valuenow"), "0");
   await pointer(ctx, first, "pointerdown", 200);
-  assert.equal(outline.open, true, "collapsed outline expands on drag");
-  await pointer(ctx, first, "pointermove", 240);
-  await pointer(ctx, first, "pointerup", 240);
-  assert.equal(bodyHeight(container, ".outline-body"), "260px");
+  assert.equal(outline.open, false, "pressing the handle does not unfold the pane");
+  await pointer(ctx, first, "pointermove", 210);
+  assert.equal(outline.open, false, "dragging towards the collapsed body cannot shrink it");
+  await pointer(ctx, first, "pointerup", 210);
+  assert.deepEqual(commits, []);
+  await pointer(ctx, first, "pointerdown", 200);
+  await pointer(ctx, first, "pointermove", 198);
+  assert.equal(outline.open, true);
+  assert.equal(timeline.open, false);
+  assert.equal(bodyHeight(container, ".outline-body"), "2px");
+  await pointer(ctx, first, "pointermove", 200);
+  assert.equal(outline.open, false);
+  assert.equal(bodyHeight(container, ".outline-body"), "300px", "remembered height is restored");
+  await pointer(ctx, first, "pointermove", 160);
+  await pointer(ctx, first, "pointerup", 160);
+  assert.deepEqual(commits, [{ outline: 40, timeline: 150 }]);
   await view({ activeDocument: { name: "README.md", value: "# T\n\n## A\n" } });
-  assert.equal(bodyHeight(container, ".outline-body"), "260px");
+  assert.equal(bodyHeight(container, ".outline-body"), "40px");
   await view({ activeDocument: { name: "main.py", value: "print(1)" } });
-  assert.equal(bodyHeight(container, ".outline-body"), "260px");
+  assert.equal(bodyHeight(container, ".outline-body"), "40px");
   assert.equal(bodyHeight(container, ".timeline-body"), "150px");
   await ctx.act(() => root.unmount());
 });
@@ -183,6 +208,7 @@ test("single visible section gets one sash; hidden sections render nothing", asy
   const ctx = await setup();
   const { container, root, view } = mount(ctx);
   await view({ showOutline: false });
+  await openSections(ctx, container);
   assert.equal(container.querySelectorAll(".side-sash").length, 1);
   const first = container.querySelector(".side-sash");
   await pointer(ctx, first, "pointerdown", 100);
@@ -213,12 +239,13 @@ test("timeline render slot receives controlled open and live body height", async
   assert.equal(slot().dataset.open, "false");
   const transfer = container.querySelectorAll(".side-sash")[1];
   await pointer(ctx, transfer, "pointerdown", 300);
-  assert.equal(slot().dataset.open, "true", "collapsed slot timeline expands on drag");
-  await pointer(ctx, transfer, "pointermove", 330);
-  assert.equal(slot().style.height, "120px");
-  assert.equal(bodyHeight(container, ".outline-body"), "330px");
-  await pointer(ctx, transfer, "pointerup", 330);
-  assert.equal(controls.bodyHeight, 120);
+  assert.equal(slot().dataset.open, "false");
+  await pointer(ctx, transfer, "pointermove", 270);
+  assert.equal(slot().dataset.open, "true");
+  assert.equal(slot().style.height, "30px");
+  assert.equal(container.querySelector(".welcome-outline-section").open, false);
+  await pointer(ctx, transfer, "pointerup", 270);
+  assert.equal(controls.bodyHeight, 30);
   await ctx.act(() => root.unmount());
 });
 
@@ -226,6 +253,7 @@ test("release deactivates the sash immediately; lost capture finishes the drag",
   const ctx = await setup();
   const { container, root, commits, view } = mount(ctx);
   await view();
+  await openSections(ctx, container);
   const first = container.querySelector(".side-sash");
   await pointer(ctx, first, "pointerdown", 200);
   await pointer(ctx, first, "pointermove", 240);

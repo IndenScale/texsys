@@ -1,5 +1,6 @@
 .side-sash {
   position: relative;
+  flex: none;
   z-index: 6;
   height: 8px;
   margin-block: -4px;

@@ -15,7 +15,11 @@
   /* 固定布局高度：内容增减与空态只改变滚动内容，不改变节高度（DDR-0005）。 */
   height: min(320px, 40vh);
   overflow: auto;
-  padding-bottom: 6px;
+}
+.outline-body::after {
+  content: "";
+  display: block;
+  height: 6px;
 }
 
 .outline-filter {

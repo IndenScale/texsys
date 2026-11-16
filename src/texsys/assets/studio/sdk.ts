@@ -18,6 +18,10 @@ export type StudioLayout = {
   explorerTimeline?: boolean;
   outlineHeight?: number;
   timelineHeight?: number;
+  scmRepositories?: boolean;
+  scmChanges?: boolean;
+  scmGraph?: boolean;
+  scmGraphHeight?: number;
   activityBarPosition?: "side" | "top" | "bottom";
   activityBarSize?: "default" | "compact";
   hiddenActivities?: string[];

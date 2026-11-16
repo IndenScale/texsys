@@ -451,6 +451,8 @@ export const englishMessages: Record<string, string> = {
   "仅预览前 5000 行。": "Only the first 5,000 lines are previewed.",
   管理范围: "Scope",
   源码管理范围: "Source Control scope",
+  源代码管理视图: "Source Control views",
+  存储库: "Repositories",
   当前项目: "Current project",
   "终端工作目录不可用，请新建终端。":
     "The terminal working directory is unavailable. Open a new terminal.",
@@ -1628,5 +1630,6 @@ export const englishMessages: Record<string, string> = {
   调整大纲高度: "Adjust outline height",
   调整时间线高度: "Adjust timeline height",
   调整大纲与时间线高度: "Adjust outline and timeline heights",
+  调整更改与图谱高度: "Adjust changes and graph heights",
   "拖拽调整高度，双击恢复默认": "Drag to resize; double-click to reset",
 };

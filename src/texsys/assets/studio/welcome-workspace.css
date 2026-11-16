@@ -49,7 +49,11 @@
   /* 固定布局高度：空态与内容增减不改变节高度（DDR-0005）。 */
   height: min(160px, 20vh);
   overflow: auto;
-  padding-bottom: 6px;
+}
+.timeline-body::after {
+  content: "";
+  display: block;
+  height: 6px;
 }
 
 .welcome-explorer-note {

@@ -374,7 +374,7 @@ test("activity context actions target the clicked entry, and blank space can res
   assert.deepEqual(persisted.hiddenActivities, []);
 });
 
-test("Explorer headings manage views while the project tree keeps its own context", async (t) => {
+test("Explorer and Source Control use view menus without moving file or scope actions", async (t) => {
   // The source editor uses browser workers. The fixture renders the real Explorer and menu
   // and uses the normal file-selection path without mounting the editor surface.
   const { CoreWorkspaceProvider, useCoreWorkspace } = loadStudioModule("CoreWorkspace.tsx", {
@@ -385,6 +385,9 @@ test("Explorer headings manage views while the project tree keeps its own contex
     },
     "./MarkdownEditor": {},
     "./extension-snippets": { useExtensionSnippets: () => {} },
+    "./use-preview-size": {
+      usePreviewSize: () => ({ setElement: () => {}, size: { width: 280, height: 480 } }),
+    },
   });
   const defaults = {
     sidebarOpen: true,
@@ -409,6 +412,7 @@ test("Explorer headings manage views while the project tree keeps its own contex
       files: [{ path: "README.md" }, { path: "texsys.toml" }],
       directories: [],
       truncated: false,
+      poll_revision: "files-1",
     },
     "/api/design-index": {
       root: null,
@@ -418,16 +422,40 @@ test("Explorer headings manage views while the project tree keeps its own contex
       tag_errors: [],
       instance_tags: {},
     },
-    "/api/scm?scope=project": { available: false, reason: "Fixture", entries: [] },
+    "/api/scm?scope=project": {
+      available: true,
+      repository: "/repo",
+      branch: "main",
+      entries: [],
+      snapshot: "project",
+    },
+    "/api/scm?scope=repository": {
+      available: true,
+      repository: "/repo",
+      branch: "main",
+      project_prefix: "fixture",
+      entries: [{ path: "outside.txt", index: " ", worktree: "M" }],
+      snapshot: "repository",
+    },
+    "/api/scm/history?limit=50": { commits: [], truncated: false },
     "/api/scm/history?limit=50&path=README.md": { commits: [], truncated: false },
     "/api/scm/history?limit=50&path=texsys.toml": { commits: [], truncated: false },
     "/api/file?path=README.md": { path: "README.md", content: "# Fixture", version: "1" },
     "/api/file?path=texsys.toml": { path: "texsys.toml", content: "", version: "1" },
   };
-  const api = async (url) => responses[url];
+  const api = async (url) => {
+    if (url.startsWith("/api/files?compact=1&")) return responses["/api/files"];
+    if (url.startsWith("/api/file?") && url.includes("&revision=")) {
+      return { status: "unchanged" };
+    }
+    return responses[url];
+  };
   const noop = () => {};
+  let select;
   function Sidebar() {
-    return useCoreWorkspace().sidebar([]);
+    const workspace = useCoreWorkspace();
+    select = workspace.select;
+    return workspace.sidebar([]);
   }
   function Fixture({ buildRevision }) {
     const [layout, setLayout] = React.useState(defaults);
@@ -514,7 +542,10 @@ test("Explorer headings manage views while the project tree keeps its own contex
   assert.ok(document.querySelector(".welcome-outline-section"));
   const timelineSection = document.querySelector(".welcome-timeline-section");
   assert.ok(timelineSection);
-  await act(async () => {});
+  await act(async () => {
+    timelineSection.open = true;
+    timelineSection.dispatchEvent(new dom.window.Event("toggle"));
+  });
   assert.match(timelineSection.textContent, /此文件暂无提交历史。/);
   await click(trigger);
   await click(item("大纲"));
@@ -532,9 +563,44 @@ test("Explorer headings manage views while the project tree keeps its own contex
     files: [...responses["/api/files"].files, { path: "drawings/room.svg" }],
     directories: ["drawings"],
     truncated: false,
+    poll_revision: "files-2",
   };
   await act(async () => root.render(React.createElement(Fixture, { buildRevision: "new-build" })));
   assert.ok(row("drawings"));
+
+  await act(async () => select("scm"));
+  const scopeTrigger = () => document.querySelector('button[aria-label="源码管理范围"]');
+  const sash = () => document.querySelector('.core-scm [role="separator"]');
+  assert.equal(scopeTrigger(), null, "the repository card starts hidden");
+  assert.equal(sash().getAttribute("aria-valuenow"), "240");
+  await key(sash(), "ArrowUp");
+  assert.equal(sash().getAttribute("aria-valuenow"), "248");
+
+  await context(title.querySelector("strong"));
+  assert.deepEqual(
+    menuItems().map((button) => button.textContent),
+    ["存储库", "更改", "图谱"],
+  );
+  assert.equal(item("存储库").getAttribute("aria-checked"), "false");
+  await click(item("存储库"));
+  await dismiss();
+  assert.equal(scopeTrigger().textContent, "当前项目");
+  await click(scopeTrigger());
+  await click(item("整个仓库"));
+  assert.equal(scopeTrigger().textContent, "整个仓库");
+  assert.ok(document.querySelector('button[aria-label="outside.txt"]'));
+  await click(scopeTrigger());
+  await click(item("当前项目"));
+  assert.equal(document.querySelector('button[aria-label="outside.txt"]'), null);
+  assert.equal(sash().getAttribute("aria-valuenow"), "248");
+  const graph = document.querySelector(".scm-graph .scm-section-toggle");
+  await click(graph);
+  const foldedHeight = Number(sash().getAttribute("aria-valuenow"));
+  await key(sash(), "ArrowDown");
+  assert.equal(graph.getAttribute("aria-expanded"), "false");
+  await key(sash(), "ArrowUp");
+  assert.equal(graph.getAttribute("aria-expanded"), "true");
+  assert.equal(Number(sash().getAttribute("aria-valuenow")), foldedHeight + 8);
 });
 
 test("welcome explorer title menu manages view visibility like the reference", async (t) => {
