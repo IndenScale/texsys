@@ -15,6 +15,11 @@ export type SceneViewport = {
   yaw: number;
   pitch: number;
   scale: number;
+  eye?: Point3;
+  at?: Point3;
+  projection?: "perspective" | "orthographic";
+  span?: number;
+  zoom?: number;
 };
 export type PreviewViewport = DrawingViewport | SceneViewport;
 

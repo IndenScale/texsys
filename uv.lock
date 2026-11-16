@@ -962,7 +962,7 @@ requires-dist = [
 
 [[package]]
 name = "texsys-datacenter-reference"
-version = "0.30.0"
+version = "0.31.0"
 source = { editable = "packages/datacenter-reference" }
 dependencies = [
     { name = "ezdxf" },

@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 from preview_records import preview_record
-from pxr import Gf, Usd, UsdGeom
+from pxr import Gf, Sdf, Usd, UsdGeom, UsdShade
 
 from texsys.geometry import Box
 from texsys.project import ProjectError, initialize_project
@@ -19,6 +19,45 @@ def _cube(path: Path, size: float) -> None:
   cube.CreateSizeAttr(size)
   cube.GetPrim().SetCustomDataByKey("identity", "Plant.Pump")
   stage.Save()
+
+
+def test_inspection_reads_inherited_facets_materials_and_assembly_from_composed_layers(tmp_path):
+  initialize_project(tmp_path)
+  build = tmp_path / "build"
+  build.mkdir(exist_ok=True)
+  geometry = Usd.Stage.CreateNew(str(build / "parts.usda"))
+  owner = UsdGeom.Xform.Define(geometry, "/Bridge/Deck").GetPrim()
+  for key, value in (("assembly", "Deck-01"), ("discipline", "structure"), ("level", "L02"), ("zone", "East")):
+    owner.CreateAttribute(f"texsys:{key}", Sdf.ValueTypeNames.String).Set(value)
+  slab = UsdGeom.Cube.Define(geometry, "/Bridge/Deck/Slab").GetPrim()
+  shell = UsdShade.Material.Define(geometry, "/Materials/Concrete")
+  UsdShade.MaterialBindingAPI.Apply(slab).Bind(shell)
+  bar = UsdGeom.Cube.Define(geometry, "/Bridge/Deck/Bar").GetPrim()
+  bar.SetCustomDataByKey("texsys:material", "Reinforcement")
+  quantity = bar.CreateAttribute("diameter", Sdf.ValueTypeNames.Double)
+  quantity.Set(20)
+  quantity.SetCustomDataByKey("unit", "mm")
+  bar.CreateAttribute("denseSamples", Sdf.ValueTypeNames.FloatArray).Set([1.0, 2.0])
+  collection = Usd.CollectionAPI.Apply(owner, "Rebar")
+  collection.CreateIncludesRel().SetTargets([bar.GetPath()])
+  UsdGeom.Imageable(UsdGeom.Cube.Define(geometry, "/Bridge/Hidden")).MakeInvisible()
+  geometry.Save()
+  root = Usd.Stage.CreateNew(str(build / "inspection.usda"))
+  root.GetRootLayer().subLayerPaths = ["parts.usda"]
+  root.Save()
+  original = (build / "inspection.usda").read_bytes()
+
+  scene = ScenePreview(tmp_path, "build").read_file("build/inspection.usda")
+  objects = {row["id"]: row for row in scene["objects"]}
+  assert set(objects) == {"/Bridge/Deck/Slab", "/Bridge/Deck/Bar"}
+  assert objects["/Bridge/Deck/Slab"]["facets"]["material"] == "/Materials/Concrete"
+  part = objects["/Bridge/Deck/Bar"]
+  assert part["facets"] == {"discipline": "structure", "level": "L02", "zone": "East", "material": "Reinforcement"}
+  assert part["owner_path"] == "/Bridge/Deck"
+  assert part["collections"] == ["/Bridge/Deck.collection:Rebar"]
+  assert part["properties"]["diameter"] == {"value": 20, "unit": "mm", "prim": "/Bridge/Deck/Bar"}
+  assert "denseSamples" not in part["properties"]
+  assert (build / "inspection.usda").read_bytes() == original
 
 
 def test_preview_selects_declared_scene_not_newest_file_and_preserves_identity(tmp_path):

@@ -103,7 +103,7 @@ from .wet_utility_views import build_wet_view
 
 class DatacenterReferencePackage(TexsysPackage):
   name = "datacenter-reference"
-  version = "0.30.0"
+  version = "0.31.0"
 
   def targets(self) -> tuple[TargetDefinition, ...]:
     return (

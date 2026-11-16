@@ -4,7 +4,7 @@ import math
 from pathlib import Path
 from threading import Lock
 
-from pxr import Gf, Sdf, Tf, Usd, UsdGeom
+from pxr import Gf, Sdf, Tf, Usd, UsdGeom, UsdShade
 
 from texsys.evidence import canonical_digest, file_digest
 from texsys.project import ProjectError
@@ -16,7 +16,7 @@ from .files import MAX_PREVIEW_BYTES, file_version, version as content_version, 
 USD_SUFFIXES = {".usd", ".usda", ".usdc"}
 _MAX_LAYER_BYTES = 32 * 1024 * 1024
 _MAX_LAYERS = 64
-_MAX_ELEMENTS = 150_000
+_MAX_ELEMENTS = 300_000
 _BOX_FACES = ((0, 1, 3, 2), (4, 6, 7, 5), (0, 4, 5, 1),
               (2, 3, 7, 6), (0, 2, 6, 4), (1, 5, 7, 3))
 
@@ -52,9 +52,60 @@ def _box(low, high):
   return points, _BOX_FACES
 
 
+_FACETS = ("discipline", "level", "zone", "material", "role")
+
+
+def _inspectable(value):
+  if type(value) in (str, bool, int):
+    return value[:512] if isinstance(value, str) else value
+  if type(value) is float and math.isfinite(value):
+    return value
+  return None
+
+
+def _scene_metadata(prim, collections):
+  facets, properties = {}, {}
+  assembly = None
+  node = prim
+  while node and not node.IsPseudoRoot():
+    if assembly is None and node.HasAttribute("texsys:assembly"):
+      assembly = str(node.GetPath())
+    for facet in _FACETS:
+      if facet in facets:
+        continue
+      attr = node.GetAttribute(f"texsys:{facet}")
+      value = attr.Get() if attr else node.GetCustomDataByKey(f"texsys:{facet}")
+      if isinstance(value, str) and value.strip():
+        facets[facet] = value.strip()[:128]
+    for attr in node.GetAuthoredAttributes():
+      name = attr.GetName()
+      if name in properties or len(properties) >= 32 or not attr.IsCustom() or attr.GetTypeName().isArray:
+        continue
+      value = _inspectable(attr.Get())
+      if value is not None:
+        item = {"value": value, "prim": str(node.GetPath())}
+        unit = attr.GetCustomDataByKey("unit")
+        if isinstance(unit, str) and unit:
+          item["unit"] = unit[:32]
+        properties[name] = item
+    node = node.GetParent()
+  if "material" not in facets:
+    material, _ = UsdShade.MaterialBindingAPI(prim).ComputeBoundMaterial()
+    if material:
+      facets["material"] = str(material.GetPath())
+  memberships = [name for name, query in collections if query.IsPathIncluded(prim.GetPath())]
+  color_var = UsdGeom.PrimvarsAPI(prim).FindPrimvarWithInheritance("displayColor")
+  colors = color_var.Get() if color_var else None
+  color = tuple(colors[0]) if colors and len(colors) == 1 and all(map(math.isfinite, colors[0])) else None
+  return {"facets": facets, "properties": properties, "collections": memberships, "color": color,
+          **({"owner_path": assembly} if assembly else {})}
+
+
 def _geometry(stage, source_map):
   transforms = UsdGeom.XformCache()
   prims = list(stage.Traverse(Usd.TraverseInstanceProxies()))
+  collections = [(str(collection.GetCollectionPath()), collection.ComputeMembershipQuery())
+                 for prim in prims for collection in Usd.CollectionAPI.GetAllCollections(prim)]
   # Earlier texsys exports use Z-up meters without authoring stage metadata.
   legacy_layout = any(prim.HasAttribute("texsys:identity") for prim in prims)
   y_up = ((stage.HasAuthoredMetadata("upAxis") or not legacy_layout)
@@ -106,10 +157,13 @@ def _geometry(stage, source_map):
         break
       owner = owner.GetParent()
     prim_path = str(prim.GetPath())
+    source = source_map.get(prim_path) or source_map.get(identity)
+    metadata = _scene_metadata(prim, collections)
     objects.append({"id": prim_path, "prim_path": prim_path, "name": identity or prim.GetName(),
-                    "semantic_ref": identity, "source": source_map.get(identity),
+                    "semantic_ref": identity, "source": source, "type": kind,
+                    "owner_path": str(owner.GetPath()) if identity else prim_path,
                     "points": vertices, "faces": faces,
-                    "envelope": kind == "BrepArray" or bool(prim.GetCustomDataByKey("envelope"))})
+                    "envelope": kind == "BrepArray" or bool(prim.GetCustomDataByKey("envelope")), **metadata})
   return objects
 
 

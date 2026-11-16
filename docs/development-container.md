@@ -37,3 +37,11 @@ launchctl bootout "gui/$(id -u)/local.texsys.studio"
 需要手动停止 Podman 虚拟机时，先暂停 Studio 并卸载 `gui/$(id -u)/local.texsys.podman-machine`，否则系统会再次启动虚拟机。确认其中其他工作负载可以停机后，再运行 `podman machine stop podman-machine-default`。Podman 登录服务同样可以用 `launchctl disable` 跨登录暂停，并用 `install` 恢复。
 
 若 `8710` 已被占用或存在旧锁，服务会在日志中说明原因。不要另开端口或删除来源不明的锁。先确认旧实例归属和实际进程状态，再完成交接。
+
+## 只读 USD 检查
+
+从资源管理器打开 USD 文件并选择「预览」。在构件面板搜索 Prim 或按已声明的专业、楼层、分区、材料、构件类型与 USD 集合筛选。点击或悬停查看构件，属性中提供当前部件、所属装配、包络标高、USD 属性和可用的源码定位。选中后可聚焦、隐藏、半透明或隔离。在筛选栏使用「隐藏筛选结果」可以移走某种材料并立即查看余下装配。
+
+拖动鼠标环绕，右键拖动平移，滚轮缩放。飞行模式使用 WASD 移动、Q/E 下降或上升及右键拖动转向。视口获得焦点后按 F 聚焦选中项，按 Home 适应当前可见范围。可切换俯视、正视、侧视和等轴测，沿 X/Y/Z 滑动剖切面，并在可见表面选两点量取三维直线距离。包络几何的测量对应显示的包络尺寸。视图操作只改变预览状态。
+
+OpenUSD 负责解析组合层、世界变换、集合与材质绑定。Three.js 驱动浏览器视口。工程导出器可在 Prim 或其祖先写入字符串属性 `texsys:discipline`、`texsys:level`、`texsys:zone`、`texsys:material` 和 `texsys:role`。当部件各有独立标识时，可在装配根写入 `texsys:assembly`。自定义标量属性可通过属性的 `unit` 扩展数据提供单位。普通 USD 的 Prim 树、组合材质和集合同样可用。材料隔离依赖可独立选择的几何部件。

@@ -18,7 +18,7 @@ from .lighting_routes import carrier
 from .plans import _add, _axes, _line, _north_and_scale, _rect, _text, _xy
 from .site_grading import MODEL as TERRAIN, elevation
 from .site_storm import MODEL as STORM
-from .spatial_design import MODELS, artifact, source_path, staged_json
+from .spatial_design import MODELS, artifact, scene_quantity, scene_tags, source_path, staged_json
 from .telecom_coordination import _prim
 
 SCENE = "scenes/aidc-earthing-coordinated.usda"
@@ -214,6 +214,7 @@ def build_earthing_view(context):
 
 def _draw_scene(stage, model, source, identities):
   root = "/AIDC/ProtectiveEarthing"
+  scene_tags(UsdGeom.Scope.Define(stage,root).GetPrim(),discipline="electrical",role="保护接地")
   sections = {"ring":"ring","bar":"bars","steel":"steel","source":"bars"}
   for name,row in sorted(model["links"].items()):
     color = (.20,.65,.40) if row["kind"]=="ring" else (.83,.47,.21)
@@ -222,14 +223,25 @@ def _draw_scene(stage, model, source, identities):
       if row["kind"]=="ring":
         half = model["assumptions"]["ring"]["thickness_mm"]/2000
         shape = Space((*shape.minimum_m[:2],a[2]-half),(*shape.maximum_m[:2],a[2]+half))
-      _prim(stage,f"{root}/Conductors/{Tf.MakeValidIdentifier(name)}/Part_{index}",name,shape,color)
+      parent = f"{root}/Conductors/{Tf.MakeValidIdentifier(name)}"
+      scene_tags(UsdGeom.Xform.Define(stage,parent).GetPrim(),assembly=name)
+      path = f"{parent}/Part_{index}"
+      _prim(stage,path,name,shape,color)
+      prim = stage.GetPrimAtPath(path)
+      scene_tags(prim,material="铜",level="YARD" if row["kind"]=="ring" else "")
+      scene_quantity(prim,"crossSection",row["section_mm2"],"mm²")
+      scene_quantity(prim,"routeResistance",row["resistance_mohm"],"mΩ")
     identities[name] = {"file":source,"path":sections[row["kind"]]}
   for name,row in sorted(model["rods"].items()):
     section = carrier(row["top_m"],row["bottom_m"],model["assumptions"]["electrodes"]["diameter_m"])
-    _prim(stage,f"{root}/Electrodes/{Tf.MakeValidIdentifier(name)}",name,section,(.78,.46,.21))
+    path = f"{root}/Electrodes/{Tf.MakeValidIdentifier(name)}"
+    _prim(stage,path,name,section,(.78,.46,.21))
+    scene_tags(stage.GetPrimAtPath(path),material="铜包钢",level="YARD",role="接地极")
     identities[name] = {"file":source,"path":"electrodes"}
   for name,row in sorted(model["bars"].items()):
-    _prim(stage,f"{root}/Bars/{Tf.MakeValidIdentifier(name)}",name,space(row["body"]),(.77,.41,.22))
+    path = f"{root}/Bars/{Tf.MakeValidIdentifier(name)}"
+    _prim(stage,path,name,space(row["body"]),(.77,.41,.22))
+    scene_tags(stage.GetPrimAtPath(path),material="铜",role="接地汇流排")
     identities[name] = {"file":source,"path":"bars"}
 
 

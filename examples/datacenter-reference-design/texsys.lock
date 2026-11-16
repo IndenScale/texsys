@@ -1,5 +1,5 @@
 schema_version = 1
-manifest_digest = "sha256:479ffb6aea93addeeb99dcdd2aa83a3368f2e6783e77193a2edee8ab4d53c20b"
+manifest_digest = "sha256:d052c4dbc5bbbe39ec09600f81542d74b81af7a1ec9e0448d3dec9e11bfd07bf"
 
 [[packages]]
 name = "architecture"
@@ -21,10 +21,10 @@ dependencies = []
 
 [[packages]]
 name = "datacenter-reference"
-version = "0.30.0"
+version = "0.31.0"
 source = "path"
 path = "../../packages/datacenter-reference"
-digest = "sha256:13ab7851d5ebfe53bb672ec82e19ce05674b4afb0e63701260af781981ba885e"
+digest = "sha256:a9b20b5a03913dbb64efd2ed0186ccd63ccf98e7b216d6b05b45a2d322ff9c85"
 direct = true
 dependencies = ["architecture", "bom", "electrical", "hvac-dynamics", "hvac-equipment", "spatial", "structure"]
 

@@ -169,6 +169,18 @@ def _add_geometry(stage, name, geometry, origin, rotation, semantic):
   return path, envelope
 
 
+def scene_tags(prim, **values):
+  for name, value in values.items():
+    if value:
+      prim.CreateAttribute(f"texsys:{name}", Sdf.ValueTypeNames.String).Set(value)
+
+
+def scene_quantity(prim, name, value, unit):
+  attr = prim.CreateAttribute(f"texsys:{name}", Sdf.ValueTypeNames.Double)
+  attr.Set(float(value))
+  attr.SetCustomDataByKey("unit", unit)
+
+
 def _catalog(source, context):
   name = "system.sdl.json"
   catalog = read_sdl_catalog(source, context.root)
@@ -234,6 +246,7 @@ def build_layout(context):
       raise ValueError(f"USD instance identifiers collide for {name}.")
     prim_names.add(prim_name)
     prim_path, envelope = _add_geometry(stage, prim_name, geometry, origin, rotation, semantic)
+    scene_tags(stage.GetPrimAtPath(prim_path), discipline=discipline, zone=zone_id, level=zone["level"])
     world_box = bounds.ComputeWorldBound(envelope).ComputeAlignedRange()
     for declared, measured in ((minimum, world_box.GetMin()), (maximum, world_box.GetMax())):
       if math.dist(declared, measured) > 1e-5:
