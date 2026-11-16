@@ -107,25 +107,29 @@
   position: absolute;
   z-index: 1;
   inset: 8px 8px 8px auto;
+  display: grid;
+  grid-auto-rows: minmax(0, 1fr);
+  gap: 6px;
+  width: min(82%, 286px);
+  pointer-events: none;
+}
+.scene-inspection-group {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  width: min(82%, 286px);
+  min-height: 0;
   overflow: auto;
-  pointer-events: none;
+  pointer-events: auto;
 }
 .scene-property-panel {
-  flex-shrink: 0;
-  max-height: min(82%, 340px);
-  pointer-events: auto;
+  flex: 1;
   background: var(--ui-canvas);
   border: 1px solid var(--ui-border);
   border-radius: 6px;
   box-shadow: 0 2px 6px #0001;
 }
-.scene-property-panel:only-child {
-  flex: 1;
-  max-height: 100%;
+.scene-property-panel:not(:only-child) {
+  min-height: min(100%, 9rem);
 }
 .scene-panel-heading {
   display: flex;
@@ -278,6 +282,7 @@
 }
 .scene-properties dd {
   margin: 0;
+  overflow-wrap: anywhere;
 }
 .scene-authored {
   margin-top: 8px;

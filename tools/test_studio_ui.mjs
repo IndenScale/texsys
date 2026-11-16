@@ -1919,16 +1919,56 @@ test("mounted artifact previews preserve their viewport when file geometry chang
     button: 0,
     bubbles: true,
   };
-  await act(() => {
-    canvas.dispatchEvent(new window.MouseEvent("pointerdown", pointer));
-    canvas.dispatchEvent(new window.MouseEvent("pointerup", pointer));
-  });
+  const clickCanvas = (modifiers = {}) =>
+    act(() => {
+      const options = { ...pointer, ...modifiers };
+      canvas.dispatchEvent(new window.MouseEvent("pointerdown", options));
+      canvas.dispatchEvent(new window.MouseEvent("pointerup", options));
+    });
+  await clickCanvas();
   assert.deepEqual(cards(), ["/Room"]);
   assert.ok(canvas.parentElement.querySelector(".scene-inspection-overlay [data-inspected]"));
-  const key = (element, type, code, key = code, shiftKey = false) =>
+  const treeItems = container.querySelectorAll('.scene-preview-objects [role="treeitem"]');
+  const selectedIds = () =>
+    Array.from(treeItems)
+      .filter((item) => item.getAttribute("aria-selected") === "true")
+      .map((item) => item.dataset.primPath);
+  assert.equal(
+    container.querySelector('[role="tree"][aria-multiselectable="true"]') !== null,
+    true,
+  );
+  const controlTreeClick = (item, button = 0) =>
+    act(() => {
+      const options = { ctrlKey: true, button, bubbles: true };
+      item.dispatchEvent(new window.MouseEvent("pointerup", options));
+      if (button === 0) item.dispatchEvent(new window.MouseEvent("click", options));
+    });
+  await controlTreeClick(treeItems[1]);
+  assert.deepEqual(selectedIds(), ["/Room", "/Extension"]);
+  assert.deepEqual(cards(), ["/Room", "/Extension"]);
+  await clickCanvas({ ctrlKey: true });
+  assert.deepEqual(selectedIds(), ["/Extension"]);
+  assert.deepEqual(cards(), ["/Extension"]);
+  await clickCanvas({ ctrlKey: true, button: 2 });
+  assert.deepEqual(selectedIds(), ["/Room", "/Extension"]);
+  await controlTreeClick(treeItems[1], 2);
+  assert.deepEqual(selectedIds(), ["/Room"]);
+  await clickCanvas({ ctrlKey: true, clientX: 0, clientY: 0 });
+  assert.deepEqual(selectedIds(), ["/Room"]);
+
+  const key = (element, type, code, key = code, shiftKey = false, ctrlKey = false) =>
     element.dispatchEvent(
-      new window.KeyboardEvent(type, { code, key, shiftKey, bubbles: true, cancelable: true }),
+      new window.KeyboardEvent(type, {
+        code,
+        key,
+        shiftKey,
+        ctrlKey,
+        bubbles: true,
+        cancelable: true,
+      }),
     );
+  await act(() => key(treeItems[1], "keydown", "Enter", "Enter", false, true));
+  assert.deepEqual(selectedIds(), ["/Room", "/Extension"]);
   const move = async (code, value, shift = false) => {
     await act(() => {
       const now = performance.now();
@@ -1961,13 +2001,19 @@ test("mounted artifact previews preserve their viewport when file geometry chang
 
   const search = container.querySelector('input[aria-label="搜索构件"]');
   await act(() => assert.equal(key(search, "keydown", "KeyW", "w"), true));
-  const treeItems = container.querySelectorAll('.scene-preview-objects [role="treeitem"]');
   await act(() => treeItems[1].click());
   assert.equal(treeItems[1].getAttribute("aria-selected"), "true");
   assert.deepEqual(cards(), ["/Extension"]);
   await act(() => container.querySelector('[aria-label="固定构件属性"]').click());
   await act(() => key(treeItems[0], "keydown", "Enter"));
-  assert.deepEqual(cards(), ["/Room", "/Extension"]);
+  assert.deepEqual(cards(), ["/Extension", "/Room"]);
+  assert.deepEqual(
+    Array.from(
+      container.querySelectorAll("[data-inspection-group]"),
+      (group) => group.dataset.inspectionGroup,
+    ),
+    ["pinned", "selection"],
+  );
   assert.equal(
     container
       .querySelector('[data-inspected="/Extension"] [aria-label="取消固定属性"]')

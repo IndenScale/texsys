@@ -4,6 +4,7 @@
 - 日期：2026-11-16
 - 修订：[DDR-0014](0014-studio-editor-group-actions-and-disk-comparison-removal.md) 的「配置编辑器」入口，以及 [DDR-0024](0024-studio-usd-scene-view.md) 的工具栏、设置入口和属性区布局
 - 关联：[DDR-0002](0002-studio-uiux-guidelines.md)、[DDR-0012](0012-studio-file-preview-and-source.md)、[DDR-0021](0021-studio-statusbar-flush-and-empty-workbench-parity.md)
+- 后继修订：[DDR-0026](0026-usd-selection-and-inspection-layout.md) 补充多选并规定固定属性在上、当前选择在下。
 
 ## 带来错误设计的假设
 

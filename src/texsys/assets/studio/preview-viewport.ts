@@ -23,13 +23,13 @@ export type SceneViewport = {
 };
 export type PreviewViewport = DrawingViewport | SceneViewport;
 export type SceneInspection = {
-  selected: string;
-  following: string;
+  selected: readonly string[];
+  following: readonly string[];
   pinned: readonly string[];
 };
 export const defaultSceneInspection: SceneInspection = {
-  selected: "",
-  following: "",
+  selected: [],
+  following: [],
   pinned: [],
 };
 export type SceneViewControls = {

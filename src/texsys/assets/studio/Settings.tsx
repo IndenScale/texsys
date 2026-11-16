@@ -489,6 +489,7 @@ export function Settings({
                   ["Shift", "按住加速"],
                   ["F / Home", "聚焦构件 / 适应视图"],
                   ["Enter", "查看选中构件属性"],
+                  ["Ctrl / ⌘", "按住并单击以追加或取消选中构件"],
                   ["Shift + F", "切换场景全屏"],
                   ["Esc", "结束测距 / 退出全屏 / 返回视口"],
                 ].map(([key, label]) => (

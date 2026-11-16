@@ -200,10 +200,16 @@ export function ScenePreview({
   const objects = scene?.objects;
   const hasObjects = Boolean(objects?.length);
   const byId = useMemo(() => new Map(objects?.map((object) => [object.id, object])), [objects]);
-  const selectedObject = byId.get(selected);
-  const cards = [...(following ? [following] : []), ...pinned]
-    .map((id) => byId.get(id))
-    .filter((object): object is ModelObject => !!object);
+  const selection = useMemo(() => new Set(selected), [selected]);
+  const cardGroups = [
+    { kind: "pinned", label: "固定的属性", ids: pinned },
+    { kind: "selection", label: "当前选择的属性", ids: following },
+  ]
+    .map(({ ids, ...group }) => ({
+      ...group,
+      cards: ids.map((id) => byId.get(id)).filter((object): object is ModelObject => !!object),
+    }))
+    .filter(({ cards }) => cards.length > 0);
   const hoveredObject = hover && byId.get(hover.id);
   const filterOptions = useMemo(
     () =>
@@ -292,8 +298,8 @@ export function ScenePreview({
     if (objects?.length) renderer.current?.load(objects, viewportRef.current);
   }, [active, canvas, objects]);
   useLayoutEffect(() => {
-    renderer.current?.setState({ visible, ghost, selected, hovered: hover?.id ?? "" });
-  }, [active, canvas, visible, ghost, selected, hover?.id]);
+    renderer.current?.setState({ visible, ghost, selected: selection, hovered: hover?.id ?? "" });
+  }, [active, canvas, visible, ghost, selection, hover?.id]);
   useLayoutEffect(() => {
     renderer.current?.setSection(axis, section);
   }, [active, canvas, objects, axis, section]);
@@ -319,12 +325,25 @@ export function ScenePreview({
     };
   }, []);
 
-  const selectObject = (id: string) => {
-    changeInspection({ ...inspection, selected: id, following: pinned.includes(id) ? "" : id });
+  const selectObject = (id: string, additive = false) => {
+    if (additive && !id) return;
+    if (additive && selection.has(id)) {
+      changeInspection({
+        ...inspection,
+        selected: selected.filter((other) => other !== id),
+        following: following.filter((other) => other !== id),
+      });
+    } else {
+      changeInspection({
+        ...inspection,
+        selected: additive ? [...selected, id] : id ? [id] : [],
+        following: [...(additive ? following : []), ...(id && !pinned.includes(id) ? [id] : [])],
+      });
+    }
     setHover(undefined);
   };
-  const pickObject = (id: string) => {
-    selectObject(id);
+  const pickObject = (id: string, additive: boolean) => {
+    selectObject(id, additive);
     if (!id) return;
     setTreeFocus(id);
     setExpanded((previous) => {
@@ -339,9 +358,10 @@ export function ScenePreview({
     });
   };
   useLayoutEffect(() => {
-    if (selected && treeElement.current && document.activeElement === canvas)
+    const lastSelected = selected.at(-1);
+    if (lastSelected && treeElement.current && document.activeElement === canvas)
       treeElement.current
-        .querySelector('[data-prim-path="' + CSS.escape(selected) + '"]')
+        .querySelector('[data-prim-path="' + CSS.escape(lastSelected) + '"]')
         ?.scrollIntoView({ block: "nearest", inline: "nearest" });
   }, [selected, rows, canvas]);
   const changeBranch = (row: TreeRow) =>
@@ -355,7 +375,7 @@ export function ScenePreview({
   const closeProperties = (id: string) => {
     changeInspection({
       ...inspection,
-      following: following === id ? "" : following,
+      following: following.filter((other) => other !== id),
       pinned: pinned.filter((other) => other !== id),
     });
     focusViewport();
@@ -364,10 +384,13 @@ export function ScenePreview({
     const locked = pinned.includes(id);
     changeInspection({
       ...inspection,
-      following: locked && selected === id ? id : following === id ? "" : following,
+      following:
+        locked && selection.has(id)
+          ? [...following, id]
+          : following.filter((other) => other !== id),
       pinned: locked ? pinned.filter((other) => other !== id) : [...pinned, id],
     });
-    if (locked && selected !== id) focusViewport();
+    focusViewport();
   };
   const restore = () => {
     setHidden(new Set());
@@ -556,13 +579,15 @@ export function ScenePreview({
                 drag.current = undefined;
                 if (event.currentTarget.hasPointerCapture(event.pointerId))
                   event.currentTarget.releasePointerCapture(event.pointerId);
-                if (!previous || previous.button !== 0 || previous.distance > 4) return;
+                // A Control-click may arrive as a secondary button on macOS.
+                const primary = previous?.button === 0 || (event.ctrlKey && previous?.button === 2);
+                if (!previous || !primary || previous.distance > 4) return;
                 const { x, y } = coordinates(event);
                 const hit = renderer.current?.pick(x, y);
                 if (measuring) {
                   if (hit)
                     setPoints((old) => (old.length === 1 ? [...old, hit.point] : [hit.point]));
-                } else pickObject(hit?.id ?? "");
+                } else pickObject(hit?.id ?? "", event.ctrlKey || event.metaKey);
               }}
               onPointerCancel={() => {
                 drag.current = undefined;
@@ -591,12 +616,15 @@ export function ScenePreview({
                   if (!event.repeat) toggleMaximized();
                 } else if (["+", "-", "="].includes(event.key)) {
                   renderer.current?.zoom(event.key === "-" ? 1 / 1.25 : 1.25);
-                } else if (event.code === "KeyF" && selected && visible.has(selected)) {
-                  renderer.current?.fit([selected]);
+                } else if (event.code === "KeyF" && selected.some((id) => visible.has(id))) {
+                  renderer.current?.fit(selected.filter((id) => visible.has(id)));
                 } else if (event.key === "Home") {
                   renderer.current?.fit();
-                } else if (event.key === "Enter" && selectedObject) {
-                  selectObject(selected);
+                } else if (event.key === "Enter" && selected.length) {
+                  changeInspection({
+                    ...inspection,
+                    following: selected.filter((id) => !pinned.includes(id)),
+                  });
                 } else return;
                 event.preventDefault();
               }}
@@ -619,183 +647,201 @@ export function ScenePreview({
                   : `${distance.toFixed(3)} m`}
               </div>
             )}
-            {cards.length > 0 && (
+            {cardGroups.length > 0 && (
               <div className="scene-inspection-overlay" aria-label={t("构件属性")}>
-                {cards.map((inspected) => {
-                  const id = inspected.id;
-                  const locked = pinned.includes(id);
-                  const source = sourceReference(scene, id, inspected.semantic_ref ?? "");
-                  const relatedIds = inspected.owner_path
-                    ? (objects ?? [])
-                        .filter((object) => object.owner_path === inspected.owner_path)
-                        .map((object) => object.id)
-                    : [id];
-                  const geometryBounds = inspected.points.reduce(
-                    (result, point) => {
-                      point.forEach((value, i) => {
-                        result.min[i] = Math.min(result.min[i], value);
-                        result.max[i] = Math.max(result.max[i], value);
-                      });
-                      return result;
-                    },
-                    { min: [Infinity, Infinity, Infinity], max: [-Infinity, -Infinity, -Infinity] },
-                  );
-                  return (
-                    <aside
-                      key={id}
-                      className="scene-property-panel"
-                      aria-label={inspected.name + " " + t("属性")}
-                      data-inspected={id}
-                    >
-                      <div className="scene-panel-heading">
-                        <span className="scene-selection-title" title={inspected.prim_path}>
-                          {inspected.name}
-                        </span>
-                        <EditorActionButton
-                          icon="pin"
-                          label={t(locked ? "取消固定属性" : "固定构件属性")}
-                          aria-pressed={locked}
-                          onClick={() => togglePinned(id)}
-                        />
-                        <EditorActionButton
-                          icon="close"
-                          label={t("关闭构件属性")}
-                          onClick={() => closeProperties(id)}
-                        />
-                      </div>
-                      <div className="scene-preview-inspector">
-                        <small>
-                          {inspected.envelope ? t("包络几何") : (inspected.type ?? t("网格几何"))}
-                        </small>
-                        <div className="scene-selection-actions">
-                          <EditorActionButton
-                            icon="locate"
-                            label={t("聚焦")}
-                            disabled={!visible.has(id)}
-                            onClick={() => renderer.current?.fit([id])}
-                          />
-                          <EditorActionButton
-                            icon={hidden.has(id) ? "eye" : "eye-off"}
-                            label={t(hidden.has(id) ? "显示" : "隐藏")}
-                            aria-pressed={hidden.has(id)}
-                            onClick={() => setHidden((old) => toggleSet(old, id))}
-                          />
-                          <EditorActionButton
-                            icon="scene-ghost"
-                            label={t("半透明")}
-                            aria-pressed={ghost.has(id)}
-                            onClick={() => setGhost((old) => toggleSet(old, id))}
-                          />
-                          <EditorActionButton
-                            icon="isolate"
-                            label={t("仅显示部件")}
-                            onClick={() => {
-                              setHidden((old) => new Set([...old].filter((other) => other !== id)));
-                              setIsolated(new Set([id]));
-                            }}
-                          />
-                          {relatedIds.length > 1 && (
+                {cardGroups.map(({ kind, label, cards }) => (
+                  <div
+                    key={kind}
+                    className="scene-inspection-group"
+                    role="group"
+                    aria-label={t(label)}
+                    data-inspection-group={kind}
+                  >
+                    {cards.map((inspected) => {
+                      const id = inspected.id;
+                      const locked = pinned.includes(id);
+                      const source = sourceReference(scene, id, inspected.semantic_ref ?? "");
+                      const relatedIds = inspected.owner_path
+                        ? (objects ?? [])
+                            .filter((object) => object.owner_path === inspected.owner_path)
+                            .map((object) => object.id)
+                        : [id];
+                      const geometryBounds = inspected.points.reduce(
+                        (result, point) => {
+                          point.forEach((value, i) => {
+                            result.min[i] = Math.min(result.min[i], value);
+                            result.max[i] = Math.max(result.max[i], value);
+                          });
+                          return result;
+                        },
+                        {
+                          min: [Infinity, Infinity, Infinity],
+                          max: [-Infinity, -Infinity, -Infinity],
+                        },
+                      );
+                      return (
+                        <aside
+                          key={id}
+                          className="scene-property-panel"
+                          aria-label={inspected.name + " " + t("属性")}
+                          data-inspected={id}
+                        >
+                          <div className="scene-panel-heading">
+                            <span className="scene-selection-title" title={inspected.prim_path}>
+                              {inspected.name}
+                            </span>
                             <EditorActionButton
-                              icon="layers"
-                              label={t("仅显示构件")}
-                              onClick={() => {
-                                setHidden(
-                                  (old) =>
-                                    new Set(
-                                      [...old].filter((other) => !relatedIds.includes(other)),
-                                    ),
-                                );
-                                setIsolated(new Set(relatedIds));
-                              }}
+                              icon="pin"
+                              label={t(locked ? "取消固定属性" : "固定构件属性")}
+                              aria-pressed={locked}
+                              onClick={() => togglePinned(id)}
                             />
-                          )}
-                          {(hidden.size > 0 || isolated || ghost.size > 0) && (
                             <EditorActionButton
-                              icon="refresh"
-                              label={t("恢复显隐")}
-                              onClick={restore}
+                              icon="close"
+                              label={t("关闭构件属性")}
+                              onClick={() => closeProperties(id)}
                             />
-                          )}
-                          {source && openSource && (
-                            <EditorActionButton
-                              icon="code"
-                              label={t("定位源码")}
-                              onClick={() => openSource(source)}
-                            />
-                          )}
-                        </div>
-                        <dl className="scene-properties">
-                          <dt>Prim</dt>
-                          <dd>{inspected.prim_path}</dd>
-                          {inspected.owner_path && inspected.owner_path !== inspected.id && (
-                            <>
-                              <dt>{t("所属构件")}</dt>
-                              <dd>{inspected.owner_path}</dd>
-                            </>
-                          )}
-                          {geometryBounds && (
-                            <>
-                              <dt>{t("包络尺寸")}</dt>
-                              <dd>
-                                {geometryBounds.max
-                                  .map((value, index) =>
-                                    (value - geometryBounds.min[index]).toFixed(3),
-                                  )
-                                  .join(" × ")}{" "}
-                                m
-                              </dd>
-                              <dt>{t("标高范围")}</dt>
-                              <dd>
-                                {geometryBounds.min[2].toFixed(3)} –{" "}
-                                {geometryBounds.max[2].toFixed(3)} m
-                              </dd>
-                            </>
-                          )}
-                          {categories.flatMap(([key, label]) =>
-                            valuesFor(inspected, key).map((value) => (
-                              <React.Fragment key={key + value}>
-                                <dt>{t(label)}</dt>
-                                <dd title={value}>{labelFor(key, value)}</dd>
-                              </React.Fragment>
-                            )),
-                          )}
-                        </dl>
-                        {Object.entries(inspected.properties ?? {}).some(
-                          ([key]) =>
-                            !key.startsWith("texsys:") ||
-                            !["identity", ...categories.map(([facet]) => facet)].includes(
-                              key.slice(7),
-                            ),
-                        ) && (
-                          <details className="scene-authored" open>
-                            <summary>{t("USD 属性")}</summary>
+                          </div>
+                          <div className="scene-preview-inspector">
+                            <small>
+                              {inspected.envelope
+                                ? t("包络几何")
+                                : (inspected.type ?? t("网格几何"))}
+                            </small>
+                            <div className="scene-selection-actions">
+                              <EditorActionButton
+                                icon="locate"
+                                label={t("聚焦")}
+                                disabled={!visible.has(id)}
+                                onClick={() => renderer.current?.fit([id])}
+                              />
+                              <EditorActionButton
+                                icon={hidden.has(id) ? "eye" : "eye-off"}
+                                label={t(hidden.has(id) ? "显示" : "隐藏")}
+                                aria-pressed={hidden.has(id)}
+                                onClick={() => setHidden((old) => toggleSet(old, id))}
+                              />
+                              <EditorActionButton
+                                icon="scene-ghost"
+                                label={t("半透明")}
+                                aria-pressed={ghost.has(id)}
+                                onClick={() => setGhost((old) => toggleSet(old, id))}
+                              />
+                              <EditorActionButton
+                                icon="isolate"
+                                label={t("仅显示部件")}
+                                onClick={() => {
+                                  setHidden(
+                                    (old) => new Set([...old].filter((other) => other !== id)),
+                                  );
+                                  setIsolated(new Set([id]));
+                                }}
+                              />
+                              {relatedIds.length > 1 && (
+                                <EditorActionButton
+                                  icon="layers"
+                                  label={t("仅显示构件")}
+                                  onClick={() => {
+                                    setHidden(
+                                      (old) =>
+                                        new Set(
+                                          [...old].filter((other) => !relatedIds.includes(other)),
+                                        ),
+                                    );
+                                    setIsolated(new Set(relatedIds));
+                                  }}
+                                />
+                              )}
+                              {(hidden.size > 0 || isolated || ghost.size > 0) && (
+                                <EditorActionButton
+                                  icon="refresh"
+                                  label={t("恢复显隐")}
+                                  onClick={restore}
+                                />
+                              )}
+                              {source && openSource && (
+                                <EditorActionButton
+                                  icon="code"
+                                  label={t("定位源码")}
+                                  onClick={() => openSource(source)}
+                                />
+                              )}
+                            </div>
                             <dl className="scene-properties">
-                              {Object.entries(inspected.properties ?? {})
-                                .filter(
-                                  ([key]) =>
-                                    !key.startsWith("texsys:") ||
-                                    !["identity", ...categories.map(([facet]) => facet)].includes(
-                                      key.slice(7),
-                                    ),
-                                )
-                                .map(([key, row]) => (
-                                  <React.Fragment key={key}>
-                                    <dt>{key}</dt>
-                                    <dd title={`${row.prim}\n${String(row.value)}`}>
-                                      {typeof row.value === "number"
-                                        ? inspectionNumber.format(row.value)
-                                        : String(row.value)}
-                                      {row.unit ? " " + row.unit : ""}
-                                    </dd>
+                              <dt>Prim</dt>
+                              <dd>{inspected.prim_path}</dd>
+                              {inspected.owner_path && inspected.owner_path !== inspected.id && (
+                                <>
+                                  <dt>{t("所属构件")}</dt>
+                                  <dd>{inspected.owner_path}</dd>
+                                </>
+                              )}
+                              {geometryBounds && (
+                                <>
+                                  <dt>{t("包络尺寸")}</dt>
+                                  <dd>
+                                    {geometryBounds.max
+                                      .map((value, index) =>
+                                        (value - geometryBounds.min[index]).toFixed(3),
+                                      )
+                                      .join(" × ")}{" "}
+                                    m
+                                  </dd>
+                                  <dt>{t("标高范围")}</dt>
+                                  <dd>
+                                    {geometryBounds.min[2].toFixed(3)} –{" "}
+                                    {geometryBounds.max[2].toFixed(3)} m
+                                  </dd>
+                                </>
+                              )}
+                              {categories.flatMap(([key, label]) =>
+                                valuesFor(inspected, key).map((value) => (
+                                  <React.Fragment key={key + value}>
+                                    <dt>{t(label)}</dt>
+                                    <dd title={value}>{labelFor(key, value)}</dd>
                                   </React.Fragment>
-                                ))}
+                                )),
+                              )}
                             </dl>
-                          </details>
-                        )}
-                      </div>
-                    </aside>
-                  );
-                })}
+                            {Object.entries(inspected.properties ?? {}).some(
+                              ([key]) =>
+                                !key.startsWith("texsys:") ||
+                                !["identity", ...categories.map(([facet]) => facet)].includes(
+                                  key.slice(7),
+                                ),
+                            ) && (
+                              <details className="scene-authored" open>
+                                <summary>{t("USD 属性")}</summary>
+                                <dl className="scene-properties">
+                                  {Object.entries(inspected.properties ?? {})
+                                    .filter(
+                                      ([key]) =>
+                                        !key.startsWith("texsys:") ||
+                                        ![
+                                          "identity",
+                                          ...categories.map(([facet]) => facet),
+                                        ].includes(key.slice(7)),
+                                    )
+                                    .map(([key, row]) => (
+                                      <React.Fragment key={key}>
+                                        <dt>{key}</dt>
+                                        <dd title={`${row.prim}\n${String(row.value)}`}>
+                                          {typeof row.value === "number"
+                                            ? inspectionNumber.format(row.value)
+                                            : String(row.value)}
+                                          {row.unit ? " " + row.unit : ""}
+                                        </dd>
+                                      </React.Fragment>
+                                    ))}
+                                </dl>
+                              </details>
+                            )}
+                          </div>
+                        </aside>
+                      );
+                    })}
+                  </div>
+                ))}
               </div>
             )}
           </div>
@@ -862,13 +908,14 @@ export function ScenePreview({
                 ref={treeElement}
                 className="scene-preview-objects"
                 role="tree"
+                aria-multiselectable="true"
                 aria-label={t("场景对象")}
                 onKeyDown={(event) => {
+                  const additive = event.ctrlKey || event.metaKey;
                   if (
                     event.altKey ||
-                    event.ctrlKey ||
-                    event.metaKey ||
-                    event.nativeEvent.isComposing
+                    event.nativeEvent.isComposing ||
+                    (additive && event.key !== "Enter" && event.key !== " ")
                   )
                     return;
                   const path = (event.target as HTMLElement).dataset.treePath;
@@ -898,7 +945,7 @@ export function ScenePreview({
                       break;
                     case "Enter":
                     case " ":
-                      if (row.object) selectObject(row.object.id);
+                      if (row.object) selectObject(row.object.id, additive);
                       else if (row.children.size) changeBranch(row);
                       break;
                     default:
@@ -915,7 +962,7 @@ export function ScenePreview({
                       role="treeitem"
                       aria-level={depth + 1}
                       aria-expanded={children.size ? open : undefined}
-                      aria-selected={object ? selected === object.id : undefined}
+                      aria-selected={object ? selection.has(object.id) : undefined}
                       className="scene-tree-row"
                       data-tree-path={path}
                       data-prim-path={object?.id}
@@ -924,9 +971,24 @@ export function ScenePreview({
                       style={{ paddingInlineStart: depth * 11 + 4 }}
                       title={object?.semantic_ref ?? path}
                       onFocus={() => setTreeFocus(path)}
-                      onClick={(event) => {
+                      onContextMenu={(event) => {
+                        if (object && event.ctrlKey) event.preventDefault();
+                      }}
+                      onPointerUp={(event) => {
+                        if (
+                          !object ||
+                          !event.ctrlKey ||
+                          (event.button !== 0 && event.button !== 2) ||
+                          (event.target as Element).closest(".scene-tree-expand")
+                        )
+                          return;
                         event.currentTarget.focus();
-                        if (object) selectObject(object.id);
+                        selectObject(object.id, true);
+                      }}
+                      onClick={(event) => {
+                        if (object && event.ctrlKey) return;
+                        event.currentTarget.focus();
+                        if (object) selectObject(object.id, event.metaKey);
                         else if (children.size) changeBranch(row);
                       }}
                     >

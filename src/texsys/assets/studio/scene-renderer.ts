@@ -44,7 +44,12 @@ export type ModelObject = {
 export type SceneAxis = "x" | "y" | "z";
 export type ViewDirection = "iso" | "top" | "front" | "side";
 type Hit = { id: string; point: Point3 };
-type ViewState = { visible: Set<string>; ghost: Set<string>; selected: string; hovered: string };
+type ViewState = {
+  visible: Set<string>;
+  ghost: Set<string>;
+  selected: ReadonlySet<string>;
+  hovered: string;
+};
 const axes = { x: new Vector3(1, 0, 0), y: new Vector3(0, 1, 0), z: new Vector3(0, 0, 1) };
 const directions = {
   iso: new Vector3(1, -1.45, 1),
@@ -333,7 +338,7 @@ export class SceneRenderer {
         mesh.userData.color as Color,
         ghost.has(id)
           ? "ghost"
-          : selected === id
+          : selected.has(id)
             ? "selected"
             : hovered === id
               ? "hovered"
