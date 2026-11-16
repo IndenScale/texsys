@@ -1670,6 +1670,8 @@ test("mounted artifact previews preserve their viewport when file geometry chang
     prim_path: "/Room",
     semantic_ref: "room",
     name: "Room",
+    type: "Cube",
+    facets: { role: "Slab", discipline: "structural", zone: "North", level: "L1" },
     points: [
       [0, 0, 0],
       [3, 0, 0],
@@ -1919,6 +1921,30 @@ test("mounted artifact previews preserve their viewport when file geometry chang
     button: 0,
     bubbles: true,
   };
+  const movePointer = (options = {}) =>
+    act(() => {
+      canvas.dispatchEvent(new window.MouseEvent("pointermove", { ...pointer, ...options }));
+      const [frame, callback] = Array.from(frames).at(-1);
+      frames.delete(frame);
+      callback(performance.now());
+    });
+  const quickLook = () => container.querySelector('.scene-hover[role="tooltip"]');
+  await movePointer();
+  await act(() => t.mock.timers.tick(299));
+  assert.equal(quickLook(), null);
+  await act(() => t.mock.timers.tick(1));
+  assert.equal(quickLook().querySelector("span").textContent, "Room");
+  assert.equal(quickLook().querySelector("small").textContent, "Slab · structural · North");
+  assert.deepEqual(cards(), []);
+  await movePointer({ clientX: 0, clientY: 0 });
+  assert.equal(quickLook(), null);
+  await movePointer();
+  await act(() => t.mock.timers.tick(299));
+  assert.equal(quickLook(), null);
+  await zoom();
+  await act(() => t.mock.timers.tick(1));
+  assert.equal(quickLook(), null);
+  await act(() => container.querySelector('[aria-label="缩小"]').click());
   const clickCanvas = (modifiers = {}) =>
     act(() => {
       const options = { ...pointer, ...modifiers };

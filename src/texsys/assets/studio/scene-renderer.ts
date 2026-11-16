@@ -133,6 +133,7 @@ export class SceneRenderer {
   constructor(
     private readonly canvas: HTMLCanvasElement,
     private readonly changed: (viewport: SceneViewport) => void,
+    private readonly viewMoving: () => void,
   ) {
     this.renderer = new WebGLRenderer({ canvas, antialias: true, alpha: false });
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
@@ -161,7 +162,10 @@ export class SceneRenderer {
     this.controls.rotateSpeed = this.navigation.sceneMouseSensitivity;
     this.controls.zoomToCursor = true;
     this.controls.enableDamping = false;
-    this.controls.addEventListener("change", () => this.draw());
+    this.controls.addEventListener("change", () => {
+      this.viewMoving();
+      this.draw();
+    });
     this.controls.addEventListener("end", () => this.saveView());
     this.controls.update();
   }
@@ -227,6 +231,7 @@ export class SceneRenderer {
 
   resize(width: number, height: number) {
     if (!width || !height) return;
+    this.viewMoving();
     this.width = width;
     this.height = height;
     this.renderer.setSize(width, height, false);
@@ -287,6 +292,7 @@ export class SceneRenderer {
   fit(ids: Iterable<string> = this.visible, direction?: ViewDirection) {
     const bounds = this.bounds(ids);
     if (bounds.isEmpty()) return;
+    this.viewMoving();
     const from = direction
       ? directions[direction].clone().normalize()
       : this.camera.position.clone().sub(this.target).normalize();
@@ -317,6 +323,7 @@ export class SceneRenderer {
   }
 
   zoom(factor: number) {
+    this.viewMoving();
     if (this.camera === this.orthographic) {
       this.orthographic.zoom = Math.min(5000, Math.max(0.008, this.orthographic.zoom * factor));
       this.orthographic.updateProjectionMatrix();
@@ -349,6 +356,7 @@ export class SceneRenderer {
   }
 
   setSection(axis: SceneAxis | undefined, fraction: number) {
+    this.viewMoving();
     this.cut = undefined;
     if (axis && !this.worldBounds.isEmpty()) {
       const min = this.worldBounds.min[axis] - this.offset[axis];
@@ -449,6 +457,7 @@ export class SceneRenderer {
     // Track elapsed time through ordinary slow frames, while bounding a stalled tab's step.
     const elapsed = Math.max(0, Math.min((time - this.lastFrame) / 1000, 0.25));
     if (!elapsed) return;
+    this.viewMoving();
     this.lastFrame = time;
     const right = new Vector3(1, 0, 0).applyQuaternion(this.camera.quaternion);
     const yaw = keyAxis(this.keys, "ArrowRight", "ArrowLeft");

@@ -1,4 +1,4 @@
-import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { t } from "./i18n";
 import type { WorkbenchProps } from "./sdk";
 import { Empty, Icon } from "./ui";
@@ -37,6 +37,8 @@ const categories = [
 ] as const;
 type Category = (typeof categories)[number][0];
 type Filters = Partial<Record<Category, Set<string>>>;
+type ViewportPointer = { x: number; y: number };
+const hoverDelay = 300;
 const valuesFor = (object: ModelObject, key: Category): string[] =>
   key === "collection"
     ? (object.collections ?? [])
@@ -183,7 +185,8 @@ export function ScenePreview({
   const [expanded, setExpanded] = useState(new Map<string, boolean>());
   const [treeFocus, setTreeFocus] = useState("");
   const treeElement = useRef<HTMLDivElement>(null);
-  const [hover, setHover] = useState<{ id: string; x: number; y: number }>();
+  const [hover, setHover] = useState<ViewportPointer & { id: string }>();
+  const [previewedId, setPreviewedId] = useState<string>();
   const [axis, setAxis] = useState<SceneAxis>();
   const [section, setSection] = useState(0.5);
   const [measuring, setMeasuring] = useState(false);
@@ -197,7 +200,17 @@ export function ScenePreview({
   const drag = useRef<{ x: number; y: number; button: number; distance: number } | undefined>(
     undefined,
   );
-  const lastHover = useRef(0);
+  const hoverFrame = useRef<number | undefined>(undefined);
+  const pointer = useRef<ViewportPointer | undefined>(undefined);
+  const hoverTarget = useRef<string | undefined>(undefined);
+  const clearHover = useCallback(() => {
+    if (hoverFrame.current !== undefined) cancelAnimationFrame(hoverFrame.current);
+    hoverFrame.current = undefined;
+    pointer.current = undefined;
+    hoverTarget.current = undefined;
+    setHover(undefined);
+    setPreviewedId(undefined);
+  }, []);
   const objects = scene?.objects;
   const hasObjects = Boolean(objects?.length);
   const byId = useMemo(() => new Map(objects?.map((object) => [object.id, object])), [objects]);
@@ -211,7 +224,6 @@ export function ScenePreview({
       cards: ids.map((id) => byId.get(id)).filter((object): object is ModelObject => !!object),
     }))
     .filter(({ cards }) => cards.length > 0);
-  const hoveredObject = hover && byId.get(hover.id);
   const filterOptions = useMemo(
     () =>
       categories
@@ -259,6 +271,26 @@ export function ScenePreview({
   const rows = useMemo(() => treeRows(tree, expanded, !!query.trim()), [tree, expanded, query]);
   const treeTabStop = rows.find((row) => row.path === treeFocus)?.path ?? rows[0]?.path;
   const filtering = categories.some(([key]) => filters[key]?.size);
+  const hoverId = hover && visible.has(hover.id) ? hover.id : undefined;
+  const hoveredObject = hoverId && hoverId === previewedId ? byId.get(hoverId) : undefined;
+  const hoverFields = hoveredObject
+    ? [
+        ...new Set(
+          ["role", "discipline", "zone", "level", "material"].flatMap(
+            (key) => hoveredObject.facets?.[key] || [],
+          ),
+        ),
+      ].slice(0, 3)
+    : [];
+  const hoverRight = size.width - (cardGroups.length ? Math.min(size.width * 0.82, 286) + 8 : 0);
+  const hoverWidth = Math.min(270, hoverRight - 16);
+  const hoverPlacement =
+    hover &&
+    (hover.x + hoverWidth + 14 <= hoverRight - 8
+      ? { left: hover.x + 14 }
+      : hover.x - hoverWidth - 14 >= 8
+        ? { right: size.width - hover.x + 14 }
+        : { left: 8 });
 
   const focusViewport = () => canvas?.focus({ preventScroll: true });
   const lastFocus = useRef<SceneViewControls["focusRequest"]>(undefined);
@@ -279,7 +311,7 @@ export function ScenePreview({
     if (!canvas || !active) return;
     let instance: SceneRenderer;
     try {
-      instance = new SceneRenderer(canvas, (state) => changeRef.current(state));
+      instance = new SceneRenderer(canvas, (state) => changeRef.current(state), clearHover);
       setRenderError("");
     } catch {
       setRenderError(t("无法启动 WebGL 预览。请检查浏览器的图形加速设置。"));
@@ -290,7 +322,7 @@ export function ScenePreview({
       instance.dispose();
       renderer.current = null;
     };
-  }, [active, canvas]);
+  }, [active, canvas, clearHover]);
 
   useLayoutEffect(() => {
     if (active) renderer.current?.resize(size.width, size.height);
@@ -299,8 +331,8 @@ export function ScenePreview({
     if (objects?.length) renderer.current?.load(objects, viewportRef.current);
   }, [active, canvas, objects]);
   useLayoutEffect(() => {
-    renderer.current?.setState({ visible, ghost, selected: selection, hovered: hover?.id ?? "" });
-  }, [active, canvas, visible, ghost, selection, hover?.id]);
+    renderer.current?.setState({ visible, ghost, selected: selection, hovered: hoverId ?? "" });
+  }, [active, canvas, visible, ghost, selection, hoverId]);
   useLayoutEffect(() => {
     renderer.current?.setSection(axis, section);
   }, [active, canvas, objects, axis, section]);
@@ -311,10 +343,25 @@ export function ScenePreview({
     renderer.current?.setNavigation(preferences);
   }, [active, canvas, preferences]);
   useLayoutEffect(() => {
-    if (!focused) renderer.current?.stop();
-  }, [focused]);
+    if (!active || !focused) renderer.current?.stop();
+    clearHover();
+  }, [active, focused, visible, ghost, measuring, clearHover]);
   useEffect(() => {
-    const stop = () => renderer.current?.stop();
+    if (!hoverId) return;
+    const timer = setTimeout(() => setPreviewedId(hoverId), hoverDelay);
+    return () => clearTimeout(timer);
+  }, [hoverId]);
+  useEffect(
+    () => () => {
+      if (hoverFrame.current !== undefined) cancelAnimationFrame(hoverFrame.current);
+    },
+    [],
+  );
+  useEffect(() => {
+    const stop = () => {
+      renderer.current?.stop();
+      clearHover();
+    };
     const visibility = () => {
       if (document.hidden) stop();
     };
@@ -324,7 +371,7 @@ export function ScenePreview({
       window.removeEventListener("blur", stop);
       document.removeEventListener("visibilitychange", visibility);
     };
-  }, []);
+  }, [clearHover]);
 
   const selectObject = (id: string, additive = false) => {
     if (additive && !id) return;
@@ -341,7 +388,7 @@ export function ScenePreview({
         following: [...(additive ? following : []), ...(id && !pinned.includes(id) ? [id] : [])],
       });
     }
-    setHover(undefined);
+    clearHover();
   };
   const pickObject = (id: string, additive: boolean) => {
     selectObject(id, additive);
@@ -401,7 +448,7 @@ export function ScenePreview({
   const hideFilter = () => {
     setHidden((old) => new Set([...old, ...matched.map((object) => object.id)]));
     setFilters({});
-    setHover(undefined);
+    clearHover();
   };
   const distance =
     points.length === 2
@@ -412,9 +459,22 @@ export function ScenePreview({
     return {
       x: event.clientX - rect.left,
       y: event.clientY - rect.top,
-      width: rect.width,
-      height: rect.height,
     };
+  };
+  const hoverAt = (point: ViewportPointer) => {
+    pointer.current = point;
+    if (hoverFrame.current !== undefined) return;
+    hoverFrame.current = requestAnimationFrame(() => {
+      hoverFrame.current = undefined;
+      const current = pointer.current;
+      if (!current) return;
+      const hit = renderer.current?.pick(current.x, current.y);
+      if (hit?.id !== hoverTarget.current) {
+        hoverTarget.current = hit?.id;
+        setPreviewedId(undefined);
+      }
+      setHover(hit ? { ...current, id: hit.id } : undefined);
+    });
   };
   const navigation = [
     ["iso", "等轴测"],
@@ -552,7 +612,7 @@ export function ScenePreview({
                   button: event.button,
                   distance: 0,
                 };
-                setHover(undefined);
+                clearHover();
               }}
               onPointerMove={(event) => {
                 const previous = drag.current;
@@ -567,19 +627,8 @@ export function ScenePreview({
                   };
                   return;
                 }
-                if (event.timeStamp - lastHover.current < 34) return;
-                lastHover.current = event.timeStamp;
-                const { x, y, width, height } = coordinates(event);
-                const result = renderer.current?.pick(x, y);
-                setHover(
-                  result
-                    ? {
-                        id: result.id,
-                        x: Math.max(6, Math.min(x + 14, width - 198)),
-                        y: Math.min(y + 14, height - 42),
-                      }
-                    : undefined,
-                );
+                if (!measuring && !event.buttons && event.pointerType !== "touch")
+                  hoverAt(coordinates(event));
               }}
               onPointerUp={(event) => {
                 const previous = drag.current;
@@ -598,10 +647,13 @@ export function ScenePreview({
               }}
               onPointerCancel={() => {
                 drag.current = undefined;
-                setHover(undefined);
+                clearHover();
               }}
-              onPointerLeave={() => setHover(undefined)}
-              onBlur={() => renderer.current?.stop()}
+              onPointerLeave={clearHover}
+              onBlur={() => {
+                renderer.current?.stop();
+                clearHover();
+              }}
               onKeyUp={(event) => {
                 if (renderer.current?.key(event.code, false, event.shiftKey))
                   event.preventDefault();
@@ -636,14 +688,18 @@ export function ScenePreview({
                 event.preventDefault();
               }}
             />
-            {hover && hoveredObject && (
-              <div className="scene-hover" style={{ left: hover.x, top: hover.y }}>
-                <span>{hoveredObject.name}</span>
-                <small>
-                  {hoveredObject.facets?.role ??
-                    hoveredObject.facets?.material ??
-                    hoveredObject.type}
-                </small>
+            {hover && hoveredObject && hoverWidth >= 40 && size.height >= 48 && (
+              <div
+                className="scene-hover"
+                role="tooltip"
+                style={{
+                  maxWidth: hoverWidth,
+                  ...hoverPlacement,
+                  top: hover.y + 59 <= size.height ? hover.y + 14 : Math.max(8, hover.y - 57),
+                }}
+              >
+                <span>{hoveredObject.name || hoveredObject.prim_path}</span>
+                {hoverFields.length > 0 && <small>{hoverFields.join(" · ")}</small>}
               </div>
             )}
             {!visible.size && <div className="scene-view-message">{t("当前没有可见构件")}</div>}

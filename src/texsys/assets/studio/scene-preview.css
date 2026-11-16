@@ -68,7 +68,14 @@
   font-size: 12px;
 }
 .scene-hover {
-  max-width: 190px;
+  z-index: 1;
+  box-sizing: border-box;
+  width: max-content;
+  background: var(--ui-canvas);
+  color: var(--ui-text);
+  border-color: var(--ui-border);
+  box-shadow: 0 2px 6px #0002;
+  padding: 5px 8px;
 }
 .scene-hover > * {
   display: block;
@@ -77,7 +84,8 @@
   text-overflow: ellipsis;
 }
 .scene-hover small {
-  color: #46616b;
+  margin-top: 2px;
+  color: var(--ui-text-muted);
 }
 .scene-view-message {
   left: 12px;
