@@ -9,14 +9,11 @@ import {
   type SceneViewport,
   type SceneViewControls,
 } from "./preview-viewport";
-import { HeightResizeHandle } from "./atomstudio/ResizeHandle";
+import { EditorActionButton } from "./EditorActionButton";
+import { EditorControlSlot } from "./EditorControlSlot";
+import { NavigatorMenu } from "./NavigatorMenu";
 import { useUserPreferences } from "./user-preferences";
-import {
-  SceneRenderer,
-  type ModelObject,
-  type SceneAxis,
-  type ViewDirection,
-} from "./scene-renderer";
+import { SceneRenderer, type ModelObject, type SceneAxis } from "./scene-renderer";
 import { usePreviewSize } from "./use-preview-size";
 import "./scene-preview.css";
 
@@ -116,18 +113,12 @@ export function ScenePreview({
   controls?: SceneViewControls;
 }) {
   const [standaloneInspection, setStandaloneInspection] = useState(defaultSceneInspection);
-  const {
-    focused = true,
-    focusRequest,
-    maximized = false,
-    toggleMaximized,
-    openSettings,
-  } = controls ?? {};
+  const { focused = true, focusRequest, maximized = false, toggleMaximized } = controls ?? {};
   const inspection = controls
     ? (controls.inspection ?? defaultSceneInspection)
     : standaloneInspection;
   const changeInspection = controls?.changeInspection ?? setStandaloneInspection;
-  const { selected, pinned, open: propertiesOpen, propertyShare } = inspection;
+  const { selected, following, pinned } = inspection;
   const preferences = useUserPreferences();
   const navigationHint = React.useId();
   const [result, setResult] = useState<{
@@ -191,10 +182,6 @@ export function ScenePreview({
   const [expanded, setExpanded] = useState(new Map<string, boolean>());
   const [treeFocus, setTreeFocus] = useState("");
   const treeElement = useRef<HTMLDivElement>(null);
-  const { setElement: setSidebar, size: sidebarSize } = usePreviewSize<HTMLElement>();
-  const propertyPanel = useRef<HTMLDivElement>(null);
-  const propertySpace = Math.max(0, sidebarSize.height - 5);
-  const propertyHeight = Math.round((propertySpace * propertyShare) / 100);
   const [hover, setHover] = useState<{ id: string; x: number; y: number }>();
   const [axis, setAxis] = useState<SceneAxis>();
   const [section, setSection] = useState(0.5);
@@ -214,9 +201,10 @@ export function ScenePreview({
   const hasObjects = Boolean(objects?.length);
   const byId = useMemo(() => new Map(objects?.map((object) => [object.id, object])), [objects]);
   const selectedObject = byId.get(selected);
-  const inspected = byId.get(pinned || selected);
+  const cards = [...(following ? [following] : []), ...pinned]
+    .map((id) => byId.get(id))
+    .filter((object): object is ModelObject => !!object);
   const hoveredObject = hover && byId.get(hover.id);
-  const source = inspected && sourceReference(scene, inspected.id, inspected.semantic_ref ?? "");
   const filterOptions = useMemo(
     () =>
       categories
@@ -331,8 +319,8 @@ export function ScenePreview({
     };
   }, []);
 
-  const selectObject = (id: string, openProperties = false) => {
-    changeInspection({ ...inspection, selected: id, open: propertiesOpen || openProperties });
+  const selectObject = (id: string) => {
+    changeInspection({ ...inspection, selected: id, following: pinned.includes(id) ? "" : id });
     setHover(undefined);
   };
   const pickObject = (id: string) => {
@@ -364,37 +352,33 @@ export function ScenePreview({
         ?.querySelector<HTMLElement>('[data-tree-path="' + CSS.escape(path) + '"]')
         ?.focus();
   };
-  const closeProperties = () => {
-    changeInspection({ ...inspection, open: false, pinned: "" });
+  const closeProperties = (id: string) => {
+    changeInspection({
+      ...inspection,
+      following: following === id ? "" : following,
+      pinned: pinned.filter((other) => other !== id),
+    });
     focusViewport();
+  };
+  const togglePinned = (id: string) => {
+    const locked = pinned.includes(id);
+    changeInspection({
+      ...inspection,
+      following: locked && selected === id ? id : following === id ? "" : following,
+      pinned: locked ? pinned.filter((other) => other !== id) : [...pinned, id],
+    });
+    if (locked && selected !== id) focusViewport();
   };
   const restore = () => {
     setHidden(new Set());
     setGhost(new Set());
     setIsolated(undefined);
   };
-  const relatedIds = inspected?.owner_path
-    ? (objects ?? [])
-        .filter((object) => object.owner_path === inspected.owner_path)
-        .map((object) => object.id)
-    : inspected
-      ? [inspected.id]
-      : [];
   const hideFilter = () => {
     setHidden((old) => new Set([...old, ...matched.map((object) => object.id)]));
     setFilters({});
     setHover(undefined);
   };
-  const geometryBounds = inspected?.points.reduce(
-    (result, point) => {
-      point.forEach((value, i) => {
-        result.min[i] = Math.min(result.min[i], value);
-        result.max[i] = Math.max(result.max[i], value);
-      });
-      return result;
-    },
-    { min: [Infinity, Infinity, Infinity], max: [-Infinity, -Infinity, -Infinity] },
-  );
   const distance =
     points.length === 2
       ? Math.hypot(...points[0].map((value, i) => points[1][i] - value))
@@ -435,59 +419,53 @@ export function ScenePreview({
         }
       }}
     >
-      <div className="scene-preview-controls" role="toolbar" aria-label={t("场景视角")}>
-        <button
-          type="button"
+      <EditorControlSlot>
+        <EditorActionButton
+          label={t("缩小")}
+          icon="search-minus"
           disabled={!hasObjects}
           onClick={() => renderer.current?.zoom(1 / 1.25)}
-          aria-label={t("缩小")}
-        >
-          −
-        </button>
-        <button
-          type="button"
+        />
+        <EditorActionButton
+          label={t("放大")}
+          icon="search-plus"
           disabled={!hasObjects}
           onClick={() => renderer.current?.zoom(1.25)}
-          aria-label={t("放大")}
-        >
-          +
-        </button>
-        <button type="button" disabled={!visible.size} onClick={() => renderer.current?.fit()}>
-          {t("适应视图")}
-        </button>
-        <select
-          aria-label={t("标准视图")}
-          value=""
+        />
+        <EditorActionButton
+          label={t("适应视图")}
+          icon="fit"
           disabled={!visible.size}
-          onChange={(event) => {
-            renderer.current?.fit(visible, event.target.value as ViewDirection);
-            focusViewport();
-          }}
-        >
-          <option value="" disabled>
-            {t("标准视图")}
-          </option>
-          {navigation.map(([value, label]) => (
-            <option key={value} value={value}>
-              {t(label)}
-            </option>
-          ))}
-        </select>
-        <span className="scene-control-divider" />
-        <select
-          aria-label={t("剖切")}
-          value={axis ?? ""}
-          disabled={!hasObjects}
-          onChange={(event) => setAxis((event.target.value || undefined) as SceneAxis | undefined)}
-        >
-          <option value="">{t("剖切")}</option>
-          <option value="x">X</option>
-          <option value="y">Y</option>
-          <option value="z">Z</option>
-        </select>
+          onClick={() => renderer.current?.fit()}
+        />
+        <NavigatorMenu
+          label={t("标准视图")}
+          editorActionIcon="cube"
+          placement="end"
+          triggerDisabled={!visible.size}
+          items={navigation.map(([direction, label]) => ({
+            label: t(label),
+            run: () => {
+              renderer.current?.fit(visible, direction);
+              focusViewport();
+            },
+          }))}
+        />
+        <NavigatorMenu
+          label={t("剖切")}
+          editorActionIcon="scene-section"
+          placement="end"
+          triggerDisabled={!hasObjects}
+          items={([undefined, "x", "y", "z"] as const).map((next) => ({
+            label: next ? next.toUpperCase() : t("关闭剖切"),
+            checked: axis === next,
+            run: () => setAxis(next),
+          }))}
+        />
         {axis && (
           <input
             aria-label={t("剖切位置")}
+            title={t("剖切位置")}
             className="scene-section-range"
             type="range"
             min={0}
@@ -497,43 +475,29 @@ export function ScenePreview({
             onChange={(event) => setSection(Number(event.target.value))}
           />
         )}
-        <button
-          type="button"
+        <EditorActionButton
+          label={t("测距")}
+          icon="ruler"
           disabled={!hasObjects}
           aria-pressed={measuring}
           onClick={() => {
             setPoints([]);
             setMeasuring(!measuring);
-            canvas?.focus();
+            focusViewport();
           }}
-        >
-          {t("测距")}
-        </button>
-        <span className="scene-toolbar-end" />
-        <button
-          type="button"
-          disabled={!selectedObject}
-          onClick={() => selectObject(selected, true)}
-        >
-          {t("查看属性")}
-        </button>
-        {openSettings && (
-          <button
-            type="button"
-            title={t("打开 USD 预览设置")}
-            aria-label={t("打开 USD 预览设置")}
-            onClick={openSettings}
-          >
-            <Icon name="settings" size={14} />
-          </button>
-        )}
+        />
         {toggleMaximized && (
-          <button type="button" aria-keyshortcuts="Shift+F" onClick={toggleMaximized}>
-            <Icon name={maximized ? "panel-restore" : "panel-maximize"} size={14} />
-            {t(maximized ? "退出场景全屏" : "场景全屏")}
-          </button>
+          <EditorActionButton
+            label={t(maximized ? "退出场景全屏" : "场景全屏")}
+            icon={maximized ? "panel-restore" : "panel-maximize"}
+            aria-keyshortcuts="Shift+F"
+            onClick={toggleMaximized}
+          />
         )}
-      </div>
+      </EditorControlSlot>
+      <span className="sr-only" id={navigationHint}>
+        {t("WASD 移动 · Q/E 升降 · 方向键转向 · 左键旋转 / 右键平移")}
+      </span>
       {(error || renderError) && (
         <div className="scene-preview-error" role="alert">
           {error || renderError}
@@ -632,7 +596,7 @@ export function ScenePreview({
                 } else if (event.key === "Home") {
                   renderer.current?.fit();
                 } else if (event.key === "Enter" && selectedObject) {
-                  selectObject(selected, true);
+                  selectObject(selected);
                 } else return;
                 event.preventDefault();
               }}
@@ -655,8 +619,187 @@ export function ScenePreview({
                   : `${distance.toFixed(3)} m`}
               </div>
             )}
+            {cards.length > 0 && (
+              <div className="scene-inspection-overlay" aria-label={t("构件属性")}>
+                {cards.map((inspected) => {
+                  const id = inspected.id;
+                  const locked = pinned.includes(id);
+                  const source = sourceReference(scene, id, inspected.semantic_ref ?? "");
+                  const relatedIds = inspected.owner_path
+                    ? (objects ?? [])
+                        .filter((object) => object.owner_path === inspected.owner_path)
+                        .map((object) => object.id)
+                    : [id];
+                  const geometryBounds = inspected.points.reduce(
+                    (result, point) => {
+                      point.forEach((value, i) => {
+                        result.min[i] = Math.min(result.min[i], value);
+                        result.max[i] = Math.max(result.max[i], value);
+                      });
+                      return result;
+                    },
+                    { min: [Infinity, Infinity, Infinity], max: [-Infinity, -Infinity, -Infinity] },
+                  );
+                  return (
+                    <aside
+                      key={id}
+                      className="scene-property-panel"
+                      aria-label={inspected.name + " " + t("属性")}
+                      data-inspected={id}
+                    >
+                      <div className="scene-panel-heading">
+                        <span className="scene-selection-title" title={inspected.prim_path}>
+                          {inspected.name}
+                        </span>
+                        <EditorActionButton
+                          icon="pin"
+                          label={t(locked ? "取消固定属性" : "固定构件属性")}
+                          aria-pressed={locked}
+                          onClick={() => togglePinned(id)}
+                        />
+                        <EditorActionButton
+                          icon="close"
+                          label={t("关闭构件属性")}
+                          onClick={() => closeProperties(id)}
+                        />
+                      </div>
+                      <div className="scene-preview-inspector">
+                        <small>
+                          {inspected.envelope ? t("包络几何") : (inspected.type ?? t("网格几何"))}
+                        </small>
+                        <div className="scene-selection-actions">
+                          <EditorActionButton
+                            icon="locate"
+                            label={t("聚焦")}
+                            disabled={!visible.has(id)}
+                            onClick={() => renderer.current?.fit([id])}
+                          />
+                          <EditorActionButton
+                            icon={hidden.has(id) ? "eye" : "eye-off"}
+                            label={t(hidden.has(id) ? "显示" : "隐藏")}
+                            aria-pressed={hidden.has(id)}
+                            onClick={() => setHidden((old) => toggleSet(old, id))}
+                          />
+                          <EditorActionButton
+                            icon="scene-ghost"
+                            label={t("半透明")}
+                            aria-pressed={ghost.has(id)}
+                            onClick={() => setGhost((old) => toggleSet(old, id))}
+                          />
+                          <EditorActionButton
+                            icon="isolate"
+                            label={t("仅显示部件")}
+                            onClick={() => {
+                              setHidden((old) => new Set([...old].filter((other) => other !== id)));
+                              setIsolated(new Set([id]));
+                            }}
+                          />
+                          {relatedIds.length > 1 && (
+                            <EditorActionButton
+                              icon="layers"
+                              label={t("仅显示构件")}
+                              onClick={() => {
+                                setHidden(
+                                  (old) =>
+                                    new Set(
+                                      [...old].filter((other) => !relatedIds.includes(other)),
+                                    ),
+                                );
+                                setIsolated(new Set(relatedIds));
+                              }}
+                            />
+                          )}
+                          {(hidden.size > 0 || isolated || ghost.size > 0) && (
+                            <EditorActionButton
+                              icon="refresh"
+                              label={t("恢复显隐")}
+                              onClick={restore}
+                            />
+                          )}
+                          {source && openSource && (
+                            <EditorActionButton
+                              icon="code"
+                              label={t("定位源码")}
+                              onClick={() => openSource(source)}
+                            />
+                          )}
+                        </div>
+                        <dl className="scene-properties">
+                          <dt>Prim</dt>
+                          <dd>{inspected.prim_path}</dd>
+                          {inspected.owner_path && inspected.owner_path !== inspected.id && (
+                            <>
+                              <dt>{t("所属构件")}</dt>
+                              <dd>{inspected.owner_path}</dd>
+                            </>
+                          )}
+                          {geometryBounds && (
+                            <>
+                              <dt>{t("包络尺寸")}</dt>
+                              <dd>
+                                {geometryBounds.max
+                                  .map((value, index) =>
+                                    (value - geometryBounds.min[index]).toFixed(3),
+                                  )
+                                  .join(" × ")}{" "}
+                                m
+                              </dd>
+                              <dt>{t("标高范围")}</dt>
+                              <dd>
+                                {geometryBounds.min[2].toFixed(3)} –{" "}
+                                {geometryBounds.max[2].toFixed(3)} m
+                              </dd>
+                            </>
+                          )}
+                          {categories.flatMap(([key, label]) =>
+                            valuesFor(inspected, key).map((value) => (
+                              <React.Fragment key={key + value}>
+                                <dt>{t(label)}</dt>
+                                <dd title={value}>{labelFor(key, value)}</dd>
+                              </React.Fragment>
+                            )),
+                          )}
+                        </dl>
+                        {Object.entries(inspected.properties ?? {}).some(
+                          ([key]) =>
+                            !key.startsWith("texsys:") ||
+                            !["identity", ...categories.map(([facet]) => facet)].includes(
+                              key.slice(7),
+                            ),
+                        ) && (
+                          <details className="scene-authored" open>
+                            <summary>{t("USD 属性")}</summary>
+                            <dl className="scene-properties">
+                              {Object.entries(inspected.properties ?? {})
+                                .filter(
+                                  ([key]) =>
+                                    !key.startsWith("texsys:") ||
+                                    !["identity", ...categories.map(([facet]) => facet)].includes(
+                                      key.slice(7),
+                                    ),
+                                )
+                                .map(([key, row]) => (
+                                  <React.Fragment key={key}>
+                                    <dt>{key}</dt>
+                                    <dd title={`${row.prim}\n${String(row.value)}`}>
+                                      {typeof row.value === "number"
+                                        ? inspectionNumber.format(row.value)
+                                        : String(row.value)}
+                                      {row.unit ? " " + row.unit : ""}
+                                    </dd>
+                                  </React.Fragment>
+                                ))}
+                            </dl>
+                          </details>
+                        )}
+                      </div>
+                    </aside>
+                  );
+                })}
+              </div>
+            )}
           </div>
-          <aside ref={setSidebar} className="scene-side" aria-label={t("构件检查")}>
+          <aside className="scene-side" aria-label={t("构件检查")}>
             <div className="scene-tree-panel">
               <div className="scene-panel-heading">{t("构件")}</div>
               <div className="scene-filters">
@@ -695,28 +838,22 @@ export function ScenePreview({
                 {(filtering || hidden.size > 0 || isolated || ghost.size > 0) && (
                   <div className="scene-filter-actions">
                     {filtering && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setFilters({});
-                        }}
-                      >
-                        {t("清除筛选")}
-                      </button>
+                      <EditorActionButton
+                        icon="clear-search"
+                        label={t("清除筛选")}
+                        onClick={() => setFilters({})}
+                      />
                     )}
                     {filtering && (
-                      <button
-                        type="button"
+                      <EditorActionButton
+                        icon="eye-off"
+                        label={t("隐藏筛选结果")}
                         disabled={!matched.some((object) => !hidden.has(object.id))}
                         onClick={hideFilter}
-                      >
-                        {t("隐藏筛选结果")}
-                      </button>
+                      />
                     )}
                     {(hidden.size > 0 || isolated || ghost.size > 0) && (
-                      <button type="button" onClick={restore}>
-                        {t("恢复显隐")}
-                      </button>
+                      <EditorActionButton icon="refresh" label={t("恢复显隐")} onClick={restore} />
                     )}
                   </div>
                 )}
@@ -761,7 +898,7 @@ export function ScenePreview({
                       break;
                     case "Enter":
                     case " ":
-                      if (row.object) selectObject(row.object.id, event.key === "Enter");
+                      if (row.object) selectObject(row.object.id);
                       else if (row.children.size) changeBranch(row);
                       break;
                     default:
@@ -816,213 +953,6 @@ export function ScenePreview({
                 {!rows.length && <div className="scene-no-selection">{t("没有匹配的构件")}</div>}
               </div>
             </div>
-            {propertiesOpen && (
-              <>
-                <HeightResizeHandle
-                  className="scene-properties-divider"
-                  label={t("调整构件属性高度")}
-                  panelRef={propertyPanel}
-                  previewProperty="--scene-property-preview-height"
-                  value={propertyHeight}
-                  min={Math.round(propertySpace * 0.23)}
-                  max={Math.round(propertySpace * 0.72)}
-                  defaultValue={Math.round(
-                    (propertySpace * defaultSceneInspection.propertyShare) / 100,
-                  )}
-                  grows="up"
-                  mode="hide"
-                  collapsible={false}
-                  open
-                  onClose={closeProperties}
-                  onChange={(height) => {
-                    if (propertySpace)
-                      changeInspection({
-                        ...inspection,
-                        propertyShare: (height * 100) / propertySpace,
-                      });
-                  }}
-                />
-                <div
-                  ref={propertyPanel}
-                  className="scene-property-panel"
-                  style={
-                    {
-                      "--scene-property-height": propertySpace
-                        ? propertyHeight + "px"
-                        : propertyShare + "%",
-                    } as React.CSSProperties
-                  }
-                >
-                  <div className="scene-panel-heading">
-                    <span>{t(pinned ? "已固定属性" : "属性")}</span>
-                    <button
-                      type="button"
-                      aria-pressed={!!pinned}
-                      disabled={!pinned && !inspected}
-                      aria-label={t(pinned ? "取消固定属性" : "固定构件属性")}
-                      title={t(pinned ? "取消固定属性" : "固定构件属性")}
-                      onClick={() =>
-                        changeInspection({
-                          ...inspection,
-                          pinned: pinned ? "" : (inspected?.id ?? ""),
-                        })
-                      }
-                    >
-                      <Icon name="pin" size={14} />
-                    </button>
-                    <button
-                      type="button"
-                      aria-label={t("关闭构件属性")}
-                      title={t("关闭构件属性")}
-                      onClick={closeProperties}
-                    >
-                      <Icon name="close" size={14} />
-                    </button>
-                  </div>
-                  {inspected ? (
-                    <div className="scene-preview-inspector">
-                      <div className="scene-selection-title">
-                        <span title={inspected.prim_path}>{inspected.name}</span>
-                        <small>
-                          {inspected.envelope ? t("包络几何") : (inspected.type ?? t("网格几何"))}
-                        </small>
-                      </div>
-                      <div className="scene-selection-actions">
-                        <button
-                          type="button"
-                          disabled={!visible.has(inspected.id)}
-                          onClick={() => renderer.current?.fit([inspected.id])}
-                        >
-                          {t("聚焦")}
-                        </button>
-                        <button
-                          type="button"
-                          aria-pressed={hidden.has(inspected.id)}
-                          onClick={() => setHidden((old) => toggleSet(old, inspected.id))}
-                        >
-                          {t(hidden.has(inspected.id) ? "显示" : "隐藏")}
-                        </button>
-                        <button
-                          type="button"
-                          aria-pressed={ghost.has(inspected.id)}
-                          onClick={() => setGhost((old) => toggleSet(old, inspected.id))}
-                        >
-                          {t("半透明")}
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setHidden(
-                              (old) => new Set([...old].filter((id) => id !== inspected.id)),
-                            );
-                            setIsolated(new Set([inspected.id]));
-                          }}
-                        >
-                          {t("仅显示部件")}
-                        </button>
-                        {relatedIds.length > 1 && (
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setHidden(
-                                (old) => new Set([...old].filter((id) => !relatedIds.includes(id))),
-                              );
-                              setIsolated(new Set(relatedIds));
-                            }}
-                          >
-                            {t("仅显示构件")}
-                          </button>
-                        )}
-                        {(hidden.size > 0 || isolated || ghost.size > 0) && (
-                          <button type="button" onClick={restore}>
-                            {t("恢复显隐")}
-                          </button>
-                        )}
-                        {source && openSource && (
-                          <button
-                            type="button"
-                            onClick={() => openSource(source)}
-                            title={source.file}
-                          >
-                            {t("定位源码")}
-                          </button>
-                        )}
-                      </div>
-                      <dl className="scene-properties">
-                        <dt>Prim</dt>
-                        <dd>{inspected.prim_path}</dd>
-                        {inspected.owner_path && inspected.owner_path !== inspected.id && (
-                          <>
-                            <dt>{t("所属构件")}</dt>
-                            <dd>{inspected.owner_path}</dd>
-                          </>
-                        )}
-                        {geometryBounds && (
-                          <>
-                            <dt>{t("包络尺寸")}</dt>
-                            <dd>
-                              {geometryBounds.max
-                                .map((value, index) =>
-                                  (value - geometryBounds.min[index]).toFixed(3),
-                                )
-                                .join(" × ")}{" "}
-                              m
-                            </dd>
-                            <dt>{t("标高范围")}</dt>
-                            <dd>
-                              {geometryBounds.min[2].toFixed(3)} –{" "}
-                              {geometryBounds.max[2].toFixed(3)} m
-                            </dd>
-                          </>
-                        )}
-                        {categories.flatMap(([key, label]) =>
-                          valuesFor(inspected, key).map((value) => (
-                            <React.Fragment key={key + value}>
-                              <dt>{t(label)}</dt>
-                              <dd title={value}>{labelFor(key, value)}</dd>
-                            </React.Fragment>
-                          )),
-                        )}
-                      </dl>
-                      {Object.entries(inspected.properties ?? {}).some(
-                        ([key]) =>
-                          !key.startsWith("texsys:") ||
-                          !["identity", ...categories.map(([facet]) => facet)].includes(
-                            key.slice(7),
-                          ),
-                      ) && (
-                        <details className="scene-authored" open>
-                          <summary>{t("USD 属性")}</summary>
-                          <dl className="scene-properties">
-                            {Object.entries(inspected.properties ?? {})
-                              .filter(
-                                ([key]) =>
-                                  !key.startsWith("texsys:") ||
-                                  !["identity", ...categories.map(([facet]) => facet)].includes(
-                                    key.slice(7),
-                                  ),
-                              )
-                              .map(([key, row]) => (
-                                <React.Fragment key={key}>
-                                  <dt>{key}</dt>
-                                  <dd title={`${row.prim}\n${String(row.value)}`}>
-                                    {typeof row.value === "number"
-                                      ? inspectionNumber.format(row.value)
-                                      : String(row.value)}
-                                    {row.unit ? " " + row.unit : ""}
-                                  </dd>
-                                </React.Fragment>
-                              ))}
-                          </dl>
-                        </details>
-                      )}
-                    </div>
-                  ) : (
-                    <div className="scene-no-selection">{t("选择构件以查看属性")}</div>
-                  )}
-                </div>
-              </>
-            )}
           </aside>
         </div>
       ) : (
@@ -1031,14 +961,6 @@ export function ScenePreview({
         >
           {current && t("预览支持 USD 网格、立方体和 BRep 包络。")}
         </Empty>
-      )}
-      {hasObjects && (
-        <footer className="scene-preview-footer">
-          <span>{t("{0} / {1} 个对象可见", { "0": visible.size, "1": objects?.length ?? 0 })}</span>
-          <span id={navigationHint}>
-            {t("WASD 移动 · Q/E 升降 · 方向键转向 · 左键旋转 / 右键平移")}
-          </span>
-        </footer>
       )}
     </section>
   );

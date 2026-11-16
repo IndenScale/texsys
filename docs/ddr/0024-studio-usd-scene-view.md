@@ -3,6 +3,7 @@
 - 状态：已接受
 - 日期：2026-11-16
 - 关联：[DDR-0012](0012-studio-file-preview-and-source.md)、[DDR-0014](0014-studio-editor-group-actions-and-disk-comparison-removal.md)、[范围契约](../scope.md)
+- 后继修订：[DDR-0025](0025-file-editor-shell-and-usd-inspection.md) 统一文件预览器的界面外壳、编辑器操作和设置入口。 场景属性区改为右侧浮层。
 
 ## 决策
 

@@ -24,22 +24,19 @@ export type SceneViewport = {
 export type PreviewViewport = DrawingViewport | SceneViewport;
 export type SceneInspection = {
   selected: string;
-  pinned: string;
-  open: boolean;
-  propertyShare: number;
+  following: string;
+  pinned: readonly string[];
 };
 export const defaultSceneInspection: SceneInspection = {
   selected: "",
-  pinned: "",
-  open: false,
-  propertyShare: 42,
+  following: "",
+  pinned: [],
 };
 export type SceneViewControls = {
   focused: boolean;
   focusRequest?: { origin?: Element | null };
   maximized: boolean;
   toggleMaximized: () => void;
-  openSettings: () => void;
   inspection?: SceneInspection;
   changeInspection: (inspection: SceneInspection) => void;
 };

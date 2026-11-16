@@ -5,10 +5,12 @@ import path from "node:path";
 import { deflateRawSync } from "node:zlib";
 import esbuild from "esbuild-wasm";
 
-function load(source, dependencies = {}) {
+function load(source, dependencies = {}, fixture) {
   const filename = path.resolve(source);
   const result = esbuild.buildSync({
-    entryPoints: [filename],
+    ...(fixture
+      ? { stdin: { contents: fixture, resolveDir: process.cwd() } }
+      : { entryPoints: [filename] }),
     bundle: true,
     write: false,
     platform: "node",
@@ -1618,9 +1620,12 @@ test("mounted artifact previews preserve their viewport when file geometry chang
       });
     }
   }
-  const { FilePreviewContent } = load("src/texsys/assets/studio/ProjectPreview.tsx", {
-    three: { ...three, WebGLRenderer },
-  });
+  const { FilePreviewContent, EditorControlTarget } = load(
+    "src/texsys/assets/studio/ProjectPreview.tsx",
+    { three: { ...three, WebGLRenderer } },
+    'export { FilePreviewContent } from "./src/texsys/assets/studio/ProjectPreview"; ' +
+      'export { EditorControlTarget } from "./src/texsys/assets/studio/EditorControlSlot";',
+  );
   t.mock.timers.enable({ apis: ["setTimeout"] });
   const dom = new JSDOM("<main></main>");
   const { window } = dom;
@@ -1630,6 +1635,7 @@ test("mounted artifact previews preserve their viewport when file geometry chang
     window,
     document: window.document,
     DOMParser: window.DOMParser,
+    CSS: { escape: String },
     ResizeObserver: class {
       observe() {}
       disconnect() {}
@@ -1653,6 +1659,12 @@ test("mounted artifact previews preserve their viewport when file geometry chang
       clientHeight: { value: 300 },
     });
   }
+  Object.assign(window.HTMLCanvasElement.prototype, {
+    getBoundingClientRect: () => ({ left: 0, top: 0, width: 400, height: 300 }),
+    setPointerCapture() {},
+    hasPointerCapture: () => false,
+  });
+  window.HTMLElement.prototype.scrollIntoView = () => {};
   const room = {
     id: "/Room",
     prim_path: "/Room",
@@ -1700,7 +1712,8 @@ test("mounted artifact previews preserve their viewport when file geometry chang
   let latestViewport;
   function Harness({ kind, version, content = "", visible = true, dirty = false }) {
     const [viewport, onViewportChange] = useState();
-    return (
+    const [controls, setControls] = useState(null);
+    const preview =
       visible &&
       createElement(FilePreviewContent, {
         api,
@@ -1719,7 +1732,12 @@ test("mounted artifact previews preserve their viewport when file geometry chang
           latestViewport = next;
           onViewportChange(next);
         },
-      })
+      });
+    return createElement(
+      EditorControlTarget.Provider,
+      { value: controls },
+      createElement("div", { ref: setControls, className: "test-editor-controls" }),
+      preview,
     );
   }
   const container = window.document.querySelector("main");
@@ -1866,6 +1884,16 @@ test("mounted artifact previews preserve their viewport when file geometry chang
   assert.match(container.querySelector('[data-drawio-cell="banner"]').textContent, /压缩图页/);
 
   await render({ kind: "scene", version: "v1" });
+  const controls = container.querySelector(".test-editor-controls");
+  assert.ok(controls.querySelector('[aria-label="适应视图"] svg'));
+  for (const button of controls.querySelectorAll(":scope > button")) {
+    assert.equal(button.textContent, "");
+    assert.ok(button.getAttribute("aria-label"));
+  }
+  assert.equal(
+    container.querySelector(".scene-preview [role=toolbar], .scene-preview footer"),
+    null,
+  );
   await zoom();
   const oldRoom = faces.at(-1);
   assert.equal(oldRoom.length, 3);
@@ -1881,6 +1909,22 @@ test("mounted artifact previews preserve their viewport when file geometry chang
   assert.match(container.querySelector(".scene-preview-objects").textContent, /Changed layer/);
   assert.ok(faces.some((face) => JSON.stringify(face) === JSON.stringify(oldRoom)));
   const canvas = container.querySelector(".scene-preview-canvas");
+  const cards = () =>
+    Array.from(container.querySelectorAll("[data-inspected]"), (card) => card.dataset.inspected);
+  assert.deepEqual(cards(), []);
+  const center = oldRoom.reduce(([x, y], [px, py]) => [x + px / 3, y + py / 3], [0, 0]);
+  const pointer = {
+    clientX: (center[0] + 1) * 200,
+    clientY: (1 - center[1]) * 150,
+    button: 0,
+    bubbles: true,
+  };
+  await act(() => {
+    canvas.dispatchEvent(new window.MouseEvent("pointerdown", pointer));
+    canvas.dispatchEvent(new window.MouseEvent("pointerup", pointer));
+  });
+  assert.deepEqual(cards(), ["/Room"]);
+  assert.ok(canvas.parentElement.querySelector(".scene-inspection-overlay [data-inspected]"));
   const key = (element, type, code, key = code, shiftKey = false) =>
     element.dispatchEvent(
       new window.KeyboardEvent(type, { code, key, shiftKey, bubbles: true, cancelable: true }),
@@ -1918,14 +1962,27 @@ test("mounted artifact previews preserve their viewport when file geometry chang
   const search = container.querySelector('input[aria-label="搜索构件"]');
   await act(() => assert.equal(key(search, "keydown", "KeyW", "w"), true));
   const treeItems = container.querySelectorAll('.scene-preview-objects [role="treeitem"]');
-  await act(() => key(treeItems[0], "keydown", "Enter"));
-  assert.match(container.querySelector(".scene-selection-title").textContent, /Room/);
-  await act(() => container.querySelector('[aria-label="固定构件属性"]').click());
   await act(() => treeItems[1].click());
   assert.equal(treeItems[1].getAttribute("aria-selected"), "true");
-  assert.match(container.querySelector(".scene-selection-title").textContent, /Room/);
+  assert.deepEqual(cards(), ["/Extension"]);
+  await act(() => container.querySelector('[aria-label="固定构件属性"]').click());
+  await act(() => key(treeItems[0], "keydown", "Enter"));
+  assert.deepEqual(cards(), ["/Room", "/Extension"]);
+  assert.equal(
+    container
+      .querySelector('[data-inspected="/Extension"] [aria-label="取消固定属性"]')
+      .getAttribute("aria-pressed"),
+    "true",
+  );
+  await act(() =>
+    container.querySelector('[data-inspected="/Room"] [aria-label="关闭构件属性"]').click(),
+  );
+  assert.deepEqual(cards(), ["/Extension"]);
+  await act(() => treeItems[1].click());
   await act(() => container.querySelector('[aria-label="取消固定属性"]').click());
-  assert.match(container.querySelector(".scene-selection-title").textContent, /Changed layer/);
+  assert.deepEqual(cards(), ["/Extension"]);
+  await act(() => container.querySelector('[aria-label="关闭构件属性"]').click());
+  assert.deepEqual(cards(), []);
   await act(() => root.unmount());
 });
 

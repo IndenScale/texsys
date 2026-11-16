@@ -1348,7 +1348,6 @@ function Studio({
             layout={layout}
             changeLayout={(patch) => updateLayout(active, patch)}
             openProject={() => invokeCommand("file.openProject")}
-            openSettings={() => setSettingsRequest((request) => request + 1)}
             activityRequest={activityRequest}
             notify={notify}
             onEditorState={setWelcomeEditor}

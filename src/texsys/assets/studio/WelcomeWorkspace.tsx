@@ -57,7 +57,6 @@ export function WelcomeWorkspace({
   layout,
   changeLayout,
   openProject,
-  openSettings,
   activityRequest,
   notify,
   onEditorState,
@@ -66,7 +65,6 @@ export function WelcomeWorkspace({
   layout: StudioLayout;
   changeLayout: (patch: Partial<StudioLayout>) => void;
   openProject: () => void;
-  openSettings: () => void;
   activityRequest?: { id: "explorer" | "search" | "scm"; token: number; replace?: boolean };
   notify: (message: string, error?: boolean) => void;
   onEditorState: (state: WelcomeEditorState) => void;
@@ -420,7 +418,6 @@ export function WelcomeWorkspace({
         ? () => closeTabs(documents.filter((doc) => doc.value === doc.saved).map((doc) => doc.id))
         : undefined,
     },
-    { label: t("配置编辑器"), separator: true, run: openSettings },
   ];
   const showFolders = layout.explorerFolders !== false;
   const showOutline = layout.explorerOutline !== false;

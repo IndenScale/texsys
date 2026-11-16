@@ -216,6 +216,20 @@ const paths: Record<string, React.ReactNode> = {
       <path d="m15 15 6 6M7 10h6m-3-3v6" />
     </>
   ),
+  "search-minus": (
+    <>
+      <circle cx="10" cy="10" r="6" />
+      <path d="M7 10h6m2 5 6 6" />
+    </>
+  ),
+  "scene-section": <path d="m3 7 9-4 9 4v10l-9 4-9-4V7zm0 0 9 4 9-4m-9 4v10M4 15l16-7" />,
+  ruler: <path d="m3 16 13-13 5 5L8 21l-5-5zm10-10 2 2m-6 2 2 2m-6 2 2 2" />,
+  eye: <path d="M2 12s4-6 10-6 10 6 10 6-4 6-10 6S2 12 2 12zm13 0a3 3 0 1 0-6 0 3 3 0 0 0 6 0z" />,
+  "eye-off": (
+    <path d="m3 3 18 18M9 7a9 9 0 0 1 3-1c6 0 10 6 10 6a21 21 0 0 1-3 3M6 8c-2 2-4 4-4 4s4 6 10 6c1.5 0 3-.4 4-1" />
+  ),
+  "scene-ghost": <path d="m4 7 8-4 8 4-8 4-8-4zm0 5 8 4 8-4m-16 5 8 4 8-4" strokeDasharray="3 2" />,
+  isolate: <path d="M3 8V3h5m8 0h5v5m0 8v5h-5m-8 0H3v-5m5-6 4-2 4 2v4l-4 2-4-2v-4z" />,
   locate: (
     <>
       <circle cx="12" cy="12" r="6" />

@@ -7,63 +7,15 @@
   background: #e9eff2;
   color: var(--ui-text);
 }
-.scene-preview-controls {
-  display: flex;
-  align-items: center;
-  flex: 0 0 auto;
-  flex-wrap: wrap;
-  gap: 5px;
-  padding: 6px 10px;
-  background: var(--ui-canvas);
-  border-bottom: 1px solid var(--ui-border);
-}
-.scene-preview-controls button,
-.scene-preview-controls select,
-.scene-selection-actions button,
-.scene-filter-actions button {
-  min-height: 26px;
-  padding: 2px 7px;
-  white-space: nowrap;
-  border: 1px solid var(--ui-border);
-  border-radius: 3px;
-  color: inherit;
-  background: var(--ui-canvas);
-  font: inherit;
-  font-size: 12px;
-}
-.scene-preview-controls button:hover:not(:disabled),
-.scene-selection-actions button:hover:not(:disabled),
-.scene-filter-actions button:hover:not(:disabled),
-.scene-preview button[aria-pressed="true"] {
-  color: var(--ui-proof);
-  background: var(--accent-soft);
-}
-.scene-preview button:disabled,
-.scene-preview select:disabled {
-  opacity: 0.47;
-}
-.scene-preview :is(button, select, input, summary):focus-visible {
-  outline: 2px solid var(--ui-proof);
-  outline-offset: 1px;
-}
-.scene-control-divider {
-  height: 17px;
-  margin: 0 3px;
-  border-left: 1px solid var(--ui-border);
-}
 .scene-section-range {
-  width: clamp(40px, 9vw, 105px);
+  flex: 0 0 68px;
+  width: 68px;
   margin: 0 3px;
   accent-color: var(--ui-proof);
 }
-.scene-toolbar-end {
-  flex: 1;
-}
-.scene-preview-controls button {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 5px;
+.scene-preview :is(button, input, summary):focus-visible {
+  outline: 2px solid var(--ui-proof);
+  outline-offset: 1px;
 }
 .scene-preview-body {
   display: flex;
@@ -74,6 +26,7 @@
 }
 .scene-viewport {
   position: relative;
+  isolation: isolate;
   flex: 1;
   min-width: 0;
   min-height: 0;
@@ -129,21 +82,6 @@
   background: #fff1e9;
   overflow-wrap: anywhere;
 }
-.scene-preview-footer {
-  display: flex;
-  flex: 0 0 auto;
-  flex-wrap: wrap;
-  gap: 4px 12px;
-  padding: 5px 10px;
-  color: var(--ui-text-muted);
-  background: var(--ui-workspace-chrome);
-  border-top: 1px solid var(--ui-border);
-  font-size: 11px;
-  font-variant-numeric: tabular-nums;
-}
-.scene-preview-footer span:last-child {
-  margin-left: auto;
-}
 .scene-side {
   order: -1;
   display: flex;
@@ -165,8 +103,29 @@
 .scene-tree-panel {
   flex: 1;
 }
+.scene-inspection-overlay {
+  position: absolute;
+  z-index: 1;
+  inset: 8px 8px 8px auto;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: min(82%, 286px);
+  overflow: auto;
+  pointer-events: none;
+}
 .scene-property-panel {
-  flex: 0 0 var(--scene-property-preview-height, var(--scene-property-height));
+  flex-shrink: 0;
+  max-height: min(82%, 340px);
+  pointer-events: auto;
+  background: var(--ui-canvas);
+  border: 1px solid var(--ui-border);
+  border-radius: 6px;
+  box-shadow: 0 2px 6px #0001;
+}
+.scene-property-panel:only-child {
+  flex: 1;
+  max-height: 100%;
 }
 .scene-panel-heading {
   display: flex;
@@ -179,31 +138,16 @@
   font-size: 12px;
   font-weight: 500;
 }
-.scene-panel-heading > span {
+.scene-selection-title {
   flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
-.scene-panel-heading button {
-  display: grid;
-  width: 24px;
-  height: 24px;
-  place-items: center;
-  color: inherit;
-  border-radius: 3px;
-}
-.scene-panel-heading button:hover:not(:disabled) {
+.scene-property-panel .editor-action[aria-pressed="true"] {
+  color: var(--ui-proof);
   background: var(--accent-soft);
-}
-.scene-side > .scene-properties-divider {
-  position: relative;
-  flex: 0 0 5px;
-  width: 100%;
-  height: 5px;
-  min-height: 5px;
-  cursor: row-resize;
-  background: var(--ui-border);
-}
-.scene-side > .scene-properties-divider:is(:hover, :focus-visible, [data-dragging]) {
-  background: var(--ui-proof);
 }
 .scene-filters {
   max-height: 54%;
@@ -308,16 +252,10 @@
 .scene-preview-inspector {
   padding: 8px;
 }
-.scene-selection-title {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-  margin-bottom: 7px;
+.scene-selection-actions {
+  margin-top: 6px;
 }
-.scene-selection-title span {
-  font-size: 13px;
-}
-.scene-selection-title small,
+.scene-preview-inspector > small,
 .scene-no-selection {
   color: var(--ui-text-muted);
   font-size: 11px;
@@ -359,7 +297,7 @@
   }
   .scene-side {
     flex-basis: 44%;
-    border-left: 0;
-    border-top: 1px solid var(--ui-border);
+    border-inline-end: 0;
+    border-bottom: 1px solid var(--ui-border);
   }
 }

@@ -63,6 +63,7 @@ import {
 } from "./LibraryFolders";
 import { FileIcon } from "./FileIcon";
 import { EditorActionButton } from "./EditorActionButton";
+import { EditorControlTarget } from "./EditorControlSlot";
 import { ToolbarButton } from "./ToolbarButton";
 import { NavigatorMenu, type NavigatorMenuItem } from "./NavigatorMenu";
 import {
@@ -523,7 +524,7 @@ export function CoreWorkspaceProvider({
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [settingsActive, setSettingsActive] = useState(false);
   const [settingsCategoryRequest, setSettingsCategoryRequest] = useState<{
-    category: "editor" | "ai" | "scene";
+    category: "ai";
     token: number;
   }>();
   const [searchEditorActive, setSearchEditorActive] = useState(false);
@@ -642,16 +643,6 @@ export function CoreWorkspaceProvider({
       current?.groupId === groupId && current.path === path ? undefined : { groupId, path },
     );
     requestSceneFocus(groupId, path, true);
-  };
-  const openSceneSettings = () => {
-    setMaximizedScene(undefined);
-    focusGroup(primaryEditorGroup);
-    setSettingsOpen(true);
-    setSettingsActive(true);
-    setSettingsCategoryRequest((previous) => ({
-      category: "scene",
-      token: (previous?.token ?? 0) + 1,
-    }));
   };
   const terminalFile =
     activeTab === "source" &&
@@ -3051,21 +3042,6 @@ export function CoreWorkspaceProvider({
             ? () => void closeGroupTabs(group, tabs, true)
             : undefined,
       },
-      {
-        label: t("配置编辑器"),
-        separator: true,
-        run: !closeDisabled
-          ? () => {
-              focusGroup(primaryEditorGroup);
-              setSettingsOpen(true);
-              setSettingsActive(true);
-              setSettingsCategoryRequest((previous) => ({
-                category: "editor",
-                token: (previous?.token ?? 0) + 1,
-              }));
-            }
-          : undefined,
-      },
     ];
     const more = (
       <NavigatorMenu
@@ -3110,7 +3086,7 @@ export function CoreWorkspaceProvider({
           updateView(group.id, active.path, {
             presentation: presentation === "preview" ? "source" : "preview",
           });
-          if (previewKind === "scene" && presentation !== "preview")
+          if (kind === "scene" && presentation !== "preview")
             requestSceneFocus(group.id, active.path);
         }}
         onPreviewBeside={() => splitFile(group, "preview")}
@@ -3301,7 +3277,6 @@ export function CoreWorkspaceProvider({
                         : undefined,
                     maximized: group.id === maximizedEditor,
                     toggleMaximized: () => toggleSceneFullscreen(group.id, active.path),
-                    openSettings: openSceneSettings,
                     inspection: view?.sceneInspection,
                     changeInspection: (sceneInspection) =>
                       updateView(group.id, active.path, { sceneInspection }),
@@ -3622,6 +3597,7 @@ function EditorGroupSurface({
 }) {
   const tabList = useRef<HTMLDivElement>(null);
   const documentArea = useRef<HTMLDivElement>(null);
+  const [previewActions, setPreviewActions] = useState<HTMLDivElement | null>(null);
   const lastCloseFocus = useRef(closeFocusRequest);
   useLayoutEffect(() => {
     const changed = lastCloseFocus.current !== closeFocusRequest;
@@ -3662,6 +3638,7 @@ function EditorGroupSurface({
         </div>
         {actions && (
           <div className="core-document-actions" role="group" aria-label={t("文档操作")}>
+            <div ref={setPreviewActions} className="core-preview-actions" />
             {actions}
           </div>
         )}
@@ -3673,7 +3650,9 @@ function EditorGroupSurface({
         aria-label={t("文档区域")}
         tabIndex={-1}
       >
-        {children}
+        <EditorControlTarget.Provider value={previewActions}>
+          {children}
+        </EditorControlTarget.Provider>
       </div>
     </div>
   );

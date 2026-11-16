@@ -1,4 +1,5 @@
 import React, { useEffect, useId, useLayoutEffect, useRef, useState, type ReactNode } from "react";
+import { EditorActionButton } from "./EditorActionButton";
 import { Keycaps } from "./Keycaps";
 import { Button } from "./atomstudio/primitives";
 import { NavigatorButton } from "./NavigatorPanel";
@@ -76,6 +77,7 @@ export function NavigatorMenu({
   direction = "auto",
   triggerClassName,
   triggerIcon = "more",
+  editorActionIcon,
   menuClassName,
   openRequest,
   triggerDisabled,
@@ -91,6 +93,7 @@ export function NavigatorMenu({
   direction?: "down" | "up" | "auto";
   triggerClassName?: string;
   triggerIcon?: ReactNode;
+  editorActionIcon?: string;
   menuClassName?: string;
   openRequest?: object;
   triggerDisabled?: boolean;
@@ -205,41 +208,42 @@ export function NavigatorMenu({
     }
   }, [open, id, items, placement, direction]);
 
+  const triggerProps: React.ButtonHTMLAttributes<HTMLButtonElement> = {
+    id: `${id}-trigger`,
+    disabled: triggerDisabled,
+    className: triggerClassName,
+    "aria-haspopup": "menu",
+    "aria-expanded": open,
+    popoverTarget: id,
+    onClick: (event) => {
+      const menu = menuRef.current;
+      if (!menu) return;
+      event.preventDefault();
+      if (menu.matches(":popover-open")) {
+        menu.hidePopover();
+        return;
+      }
+      menu.showPopover();
+      placeMenu(menu, event.currentTarget.getBoundingClientRect(), placement, direction);
+      (menu.querySelector<HTMLButtonElement>("button:not(:disabled)") ?? menu).focus({
+        preventScroll: true,
+      });
+    },
+    onKeyDown: (event) => {
+      if (event.key === "ArrowDown" && !open) {
+        event.preventDefault();
+        event.currentTarget.click();
+      }
+    },
+  };
   return (
     <>
-      {!point && (
-        <NavigatorButton
-          id={`${id}-trigger`}
-          disabled={triggerDisabled}
-          className={triggerClassName}
-          label={label}
-          title={title}
-          icon={triggerIcon}
-          aria-haspopup="menu"
-          aria-expanded={open}
-          popoverTarget={id}
-          onClick={(event) => {
-            const menu = menuRef.current;
-            if (!menu) return;
-            event.preventDefault();
-            if (menu.matches(":popover-open")) {
-              menu.hidePopover();
-              return;
-            }
-            menu.showPopover();
-            placeMenu(menu, event.currentTarget.getBoundingClientRect(), placement, direction);
-            (menu.querySelector<HTMLButtonElement>("button:not(:disabled)") ?? menu).focus({
-              preventScroll: true,
-            });
-          }}
-          onKeyDown={(event) => {
-            if (event.key === "ArrowDown" && !open) {
-              event.preventDefault();
-              event.currentTarget.click();
-            }
-          }}
-        />
-      )}
+      {!point &&
+        (editorActionIcon ? (
+          <EditorActionButton {...triggerProps} label={label} icon={editorActionIcon} />
+        ) : (
+          <NavigatorButton {...triggerProps} label={label} title={title} icon={triggerIcon} />
+        ))}
       <div
         className={`navigator-menu ${menuClassName ?? ""}`}
         id={id}

@@ -84,13 +84,14 @@ function loadStudioModule(source, mocks = {}) {
 }
 const { NavigatorMenu } = loadStudioModule("NavigatorMenu.tsx");
 
-async function fixture(t) {
+async function fixture(t, editorActionIcon) {
   document.body.innerHTML = '<div id="app"></div><button id="outside">Outside</button>';
   const root = createRoot(document.getElementById("app"));
   const choices = [];
   let dismissed = 0;
   const props = {
     label: "打开方式",
+    editorActionIcon,
     onDismiss: () => {
       dismissed += 1;
     },
@@ -237,7 +238,9 @@ test("outside dismissal and Tab clear submenu state so reopening starts clean", 
 });
 
 test("menus open down-left-aligned and flip to right-aligned at the viewport edge", async (t) => {
-  const f = await fixture(t);
+  const f = await fixture(t, "cube");
+  assert.equal(f.trigger.textContent, "");
+  assert.ok(f.trigger.querySelector("svg"));
   const rect = (left, top, width, height) => ({
     left,
     top,
@@ -592,7 +595,6 @@ test("welcome explorer title menu manages view visibility like the reference", a
       layout,
       changeLayout: (patch) => setLayout((current) => ({ ...current, ...patch })),
       openProject: () => {},
-      openSettings: () => {},
       notify: () => {},
       onEditorState: () => {},
     });
