@@ -42,10 +42,7 @@ function placeMenu(
   }
   const above = Math.max(0, top - gap - edge);
   const below = Math.max(0, window.innerHeight - bottom - gap - edge);
-  const upward =
-    direction === "up"
-      ? height <= above || (height > below && above >= below)
-      : height > below && (height <= above || above > below);
+  const upward = direction === "up" || (height > below && (height <= above || above > below));
   const available =
     placement === "point" && direction !== "up"
       ? window.innerHeight - 2 * edge

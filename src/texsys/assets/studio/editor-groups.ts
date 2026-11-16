@@ -4,7 +4,7 @@ import {
   type FilePreviewKind,
   type SearchMatch,
 } from "./workspace-model";
-import type { PreviewViewport, SceneInspection } from "./preview-viewport";
+import type { PreviewViewport, SceneControlsPosition, SceneInspection } from "./preview-viewport";
 
 export type EditorPresentation = "source" | "preview" | "markdown-editor";
 export type SourceEditorStatus = {
@@ -46,6 +46,7 @@ export type EditorView = {
   location?: SearchMatch;
   viewport?: PreviewViewport;
   sceneInspection?: SceneInspection;
+  sceneControlsPosition?: SceneControlsPosition;
 };
 export type EditorGroup = { id: string; views: EditorView[]; activePath: string | null };
 export type EditorGroupTab = {

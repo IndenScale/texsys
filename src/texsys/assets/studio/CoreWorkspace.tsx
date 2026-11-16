@@ -3357,6 +3357,9 @@ export function CoreWorkspaceProvider({
                         : undefined,
                     maximized: group.id === maximizedEditor,
                     toggleMaximized: () => toggleSceneFullscreen(group.id, active.path),
+                    controlsPosition: view?.sceneControlsPosition,
+                    changeControlsPosition: (sceneControlsPosition) =>
+                      updateView(group.id, active.path, { sceneControlsPosition }),
                     inspection: view?.sceneInspection,
                     changeInspection: (sceneInspection) =>
                       updateView(group.id, active.path, { sceneInspection }),

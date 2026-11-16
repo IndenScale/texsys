@@ -84,7 +84,7 @@ function loadStudioModule(source, mocks = {}) {
 }
 const { NavigatorMenu } = loadStudioModule("NavigatorMenu.tsx");
 
-async function fixture(t, editorActionIcon) {
+async function fixture(t, editorActionIcon, direction) {
   document.body.innerHTML = '<div id="app"></div><button id="outside">Outside</button>';
   const root = createRoot(document.getElementById("app"));
   const choices = [];
@@ -92,6 +92,7 @@ async function fixture(t, editorActionIcon) {
   const props = {
     label: "打开方式",
     editorActionIcon,
+    direction,
     onDismiss: () => {
       dismissed += 1;
     },
@@ -273,6 +274,19 @@ test("menus open down-left-aligned and flip to right-aligned at the viewport edg
   f.trigger.getBoundingClientRect = () => rect(300, 700, 28, 28);
   await click(f.trigger);
   assert.equal(f.menu.style.top, "437px");
+});
+
+test("an upward menu stays above its trigger when there is more room below", async (t) => {
+  const f = await fixture(t, "chevron-up", "up");
+  f.trigger.getBoundingClientRect = () => ({ left: 300, right: 324, top: 100, bottom: 128 });
+  f.menu.getBoundingClientRect = () => ({
+    width: 200,
+    height: Number.parseFloat(f.menu.style.maxHeight) || 260,
+  });
+  await click(f.trigger);
+  assert.equal(f.menu.style.maxHeight, "91px");
+  assert.equal(f.menu.style.top, "6px");
+  assert.equal(f.menu.style.overflowY, "auto");
 });
 
 const { ActivityBar } = loadStudioModule("atomstudio/Layout.tsx");

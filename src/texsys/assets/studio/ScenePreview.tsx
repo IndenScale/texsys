@@ -7,6 +7,7 @@ import {
   defaultSceneInspection,
   type Point3,
   type SceneViewport,
+  type SceneControlsPosition,
   type SceneViewControls,
 } from "./preview-viewport";
 import { EditorActionButton } from "./EditorActionButton";
@@ -156,6 +157,8 @@ export function ScenePreview({
   controls?: SceneViewControls;
 }) {
   const [standaloneInspection, setStandaloneInspection] = useState(defaultSceneInspection);
+  const [standaloneControlsPosition, setStandaloneControlsPosition] =
+    useState<SceneControlsPosition>();
   const { focused = true, focusRequest, maximized = false, toggleMaximized } = controls ?? {};
   const inspection = controls
     ? (controls.inspection ?? defaultSceneInspection)
@@ -680,6 +683,12 @@ export function ScenePreview({
       }}
     >
       <EditorControlSlot>
+        <EditorActionButton
+          label={t("适应视图")}
+          icon="fit"
+          disabled={!visible.size || !!renderError}
+          onClick={() => renderer.current?.fit()}
+        />
         <NavigatorMenu
           label={t("剖切")}
           editorActionIcon="scene-section"
@@ -854,6 +863,8 @@ export function ScenePreview({
                 renderer={renderer}
                 scale={viewport?.projection === "orthographic" ? viewport.zoom : viewport?.scale}
                 canFit={visible.size > 0}
+                position={controls ? controls.controlsPosition : standaloneControlsPosition}
+                onPositionChange={controls?.changeControlsPosition ?? setStandaloneControlsPosition}
                 focusViewport={focusViewport}
               />
             )}

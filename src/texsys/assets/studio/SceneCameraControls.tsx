@@ -1,12 +1,32 @@
-import React, { useRef, useState, type RefObject } from "react";
+import React, { useRef, useState, type PointerEvent, type RefObject } from "react";
 import { EditorActionButton } from "./EditorActionButton";
 import { NavigatorMenu, type NavigatorMenuItem } from "./NavigatorMenu";
 import { t } from "./i18n";
-import type { SceneViewport } from "./preview-viewport";
+import type { SceneControlsPosition, SceneViewport } from "./preview-viewport";
 import type { SceneRenderer, ViewDirection } from "./scene-renderer";
 import { Icon } from "./ui";
 
 type FixedView = { name: string; viewport: SceneViewport };
+type ControlsDrag = {
+  pointer: number;
+  startX: number;
+  startY: number;
+  travelX: number;
+  travelY: number;
+  origin: SceneControlsPosition;
+};
+
+const controlsInset = 8;
+const initialPosition = { x: 0, y: 1 };
+const clampPosition = (fraction: number) => Math.max(0, Math.min(1, fraction));
+
+function draggedPosition(drag: ControlsDrag, event: PointerEvent) {
+  const { origin, startX, startY, travelX, travelY } = drag;
+  return {
+    x: travelX ? clampPosition(origin.x + (event.clientX - startX) / travelX) : origin.x,
+    y: travelY ? clampPosition(origin.y + (event.clientY - startY) / travelY) : origin.y,
+  };
+}
 
 const standardViews: [ViewDirection, string][] = [
   ["iso", "等轴测"],
@@ -45,6 +65,8 @@ export function SceneCameraControls({
   renderer,
   scale = 1,
   canFit,
+  position = initialPosition,
+  onPositionChange,
   focusViewport,
 }: {
   projectPath: string;
@@ -52,12 +74,18 @@ export function SceneCameraControls({
   renderer: RefObject<SceneRenderer | null>;
   scale?: number;
   canFit: boolean;
+  position?: SceneControlsPosition;
+  onPositionChange: (position: SceneControlsPosition) => void;
   focusViewport: () => void;
 }) {
   const storageKey = `texsys.studio.scene-views:${JSON.stringify([projectPath, path])}`;
   const [views, setViews] = useState(() => readViews(storageKey));
   const [name, setName] = useState("");
   const [error, setError] = useState("");
+  const [dragPosition, setDragPosition] = useState<SceneControlsPosition>();
+  const [lastStandardView, setLastStandardView] = useState<ViewDirection | undefined>("iso");
+  const drag = useRef<ControlsDrag | undefined>(undefined);
+  const { x, y } = dragPosition ?? position;
   const dialog = useRef<HTMLDialogElement>(null);
   const pendingView = useRef<SceneViewport | null>(null);
   const saveLabel = t("保存当前机位");
@@ -75,14 +103,18 @@ export function SceneCameraControls({
     setError("");
     update(readViews(storageKey).filter((view) => view.name !== name));
   };
+  const switchView = (direction: ViewDirection) => {
+    renderer.current?.fit(undefined, direction);
+    setLastStandardView(direction);
+    focusViewport();
+  };
+  const nextView = () => {
+    const current = standardViews.findIndex(([direction]) => direction === lastStandardView);
+    switchView(standardViews[(current + 1) % standardViews.length][0]);
+  };
   const items: NavigatorMenuItem[] = standardViews.map(([direction, label]) => ({
     label: t(label),
-    run: canFit
-      ? () => {
-          renderer.current?.fit(undefined, direction);
-          focusViewport();
-        }
-      : undefined,
+    run: canFit ? () => switchView(direction) : undefined,
   }));
   if (views.length)
     items.push(
@@ -93,6 +125,7 @@ export function SceneCameraControls({
         icon: "cube",
         run: () => {
           renderer.current?.applyView(viewport);
+          setLastStandardView(undefined);
           focusViewport();
         },
       })),
@@ -116,7 +149,54 @@ export function SceneCameraControls({
 
   return (
     <>
-      <div className="scene-camera-controls" role="group" aria-label={t("场景导航")}>
+      <div
+        className="scene-camera-controls"
+        role="group"
+        aria-label={t("场景导航")}
+        data-dragging={dragPosition !== undefined || undefined}
+        style={{
+          left: `calc(${100 * x}% + ${controlsInset * (1 - 2 * x)}px)`,
+          top: `calc(${100 * y}% + ${controlsInset * (1 - 2 * y)}px)`,
+          transform: `translate(${-100 * x}%, ${-100 * y}%)`,
+        }}
+        onPointerDownCapture={(event) => {
+          if (!event.metaKey || event.button !== 0 || drag.current) return;
+          if ((event.target as Element).closest("[popover]")) return;
+          const element = event.currentTarget;
+          const canvas = element.parentElement?.getBoundingClientRect();
+          if (!canvas) return;
+          const controls = element.getBoundingClientRect();
+          event.preventDefault();
+          event.stopPropagation();
+          element.setPointerCapture(event.pointerId);
+          drag.current = {
+            pointer: event.pointerId,
+            startX: event.clientX,
+            startY: event.clientY,
+            travelX: Math.max(0, canvas.width - controls.width - 2 * controlsInset),
+            travelY: Math.max(0, canvas.height - controls.height - 2 * controlsInset),
+            origin: position,
+          };
+          setDragPosition(position);
+        }}
+        onPointerMove={(event) => {
+          const session = drag.current;
+          if (session?.pointer === event.pointerId)
+            setDragPosition(draggedPosition(session, event));
+        }}
+        onPointerUp={(event) => {
+          const session = drag.current;
+          if (session?.pointer !== event.pointerId) return;
+          onPositionChange(draggedPosition(session, event));
+          drag.current = undefined;
+          setDragPosition(undefined);
+        }}
+        onLostPointerCapture={(event) => {
+          if (drag.current?.pointer !== event.pointerId) return;
+          drag.current = undefined;
+          setDragPosition(undefined);
+        }}
+      >
         <div className="scene-zoom-control">
           <Icon name="search-plus" size={16} />
           <input
@@ -133,13 +213,13 @@ export function SceneCameraControls({
         </div>
         <div className="scene-view-controls">
           <EditorActionButton
-            label={t("适应视图")}
-            icon="fit"
+            label={t("切换视角")}
+            icon="cube"
             disabled={!canFit}
-            onClick={() => renderer.current?.fit()}
+            onClick={nextView}
           />
           <NavigatorMenu
-            label={t("视角")}
+            label={t("选择视角")}
             items={items}
             direction="up"
             triggerClassName="scene-view-trigger"
@@ -147,12 +227,7 @@ export function SceneCameraControls({
               setError("");
               setViews(readViews(storageKey));
             }}
-            triggerIcon={
-              <>
-                <Icon name="cube" size={16} />
-                <Icon name="chevron-up" size={14} />
-              </>
-            }
+            triggerIcon={<Icon name="chevron-up" size={14} />}
           />
         </div>
       </div>

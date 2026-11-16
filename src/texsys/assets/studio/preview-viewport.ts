@@ -32,11 +32,16 @@ export const defaultSceneInspection: SceneInspection = {
   following: [],
   pinned: [],
 };
+/** Position within the canvas travel available to the controls, normalized on each axis. */
+export type SceneControlsPosition = { x: number; y: number };
+
 export type SceneViewControls = {
   focused: boolean;
   focusRequest?: { origin?: Element | null };
   maximized: boolean;
   toggleMaximized: () => void;
+  controlsPosition?: SceneControlsPosition;
+  changeControlsPosition: (position: SceneControlsPosition) => void;
   inspection?: SceneInspection;
   changeInspection: (inspection: SceneInspection) => void;
 };

@@ -326,11 +326,16 @@
 .scene-camera-controls {
   position: absolute;
   z-index: 2;
-  inset: auto auto 8px 8px;
+  width: max-content;
   display: flex;
   align-items: center;
   gap: 6px;
   max-width: calc(100% - 16px);
+}
+
+.scene-camera-controls[data-dragging],
+.scene-camera-controls[data-dragging] :is(button, input) {
+  cursor: grabbing;
 }
 
 .scene-zoom-control,
@@ -371,10 +376,9 @@
 }
 
 .navigator-button.scene-view-trigger {
-  width: auto;
+  width: 24px;
   height: 28px;
-  gap: 4px;
-  padding-inline: 5px;
+  padding: 0;
   color: var(--ui-text-muted);
 }
 

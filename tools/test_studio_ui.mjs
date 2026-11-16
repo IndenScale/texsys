@@ -1923,13 +1923,54 @@ test("mounted artifact previews preserve their viewport when file geometry chang
   const cameraControls = container.querySelector(
     '.scene-viewport [role="group"][aria-label="场景导航"]',
   );
-  assert.ok(cameraControls.querySelector('[aria-label="适应视图"] svg'));
+  assert.ok(controls.querySelector('[aria-label="适应视图"] svg'));
+  assert.equal(cameraControls.querySelector('[aria-label="适应视图"]'), null);
   const zoomSlider = () => container.querySelector('.scene-zoom-control input[type="range"]');
-  const angle = cameraControls.querySelector('button[aria-label="视角"][aria-haspopup="menu"]');
-  assert.equal(angle.textContent, "");
-  assert.equal(angle.querySelectorAll("svg").length, 2);
+  const cycle = cameraControls.querySelector('button[aria-label="切换视角"]');
+  const angle = cameraControls.querySelector('button[aria-label="选择视角"][aria-haspopup="menu"]');
+  assert.equal(cycle.querySelectorAll("svg").length, 1);
+  assert.equal(cycle.hasAttribute("aria-haspopup"), false);
+  assert.equal(angle.querySelectorAll("svg").length, 1);
   assert.equal(zoomSlider().getAttribute("aria-valuetext"), "100%");
-  assert.equal(controls.querySelector('[aria-label="缩放"], [aria-label="适应视图"]'), null);
+  assert.equal(controls.querySelector('[aria-label="缩放"], [aria-label="选择视角"]'), null);
+
+  cameraControls.parentElement.getBoundingClientRect = () => ({ width: 400, height: 300 });
+  cameraControls.getBoundingClientRect = () => ({ width: 208, height: 34 });
+  let captured = false;
+  cameraControls.setPointerCapture = () => {
+    captured = true;
+  };
+  const pointerEvent = (target, type, x, y, metaKey = false) => {
+    const event = new window.MouseEvent(type, {
+      bubbles: true,
+      cancelable: true,
+      button: 0,
+      clientX: x,
+      clientY: y,
+      metaKey,
+    });
+    Object.defineProperty(event, "pointerId", { value: 1 });
+    return target.dispatchEvent(event);
+  };
+  await act(() => assert.equal(pointerEvent(zoomSlider(), "pointerdown", 50, 265), true));
+  assert.equal(captured, false);
+  await act(() => assert.equal(pointerEvent(zoomSlider(), "pointerdown", 50, 265, true), false));
+  assert.equal(captured, true);
+  await act(() => pointerEvent(cameraControls, "pointermove", 600, -50, true));
+  assert.equal(cameraControls.style.transform, "translate(-100%, 0%)");
+  await act(() => pointerEvent(cameraControls, "pointerup", 600, -50));
+  assert.equal(cameraControls.style.transform, "translate(-100%, 0%)");
+  assert.equal(cameraControls.hasAttribute("data-dragging"), false);
+  assert.equal(zoomSlider().getAttribute("aria-valuetext"), "100%");
+
+  for (const projection of ["orthographic", "orthographic", "orthographic", "perspective"]) {
+    const previousEye = latestViewport.eye;
+    await act(() => cycle.click());
+    assert.equal(latestViewport.projection, projection);
+    assert.notDeepEqual(latestViewport.eye, previousEye);
+    assert.equal(angle.getAttribute("aria-expanded"), "false");
+  }
+  await flushFrames();
   const setZoom = async (value) => {
     await act(() => {
       const slider = zoomSlider();
@@ -1957,6 +1998,10 @@ test("mounted artifact previews preserve their viewport when file geometry chang
   assert.equal(oldRoom.length, 3);
   faces.length = 0;
   await render({ kind: "scene", version: "v2" });
+  assert.equal(
+    container.querySelector(".scene-camera-controls").style.transform,
+    "translate(-100%, 0%)",
+  );
   assert.equal(zoomSlider().getAttribute("aria-valuetext"), "125%");
   assert.equal(container.querySelectorAll('.scene-preview-objects [role="treeitem"]').length, 2);
   assert.ok(faces.some((face) => JSON.stringify(face) === JSON.stringify(oldRoom)));
