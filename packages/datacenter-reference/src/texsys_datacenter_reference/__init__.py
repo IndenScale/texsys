@@ -50,6 +50,10 @@ from .lateral_bracing import build_lateral_bracing, build_lateral_coordination
 from .lateral_scene import build_lateral_scene
 from .lateral_study import build_lateral_check, build_lateral_study
 from .lateral_views import build_lateral_view
+from .lighting_distribution import build_lighting_distribution
+from .lighting_distribution_scene import build_lighting_distribution_scene
+from .lighting_distribution_study import build_lighting_distribution_check, build_lighting_distribution_study
+from .lighting_distribution_views import build_lighting_distribution_view
 from .plans import build_plan
 from .pod_layout import build_pod_coordination, build_pod_layout, build_pod_scene
 from .pod_views import build_pod_view
@@ -87,7 +91,7 @@ from .wet_utility_views import build_wet_view
 
 class DatacenterReferencePackage(TexsysPackage):
   name = "datacenter-reference"
-  version = "0.24.0"
+  version = "0.25.0"
 
   def targets(self) -> tuple[TargetDefinition, ...]:
     return (
@@ -131,15 +135,26 @@ class DatacenterReferencePackage(TexsysPackage):
                        dependencies=("dcr:exit-access", "dcr:site-grading"),
                        input_patterns=spatial_inputs("emergency-lighting.json")),
       TargetDefinition("dcr:emergency-lighting-study", self.name, self.version, build_emergency_lighting_study,
-                       dependencies=("dcr:emergency-lighting", "dcr:egress-model", "dcr:equipment-foundations",
-                                     "dcr:fire-systems", "dcr:telecom", "dcr:power-routing", "dcr:facility-power",
-                                     "dcr:cw-network", "dcr:site-storm", "dcr:wet-utilities"), input_patterns=()),
+                       dependencies=("dcr:lighting-distribution",), input_patterns=()),
       TargetDefinition("dcr:emergency-lighting-check", self.name, self.version, build_emergency_lighting_check,
                        dependencies=("dcr:emergency-lighting-study",), input_patterns=()),
       TargetDefinition("dcr:emergency-lighting-scene", self.name, self.version, build_emergency_lighting_scene,
                        dependencies=("dcr:emergency-lighting-check", "dcr:exit-access-scene"), input_patterns=()),
       TargetDefinition("dcr:emergency-lighting-view", self.name, self.version, build_emergency_lighting_view,
                        dependencies=("dcr:emergency-lighting-study",), input_patterns=(), named_output=True),
+      TargetDefinition("dcr:lighting-distribution", self.name, self.version, build_lighting_distribution,
+                       dependencies=("dcr:emergency-lighting", "dcr:egress-model", "dcr:equipment-foundations",
+                                     "dcr:fire-systems", "dcr:telecom", "dcr:power-routing", "dcr:facility-power",
+                                     "dcr:cw-network", "dcr:site-storm", "dcr:wet-utilities"),
+                       input_patterns=spatial_inputs("lighting-distribution.json")),
+      TargetDefinition("dcr:lighting-distribution-study", self.name, self.version, build_lighting_distribution_study,
+                       dependencies=("dcr:emergency-lighting-study",), input_patterns=()),
+      TargetDefinition("dcr:lighting-distribution-check", self.name, self.version, build_lighting_distribution_check,
+                       dependencies=("dcr:lighting-distribution-study",), input_patterns=()),
+      TargetDefinition("dcr:lighting-distribution-scene", self.name, self.version, build_lighting_distribution_scene,
+                       dependencies=("dcr:lighting-distribution-check", "dcr:emergency-lighting-scene"), input_patterns=()),
+      TargetDefinition("dcr:lighting-distribution-view", self.name, self.version, build_lighting_distribution_view,
+                       dependencies=("dcr:lighting-distribution-study",), input_patterns=(), named_output=True),
       TargetDefinition("dcr:fire-systems", self.name, self.version, build_fire_systems, dependencies=("dcr:architecture",),
                        input_patterns=spatial_inputs("*.sdl.json", "*/module.toml", "fire-systems.json",
                                                      "design-basis.json", "placement.study.json")),

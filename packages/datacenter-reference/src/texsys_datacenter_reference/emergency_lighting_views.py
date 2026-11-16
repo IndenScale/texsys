@@ -165,7 +165,7 @@ text{font-family:system-ui,sans-serif;fill:#25363f}
     for index,(family,row) in enumerate(sorted(study["battery_families"].items())):
       text(8,138+index*9.8,f"{labels[family]}    可用电量 {row['usable_wh']:.2f} Wh    候选续航 {row['runtime_min']:.1f} min",
            failed=row["runtime_min"]<study["required_minutes"])
-    text(8,173,f"持续时间目标 {study['required_minutes']:g} min。上级充电配电及监控接口待安装设计。")
+    text(8,173,f"持续时间目标 {study['required_minutes']:g} min。充电接线及联动编译图见 E-015 至 E-019、F-008。")
     return root
 
   text(5,14,"应急照明维持照度及失效工况",size=7)

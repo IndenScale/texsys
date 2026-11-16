@@ -39,5 +39,11 @@ def Xform "Module"
             double3 xformOp:translate = (0.36, 1.0, 1.25)
             uniform token[] xformOpOrder = ["xformOp:translate"]
         }
+        def Xform "out_lighting"
+        {
+            custom double3 texsys:normal = (1, 0, 0)
+            double3 xformOp:translate = (0.72, 0.52, 1.25)
+            uniform token[] xformOpOrder = ["xformOp:translate"]
+        }
     }
 }

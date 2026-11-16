@@ -296,6 +296,15 @@ def build_emergency_lighting_study(context):
   issues = []
   family, branches = _power(fixtures, config, required, issues)
   _validate_installation(fixtures, opaque, reserved, site, issues)
+  # Distribution coordination already checks each carrier against the
+  # installed light envelopes and allows its declared terminal contact.
+  distribution_path = f"{MODELS}/lighting-distribution.json"
+  distribution = staged_json(context, distribution_path)
+  opaque.update({key:space(row["envelope"]) for key,row in distribution["carriers"].items()
+                 if row["envelope"]["maximum_m"][2]>.08})
+  opaque.update({key:space(row["bounds"]) for key,row in distribution["fittings"].items()
+                 if row["bounds"]["maximum_m"][2]>.08})
+  opaque.update({f"{distribution['cabinet']['id']}/{part}":space(distribution["cabinet"][part]) for part in ("body","curb")})
   # The model uses actual opaque volumes for optical screening. Source luminaire
   # bodies sit above the emission plane, and the view starts at that plane.
   index = defaultdict(set)
@@ -323,7 +332,7 @@ def build_emergency_lighting_study(context):
   result = model_report(context, "emergency-lighting-study", {
     "input_digests": {path:file_digest(context.build_path/path) for path in
                       (MODEL,ARCH,EGRESS,ACCESS,FIRE,FOUNDATIONS,STRUCTURE,FWS,TELECOM,POWER,FACILITY_POWER,CW,
-                       TERRAIN,STORM,WET,f"{MODELS}/layout.json",f"{MODELS}/site.json")},
+                       TERRAIN,STORM,WET,f"{MODELS}/layout.json",f"{MODELS}/site.json",distribution_path)},
     "required_minutes": required, "sample_pitch_m": pitch, "fixtures": len(fixtures),
     "battery_families":family, "charge_branches":branches, "zones":mode, "points":samples, "signs":signs, "issues":issues,
     "coverage": "Maintained direct photometry at end of required battery duration on a ground-level sample grid. "

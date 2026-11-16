@@ -7,4 +7,6 @@
   <text x="80.0" y="114" font-size="6" text-anchor="middle">in_b</text>
   <circle id="port-out_4" cx="110.0" cy="100" r="4" fill="#0a7"/>
   <text x="110.0" y="114" font-size="6" text-anchor="middle">out_4</text>
+  <circle id="port-out_lighting" cx="140" cy="55" r="4" fill="#0a7"/>
+  <text x="130" y="53" font-size="6" text-anchor="end">out_lighting</text>
 </svg>

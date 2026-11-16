@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "template": "sheet:a3-landscape",
+  "metadata": "assets/sheets/lighting-distribution-sequence.title.json",
+  "texts": {
+    "notes": "assets/sheets/lighting-distribution-sequence.txt",
+    "footer": "assets/sheets/footer.txt"
+  },
+  "views": {
+    "main": {
+      "path": "build/drawings/views/lighting-distribution-sequence.svg",
+      "scale": "fit"
+    }
+  }
+}

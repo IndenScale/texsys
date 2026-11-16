@@ -48,6 +48,18 @@
         1,
         0
       ]
+    },
+    "out_lighting": {
+      "position_m": [
+        0.72,
+        0.52,
+        1.25
+      ],
+      "normal": [
+        1,
+        0,
+        0
+      ]
     }
   },
   "properties": {

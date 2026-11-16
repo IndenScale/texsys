@@ -1,0 +1,52 @@
+{
+  "schema_version": 1,
+  "state": "assumed",
+  "basis": "主机房与场区应急灯自带蓄电池的候选正常充电接入、双组接触器和报警信号。输入阻抗、导线、保护与控制时间均用于参考项目试算。",
+  "references": {
+    "GB 55024-2022": "https://www.mohurd.gov.cn/gongkai/zc/wjk/art/2024/art_17339_765632.html",
+    "GB 55036-2022": "https://www.mohurd.gov.cn/gongkai/zc/wjk/art/2024/art_17339_767704.html"
+  },
+  "supply_port": "AuxFeed.out_lighting",
+  "cabinet": {"id": "EL-MDB", "center_xy_m": [24.83,27.1], "size_m": [0.75,0.48,1.55], "curb_height_m": 0.15},
+  "layout": {
+    "site_step_m": 0.60,
+    "site_grid_offset_m": [0.32,0.41],
+    "hall_step_m": 0.20,
+    "power_depth_z_m": -0.70,
+    "feeder_depth_z_m": -1.87,
+    "feeder_step_m": 0.35,
+    "signal_depth_z_m": -1.50,
+    "site_carrier_od_m": 0.084,
+    "hall_carrier_od_m": 0.046,
+    "board_riser_od_m": 0.078,
+    "head_tail_height_m": 3.27,
+    "hall_trunk_height_m": 3.17,
+    "west_wall_standoff_m": 0.51,
+    "head_clear_y_m": 1.13,
+    "hall_riser_clear_y_m": 1.43,
+    "signal_portal_x_inside_m": 0.26,
+    "signal_offset_y_m": 1.39,
+    "signal_height_m": 2.69,
+    "minimum_cover_m": 0.50,
+    "sleeve_opening_m": 0.16
+  },
+  "electrical": {
+    "phase_voltage_v": 230,
+    "normal_pf": 0.88,
+    "source_min_r_ohm": 0.035,
+    "source_max_r_ohm": 0.24,
+    "source_min_x_ohm": 0.021,
+    "source_max_x_ohm": 0.09,
+    "max_voltage_drop_pct": 3.0,
+    "max_duct_fill": 0.4,
+    "cabinet_controls_va": 24,
+    "simultaneous_aux_other_kw": 38.0,
+    "feeder": {"min_ohm_per_km": 3.08, "max_ohm_per_km": 3.83, "x_ohm_per_km": 0.085, "rated_a": 16, "adjusted_ampacity_a": 32, "magnetic_multiple": 5, "breaking_ka": 10, "od_m": 0.019},
+    "branch": {"min_ohm_per_km": 7.41, "max_ohm_per_km": 9.22, "x_ohm_per_km": 0.09, "rated_a": 6, "adjusted_ampacity_a": 17, "magnetic_multiple": 5, "breaking_ka": 6, "od_m": 0.011},
+    "signal_od_m": 0.008,
+    "signal_pair_ohm_per_km": 39,
+    "signal_loop_max_ohm": 10,
+    "phase_by_branch": {"EL-HN-A":"L1","EL-HN-B":"L3","EL-HS-A":"L1","EL-HS-B":"L3","EL-W-A":"L3","EL-W-B":"L2","EL-E-A":"L2","EL-E-B":"L1"}
+  },
+  "controls": {"supervision_s": 0.55, "contactor_release_s": 0.20, "fixture_pickup_s": 0.80, "max_emergency_start_s": 3.0, "forced_welded_groups": []}
+}

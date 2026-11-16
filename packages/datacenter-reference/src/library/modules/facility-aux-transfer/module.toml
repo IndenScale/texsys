@@ -1,6 +1,6 @@
 schema_version = 1
 name = "辅助负荷转换柜"
-version = "0.1.0"
+version = "0.2.0"
 entry = "facility-aux-transfer.sdl.json"
 
 [assets.geometry]
@@ -38,3 +38,7 @@ symbol = "port-in_b"
 [port_bindings.out_4]
 geometry = "/Module/Ports/out_4"
 symbol = "port-out_4"
+
+[port_bindings.out_lighting]
+geometry = "/Module/Ports/out_lighting"
+symbol = "port-out_lighting"

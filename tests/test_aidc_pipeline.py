@@ -72,7 +72,7 @@ def test_aidc_deliverables_bind_to_the_same_geometry_and_recompute_the_fws_head(
   assert dossier["engineering_acceptance"] == "pending-responsible-review"
   compiled_sheets = sorted((root / "build/drawings/sheets").glob("*.svg"))
   drawing_numbers = {ET.parse(path).getroot().get("data-drawing-number") for path in compiled_sheets}
-  assert len(compiled_sheets) == len(drawing_numbers) == 82 and None not in drawing_numbers
+  assert len(compiled_sheets) == len(drawing_numbers) == 88 and None not in drawing_numbers
   old_dossier = file_digest(root / "build/review/aidc-discipline-review.json")
   drawing = root / "build/drawings/sheets/fws-network.svg"
   old_route_drawing = file_digest(drawing)
@@ -87,6 +87,7 @@ def test_aidc_deliverables_bind_to_the_same_geometry_and_recompute_the_fws_head(
   _check_equipment_foundation_delivery(root)
   _check_exit_access_delivery(root)
   _check_emergency_lighting_delivery(root)
+  _check_lighting_distribution_delivery(root)
   _check_storm_delivery(root)
   _check_fws_network_delivery(root)
   _check_building_delivery(root)
@@ -656,6 +657,54 @@ def _check_emergency_lighting_delivery(root):
   assert prim.GetAttribute("texsys:identity").Get() == "EL-D-NW-01"
   x, y, z = model["fixtures"]["EL-D-NW-01"]["point_m"]
   assert tuple(UsdGeom.XformCache().GetLocalToWorldTransform(prim).ExtractTranslation()) == pytest.approx((x,y,z+.04))
+
+
+def _check_lighting_distribution_delivery(root):
+  network = _read(root / MODEL / "lighting-distribution.json")
+  report = _read(root / MODEL / "lighting-distribution-study.json")
+  lights = _read(root / MODEL / "emergency-lighting.json")
+  assert not network["issues"] and not report["issues"]
+  assert set(network["routes"]) == lights["fixtures"].keys() | {
+      "EL-FEED", "EL-SIGNAL-FACP-FC-N", "EL-SIGNAL-FACP-FC-S"}
+  feed = network["routes"]["EL-FEED"]
+  assert network["supply"]["port"] == "AuxFeed.out_lighting"
+  assert set(network["supply"]["input_links"]) == {"A", "B"}
+  assert feed["points_m"][0] == network["supply"]["point_m"]
+  assert feed["points_m"][-1] == network["cabinet"]["feeder_terminal_m"]
+  assert 5 < feed["length_m"] < 15
+  assert network["minimum_cover_m"] > .50
+  assert set(network["sleeves"]) == {"EL-FS-N","EL-FS-S","EL-PS-N","EL-PS-S"}
+  assert len(report["branches"]) == 8
+  assert sum(len(row["points"]) for row in report["branches"].values()) == 92
+  assert report["normal_distribution"]["connected_charge_w"] == 896
+  assert report["normal_distribution"]["maximum_fill"] <= .40
+  assert report["emergency_cases"]["alarm-with-A-contact-weld"]["energized_battery_groups"] == ["B"]
+  assert report["emergency_cases"]["normal-feeder-loss"]["pickup_s"] == pytest.approx(.80)
+  assert report["emergency_cases"]["fire-n"]["pickup_s"] == pytest.approx(1.55)
+  assert [row["charge_command"] for row in report["reset_timeline"]] == [True,False,False,False,False,False,True]
+  stage = Usd.Stage.Open(str(root / "build/scenes/aidc-lighting-distribution-coordinated.usda"))
+  board = stage.GetPrimAtPath("/AIDC/LightingDistribution/Board/Cabinet")
+  assert board.GetAttribute("texsys:identity").Get() == "EL-MDB"
+  assert len(stage.GetPrimAtPath("/AIDC/Architecture/W_over_D_NW").GetChildren()) == 4
+
+
+def test_aidc_lighting_distribution_rejects_double_weld_and_undersized_protection(tmp_path):
+  root = _checkout(tmp_path)
+  path = root / "src/lighting-distribution.json"
+  base = _read(path)
+  gate = "dcr:lighting-distribution-check"
+  sequence = "sheet-lighting-distribution-sequence"
+  single = "sheet-lighting-distribution-single-line"
+  edited = {**base,"controls":{**base["controls"],"forced_welded_groups":["A","B"]}}
+  write_json(path,edited)
+  result, targets = _run(root,gate,sequence)
+  assert result.status == "fail" and targets[sequence]["status"] == "pass"
+  assert {row["rule"] for row in targets[gate]["diagnostics"]} == {"AIDC_LIGHTING_DISTRIBUTION_EMERGENCY_RESPONSE"}
+  base["electrical"]["feeder"]["breaking_ka"] = .1
+  write_json(path,base)
+  result, targets = _run(root,gate,single)
+  assert result.status == "fail" and targets[single]["status"] == "pass"
+  assert {row["rule"] for row in targets[gate]["diagnostics"]} == {"AIDC_LIGHTING_DISTRIBUTION_PROTECTION"}
 
 
 def test_aidc_emergency_lighting_keeps_drawings_for_failed_battery_and_lux(tmp_path):

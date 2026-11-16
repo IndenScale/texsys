@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "template": "sheet:a3-landscape",
+  "metadata": "assets/sheets/lighting-distribution-single-line.title.json",
+  "texts": {
+    "notes": "assets/sheets/lighting-distribution-single-line.txt",
+    "footer": "assets/sheets/footer.txt"
+  },
+  "views": {
+    "main": {
+      "path": "build/drawings/views/lighting-distribution-single-line.svg",
+      "scale": "fit"
+    }
+  }
+}

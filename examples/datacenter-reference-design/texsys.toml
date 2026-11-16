@@ -12,7 +12,7 @@ build = "build"
 default_targets = ["review-package"]
 
 [dependencies]
-datacenter-reference = { path = "../../packages/datacenter-reference", version = "0.24.0" }
+datacenter-reference = { path = "../../packages/datacenter-reference", version = "0.25.0" }
 sheet = { path = "../../packages/sheet", version = "0.2.0" }
 
 [build.targets.review-package]
@@ -72,6 +72,14 @@ dependencies = [
   "dcr:exit-access-scene",
   "dcr:emergency-lighting-check",
   "dcr:emergency-lighting-scene",
+  "dcr:lighting-distribution-check",
+  "dcr:lighting-distribution-scene",
+  "sheet-lighting-distribution-site",
+  "sheet-lighting-distribution-hall",
+  "sheet-lighting-distribution-section",
+  "sheet-lighting-distribution-single-line",
+  "sheet-lighting-distribution-sleeves",
+  "sheet-lighting-distribution-sequence",
   "sheet-emergency-lighting-hall",
   "sheet-emergency-lighting-site",
   "sheet-emergency-lighting-section",
@@ -1054,3 +1062,69 @@ using = "sheet:compose"
 dependencies = ["plan-emergency-lighting-checks"]
 scope = { source = "assets/sheets/emergency-lighting-checks.sheet.json" }
 output = "build/drawings/sheets/emergency-lighting-checks.svg"
+
+[build.targets.plan-lighting-distribution-site]
+using = "dcr:lighting-distribution-view"
+output = "build/drawings/views/lighting-distribution-site.svg"
+scope = { view = "site" }
+
+[build.targets.sheet-lighting-distribution-site]
+using = "sheet:compose"
+dependencies = ["plan-lighting-distribution-site"]
+scope = { source = "assets/sheets/lighting-distribution-site.sheet.json" }
+output = "build/drawings/sheets/lighting-distribution-site.svg"
+
+[build.targets.plan-lighting-distribution-hall]
+using = "dcr:lighting-distribution-view"
+output = "build/drawings/views/lighting-distribution-hall.svg"
+scope = { view = "hall" }
+
+[build.targets.sheet-lighting-distribution-hall]
+using = "sheet:compose"
+dependencies = ["plan-lighting-distribution-hall"]
+scope = { source = "assets/sheets/lighting-distribution-hall.sheet.json" }
+output = "build/drawings/sheets/lighting-distribution-hall.svg"
+
+[build.targets.plan-lighting-distribution-section]
+using = "dcr:lighting-distribution-view"
+output = "build/drawings/views/lighting-distribution-section.svg"
+scope = { view = "section" }
+
+[build.targets.sheet-lighting-distribution-section]
+using = "sheet:compose"
+dependencies = ["plan-lighting-distribution-section"]
+scope = { source = "assets/sheets/lighting-distribution-section.sheet.json" }
+output = "build/drawings/sheets/lighting-distribution-section.svg"
+
+[build.targets.plan-lighting-distribution-single-line]
+using = "dcr:lighting-distribution-view"
+output = "build/drawings/views/lighting-distribution-single-line.svg"
+scope = { view = "single-line" }
+
+[build.targets.sheet-lighting-distribution-single-line]
+using = "sheet:compose"
+dependencies = ["plan-lighting-distribution-single-line"]
+scope = { source = "assets/sheets/lighting-distribution-single-line.sheet.json" }
+output = "build/drawings/sheets/lighting-distribution-single-line.svg"
+
+[build.targets.plan-lighting-distribution-sleeves]
+using = "dcr:lighting-distribution-view"
+output = "build/drawings/views/lighting-distribution-sleeves.svg"
+scope = { view = "sleeves" }
+
+[build.targets.sheet-lighting-distribution-sleeves]
+using = "sheet:compose"
+dependencies = ["plan-lighting-distribution-sleeves"]
+scope = { source = "assets/sheets/lighting-distribution-sleeves.sheet.json" }
+output = "build/drawings/sheets/lighting-distribution-sleeves.svg"
+
+[build.targets.plan-lighting-distribution-sequence]
+using = "dcr:lighting-distribution-view"
+output = "build/drawings/views/lighting-distribution-sequence.svg"
+scope = { view = "sequence" }
+
+[build.targets.sheet-lighting-distribution-sequence]
+using = "sheet:compose"
+dependencies = ["plan-lighting-distribution-sequence"]
+scope = { source = "assets/sheets/lighting-distribution-sequence.sheet.json" }
+output = "build/drawings/sheets/lighting-distribution-sequence.svg"
