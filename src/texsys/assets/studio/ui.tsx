@@ -223,6 +223,7 @@ const paths: Record<string, React.ReactNode> = {
       <circle cx="12" cy="12" r="1" />
     </>
   ),
+  pin: <path d="m9 3 6 0-1 6 3 3v2H7v-2l3-3-1-6zm3 11v7" />,
   close: <path d="m6 6 12 12M6 18 18 6" />,
   arrow: <path d="M4 12h16m-6-6 6 6-6 6" />,
   refresh: (

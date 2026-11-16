@@ -30,6 +30,7 @@ type ResizeHandleProps = {
   max: number;
   defaultValue: number;
   mode: "collapse" | "hide";
+  collapsible?: boolean;
   open: boolean;
   onClose: () => void;
   onChange: (value: number) => void;
@@ -109,7 +110,10 @@ function ResizeHandle(
         props.max,
         props.direction,
       );
-      const snapped = snapPanelDrag(proposed, props.min);
+      const snapped =
+        props.collapsible === false
+          ? { collapsed: false, value: Math.max(proposed, props.min) }
+          : snapPanelDrag(proposed, props.min);
       if (
         animateSnap &&
         !settling &&
@@ -202,7 +206,7 @@ function ResizeHandle(
     const delta = (event.key === forward ? 16 : -16) * props.direction;
     if (!props.open) {
       if (delta > 0) props.onChange(size);
-    } else if (delta < 0 && size <= props.min) props.onClose();
+    } else if (delta < 0 && size <= props.min && props.collapsible !== false) props.onClose();
     else props.onChange(clampPanelSize(size + delta, props.min, props.max));
   };
 
@@ -212,7 +216,7 @@ function ResizeHandle(
       className={`layout-resizer layout-resizer--${orientation} ${props.className}`}
       aria-label={props.label}
       aria-orientation={orientation}
-      aria-valuemin={0}
+      aria-valuemin={props.collapsible === false ? props.min : 0}
       aria-valuemax={props.max}
       aria-valuenow={restingValue}
       aria-valuetext={restingLabel}

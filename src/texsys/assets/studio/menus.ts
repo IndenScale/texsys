@@ -48,6 +48,8 @@ const fileEditorCommands = [
   "file.saveAll",
   "file.revert",
   "editor.gotoLine",
+  "scene.fullscreen",
+  "scene.focus",
   "help.shortcuts",
 ] as const;
 export type EditorMenuCommand = (typeof fileEditorCommands)[number] | SourceEditCommand;
@@ -203,6 +205,20 @@ export const studioMenus: MenuGroup[] = [
       },
       { id: "view.wordWrap", label: "自动换行", separator: true, keywords: "Word Wrap" },
       { id: "view.fullscreen", label: "全屏", keywords: "Full Screen 专注 编辑器快捷键" },
+      {
+        id: "scene.fullscreen",
+        label: "切换场景全屏",
+        icon: "panel-maximize",
+        searchOnly: true,
+        keywords: "USD Scene Preview Fullscreen",
+      },
+      {
+        id: "scene.focus",
+        label: "聚焦场景视口",
+        icon: "locate",
+        searchOnly: true,
+        keywords: "USD Scene Focus Viewport",
+      },
     ],
   },
   {

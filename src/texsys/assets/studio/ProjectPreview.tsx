@@ -16,7 +16,7 @@ import {
   sourceReference,
   type PreviewSource,
 } from "./project-preview-model";
-import type { DrawingViewport, PreviewViewport } from "./preview-viewport";
+import type { DrawingViewport, PreviewViewport, SceneViewControls } from "./preview-viewport";
 import "./project-preview.css";
 
 type Selection = { semanticRef: string; id?: string };
@@ -34,6 +34,7 @@ export function FilePreviewContent({
   openSource,
   openFile,
   viewport,
+  sceneControls,
   onViewportChange,
 }: {
   api: WorkbenchProps["api"];
@@ -47,6 +48,7 @@ export function FilePreviewContent({
   openSource: (source: PreviewSource) => void;
   openFile: (path: string) => void;
   viewport?: PreviewViewport;
+  sceneControls?: SceneViewControls;
   onViewportChange: (viewport: PreviewViewport) => void;
 }) {
   if (kind === "markdown")
@@ -63,6 +65,7 @@ export function FilePreviewContent({
         dirty={dirty}
         openSource={openSource}
         viewport={viewport?.kind === "scene" ? viewport : undefined}
+        controls={sceneControls}
         onViewportChange={onViewportChange}
       />
     );

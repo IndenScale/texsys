@@ -1350,6 +1350,15 @@
   min-height: 0;
   min-width: 0;
 }
+.core-editor-groups[data-maximized-editor="primary"] > :not([data-editor-group="primary"]),
+.core-editor-groups[data-maximized-editor="secondary"] > :not([data-editor-group="secondary"]),
+.core-editor-groups[data-maximized-editor] .core-document-tabs,
+.core-editor-groups[data-maximized-editor] .core-text-document > .core-document-header {
+  display: none;
+}
+.core-editor-groups[data-maximized-editor] > .core-editor-surface {
+  grid-template-rows: minmax(0, 1fr);
+}
 .core-editor-divider {
   background: var(--ui-chrome-divider);
   cursor: col-resize;

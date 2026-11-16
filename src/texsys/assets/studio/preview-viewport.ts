@@ -22,6 +22,27 @@ export type SceneViewport = {
   zoom?: number;
 };
 export type PreviewViewport = DrawingViewport | SceneViewport;
+export type SceneInspection = {
+  selected: string;
+  pinned: string;
+  open: boolean;
+  propertyShare: number;
+};
+export const defaultSceneInspection: SceneInspection = {
+  selected: "",
+  pinned: "",
+  open: false,
+  propertyShare: 42,
+};
+export type SceneViewControls = {
+  focused: boolean;
+  focusRequest?: { origin?: Element | null };
+  maximized: boolean;
+  toggleMaximized: () => void;
+  openSettings: () => void;
+  inspection?: SceneInspection;
+  changeInspection: (inspection: SceneInspection) => void;
+};
 
 export function fitDrawingViewport(
   bounds: DrawingBounds,

@@ -12,6 +12,9 @@ export type UserPreferences = {
   editorMinimap: boolean;
   editorScreenReader: boolean;
   terminalFontSize: number;
+  sceneMoveSpeed: number;
+  sceneBoost: number;
+  sceneMouseSensitivity: number;
   autoSave: boolean;
   confirmBeforeUnload: boolean;
   fileAssociations: FileEditorAssociations;
@@ -27,9 +30,20 @@ export const defaultEditorPreferences = {
 } satisfies Partial<UserPreferences>;
 
 export const defaultTerminalPreferences = { terminalFontSize: 12 };
+export const scenePreferenceOptions = {
+  sceneMoveSpeed: [0.25, 0.5, 1, 2, 4, 8, 16, 32, 64],
+  sceneBoost: [2, 3, 4, 6],
+  sceneMouseSensitivity: [0.25, 0.5, 0.75, 1, 1.25, 1.5, 2, 3],
+};
+export const defaultScenePreferences = {
+  sceneMoveSpeed: 8,
+  sceneBoost: 3,
+  sceneMouseSensitivity: 1,
+};
 export const defaultUserPreferences: Readonly<UserPreferences> = {
   ...defaultEditorPreferences,
   ...defaultTerminalPreferences,
+  ...defaultScenePreferences,
   autoSave: false,
   confirmBeforeUnload: true,
   fileAssociations: {},
@@ -38,6 +52,12 @@ const storageKey = "texsys.studio.user-preferences";
 
 function fontSize(value: unknown, fallback: number) {
   return typeof value === "number" && fontSizeOptions.includes(value) ? value : fallback;
+}
+
+function scenePreference(key: keyof typeof scenePreferenceOptions, value: unknown) {
+  return typeof value === "number" && scenePreferenceOptions[key].includes(value)
+    ? value
+    : defaultScenePreferences[key];
 }
 
 export function fileEditorExtension(path: string): string {
@@ -101,6 +121,12 @@ function readPreferences(raw: string | null): UserPreferences {
           typeof editorMinimap === "boolean" ? editorMinimap : defaultUserPreferences.editorMinimap,
         editorScreenReader: saved.editorScreenReader === true,
         terminalFontSize: fontSize(saved.terminalFontSize, defaultUserPreferences.terminalFontSize),
+        sceneMoveSpeed: scenePreference("sceneMoveSpeed", saved.sceneMoveSpeed),
+        sceneBoost: scenePreference("sceneBoost", saved.sceneBoost),
+        sceneMouseSensitivity: scenePreference(
+          "sceneMouseSensitivity",
+          saved.sceneMouseSensitivity,
+        ),
         autoSave:
           typeof saved.autoSave === "boolean" ? saved.autoSave : defaultUserPreferences.autoSave,
         confirmBeforeUnload:

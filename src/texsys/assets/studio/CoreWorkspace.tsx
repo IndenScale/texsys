@@ -165,6 +165,7 @@ type Core = {
   tabs: ReactNode;
   secondary?: EditorGroupContent;
   focusedGroup: string;
+  maximizedEditor?: string;
   focusGroup: (id: string) => void;
   inspector: ReactNode;
   documentActive: boolean;
@@ -367,6 +368,7 @@ export function CoreWorkspaceProvider({
     canRevert: boolean;
     canEditSource: boolean;
     canReadSource: boolean;
+    canBrowseScene: boolean;
     canCommentSource: boolean;
     canUndo: boolean;
     canRedo: boolean;
@@ -463,6 +465,14 @@ export function CoreWorkspaceProvider({
   const [documents, setDocuments] = useState<Document[]>([]);
   const [editorGroups, setEditorGroups] = useState<EditorGroup[]>([emptyEditorGroup()]);
   const [focusedGroup, setFocusedGroup] = useState(primaryEditorGroup);
+  const [maximizedScene, setMaximizedScene] = useState<{ groupId: string; path: string }>();
+  const [sceneFocusRequest, setSceneFocusRequest] = useState<{
+    groupId: string;
+    path: string;
+    origin?: Element | null;
+  }>();
+  const requestSceneFocus = (groupId: string, path: string, force = false) =>
+    setSceneFocusRequest({ groupId, path, origin: force ? undefined : document.activeElement });
   const groupsRef = useRef(editorGroups);
   groupsRef.current = editorGroups;
   const sourceStatuses = useRef(new Map<string, { path: string; status: SourceEditorStatus }>());
@@ -513,7 +523,7 @@ export function CoreWorkspaceProvider({
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [settingsActive, setSettingsActive] = useState(false);
   const [settingsCategoryRequest, setSettingsCategoryRequest] = useState<{
-    category: "editor" | "ai";
+    category: "editor" | "ai" | "scene";
     token: number;
   }>();
   const [searchEditorActive, setSearchEditorActive] = useState(false);
@@ -614,6 +624,35 @@ export function CoreWorkspaceProvider({
             : active
               ? "source"
               : null;
+  const canBrowseScene =
+    activeTab === "source" &&
+    previewKind === "scene" &&
+    activePresentation === "preview" &&
+    !active?.loading &&
+    !active?.error;
+  const maximizedEditor =
+    canBrowseScene && maximizedScene?.groupId === focusedGroup && maximizedScene.path === activePath
+      ? focusedGroup
+      : undefined;
+  useLayoutEffect(() => {
+    if (maximizedScene && !maximizedEditor) setMaximizedScene(undefined);
+  }, [maximizedEditor, maximizedScene]);
+  const toggleSceneFullscreen = (groupId: string, path: string) => {
+    setMaximizedScene((current) =>
+      current?.groupId === groupId && current.path === path ? undefined : { groupId, path },
+    );
+    requestSceneFocus(groupId, path, true);
+  };
+  const openSceneSettings = () => {
+    setMaximizedScene(undefined);
+    focusGroup(primaryEditorGroup);
+    setSettingsOpen(true);
+    setSettingsActive(true);
+    setSettingsCategoryRequest((previous) => ({
+      category: "scene",
+      token: (previous?.token ?? 0) + 1,
+    }));
+  };
   const terminalFile =
     activeTab === "source" &&
     !active?.design &&
@@ -916,6 +955,7 @@ export function CoreWorkspaceProvider({
       return;
     }
     setSourceFocus(focus ? { path, groupId, origin: document.activeElement } : undefined);
+    requestSceneFocus(groupId, path);
     if (groupId === primaryEditorGroup) setSettingsActive(false);
     if (recordHistory) setHistory((previous) => visitDocument(previous, path));
     if (groupId === primaryEditorGroup) setSearchEditorActive(false);
@@ -1037,6 +1077,7 @@ export function CoreWorkspaceProvider({
       canRevert,
       canEditSource,
       canReadSource,
+      canBrowseScene,
       canCommentSource,
       canUndo: model?.canUndo() ?? false,
       canRedo: model?.canRedo() ?? false,
@@ -1055,6 +1096,7 @@ export function CoreWorkspaceProvider({
     closeDisabled,
     canEditSource,
     canReadSource,
+    canBrowseScene,
     canCommentSource,
     active,
     sourceModels,
@@ -1813,6 +1855,10 @@ export function CoreWorkspaceProvider({
     const { id } = editorMenuRequest;
     if (closeDisabled) return;
     if (id === "help.shortcuts") setShowShortcuts(true);
+    else if (id === "scene.fullscreen" && canBrowseScene && activePath)
+      toggleSceneFullscreen(focusedGroup, activePath);
+    else if (id === "scene.focus" && canBrowseScene && activePath)
+      requestSceneFocus(focusedGroup, activePath, true);
     else if (id === "file.new") startCreation("create");
     else if (id === "file.untitled") newUntitled();
     else if (id === "file.saveAll" && canSaveAll) void saveAll();
@@ -2659,6 +2705,8 @@ export function CoreWorkspaceProvider({
                 onClose={() => closeFileTab(document.path, group.id)}
                 onSelect={() => {
                   focusGroup(group.id);
+                  if (preview && filePreviewKind(document) === "scene")
+                    requestSceneFocus(group.id, document.path);
                   if (
                     !document.untitled &&
                     !document.design &&
@@ -3058,11 +3106,13 @@ export function CoreWorkspaceProvider({
       <FileEditorActions
         kind={kind}
         presentation={presentation}
-        onPreview={() =>
+        onPreview={() => {
           updateView(group.id, active.path, {
             presentation: presentation === "preview" ? "source" : "preview",
-          })
-        }
+          });
+          if (previewKind === "scene" && presentation !== "preview")
+            requestSceneFocus(group.id, active.path);
+        }}
         onPreviewBeside={() => splitFile(group, "preview")}
         onSplit={() => splitFile(group, presentation)}
         items={items}
@@ -3221,7 +3271,11 @@ export function CoreWorkspaceProvider({
             onSetDefault={(mode) => {
               setFileEditorDefault(active.path, previewKind, mode);
             }}
-            onChange={(presentation) => updateView(group.id, active.path, { presentation })}
+            onChange={(presentation) => {
+              updateView(group.id, active.path, { presentation });
+              if (presentation === "preview" && previewKind === "scene")
+                requestSceneFocus(group.id, active.path);
+            }}
           />
         </div>
         {showingPreview && previewKind ? (
@@ -3236,6 +3290,24 @@ export function CoreWorkspaceProvider({
             preview={active.preview}
             dirty={activeDirty}
             viewport={view?.viewport}
+            sceneControls={
+              previewKind === "scene"
+                ? {
+                    focused: group.id === focusedGroup,
+                    focusRequest:
+                      sceneFocusRequest?.groupId === group.id &&
+                      sceneFocusRequest.path === active.path
+                        ? sceneFocusRequest
+                        : undefined,
+                    maximized: group.id === maximizedEditor,
+                    toggleMaximized: () => toggleSceneFullscreen(group.id, active.path),
+                    openSettings: openSceneSettings,
+                    inspection: view?.sceneInspection,
+                    changeInspection: (sceneInspection) =>
+                      updateView(group.id, active.path, { sceneInspection }),
+                  }
+                : undefined
+            }
             onViewportChange={(viewport) => updateView(group.id, active.path, { viewport })}
             openFile={(path) => void openFile(path, { groupId: group.id })}
             openSource={(source) =>
@@ -3347,6 +3419,7 @@ export function CoreWorkspaceProvider({
         }
       : undefined,
     focusedGroup,
+    maximizedEditor,
     focusGroup,
     inspector,
     documentActive: documentActive || settingsActive,
@@ -3440,6 +3513,7 @@ export function WorkbenchSurface({
     <WorkbenchLayout
       layout={layout}
       change={change}
+      editorMaximized={!!core.maximizedEditor}
       activity={
         <ActivityBar
           active={core.activity}
@@ -3464,8 +3538,9 @@ export function WorkbenchSurface({
     >
       <div
         className={`core-editor-groups${splitVisible ? " is-split" : ""}`}
+        data-maximized-editor={core.maximizedEditor}
         style={
-          splitVisible
+          splitVisible && !core.maximizedEditor
             ? {
                 gridTemplateColumns: `minmax(0, ${splitRatio}fr) 5px minmax(0, ${100 - splitRatio}fr)`,
               }

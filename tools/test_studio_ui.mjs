@@ -5,7 +5,7 @@ import path from "node:path";
 import { deflateRawSync } from "node:zlib";
 import esbuild from "esbuild-wasm";
 
-function load(source) {
+function load(source, dependencies = {}) {
   const filename = path.resolve(source);
   const result = esbuild.buildSync({
     entryPoints: [filename],
@@ -18,6 +18,8 @@ function load(source) {
   });
   const module = new Module(filename);
   module.paths = Module._nodeModulePaths(process.cwd());
+  module.require = (id) =>
+    Object.hasOwn(dependencies, id) ? dependencies[id] : Module.prototype.require.call(module, id);
   module._compile(result.outputFiles[0].text, filename);
   return module.exports;
 }
@@ -944,7 +946,7 @@ test("terminal viewport, session and actions toolbar context menus match VS Code
   assert.equal(actionsMenu[13].label, "Reset Menu");
 });
 
-test("editor and terminal preferences persist independently and tolerate invalid stored values", () => {
+test("editor, terminal and scene preferences persist independently and tolerate invalid stored values", () => {
   const storageKey = "texsys.studio.user-preferences";
   const values = new Map([
     [
@@ -961,7 +963,7 @@ test("editor and terminal preferences persist independently and tolerate invalid
     },
   });
   try {
-    const { updateUserPreferences, defaultEditorPreferences } = load(
+    const { updateUserPreferences, defaultEditorPreferences, defaultScenePreferences } = load(
       "src/texsys/assets/studio/user-preferences.ts",
     );
     assert.equal(defaultEditorPreferences.editorWordWrap, "on");
@@ -973,23 +975,33 @@ test("editor and terminal preferences persist independently and tolerate invalid
       editorMinimap: false,
       editorScreenReader: true,
       terminalFontSize: 16,
+      ...defaultScenePreferences,
       autoSave: false,
       confirmBeforeUnload: true,
       fileAssociations: {},
     });
-    updateUserPreferences({ autoSave: true, confirmBeforeUnload: false });
+    updateUserPreferences({ autoSave: true, confirmBeforeUnload: false, sceneMoveSpeed: 16 });
     updateUserPreferences(defaultEditorPreferences);
     assert.deepEqual(JSON.parse(values.get(storageKey)), {
       ...defaultEditorPreferences,
+      ...defaultScenePreferences,
+      sceneMoveSpeed: 16,
       terminalFontSize: 16,
       autoSave: true,
       confirmBeforeUnload: false,
       fileAssociations: {},
     });
-    values.set(storageKey, '{"editorWordWrap":"bounded"}');
+    values.set(
+      storageKey,
+      '{"editorWordWrap":"bounded","sceneMoveSpeed":0,"sceneBoost":6,"sceneMouseSensitivity":"2"}',
+    );
     const reloaded = load("src/texsys/assets/studio/user-preferences.ts");
     reloaded.updateUserPreferences({});
-    assert.equal(JSON.parse(values.get(storageKey)).editorWordWrap, "on");
+    const restored = JSON.parse(values.get(storageKey));
+    assert.equal(restored.editorWordWrap, "on");
+    assert.equal(restored.sceneMoveSpeed, defaultScenePreferences.sceneMoveSpeed);
+    assert.equal(restored.sceneBoost, 6);
+    assert.equal(restored.sceneMouseSensitivity, defaultScenePreferences.sceneMouseSensitivity);
   } finally {
     if (original) Object.defineProperty(globalThis, "localStorage", original);
     else delete globalThis.localStorage;
@@ -1582,10 +1594,38 @@ test("mounted artifact previews preserve their viewport when file geometry chang
   const { JSDOM } = await import("jsdom");
   const { createElement, useState, act } = await import("react");
   const { createRoot } = await import("react-dom/client");
-  const { FilePreviewContent } = load("src/texsys/assets/studio/ProjectPreview.tsx");
+  const three = await import("three");
+  const faces = [];
+  class WebGLRenderer {
+    setPixelRatio() {}
+    setSize() {}
+    dispose() {}
+    render(scene, camera) {
+      camera.updateMatrixWorld();
+      scene.traverse((mesh) => {
+        if (mesh.userData.id !== "/Room") return;
+        const points = mesh.geometry.getAttribute("position");
+        faces.push(
+          Array.from({ length: points.count }, (_, index) =>
+            new three.Vector3()
+              .fromBufferAttribute(points, index)
+              .project(camera)
+              .toArray()
+              .slice(0, 2)
+              .map((value) => Number(value.toFixed(8))),
+          ),
+        );
+      });
+    }
+  }
+  const { FilePreviewContent } = load("src/texsys/assets/studio/ProjectPreview.tsx", {
+    three: { ...three, WebGLRenderer },
+  });
   t.mock.timers.enable({ apis: ["setTimeout"] });
   const dom = new JSDOM("<main></main>");
   const { window } = dom;
+  let frameId = 0;
+  const frames = new Map();
   const globals = {
     window,
     document: window.document,
@@ -1594,6 +1634,11 @@ test("mounted artifact previews preserve their viewport when file geometry chang
       observe() {}
       disconnect() {}
     },
+    requestAnimationFrame: (callback) => {
+      frames.set(++frameId, callback);
+      return frameId;
+    },
+    cancelAnimationFrame: (id) => frames.delete(id),
     IS_REACT_ACT_ENVIRONMENT: true,
   };
   const previous = Object.fromEntries(Object.keys(globals).map((key) => [key, globalThis[key]]));
@@ -1608,27 +1653,9 @@ test("mounted artifact previews preserve their viewport when file geometry chang
       clientHeight: { value: 300 },
     });
   }
-  const faces = [];
-  let polygon;
-  window.HTMLCanvasElement.prototype.getContext = () => ({
-    scale() {},
-    beginPath() {
-      polygon = [];
-    },
-    moveTo(x, y) {
-      polygon.push([x, y]);
-    },
-    lineTo(x, y) {
-      polygon.push([x, y]);
-    },
-    closePath() {},
-    fill() {
-      faces.push(polygon);
-    },
-    stroke() {},
-  });
   const room = {
-    id: "room",
+    id: "/Room",
+    prim_path: "/Room",
     semantic_ref: "room",
     name: "Room",
     points: [
@@ -1640,7 +1667,8 @@ test("mounted artifact previews preserve their viewport when file geometry chang
   };
   const extension = {
     ...room,
-    id: "extension",
+    id: "/Extension",
+    prim_path: "/Extension",
     semantic_ref: "extension",
     name: "Extension",
     points: [
@@ -1669,6 +1697,7 @@ test("mounted artifact previews preserve their viewport when file geometry chang
             ],
     };
   };
+  let latestViewport;
   function Harness({ kind, version, content = "", visible = true, dirty = false }) {
     const [viewport, onViewportChange] = useState();
     return (
@@ -1686,7 +1715,10 @@ test("mounted artifact previews preserve their viewport when file geometry chang
         }[kind],
         dirty,
         viewport,
-        onViewportChange,
+        onViewportChange: (next) => {
+          latestViewport = next;
+          onViewportChange(next);
+        },
       })
     );
   }
@@ -1839,7 +1871,7 @@ test("mounted artifact previews preserve their viewport when file geometry chang
   assert.equal(oldRoom.length, 3);
   faces.length = 0;
   await render({ kind: "scene", version: "v2" });
-  assert.equal(container.querySelectorAll(".scene-preview-objects button").length, 2);
+  assert.equal(container.querySelectorAll('.scene-preview-objects [role="treeitem"]').length, 2);
   assert.ok(faces.some((face) => JSON.stringify(face) === JSON.stringify(oldRoom)));
   composition = "layer-v2";
   faces.length = 0;
@@ -1848,6 +1880,52 @@ test("mounted artifact previews preserve their viewport when file geometry chang
   assert.equal(requests.at(-1).searchParams.get("revision"), "layer-v1");
   assert.match(container.querySelector(".scene-preview-objects").textContent, /Changed layer/);
   assert.ok(faces.some((face) => JSON.stringify(face) === JSON.stringify(oldRoom)));
+  const canvas = container.querySelector(".scene-preview-canvas");
+  const key = (element, type, code, key = code, shiftKey = false) =>
+    element.dispatchEvent(
+      new window.KeyboardEvent(type, { code, key, shiftKey, bubbles: true, cancelable: true }),
+    );
+  const move = async (code, value, shift = false) => {
+    await act(() => {
+      const now = performance.now();
+      assert.equal(key(canvas, "keydown", code, value, shift), false);
+      const [id, callback] = Array.from(frames).at(-1);
+      frames.delete(id);
+      callback(now + 100);
+      key(canvas, "keyup", code, value, shift);
+    });
+  };
+  const initialEye = latestViewport.eye;
+  await move("KeyW", "w");
+  const advanced = latestViewport.eye;
+  const forward = (from, to) => Math.hypot(to[0] - from[0], to[1] - from[1]);
+  const normalDistance = forward(initialEye, advanced);
+  assert.ok(normalDistance > 0.5 && normalDistance < 1.1);
+  assert.ok(Math.abs(advanced[2] - initialEye[2]) < 1e-9);
+  await move("KeyW", "W", true);
+  assert.ok(forward(advanced, latestViewport.eye) > normalDistance * 2.5);
+  const beforeRise = latestViewport;
+  await move("KeyE", "e");
+  assert.ok(forward(latestViewport.eye, beforeRise.eye) < 1e-9);
+  assert.ok(latestViewport.eye[2] > beforeRise.eye[2]);
+  const beforeLook = latestViewport;
+  await move("ArrowRight", "ArrowRight");
+  assert.ok(
+    Math.hypot(...latestViewport.eye.map((value, index) => value - beforeLook.eye[index])) < 1e-9,
+  );
+  assert.notDeepEqual(latestViewport.at, beforeLook.at);
+
+  const search = container.querySelector('input[aria-label="搜索构件"]');
+  await act(() => assert.equal(key(search, "keydown", "KeyW", "w"), true));
+  const treeItems = container.querySelectorAll('.scene-preview-objects [role="treeitem"]');
+  await act(() => key(treeItems[0], "keydown", "Enter"));
+  assert.match(container.querySelector(".scene-selection-title").textContent, /Room/);
+  await act(() => container.querySelector('[aria-label="固定构件属性"]').click());
+  await act(() => treeItems[1].click());
+  assert.equal(treeItems[1].getAttribute("aria-selected"), "true");
+  assert.match(container.querySelector(".scene-selection-title").textContent, /Room/);
+  await act(() => container.querySelector('[aria-label="取消固定属性"]').click());
+  assert.match(container.querySelector(".scene-selection-title").textContent, /Changed layer/);
   await act(() => root.unmount());
 });
 

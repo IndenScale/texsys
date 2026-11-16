@@ -6,9 +6,11 @@ import { titlebarGroups, type TitlebarGroup } from "./layout-preferences";
 import type { WorkbenchProps } from "./sdk";
 import {
   defaultEditorPreferences,
+  defaultScenePreferences,
   defaultTerminalPreferences,
   defaultUserPreferences,
   fontSizeOptions,
+  scenePreferenceOptions,
   updateUserPreferences,
   useUserPreferences,
   type UserPreferences,
@@ -22,6 +24,7 @@ const categories = {
   workbench: { label: "工作台", icon: "grid" },
   files: { label: "文件", icon: "file" },
   editor: { label: "编辑器", icon: "code" },
+  scene: { label: "USD 场景预览", icon: "cube" },
   terminal: { label: "终端", icon: "terminal" },
   ai: { label: "AI 连接", icon: "sparkles" },
 } as const;
@@ -287,6 +290,43 @@ export function Settings({
       },
       fontSize,
     ),
+    preference(
+      "sceneMoveSpeed",
+      {
+        category: "scene",
+        label: "场景移动速度",
+        description: "设置按下 WASD 或 Q/E 时每秒移动的距离。",
+        keywords: "USD navigation WASD QE move speed",
+      },
+      choices(
+        scenePreferenceOptions.sceneMoveSpeed.map((value) => ({ value, label: `${value} m/s` })),
+      ),
+    ),
+    preference(
+      "sceneBoost",
+      {
+        category: "scene",
+        label: "场景加速倍率",
+        description: "按住 Shift 时按此倍率提高移动速度。",
+        keywords: "USD navigation Shift boost",
+      },
+      choices(scenePreferenceOptions.sceneBoost.map((value) => ({ value, label: `${value}×` }))),
+    ),
+    preference(
+      "sceneMouseSensitivity",
+      {
+        category: "scene",
+        label: "鼠标转向灵敏度",
+        description: "调整左键拖动时相机旋转的幅度。",
+        keywords: "USD mouse orbit rotate sensitivity",
+      },
+      choices(
+        scenePreferenceOptions.sceneMouseSensitivity.map((value) => ({
+          value,
+          label: `${value}×`,
+        })),
+      ),
+    ),
     ...titlebarGroups.map(({ id, label }): Setting => {
       const modified = titlebar.hidden.includes(id);
       return {
@@ -335,6 +375,10 @@ export function Settings({
     terminal: {
       modified: preferences.terminalFontSize !== defaultUserPreferences.terminalFontSize,
       reset: () => updateUserPreferences(defaultTerminalPreferences),
+    },
+    scene: {
+      modified: settings.some((item) => item.category === "scene" && item.modified),
+      reset: () => updateUserPreferences(defaultScenePreferences),
     },
   };
   const resetCategory = !searching && categoryResets[category];
@@ -433,6 +477,30 @@ export function Settings({
             >
               {t("恢复此分类默认值")}
             </button>
+          )}
+          {!searching && category === "scene" && (
+            <>
+              <h2>{t("场景快捷键")}</h2>
+              <dl className="settings-card scene-shortcut-list">
+                {[
+                  ["W A S D", "水平移动"],
+                  ["Q / E", "下降 / 上升"],
+                  ["↑ ↓ ← →", "转动视角"],
+                  ["Shift", "按住加速"],
+                  ["F / Home", "聚焦构件 / 适应视图"],
+                  ["Enter", "查看选中构件属性"],
+                  ["Shift + F", "切换场景全屏"],
+                  ["Esc", "结束测距 / 退出全屏 / 返回视口"],
+                ].map(([key, label]) => (
+                  <React.Fragment key={key}>
+                    <dt>
+                      <kbd>{key}</kbd>
+                    </dt>
+                    <dd>{t(label)}</dd>
+                  </React.Fragment>
+                ))}
+              </dl>
+            </>
           )}
           {aiResult && (
             <div className="settings-ai-result">

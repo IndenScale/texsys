@@ -19,7 +19,7 @@
 5. **一致的开发入口。** 工程师与代理使用同一源文件、Git 和 CLI 工具链；Studio 提供通用编辑器、Source Control 和终端，不为工程变更另造页面或审批步骤。
 6. **工程依赖。** 锁定模型、规则、模块和设备资产，检测内容漂移；逐步补齐实际执行环境与外部求解器的复现记录。依赖可从只读 HTTP 包源拉取（官方包，无账户与第三方上传），支持全新 CI 环境不依赖共享目录复现，见 [ADR-0031](adr/0031-read-only-http-package-registry.md)。
 7. **真实小场景验证。** 采用可核实的设备资料和独立参考，验证一个小机房或机柜列；在第二个相近项目检验复用成本。资料未取得或验证未执行时保持未完成状态。
-8. **增量构建与文件预览。** 按声明依赖复用有效缓存，在失败后继续独立分支，构建记录保存完整性、判定与适用性。BOM、拓扑、原理图和场景以独立文件打开，复用通用文件组件、打开方式和编辑器组；普通 JSON 直接编辑，有多种实际打开方式时才显示选择器。Markdown 支持文本编辑、预览、Markdown Editor 及按扩展名设置默认值；专业预览只替换内容区实现。USD 预览提供只读飞行、构件与集合过滤、属性检查、可恢复显隐、轴向剖切和两点测距。已声明的工程属性和构件身份来自 USD 装配。生成文件可编辑保存，图形反向写回声明式设计尚不在本期范围。统一文件约束见 [DDR-0012](ddr/0012-studio-file-preview-and-source.md)，打开方式与分栏见 [DDR-0013](ddr/0013-studio-editor-actions-and-open-with.md)，当前操作入口与清理边界见 [DDR-0014](ddr/0014-studio-editor-group-actions-and-disk-comparison-removal.md)。
+8. **增量构建与文件预览。** 按声明依赖复用有效缓存，在失败后继续独立分支，构建记录保存完整性、判定与适用性。BOM、拓扑、原理图和场景以独立文件打开，复用通用文件组件、打开方式和编辑器组；普通 JSON 直接编辑，有多种实际打开方式时才显示选择器。Markdown 支持文本编辑、预览、Markdown Editor 及按扩展名设置默认值；专业预览只替换内容区实现。USD 场景视图支持工作区全屏、键盘浏览、构件与集合过滤、可固定的属性检查、可恢复显隐、轴向剖切和两点测距，导航偏好在设置中调整。交互见 [DDR-0024](ddr/0024-studio-usd-scene-view.md)。已声明的工程属性和构件身份来自 USD 装配。生成文件可编辑保存，图形反向写回声明式设计尚不在本期范围。统一文件约束见 [DDR-0012](ddr/0012-studio-file-preview-and-source.md)，打开方式与分栏见 [DDR-0013](ddr/0013-studio-editor-actions-and-open-with.md)，当前操作入口与清理边界见 [DDR-0014](ddr/0014-studio-editor-group-actions-and-disk-comparison-removal.md)。
 
 项目可在 `texsys.toml` 为同一生成器声明多个命名出图目标。CLI 和 Studio 集成终端支持监听落盘变更并执行同一构建，原理图、SVG 平面图与场景按文件刷新，视口由所属编辑器组保留。构建暂存、发布及视口规则见 [ADR-0029](adr/0029-named-build-targets-and-file-refresh.md)。
 

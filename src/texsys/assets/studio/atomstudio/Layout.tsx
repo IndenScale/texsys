@@ -72,6 +72,7 @@ function horizontalActivityBar(layout: StudioLayout) {
 export function WorkbenchLayout({
   layout,
   change,
+  editorMaximized,
   activity,
   sidebar,
   inspector,
@@ -80,6 +81,7 @@ export function WorkbenchLayout({
 }: {
   layout: StudioLayout;
   change: ChangeLayout;
+  editorMaximized?: boolean;
   activity: ReactNode;
   sidebar: ReactNode;
   inspector: ReactNode;
@@ -114,18 +116,20 @@ export function WorkbenchLayout({
   const inspectorMax = Math.max(MIN_INSPECTOR_WIDTH, Math.floor(width * 0.45));
   const bottomMax = Math.max(MIN_BOTTOM_HEIGHT, Math.floor(height * 0.6));
   const sidebarOnRight = layout.sidebarPosition === "right";
-  const classes = [
-    "workbench-layout",
-    `dock-panel-${panelPosition}`,
-    !layout.sidebarOpen && "is-sidebar-collapsed",
-    !layout.inspectorOpen && "is-inspector-hidden",
-    layout.bottomOpen && "is-bottom-open",
-    layout.bottomOpen && layout.bottomMaximized && "is-bottom-maximized",
-    sidebarOnRight && "sidebar-on-right",
-    horizontalActivityBar(layout) &&
-      `has-horizontal-activity activity-bar-${layout.activityBarPosition}`,
-    layout.activityBarSize === "compact" && "activity-bar-compact",
-  ];
+  const classes = editorMaximized
+    ? ["workbench-layout", "is-editor-maximized"]
+    : [
+        "workbench-layout",
+        `dock-panel-${panelPosition}`,
+        !layout.sidebarOpen && "is-sidebar-collapsed",
+        !layout.inspectorOpen && "is-inspector-hidden",
+        layout.bottomOpen && "is-bottom-open",
+        layout.bottomOpen && layout.bottomMaximized && "is-bottom-maximized",
+        sidebarOnRight && "sidebar-on-right",
+        horizontalActivityBar(layout) &&
+          `has-horizontal-activity activity-bar-${layout.activityBarPosition}`,
+        layout.activityBarSize === "compact" && "activity-bar-compact",
+      ];
   return (
     <div
       className={classes.filter(Boolean).join(" ")}

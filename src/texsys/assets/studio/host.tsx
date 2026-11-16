@@ -382,6 +382,7 @@ function Studio({
     canRevert: false,
     canEditSource: false,
     canReadSource: false,
+    canBrowseScene: false,
     canCommentSource: false,
     canUndo: false,
     canRedo: false,
@@ -401,6 +402,7 @@ function Studio({
         previous.canRevert === next.canRevert &&
         previous.canEditSource === next.canEditSource &&
         previous.canReadSource === next.canReadSource &&
+        previous.canBrowseScene === next.canBrowseScene &&
         previous.canCommentSource === next.canCommentSource &&
         previous.canUndo === next.canUndo &&
         previous.canRedo === next.canRedo
@@ -587,6 +589,8 @@ function Studio({
     "editor.find": coreHistory.canReadSource,
     "editor.replace": coreHistory.canEditSource,
     "editor.gotoLine": coreHistory.canReadSource,
+    "scene.fullscreen": coreHistory.canBrowseScene,
+    "scene.focus": coreHistory.canBrowseScene,
     "editor.comment": coreHistory.canCommentSource,
     "editor.selectAll": coreHistory.canReadSource,
     "editor.nextMatch": coreHistory.canReadSource,

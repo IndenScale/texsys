@@ -241,6 +241,25 @@
 .workbench-bottom > * {
   flex-shrink: 0;
 }
+
+.workbench-layout.is-editor-maximized {
+  grid-template-columns: minmax(0, 1fr);
+  transition: none;
+}
+.workbench-layout.is-editor-maximized > :not(.workbench-stage),
+.workbench-layout.is-editor-maximized > .workbench-stage > :not(.workbench-editor) {
+  display: none;
+}
+.workbench-layout.is-editor-maximized > .workbench-stage {
+  grid-area: 1 / 1;
+  grid-template: minmax(0, 1fr) / minmax(0, 1fr);
+  transition: none;
+}
+.workbench-layout.is-editor-maximized > .workbench-stage > .workbench-editor {
+  grid-area: 1 / 1;
+  visibility: visible;
+  pointer-events: auto;
+}
 .workbench-bottom > .bottom-panel-content {
   flex: 1;
   min-height: 0;

@@ -328,3 +328,17 @@
     width: auto;
   }
 }
+
+.scene-shortcut-list {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: 7px 14px;
+  align-items: baseline;
+  padding: 12px 14px;
+}
+.scene-shortcut-list dd {
+  margin: 0;
+}
+.scene-shortcut-list kbd {
+  font-size: 0.9em;
+}

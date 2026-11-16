@@ -24,6 +24,7 @@ import {
 } from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import type { Point3, SceneViewport } from "./preview-viewport";
+import { defaultScenePreferences } from "./user-preferences";
 
 export type ModelObject = {
   id: string;
@@ -53,16 +54,19 @@ const directions = {
 };
 const palette = [0x749aa8, 0x788daf, 0x889e95, 0x988a75];
 const movementKeys = new Set(["KeyW", "KeyA", "KeyS", "KeyD", "KeyQ", "KeyE"]);
+const lookKeys = new Set(["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"]);
 const radians = Math.PI / 180;
 
-export function flightDelta(forward: Vector3, keys: ReadonlySet<string>, distance: number) {
-  const right = forward.clone().cross(axes.z).normalize();
-  const axis = (positive: string, negative: string) =>
-    Number(keys.has(positive)) - Number(keys.has(negative));
+function keyAxis(keys: ReadonlySet<string>, positive: string, negative: string) {
+  return Number(keys.has(positive)) - Number(keys.has(negative));
+}
+
+function navigationDelta(right: Vector3, keys: ReadonlySet<string>, distance: number) {
+  const horizontal = right.clone().setZ(0).normalize();
   return new Vector3()
-    .addScaledVector(forward, axis("KeyW", "KeyS"))
-    .addScaledVector(right, axis("KeyD", "KeyA"))
-    .addScaledVector(axes.z, axis("KeyE", "KeyQ"))
+    .addScaledVector(new Vector3().crossVectors(axes.z, horizontal), keyAxis(keys, "KeyW", "KeyS"))
+    .addScaledVector(horizontal, keyAxis(keys, "KeyD", "KeyA"))
+    .addScaledVector(axes.z, keyAxis(keys, "KeyE", "KeyQ"))
     .normalize()
     .multiplyScalar(distance);
 }
@@ -114,8 +118,8 @@ export class SceneRenderer {
   private width = 1;
   private height = 1;
   private span = 2;
-  private speed = 1;
-  private flying = false;
+  private navigation = defaultScenePreferences;
+  private boosted = false;
   private lastFrame = 0;
   private frame = 0;
   private cut?: Plane;
@@ -149,7 +153,7 @@ export class SceneRenderer {
     this.controls?.dispose();
     this.controls = new OrbitControls(this.camera, this.canvas);
     this.controls.target.copy(this.target);
-    this.controls.enabled = !this.flying;
+    this.controls.rotateSpeed = this.navigation.sceneMouseSensitivity;
     this.controls.zoomToCursor = true;
     this.controls.enableDamping = false;
     this.controls.addEventListener("change", () => this.draw());
@@ -210,7 +214,6 @@ export class SceneRenderer {
     this.grid.position.setZ(
       this.worldBounds.isEmpty() ? 0 : this.worldBounds.min.z - this.offset.z,
     );
-    this.speed = Math.max(0.3, size.length() / 24);
     this.span = 2;
     this.setSection(undefined, 0.5);
     if (viewport?.eye && viewport.at) this.restore(viewport);
@@ -320,17 +323,6 @@ export class SceneRenderer {
     this.draw();
   }
 
-  orbit(horizontal: number, vertical: number) {
-    if (this.flying) return;
-    if (horizontal) this.controls?.rotateLeft(horizontal * radians);
-    if (vertical) this.controls?.rotateUp(vertical * radians);
-    this.saveView();
-  }
-
-  finishLook() {
-    this.saveView();
-  }
-
   setState({ visible, ghost, selected, hovered }: ViewState) {
     this.visible = visible;
     this.ghost = ghost;
@@ -398,23 +390,16 @@ export class SceneRenderer {
       return { id: hit.object.userData.id as string, point: hit.point.add(this.offset).toArray() };
   }
 
-  setFlying(enabled: boolean) {
-    if (enabled && this.camera === this.orthographic) {
-      this.perspective.position.copy(this.camera.position);
-      this.perspective.quaternion.copy(this.camera.quaternion);
-      this.camera = this.perspective;
-    }
-    this.flying = enabled;
-    this.keys.clear();
-    this.attachOrbit();
-    this.saveView();
-    this.draw();
+  setNavigation(preferences: typeof defaultScenePreferences) {
+    this.navigation = preferences;
+    if (this.controls) this.controls.rotateSpeed = preferences.sceneMouseSensitivity;
   }
 
-  flyLook(dx: number, dy: number) {
+  private look(right: Vector3, horizontal: number, vertical: number) {
     const direction = this.camera.getWorldDirection(new Vector3());
-    const yaw = Math.atan2(direction.y, direction.x) - dx * 0.0045;
-    const pitch = Math.max(-1.54, Math.min(1.54, Math.asin(direction.z) - dy * 0.0045));
+    const yaw = Math.atan2(right.x, -right.y) - horizontal;
+    const limit = Math.PI / 2 - 0.00001;
+    const pitch = Math.max(-limit, Math.min(limit, Math.asin(direction.z) + vertical));
     direction.set(
       Math.cos(yaw) * Math.cos(pitch),
       Math.sin(yaw) * Math.cos(pitch),
@@ -424,35 +409,60 @@ export class SceneRenderer {
     this.target.copy(this.camera.position).addScaledVector(direction, Math.max(0.1, distance));
     this.controls?.target.copy(this.target);
     this.camera.lookAt(this.target);
-    this.draw();
   }
 
-  key(code: string, pressed: boolean) {
-    if (!this.flying || !movementKeys.has(code)) return false;
+  key(code: string, pressed: boolean, shift: boolean) {
+    const navigationKey = movementKeys.has(code) || lookKeys.has(code);
+    const now = performance.now();
+    if (
+      this.frame &&
+      (this.boosted !== shift || (navigationKey && this.keys.has(code) !== pressed))
+    )
+      this.advance(now);
+    this.boosted = shift;
+    if (!navigationKey) return false;
     if (pressed) this.keys.add(code);
     else this.keys.delete(code);
-    if (this.keys.size && !this.frame) this.frame = requestAnimationFrame(this.step);
-    if (!this.keys.size) this.stop();
+    if (this.keys.size && !this.frame) {
+      this.lastFrame = now;
+      this.frame = requestAnimationFrame(this.step);
+    } else if (!this.keys.size) this.stop();
     return true;
   }
 
   stop() {
     this.keys.clear();
+    this.boosted = false;
+    if (!this.frame) return;
     cancelAnimationFrame(this.frame);
     this.frame = 0;
     this.lastFrame = 0;
     this.saveView();
   }
 
-  private step = (time: number) => {
-    const elapsed = this.lastFrame ? Math.min((time - this.lastFrame) / 1000, 0.05) : 1 / 60;
+  private advance(time: number) {
+    // Track elapsed time through ordinary slow frames, while bounding a stalled tab's step.
+    const elapsed = Math.max(0, Math.min((time - this.lastFrame) / 1000, 0.25));
+    if (!elapsed) return;
     this.lastFrame = time;
-    const forward = this.camera.getWorldDirection(new Vector3());
-    const movement = flightDelta(forward, this.keys, this.speed * elapsed);
+    const right = new Vector3(1, 0, 0).applyQuaternion(this.camera.quaternion);
+    const yaw = keyAxis(this.keys, "ArrowRight", "ArrowLeft");
+    const pitch = keyAxis(this.keys, "ArrowUp", "ArrowDown");
+    if (yaw || pitch) this.look(right, yaw * elapsed * 1.5, pitch * elapsed * 1.5);
+    const speed = this.navigation.sceneMoveSpeed * (this.boosted ? this.navigation.sceneBoost : 1);
+    const movement = navigationDelta(
+      right.set(1, 0, 0).applyQuaternion(this.camera.quaternion),
+      this.keys,
+      speed * elapsed,
+    );
     this.camera.position.add(movement);
     this.target.add(movement);
     this.controls?.target.copy(this.target);
     this.draw();
+  }
+
+  private step = (time: number) => {
+    this.advance(time);
     this.frame = requestAnimationFrame(this.step);
   };
 
@@ -461,7 +471,7 @@ export class SceneRenderer {
   }
 
   dispose() {
-    cancelAnimationFrame(this.frame);
+    if (this.frame) cancelAnimationFrame(this.frame);
     this.controls?.dispose();
     for (const mesh of this.meshes.values()) mesh.geometry.dispose();
     for (const material of this.materials.values()) material.dispose();

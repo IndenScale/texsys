@@ -3,7 +3,14 @@ import { t } from "./i18n";
 import type { WorkbenchProps } from "./sdk";
 import { Empty, Icon } from "./ui";
 import { sceneFileRequest, sourceReference, type PreviewSource } from "./project-preview-model";
-import type { Point3, SceneViewport } from "./preview-viewport";
+import {
+  defaultSceneInspection,
+  type Point3,
+  type SceneViewport,
+  type SceneViewControls,
+} from "./preview-viewport";
+import { HeightResizeHandle } from "./atomstudio/ResizeHandle";
+import { useUserPreferences } from "./user-preferences";
 import {
   SceneRenderer,
   type ModelObject,
@@ -63,67 +70,19 @@ function modelTree(objects: ModelObject[]) {
   return roots;
 }
 
-function ObjectTree({
-  nodes,
-  selected,
-  hidden,
-  draw,
-  expanded,
-  toggle,
-  select,
-  depth = 0,
-}: {
-  nodes: Map<string, Branch>;
-  selected: string;
-  hidden: Set<string>;
-  expanded: Set<string>;
-  draw: boolean;
-  toggle: (path: string) => void;
-  select: (id: string) => void;
-  depth?: number;
-}) {
-  return [...nodes.values()].map((node) => {
-    const branch = node.children.size > 0;
-    const open = draw || (depth === 0 ? !expanded.has(node.path) : expanded.has(node.path));
-    const object = node.object;
-    return (
-      <React.Fragment key={node.path}>
-        <div className="scene-tree-row" style={{ paddingInlineStart: depth * 11 + 4 }}>
-          {branch ? (
-            <button
-              type="button"
-              className="scene-tree-expand"
-              aria-expanded={open}
-              aria-label={node.label}
-              onClick={() => toggle(node.path)}
-            >
-              {open ? "▾" : "▸"}
-            </button>
-          ) : (
-            <span className="scene-tree-spacer" />
-          )}
-          <button
-            type="button"
-            className="scene-tree-name"
-            title={object?.semantic_ref ?? node.path}
-            data-prim-path={object?.id}
-            data-hidden={object && hidden.has(object.id) ? "true" : undefined}
-            aria-pressed={object ? object.id === selected : undefined}
-            onClick={() => (object ? select(object.id) : toggle(node.path))}
-          >
-            {object ? <Icon name="cube" size={14} /> : <Icon name="layers" size={14} />}
-            <span>{object?.name ?? node.label}</span>
-          </button>
-        </div>
-        {branch && open && (
-          <ObjectTree
-            {...{ nodes: node.children, selected, hidden, expanded, draw, toggle, select }}
-            depth={depth + 1}
-          />
-        )}
-      </React.Fragment>
-    );
-  });
+type TreeRow = Branch & { parent: string; depth: number; open: boolean };
+
+function treeRows(nodes: Map<string, Branch>, expanded: Map<string, boolean>, searching: boolean) {
+  const rows: TreeRow[] = [];
+  const add = (branches: Map<string, Branch>, parent: string, depth: number) => {
+    for (const node of branches.values()) {
+      const open = expanded.get(node.path) ?? (depth === 0 || searching);
+      rows.push({ ...node, depth, parent, open });
+      if (open) add(node.children, node.path, depth + 1);
+    }
+  };
+  add(nodes, "", 0);
+  return rows;
 }
 
 function toggleSet(old: Set<string>, key: string) {
@@ -143,6 +102,7 @@ export function ScenePreview({
   openSource,
   viewport,
   onViewportChange,
+  controls,
 }: {
   api: WorkbenchProps["api"];
   active: boolean;
@@ -153,8 +113,23 @@ export function ScenePreview({
   openSource?: (source: PreviewSource) => void;
   viewport?: SceneViewport;
   onViewportChange: (viewport: SceneViewport) => void;
+  controls?: SceneViewControls;
 }) {
-  const [selected, select] = useState("");
+  const [standaloneInspection, setStandaloneInspection] = useState(defaultSceneInspection);
+  const {
+    focused = true,
+    focusRequest,
+    maximized = false,
+    toggleMaximized,
+    openSettings,
+  } = controls ?? {};
+  const inspection = controls
+    ? (controls.inspection ?? defaultSceneInspection)
+    : standaloneInspection;
+  const changeInspection = controls?.changeInspection ?? setStandaloneInspection;
+  const { selected, pinned, open: propertiesOpen, propertyShare } = inspection;
+  const preferences = useUserPreferences();
+  const navigationHint = React.useId();
   const [result, setResult] = useState<{
     key: string;
     value: Exclude<Response, { status: "unchanged" }>;
@@ -213,10 +188,13 @@ export function ScenePreview({
   const [hidden, setHidden] = useState(new Set<string>());
   const [ghost, setGhost] = useState(new Set<string>());
   const [isolated, setIsolated] = useState<Set<string>>();
-  const [expanded, setExpanded] = useState(new Set<string>());
-  const [panel, setPanel] = useState<"tree" | "details">("tree");
-  const [showPanel, setShowPanel] = useState(true);
-  const [flying, setFlying] = useState(false);
+  const [expanded, setExpanded] = useState(new Map<string, boolean>());
+  const [treeFocus, setTreeFocus] = useState("");
+  const treeElement = useRef<HTMLDivElement>(null);
+  const { setElement: setSidebar, size: sidebarSize } = usePreviewSize<HTMLElement>();
+  const propertyPanel = useRef<HTMLDivElement>(null);
+  const propertySpace = Math.max(0, sidebarSize.height - 5);
+  const propertyHeight = Math.round((propertySpace * propertyShare) / 100);
   const [hover, setHover] = useState<{ id: string; x: number; y: number }>();
   const [axis, setAxis] = useState<SceneAxis>();
   const [section, setSection] = useState(0.5);
@@ -236,9 +214,9 @@ export function ScenePreview({
   const hasObjects = Boolean(objects?.length);
   const byId = useMemo(() => new Map(objects?.map((object) => [object.id, object])), [objects]);
   const selectedObject = byId.get(selected);
+  const inspected = byId.get(pinned || selected);
   const hoveredObject = hover && byId.get(hover.id);
-  const source =
-    selectedObject && sourceReference(scene, selectedObject.id, selectedObject.semantic_ref ?? "");
+  const source = inspected && sourceReference(scene, inspected.id, inspected.semantic_ref ?? "");
   const filterOptions = useMemo(
     () =>
       categories
@@ -252,49 +230,55 @@ export function ScenePreview({
         .filter(({ options }) => options.length),
     [objects],
   );
-  const matched = useMemo(() => {
-    const term = query.trim().toLocaleLowerCase();
-    return (objects ?? []).filter((object) => {
-      if (
-        term &&
-        ![object.name, object.prim_path, ...Object.values(object.facets ?? {})].some((value) =>
-          value.toLocaleLowerCase().includes(term),
-        )
-      )
-        return false;
-      return categories.every(
-        ([key]) =>
-          !filters[key]?.size || valuesFor(object, key).some((value) => filters[key]?.has(value)),
-      );
-    });
-  }, [objects, filters, query]);
+  const matched = useMemo(
+    () =>
+      (objects ?? []).filter((object) =>
+        categories.every(
+          ([key]) =>
+            !filters[key]?.size || valuesFor(object, key).some((value) => filters[key]?.has(value)),
+        ),
+      ),
+    [objects, filters],
+  );
   const visible = useMemo(
     () =>
       new Set(
-        matched
+        (isolated ? (objects ?? []) : matched)
           .filter((object) => !hidden.has(object.id) && (!isolated || isolated.has(object.id)))
           .map((object) => object.id),
       ),
-    [matched, hidden, isolated],
+    [matched, objects, hidden, isolated],
   );
-  const tree = useMemo(() => modelTree(matched), [matched]);
-  const filtering = Boolean(query.trim() || categories.some(([key]) => filters[key]?.size));
+  const tree = useMemo(() => {
+    const term = query.trim().toLocaleLowerCase();
+    return modelTree(
+      term
+        ? matched.filter((object) =>
+            [object.name, object.prim_path, ...Object.values(object.facets ?? {})].some((value) =>
+              value.toLocaleLowerCase().includes(term),
+            ),
+          )
+        : matched,
+    );
+  }, [matched, query]);
+  const rows = useMemo(() => treeRows(tree, expanded, !!query.trim()), [tree, expanded, query]);
+  const treeTabStop = rows.find((row) => row.path === treeFocus)?.path ?? rows[0]?.path;
+  const filtering = categories.some(([key]) => filters[key]?.size);
 
-  useEffect(() => {
-    select("");
-    setHover(undefined);
-    setQuery("");
-    setFilters({});
-    setHidden(new Set());
-    setGhost(new Set());
-    setIsolated(undefined);
-    setExpanded(new Set());
-    setAxis(undefined);
-    setSection(0.5);
-    setPoints([]);
-    setMeasuring(false);
-    setFlying(false);
-  }, [path]);
+  const focusViewport = () => canvas?.focus({ preventScroll: true });
+  const lastFocus = useRef<SceneViewControls["focusRequest"]>(undefined);
+  useLayoutEffect(() => {
+    if (!canvas || !active || !focused || lastFocus.current === focusRequest) return;
+    lastFocus.current = focusRequest;
+    if (
+      focusRequest &&
+      (focusRequest.origin === undefined ||
+        document.activeElement === focusRequest.origin ||
+        document.activeElement === document.body ||
+        !focusRequest.origin?.isConnected)
+    )
+      canvas.focus({ preventScroll: true });
+  }, [active, canvas, focused, focusRequest]);
 
   useLayoutEffect(() => {
     if (!canvas || !active) return;
@@ -329,36 +313,79 @@ export function ScenePreview({
     renderer.current?.measurement(points);
   }, [active, canvas, objects, points]);
   useLayoutEffect(() => {
-    renderer.current?.setFlying(flying);
-  }, [active, canvas, flying]);
+    renderer.current?.setNavigation(preferences);
+  }, [active, canvas, preferences]);
+  useLayoutEffect(() => {
+    if (!focused) renderer.current?.stop();
+  }, [focused]);
+  useEffect(() => {
+    const stop = () => renderer.current?.stop();
+    const visibility = () => {
+      if (document.hidden) stop();
+    };
+    window.addEventListener("blur", stop);
+    document.addEventListener("visibilitychange", visibility);
+    return () => {
+      window.removeEventListener("blur", stop);
+      document.removeEventListener("visibilitychange", visibility);
+    };
+  }, []);
 
-  const selectObject = (id: string) => {
-    select(id);
+  const selectObject = (id: string, openProperties = false) => {
+    changeInspection({ ...inspection, selected: id, open: propertiesOpen || openProperties });
     setHover(undefined);
-    if (id) {
-      setShowPanel(true);
-      setPanel("details");
-    }
+  };
+  const pickObject = (id: string) => {
+    selectObject(id);
+    if (!id) return;
+    setTreeFocus(id);
+    setExpanded((previous) => {
+      const next = new Map(previous);
+      for (
+        let parent = id.slice(0, id.lastIndexOf("/"));
+        parent;
+        parent = parent.slice(0, parent.lastIndexOf("/"))
+      )
+        next.set(parent, true);
+      return next;
+    });
+  };
+  useLayoutEffect(() => {
+    if (selected && treeElement.current && document.activeElement === canvas)
+      treeElement.current
+        .querySelector('[data-prim-path="' + CSS.escape(selected) + '"]')
+        ?.scrollIntoView({ block: "nearest", inline: "nearest" });
+  }, [selected, rows, canvas]);
+  const changeBranch = (row: TreeRow) =>
+    setExpanded((previous) => new Map(previous).set(row.path, !row.open));
+  const focusRow = (path: string | undefined) => {
+    if (path)
+      treeElement.current
+        ?.querySelector<HTMLElement>('[data-tree-path="' + CSS.escape(path) + '"]')
+        ?.focus();
+  };
+  const closeProperties = () => {
+    changeInspection({ ...inspection, open: false, pinned: "" });
+    focusViewport();
   };
   const restore = () => {
     setHidden(new Set());
     setGhost(new Set());
     setIsolated(undefined);
   };
-  const relatedIds = selectedObject?.owner_path
+  const relatedIds = inspected?.owner_path
     ? (objects ?? [])
-        .filter((object) => object.owner_path === selectedObject.owner_path)
+        .filter((object) => object.owner_path === inspected.owner_path)
         .map((object) => object.id)
-    : selectedObject
-      ? [selectedObject.id]
+    : inspected
+      ? [inspected.id]
       : [];
   const hideFilter = () => {
-    setHidden((old) => new Set([...old, ...visible]));
+    setHidden((old) => new Set([...old, ...matched.map((object) => object.id)]));
     setFilters({});
-    setQuery("");
     setHover(undefined);
   };
-  const geometryBounds = selectedObject?.points.reduce(
+  const geometryBounds = inspected?.points.reduce(
     (result, point) => {
       point.forEach((value, i) => {
         result.min[i] = Math.min(result.min[i], value);
@@ -381,13 +408,6 @@ export function ScenePreview({
       height: rect.height,
     };
   };
-  const orient = (direction: ViewDirection) => {
-    if (flying) {
-      renderer.current?.setFlying(false);
-      setFlying(false);
-    }
-    renderer.current?.fit(visible, direction);
-  };
   const navigation = [
     ["iso", "等轴测"],
     ["top", "俯视"],
@@ -396,7 +416,25 @@ export function ScenePreview({
   ] as const;
 
   return (
-    <section className="scene-preview">
+    <section
+      className="scene-preview"
+      onKeyDown={(event) => {
+        if (event.defaultPrevented || event.nativeEvent.isComposing || event.keyCode === 229)
+          return;
+        if (event.key === "Escape") {
+          const target = event.target as HTMLElement;
+          if (target.closest("input, select, textarea, [contenteditable]") && !maximized) return;
+          if (measuring) {
+            setMeasuring(false);
+            setPoints([]);
+          } else if (maximized) toggleMaximized?.();
+          else if (target !== canvas) focusViewport();
+          else return;
+          event.preventDefault();
+          event.stopPropagation();
+        }
+      }}
+    >
       <div className="scene-preview-controls" role="toolbar" aria-label={t("场景视角")}>
         <button
           type="button"
@@ -421,7 +459,10 @@ export function ScenePreview({
           aria-label={t("标准视图")}
           value=""
           disabled={!visible.size}
-          onChange={(event) => orient(event.target.value as ViewDirection)}
+          onChange={(event) => {
+            renderer.current?.fit(visible, event.target.value as ViewDirection);
+            focusViewport();
+          }}
         >
           <option value="" disabled>
             {t("标准视图")}
@@ -432,17 +473,6 @@ export function ScenePreview({
             </option>
           ))}
         </select>
-        <button
-          type="button"
-          disabled={!hasObjects}
-          aria-pressed={flying}
-          onClick={() => {
-            setFlying(!flying);
-            canvas?.focus();
-          }}
-        >
-          {t("飞行")}
-        </button>
         <span className="scene-control-divider" />
         <select
           aria-label={t("剖切")}
@@ -479,15 +509,30 @@ export function ScenePreview({
         >
           {t("测距")}
         </button>
+        <span className="scene-toolbar-end" />
         <button
           type="button"
-          className="scene-panel-toggle"
-          aria-pressed={showPanel}
-          onClick={() => setShowPanel(!showPanel)}
+          disabled={!selectedObject}
+          onClick={() => selectObject(selected, true)}
         >
-          <Icon name="layers" size={14} />
-          {t("检查面板")}
+          {t("查看属性")}
         </button>
+        {openSettings && (
+          <button
+            type="button"
+            title={t("打开 USD 预览设置")}
+            aria-label={t("打开 USD 预览设置")}
+            onClick={openSettings}
+          >
+            <Icon name="settings" size={14} />
+          </button>
+        )}
+        {toggleMaximized && (
+          <button type="button" aria-keyshortcuts="Shift+F" onClick={toggleMaximized}>
+            <Icon name={maximized ? "panel-restore" : "panel-maximize"} size={14} />
+            {t(maximized ? "退出场景全屏" : "场景全屏")}
+          </button>
+        )}
       </div>
       {(error || renderError) && (
         <div className="scene-preview-error" role="alert">
@@ -500,7 +545,9 @@ export function ScenePreview({
             <canvas
               ref={setCanvas}
               className="scene-preview-canvas"
-              aria-label={t("三维场景；点击对象选择，拖动旋转")}
+              aria-label={t("三维场景")}
+              aria-describedby={navigationHint}
+              aria-keyshortcuts="W A S D Q E ArrowUp ArrowDown ArrowLeft ArrowRight F Home Enter Shift+F"
               tabIndex={0}
               onContextMenu={(event) => event.preventDefault()}
               onPointerDown={(event) => {
@@ -512,8 +559,6 @@ export function ScenePreview({
                   distance: 0,
                 };
                 setHover(undefined);
-                if (flying && event.button === 2)
-                  event.currentTarget.setPointerCapture(event.pointerId);
               }}
               onPointerMove={(event) => {
                 const previous = drag.current;
@@ -526,7 +571,6 @@ export function ScenePreview({
                     y: event.clientY,
                     distance: previous.distance + Math.hypot(dx, dy),
                   };
-                  if (flying && previous.button === 2) renderer.current?.flyLook(dx, dy);
                   return;
                 }
                 if (event.timeStamp - lastHover.current < 34) return;
@@ -548,14 +592,13 @@ export function ScenePreview({
                 drag.current = undefined;
                 if (event.currentTarget.hasPointerCapture(event.pointerId))
                   event.currentTarget.releasePointerCapture(event.pointerId);
-                if (previous?.button === 2 && flying) renderer.current?.finishLook();
                 if (!previous || previous.button !== 0 || previous.distance > 4) return;
                 const { x, y } = coordinates(event);
                 const hit = renderer.current?.pick(x, y);
                 if (measuring) {
                   if (hit)
                     setPoints((old) => (old.length === 1 ? [...old, hit.point] : [hit.point]));
-                } else selectObject(hit?.id ?? "");
+                } else pickObject(hit?.id ?? "");
               }}
               onPointerCancel={() => {
                 drag.current = undefined;
@@ -564,32 +607,34 @@ export function ScenePreview({
               onPointerLeave={() => setHover(undefined)}
               onBlur={() => renderer.current?.stop()}
               onKeyUp={(event) => {
-                if (renderer.current?.key(event.code, false)) event.preventDefault();
+                if (renderer.current?.key(event.code, false, event.shiftKey))
+                  event.preventDefault();
               }}
               onKeyDown={(event) => {
-                if (event.metaKey || event.ctrlKey || event.altKey) return;
-                if (renderer.current?.key(event.code, true)) event.preventDefault();
-                else if (!flying && event.key.startsWith("Arrow")) {
-                  renderer.current?.orbit(
-                    (Number(event.key === "ArrowLeft") - Number(event.key === "ArrowRight")) * 5,
-                    (Number(event.key === "ArrowUp") - Number(event.key === "ArrowDown")) * 5,
-                  );
+                if (
+                  event.metaKey ||
+                  event.ctrlKey ||
+                  event.altKey ||
+                  event.nativeEvent.isComposing ||
+                  event.keyCode === 229
+                )
+                  return;
+                if (renderer.current?.key(event.code, true, event.shiftKey)) {
                   event.preventDefault();
+                  return;
+                }
+                if (event.code === "KeyF" && event.shiftKey && toggleMaximized) {
+                  if (!event.repeat) toggleMaximized();
                 } else if (["+", "-", "="].includes(event.key)) {
                   renderer.current?.zoom(event.key === "-" ? 1 / 1.25 : 1.25);
-                  event.preventDefault();
                 } else if (event.code === "KeyF" && selected && visible.has(selected)) {
                   renderer.current?.fit([selected]);
-                  event.preventDefault();
                 } else if (event.key === "Home") {
                   renderer.current?.fit();
-                  event.preventDefault();
-                } else if (event.key === "Escape") {
-                  if (measuring) {
-                    setMeasuring(false);
-                    setPoints([]);
-                  } else select("");
-                }
+                } else if (event.key === "Enter" && selectedObject) {
+                  selectObject(selected, true);
+                } else return;
+                event.preventDefault();
               }}
             />
             {hover && hoveredObject && (
@@ -611,149 +656,61 @@ export function ScenePreview({
               </div>
             )}
           </div>
-          {showPanel && (
-            <aside className="scene-side" aria-label={t("检查面板")}>
-              <div className="scene-side-tabs" role="group" aria-label={t("检查面板")}>
-                <button
-                  type="button"
-                  aria-pressed={panel === "tree"}
-                  onClick={() => setPanel("tree")}
-                >
-                  {t("构件")}
-                </button>
-                <button
-                  type="button"
-                  aria-pressed={panel === "details"}
-                  onClick={() => setPanel("details")}
-                >
-                  {t("属性")}
-                </button>
-              </div>
-              {panel === "tree" ? (
-                <>
-                  <div className="scene-filters">
-                    <input
-                      type="search"
-                      placeholder={t("搜索构件")}
-                      aria-label={t("搜索构件")}
-                      value={query}
-                      onChange={(event) => setQuery(event.target.value)}
-                    />
-                    {filterOptions.map(({ key, label, options }) => (
-                      <details key={key} className="scene-filter">
-                        <summary>
-                          {t(label)}
-                          {filters[key]?.size ? ` (${filters[key]?.size})` : ""}
-                        </summary>
-                        <div>
-                          {options.map((value) => (
-                            <label key={value} title={value}>
-                              <input
-                                type="checkbox"
-                                checked={filters[key]?.has(value) ?? false}
-                                onChange={() =>
-                                  setFilters((old) => ({
-                                    ...old,
-                                    [key]: toggleSet(old[key] ?? new Set(), value),
-                                  }))
-                                }
-                              />
-                              <span>{labelFor(key, value)}</span>
-                            </label>
-                          ))}
-                        </div>
-                      </details>
-                    ))}
-                    {(filtering || hidden.size > 0 || isolated || ghost.size > 0) && (
-                      <div className="scene-filter-actions">
-                        {filtering && (
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setFilters({});
-                              setQuery("");
-                            }}
-                          >
-                            {t("清除筛选")}
-                          </button>
-                        )}
-                        {filtering && (
-                          <button type="button" disabled={!visible.size} onClick={hideFilter}>
-                            {t("隐藏筛选结果")}
-                          </button>
-                        )}
-                        {(hidden.size > 0 || isolated || ghost.size > 0) && (
-                          <button type="button" onClick={restore}>
-                            {t("恢复显隐")}
-                          </button>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                  <div className="scene-preview-objects" aria-label={t("场景对象")}>
-                    <ObjectTree
-                      nodes={tree}
-                      selected={selected}
-                      hidden={hidden}
-                      draw={filtering}
-                      expanded={expanded}
-                      toggle={(value) => setExpanded((old) => toggleSet(old, value))}
-                      select={selectObject}
-                    />
-                  </div>
-                </>
-              ) : selectedObject ? (
-                <div className="scene-preview-inspector">
-                  <div className="scene-selection-title">
-                    <span title={selectedObject.prim_path}>{selectedObject.name}</span>
-                    <small>
-                      {selectedObject.envelope
-                        ? t("包络几何")
-                        : (selectedObject.type ?? t("网格几何"))}
-                    </small>
-                  </div>
-                  <div className="scene-selection-actions">
-                    <button
-                      type="button"
-                      disabled={!visible.has(selected)}
-                      onClick={() => renderer.current?.fit([selected])}
-                    >
-                      {t("聚焦")}
-                    </button>
-                    <button
-                      type="button"
-                      aria-pressed={hidden.has(selected)}
-                      onClick={() => setHidden((old) => toggleSet(old, selected))}
-                    >
-                      {t(hidden.has(selected) ? "显示" : "隐藏")}
-                    </button>
-                    <button
-                      type="button"
-                      aria-pressed={ghost.has(selected)}
-                      onClick={() => setGhost((old) => toggleSet(old, selected))}
-                    >
-                      {t("半透明")}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setHidden((old) => new Set([...old].filter((id) => id !== selected)));
-                        setIsolated(new Set([selected]));
-                      }}
-                    >
-                      {t("仅显示部件")}
-                    </button>
-                    {relatedIds.length > 1 && (
+          <aside ref={setSidebar} className="scene-side" aria-label={t("构件检查")}>
+            <div className="scene-tree-panel">
+              <div className="scene-panel-heading">{t("构件")}</div>
+              <div className="scene-filters">
+                <input
+                  type="search"
+                  placeholder={t("搜索构件")}
+                  aria-label={t("搜索构件")}
+                  value={query}
+                  onChange={(event) => setQuery(event.target.value)}
+                />
+                {filterOptions.map(({ key, label, options }) => (
+                  <details key={key} className="scene-filter">
+                    <summary>
+                      {t(label)}
+                      {filters[key]?.size ? ` (${filters[key]?.size})` : ""}
+                    </summary>
+                    <div>
+                      {options.map((value) => (
+                        <label key={value} title={value}>
+                          <input
+                            type="checkbox"
+                            checked={filters[key]?.has(value) ?? false}
+                            onChange={() =>
+                              setFilters((old) => ({
+                                ...old,
+                                [key]: toggleSet(old[key] ?? new Set(), value),
+                              }))
+                            }
+                          />
+                          <span>{labelFor(key, value)}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </details>
+                ))}
+                {(filtering || hidden.size > 0 || isolated || ghost.size > 0) && (
+                  <div className="scene-filter-actions">
+                    {filtering && (
                       <button
                         type="button"
                         onClick={() => {
-                          setHidden(
-                            (old) => new Set([...old].filter((id) => !relatedIds.includes(id))),
-                          );
-                          setIsolated(new Set(relatedIds));
+                          setFilters({});
                         }}
                       >
-                        {t("仅显示构件")}
+                        {t("清除筛选")}
+                      </button>
+                    )}
+                    {filtering && (
+                      <button
+                        type="button"
+                        disabled={!matched.some((object) => !hidden.has(object.id))}
+                        onClick={hideFilter}
+                      >
+                        {t("隐藏筛选结果")}
                       </button>
                     )}
                     {(hidden.size > 0 || isolated || ghost.size > 0) && (
@@ -761,82 +718,312 @@ export function ScenePreview({
                         {t("恢复显隐")}
                       </button>
                     )}
-                    {source && openSource && (
-                      <button type="button" onClick={() => openSource(source)} title={source.file}>
-                        {t("定位源码")}
-                      </button>
-                    )}
                   </div>
-                  <dl className="scene-properties">
-                    <dt>Prim</dt>
-                    <dd>{selectedObject.prim_path}</dd>
-                    {selectedObject.owner_path &&
-                      selectedObject.owner_path !== selectedObject.id && (
-                        <>
-                          <dt>{t("所属构件")}</dt>
-                          <dd>{selectedObject.owner_path}</dd>
-                        </>
-                      )}
-                    {geometryBounds && (
-                      <>
-                        <dt>{t("包络尺寸")}</dt>
-                        <dd>
-                          {geometryBounds.max
-                            .map((value, index) => (value - geometryBounds.min[index]).toFixed(3))
-                            .join(" × ")}{" "}
-                          m
-                        </dd>
-                        <dt>{t("标高范围")}</dt>
-                        <dd>
-                          {geometryBounds.min[2].toFixed(3)} – {geometryBounds.max[2].toFixed(3)} m
-                        </dd>
-                      </>
-                    )}
-                    {categories.flatMap(([key, label]) =>
-                      valuesFor(selectedObject, key).map((value) => (
-                        <React.Fragment key={key + value}>
-                          <dt>{t(label)}</dt>
-                          <dd title={value}>{labelFor(key, value)}</dd>
-                        </React.Fragment>
-                      )),
-                    )}
-                  </dl>
-                  {Object.entries(selectedObject.properties ?? {}).some(
-                    ([key]) =>
-                      !key.startsWith("texsys:") ||
-                      !["identity", ...categories.map(([facet]) => facet)].includes(key.slice(7)),
-                  ) && (
-                    <details className="scene-authored" open>
-                      <summary>{t("USD 属性")}</summary>
+                )}
+              </div>
+              <div
+                ref={treeElement}
+                className="scene-preview-objects"
+                role="tree"
+                aria-label={t("场景对象")}
+                onKeyDown={(event) => {
+                  if (
+                    event.altKey ||
+                    event.ctrlKey ||
+                    event.metaKey ||
+                    event.nativeEvent.isComposing
+                  )
+                    return;
+                  const path = (event.target as HTMLElement).dataset.treePath;
+                  const index = rows.findIndex((row) => row.path === path);
+                  const row = rows[index];
+                  if (!row) return;
+                  switch (event.key) {
+                    case "ArrowDown":
+                      focusRow(rows[index + 1]?.path);
+                      break;
+                    case "ArrowUp":
+                      focusRow(rows[index - 1]?.path);
+                      break;
+                    case "Home":
+                      focusRow(rows[0]?.path);
+                      break;
+                    case "End":
+                      focusRow(rows.at(-1)?.path);
+                      break;
+                    case "ArrowRight":
+                      if (row.children.size && !row.open) changeBranch(row);
+                      else if (rows[index + 1]?.parent === row.path) focusRow(rows[index + 1].path);
+                      break;
+                    case "ArrowLeft":
+                      if (row.children.size && row.open) changeBranch(row);
+                      else focusRow(row.parent);
+                      break;
+                    case "Enter":
+                    case " ":
+                      if (row.object) selectObject(row.object.id, event.key === "Enter");
+                      else if (row.children.size) changeBranch(row);
+                      break;
+                    default:
+                      return;
+                  }
+                  event.preventDefault();
+                }}
+              >
+                {rows.map((row) => {
+                  const { path, object, depth, children, open } = row;
+                  return (
+                    <div
+                      key={path}
+                      role="treeitem"
+                      aria-level={depth + 1}
+                      aria-expanded={children.size ? open : undefined}
+                      aria-selected={object ? selected === object.id : undefined}
+                      className="scene-tree-row"
+                      data-tree-path={path}
+                      data-prim-path={object?.id}
+                      data-hidden={object && !visible.has(object.id) ? "true" : undefined}
+                      tabIndex={treeTabStop === path ? 0 : -1}
+                      style={{ paddingInlineStart: depth * 11 + 4 }}
+                      title={object?.semantic_ref ?? path}
+                      onFocus={() => setTreeFocus(path)}
+                      onClick={(event) => {
+                        event.currentTarget.focus();
+                        if (object) selectObject(object.id);
+                        else if (children.size) changeBranch(row);
+                      }}
+                    >
+                      <span
+                        aria-hidden="true"
+                        className="scene-tree-expand"
+                        onClick={
+                          children.size
+                            ? (event) => {
+                                event.stopPropagation();
+                                focusRow(path);
+                                changeBranch(row);
+                              }
+                            : undefined
+                        }
+                      >
+                        {children.size ? (open ? "▾" : "▸") : ""}
+                      </span>
+                      <Icon name={object ? "cube" : "layers"} size={14} />
+                      <span className="scene-tree-label">{object?.name ?? row.label}</span>
+                    </div>
+                  );
+                })}
+                {!rows.length && <div className="scene-no-selection">{t("没有匹配的构件")}</div>}
+              </div>
+            </div>
+            {propertiesOpen && (
+              <>
+                <HeightResizeHandle
+                  className="scene-properties-divider"
+                  label={t("调整构件属性高度")}
+                  panelRef={propertyPanel}
+                  previewProperty="--scene-property-preview-height"
+                  value={propertyHeight}
+                  min={Math.round(propertySpace * 0.23)}
+                  max={Math.round(propertySpace * 0.72)}
+                  defaultValue={Math.round(
+                    (propertySpace * defaultSceneInspection.propertyShare) / 100,
+                  )}
+                  grows="up"
+                  mode="hide"
+                  collapsible={false}
+                  open
+                  onClose={closeProperties}
+                  onChange={(height) => {
+                    if (propertySpace)
+                      changeInspection({
+                        ...inspection,
+                        propertyShare: (height * 100) / propertySpace,
+                      });
+                  }}
+                />
+                <div
+                  ref={propertyPanel}
+                  className="scene-property-panel"
+                  style={
+                    {
+                      "--scene-property-height": propertySpace
+                        ? propertyHeight + "px"
+                        : propertyShare + "%",
+                    } as React.CSSProperties
+                  }
+                >
+                  <div className="scene-panel-heading">
+                    <span>{t(pinned ? "已固定属性" : "属性")}</span>
+                    <button
+                      type="button"
+                      aria-pressed={!!pinned}
+                      disabled={!pinned && !inspected}
+                      aria-label={t(pinned ? "取消固定属性" : "固定构件属性")}
+                      title={t(pinned ? "取消固定属性" : "固定构件属性")}
+                      onClick={() =>
+                        changeInspection({
+                          ...inspection,
+                          pinned: pinned ? "" : (inspected?.id ?? ""),
+                        })
+                      }
+                    >
+                      <Icon name="pin" size={14} />
+                    </button>
+                    <button
+                      type="button"
+                      aria-label={t("关闭构件属性")}
+                      title={t("关闭构件属性")}
+                      onClick={closeProperties}
+                    >
+                      <Icon name="close" size={14} />
+                    </button>
+                  </div>
+                  {inspected ? (
+                    <div className="scene-preview-inspector">
+                      <div className="scene-selection-title">
+                        <span title={inspected.prim_path}>{inspected.name}</span>
+                        <small>
+                          {inspected.envelope ? t("包络几何") : (inspected.type ?? t("网格几何"))}
+                        </small>
+                      </div>
+                      <div className="scene-selection-actions">
+                        <button
+                          type="button"
+                          disabled={!visible.has(inspected.id)}
+                          onClick={() => renderer.current?.fit([inspected.id])}
+                        >
+                          {t("聚焦")}
+                        </button>
+                        <button
+                          type="button"
+                          aria-pressed={hidden.has(inspected.id)}
+                          onClick={() => setHidden((old) => toggleSet(old, inspected.id))}
+                        >
+                          {t(hidden.has(inspected.id) ? "显示" : "隐藏")}
+                        </button>
+                        <button
+                          type="button"
+                          aria-pressed={ghost.has(inspected.id)}
+                          onClick={() => setGhost((old) => toggleSet(old, inspected.id))}
+                        >
+                          {t("半透明")}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setHidden(
+                              (old) => new Set([...old].filter((id) => id !== inspected.id)),
+                            );
+                            setIsolated(new Set([inspected.id]));
+                          }}
+                        >
+                          {t("仅显示部件")}
+                        </button>
+                        {relatedIds.length > 1 && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setHidden(
+                                (old) => new Set([...old].filter((id) => !relatedIds.includes(id))),
+                              );
+                              setIsolated(new Set(relatedIds));
+                            }}
+                          >
+                            {t("仅显示构件")}
+                          </button>
+                        )}
+                        {(hidden.size > 0 || isolated || ghost.size > 0) && (
+                          <button type="button" onClick={restore}>
+                            {t("恢复显隐")}
+                          </button>
+                        )}
+                        {source && openSource && (
+                          <button
+                            type="button"
+                            onClick={() => openSource(source)}
+                            title={source.file}
+                          >
+                            {t("定位源码")}
+                          </button>
+                        )}
+                      </div>
                       <dl className="scene-properties">
-                        {Object.entries(selectedObject.properties ?? {})
-                          .filter(
-                            ([key]) =>
-                              !key.startsWith("texsys:") ||
-                              !["identity", ...categories.map(([facet]) => facet)].includes(
-                                key.slice(7),
-                              ),
-                          )
-                          .map(([key, row]) => (
-                            <React.Fragment key={key}>
-                              <dt>{key}</dt>
-                              <dd title={`${row.prim}\n${String(row.value)}`}>
-                                {typeof row.value === "number"
-                                  ? inspectionNumber.format(row.value)
-                                  : String(row.value)}
-                                {row.unit ? " " + row.unit : ""}
-                              </dd>
+                        <dt>Prim</dt>
+                        <dd>{inspected.prim_path}</dd>
+                        {inspected.owner_path && inspected.owner_path !== inspected.id && (
+                          <>
+                            <dt>{t("所属构件")}</dt>
+                            <dd>{inspected.owner_path}</dd>
+                          </>
+                        )}
+                        {geometryBounds && (
+                          <>
+                            <dt>{t("包络尺寸")}</dt>
+                            <dd>
+                              {geometryBounds.max
+                                .map((value, index) =>
+                                  (value - geometryBounds.min[index]).toFixed(3),
+                                )
+                                .join(" × ")}{" "}
+                              m
+                            </dd>
+                            <dt>{t("标高范围")}</dt>
+                            <dd>
+                              {geometryBounds.min[2].toFixed(3)} –{" "}
+                              {geometryBounds.max[2].toFixed(3)} m
+                            </dd>
+                          </>
+                        )}
+                        {categories.flatMap(([key, label]) =>
+                          valuesFor(inspected, key).map((value) => (
+                            <React.Fragment key={key + value}>
+                              <dt>{t(label)}</dt>
+                              <dd title={value}>{labelFor(key, value)}</dd>
                             </React.Fragment>
-                          ))}
+                          )),
+                        )}
                       </dl>
-                    </details>
+                      {Object.entries(inspected.properties ?? {}).some(
+                        ([key]) =>
+                          !key.startsWith("texsys:") ||
+                          !["identity", ...categories.map(([facet]) => facet)].includes(
+                            key.slice(7),
+                          ),
+                      ) && (
+                        <details className="scene-authored" open>
+                          <summary>{t("USD 属性")}</summary>
+                          <dl className="scene-properties">
+                            {Object.entries(inspected.properties ?? {})
+                              .filter(
+                                ([key]) =>
+                                  !key.startsWith("texsys:") ||
+                                  !["identity", ...categories.map(([facet]) => facet)].includes(
+                                    key.slice(7),
+                                  ),
+                              )
+                              .map(([key, row]) => (
+                                <React.Fragment key={key}>
+                                  <dt>{key}</dt>
+                                  <dd title={`${row.prim}\n${String(row.value)}`}>
+                                    {typeof row.value === "number"
+                                      ? inspectionNumber.format(row.value)
+                                      : String(row.value)}
+                                    {row.unit ? " " + row.unit : ""}
+                                  </dd>
+                                </React.Fragment>
+                              ))}
+                          </dl>
+                        </details>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="scene-no-selection">{t("选择构件以查看属性")}</div>
                   )}
                 </div>
-              ) : (
-                <div className="scene-no-selection">{t("选择构件以查看属性")}</div>
-              )}
-            </aside>
-          )}
+              </>
+            )}
+          </aside>
         </div>
       ) : (
         <Empty
@@ -848,10 +1035,8 @@ export function ScenePreview({
       {hasObjects && (
         <footer className="scene-preview-footer">
           <span>{t("{0} / {1} 个对象可见", { "0": visible.size, "1": objects?.length ?? 0 })}</span>
-          <span>
-            {flying
-              ? t("WASD 移动，Q/E 升降，右键拖动转向")
-              : t("拖动旋转，右键拖动平移，滚轮缩放")}
+          <span id={navigationHint}>
+            {t("WASD 移动 · Q/E 升降 · 方向键转向 · 左键旋转 / 右键平移")}
           </span>
         </footer>
       )}
