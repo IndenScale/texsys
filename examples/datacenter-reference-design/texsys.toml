@@ -12,7 +12,7 @@ build = "build"
 default_targets = ["review-package"]
 
 [dependencies]
-datacenter-reference = { path = "../../packages/datacenter-reference", version = "0.29.0" }
+datacenter-reference = { path = "../../packages/datacenter-reference", version = "0.30.0" }
 sheet = { path = "../../packages/sheet", version = "0.2.0" }
 
 [build.targets.review-package]
@@ -20,6 +20,12 @@ using = "dcr:review"
 output = "build/review/aidc-discipline-review.json"
 dependencies = [
   "dcr:design-checks",
+  "cad-site",
+  "cad-architecture-l01",
+  "cad-structure-l01",
+  "cad-structure-footings",
+  "cad-facilities-water",
+  "cad-generator-yard",
   "dcr:bom",
   "dcr:fws-network-study",
   "dcr:fws-transient-check",
@@ -1376,3 +1382,33 @@ using = "sheet:compose"
 dependencies = ["plan-generator-yard-containment"]
 scope = { source = "assets/sheets/generator-yard-containment.sheet.json" }
 output = "build/drawings/sheets/generator-yard-containment.svg"
+
+[build.targets.cad-site]
+using = "dcr:cad-site"
+output = "build/drawings/cad/site.dxf"
+scope = { view = "site" }
+
+[build.targets.cad-architecture-l01]
+using = "dcr:cad-architecture"
+output = "build/drawings/cad/architecture-l01.dxf"
+scope = { view = "architecture-l01" }
+
+[build.targets.cad-structure-l01]
+using = "dcr:cad-structure"
+output = "build/drawings/cad/structure-l01.dxf"
+scope = { view = "structure-l01" }
+
+[build.targets.cad-structure-footings]
+using = "dcr:cad-structure"
+output = "build/drawings/cad/structure-footings.dxf"
+scope = { view = "structure-footings" }
+
+[build.targets.cad-facilities-water]
+using = "dcr:cad-facilities-water"
+output = "build/drawings/cad/facilities-water.dxf"
+scope = { view = "facilities-water" }
+
+[build.targets.cad-generator-yard]
+using = "dcr:cad-generator-yard"
+output = "build/drawings/cad/generator-yard.dxf"
+scope = { view = "generator-yard" }

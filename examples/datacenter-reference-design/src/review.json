@@ -30,14 +30,17 @@
         "build/drawings/sheets/generator-yard-plan.svg",
         "build/drawings/sheets/generator-yard-plan-sheet.json",
         "build/datacenter-reference/spatial/generator-yard.json",
-        "build/datacenter-reference/spatial/generator-yard-check.json"
+        "build/datacenter-reference/spatial/generator-yard-check.json",
+        "build/drawings/cad/site.dxf",
+        "build/drawings/cad/site-cad.json"
       ],
       "pending": [
         "实测宗地红线、竖向测量与市政接驳条件",
         "等高线与地形控制需实测，土类、岩土支护、回填压实及车辆接驳按实核证",
         "室外步道收边及汇水接法，退界使用、围栏和消防车行组织",
         "实际灯杆基础、排水、电缆通道、车辆碰撞防护及夜间现场照度",
-        "灯控埋管回填和深管支护、地下既有设施核证"
+        "灯控埋管回填和深管支护、地下既有设施核证",
+        "可编辑 CAD 以当前合成宗地局部米坐标为依据，现场独立坐标和放线交接待复核。"
       ]
     },
     "architecture": {
@@ -85,7 +88,9 @@
         "build/drawings/sheets/generator-yard-plan-sheet.json",
         "build/scenes/aidc-generator-yard-alternative.usda",
         "build/datacenter-reference/spatial/generator-yard.json",
-        "build/datacenter-reference/spatial/generator-yard-check.json"
+        "build/datacenter-reference/spatial/generator-yard-check.json",
+        "build/drawings/cad/architecture-l01.dxf",
+        "build/drawings/cad/architecture-l01-cad.json"
       ],
       "pending": [
         "实际门五金、闭门反馈、栏杆材料及锚固防腐、踏面防滑与现场净宽",
@@ -230,7 +235,11 @@
         "build/drawings/sheets/generator-yard-section-sheet.json",
         "build/scenes/aidc-generator-yard-alternative.usda",
         "build/datacenter-reference/spatial/generator-yard.json",
-        "build/datacenter-reference/spatial/generator-yard-check.json"
+        "build/datacenter-reference/spatial/generator-yard-check.json",
+        "build/drawings/cad/structure-l01.dxf",
+        "build/drawings/cad/structure-l01-cad.json",
+        "build/drawings/cad/structure-footings.dxf",
+        "build/drawings/cad/structure-footings-cad.json"
       ],
       "pending": [
         "实测地勘、实际风荷载及场地反应谱、主机房板与基础配筋设计",
@@ -403,7 +412,9 @@
         "build/scenes/aidc-generator-yard-alternative.usda",
         "build/datacenter-reference/spatial/generator-yard.json",
         "build/datacenter-reference/spatial/generator-yard-check.json",
-        "build/schedules/aidc-generator-yard-operating-cases.csv"
+        "build/schedules/aidc-generator-yard-operating-cases.csv",
+        "build/drawings/cad/generator-yard.dxf",
+        "build/drawings/cad/generator-yard-cad.json"
       ],
       "pending": [
         "400 V 发电备选在厂家参考条件下仅有 4 kW 出力余量，取得现场降容曲线、机组/散热器成套图与额定电流及保护试验后审核。",
@@ -521,7 +532,9 @@
         "build/drawings/sheets/generator-yard-section-sheet.json",
         "build/scenes/aidc-generator-yard-alternative.usda",
         "build/datacenter-reference/spatial/generator-yard.json",
-        "build/datacenter-reference/spatial/generator-yard-check.json"
+        "build/datacenter-reference/spatial/generator-yard-check.json",
+        "build/drawings/cad/facilities-water.dxf",
+        "build/drawings/cad/facilities-water-cad.json"
       ],
       "pending": [
         "发电机燃油接口、储罐与泵厂家资料，实际舱内净距、锚固、通气、卸油和联锁试验",

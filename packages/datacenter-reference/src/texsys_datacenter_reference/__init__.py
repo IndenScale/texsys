@@ -11,6 +11,7 @@ from .air_views import build_air_view
 from .architecture import build_architecture
 from .bom import project_reference_bom
 from .building_views import build_building_view
+from .cad_delivery import build_cad_view
 from .checks import evaluate_design_checks
 from .coordination import build_building_coordination, build_coordinated_scene, build_fws_network_coordination
 from .cw_network import build_cw_coordination, build_cw_network
@@ -102,7 +103,7 @@ from .wet_utility_views import build_wet_view
 
 class DatacenterReferencePackage(TexsysPackage):
   name = "datacenter-reference"
-  version = "0.29.0"
+  version = "0.30.0"
 
   def targets(self) -> tuple[TargetDefinition, ...]:
     return (
@@ -463,6 +464,16 @@ class DatacenterReferencePackage(TexsysPackage):
       TargetDefinition("dcr:plan", self.name, self.version, build_plan, dependencies=("dcr:layout",),
                        input_patterns=(), named_output=True),
       TargetDefinition("dcr:fws-plan", self.name, self.version, build_plan, dependencies=("dcr:fws-routing",),
+                       input_patterns=(), named_output=True),
+      TargetDefinition("dcr:cad-site", self.name, self.version, build_cad_view, dependencies=("dcr:levels",),
+                       input_patterns=(), named_output=True),
+      TargetDefinition("dcr:cad-architecture", self.name, self.version, build_cad_view, dependencies=("dcr:architecture",),
+                       input_patterns=(), named_output=True),
+      TargetDefinition("dcr:cad-structure", self.name, self.version, build_cad_view, dependencies=("dcr:structure-model",),
+                       input_patterns=(), named_output=True),
+      TargetDefinition("dcr:cad-facilities-water", self.name, self.version, build_cad_view, dependencies=("dcr:fws-network",),
+                       input_patterns=(), named_output=True),
+      TargetDefinition("dcr:cad-generator-yard", self.name, self.version, build_cad_view, dependencies=("dcr:generator-yard",),
                        input_patterns=(), named_output=True),
       TargetDefinition("dcr:review", self.name, self.version, build_review_package, named_output=True),
     )

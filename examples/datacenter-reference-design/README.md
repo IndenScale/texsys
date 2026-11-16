@@ -216,3 +216,16 @@ uv run --locked texsys build -p examples/datacenter-reference-design \
   --target sheet-generator-yard-plan --target sheet-generator-yard-section \
   --target sheet-generator-yard-adequacy --target sheet-generator-yard-containment
 ```
+
+## 可编辑 CAD 交付
+
+默认构建同时发布六份 DXF。宗地与轴网、L01 建筑、主体结构、独立基础、设施水外网和 400 V 发电备选均可在支持 DXF R2013 的 CAD 软件中编辑。图层区分专业、设备与线路。模型空间使用毫米，沿用项目的局部坐标与 Y 轴北向。宗地和轴网尺寸为原生可量测尺寸。建筑包含原生门扇圆弧、坡道与 IT 方舱。设施水和发电外管保留三维中心线坐标。
+
+交付目录为 `build/drawings/cad/`。每份 DXF 的 `TEXSYS_AIDC` 扩展数据包含对象标识、编译模型路径及 JSON Pointer，旁列 `*-cad.json` 记录文件摘要、图层、CAD 句柄和上游模型摘要。修订工程源后重编，以本次记录追踪更新的 DXF 和审查文件。施工放线须核对真实宗地坐标。正式打印图在 `build/drawings/sheets/`，使用统一 A3 图框及校审栏。
+
+```bash
+uv run --locked texsys build -p examples/datacenter-reference-design \
+  --target cad-site --target cad-architecture-l01 \
+  --target cad-structure-l01 --target cad-structure-footings \
+  --target cad-facilities-water --target cad-generator-yard
+```

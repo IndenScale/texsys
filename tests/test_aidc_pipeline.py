@@ -92,6 +92,7 @@ def test_aidc_deliverables_bind_to_the_same_geometry_and_recompute_the_fws_head(
   _check_lightning_delivery(root)
   _check_fuel_delivery(root)
   _check_generator_yard_delivery(root)
+  _check_cad_delivery(root)
   _check_storm_delivery(root)
   _check_fws_network_delivery(root)
   _check_building_delivery(root)
@@ -108,6 +109,8 @@ def test_aidc_deliverables_bind_to_the_same_geometry_and_recompute_the_fws_head(
   before = _read(report)
   path = root / "src/fws-network.json"
   original = path.read_bytes()
+  cad_root = root / "build/drawings/cad"
+  original_cad = file_digest(cad_root / "facilities-water.dxf")
   modified = _read(path)
   modified["legs"]["supply"]["bypass"]["east_x_m"] += 2
   write_json(path, modified)
@@ -117,6 +120,9 @@ def test_aidc_deliverables_bind_to_the_same_geometry_and_recompute_the_fws_head(
   assert records["dcr:layout"]["execution"] == "cached"
   assert records["sheet-it-hall"]["execution"] == "cached"
   assert records["sheet-fws-network"]["execution"] == "executed"
+  assert records["cad-facilities-water"]["execution"] == "executed"
+  assert records["cad-structure-l01"]["execution"] == "cached"
+  assert file_digest(cad_root / "facilities-water.dxf") != original_cad
   assert records["review-package"]["status"] == "pass"
   assert file_digest(drawing) != old_route_drawing
   assert file_digest(root / "build/review/aidc-discipline-review.json") != old_dossier
@@ -134,8 +140,43 @@ def test_aidc_deliverables_bind_to_the_same_geometry_and_recompute_the_fws_head(
   restored, records = _run(root)
   assert restored.status == "pass", restored.diagnostics
   assert records["dcr:fws-network-study"]["execution"] == "cached"
+  assert file_digest(cad_root / "facilities-water.dxf") == original_cad
   assert _read(report) == before
   _check_load_failures(root, old_dossier)
+
+
+def _check_cad_delivery(root):
+  import ezdxf
+
+  folder = root / "build/drawings/cad"
+  views = ("site","architecture-l01","structure-l01","structure-footings","facilities-water","generator-yard")
+  documents = {}
+  for view in views:
+    path = folder / f"{view}.dxf"
+    mapping = _read(folder / f"{view}-cad.json")
+    assert mapping["dxf_digest"] == file_digest(path)
+    doc = ezdxf.readfile(path)
+    documents[view] = doc.modelspace()
+    assert doc.units == 4 and doc.dxfversion == "AC1027"
+    audit = doc.audit()
+    assert not audit.has_errors and not audit.has_fixes
+    assert len(doc.modelspace()) == mapping["entity_count"]
+    for entity in doc.modelspace():
+      row = mapping["entity_map"][entity.dxf.handle]
+      assert row["layer"] == entity.dxf.layer
+      assert [tag.value for tag in entity.get_xdata("TEXSYS_AIDC")] == [row["id"],row["model"],row["pointer"]]
+      assert mapping["model_digests"][row["model"]] == file_digest(root / "build" / row["model"])
+  dimensions = [d.get_measurement() for d in documents["site"].query("DIMENSION")]
+  assert dimensions[:2] == [80_000,56_000]
+  assert len(documents["architecture-l01"].query("ARC")) == 8
+  assert len(documents["architecture-l01"].query('LWPOLYLINE[layer=="A-IT-POD"]')) == 16
+  net = _read(root / MODEL / "fws-network.json")["segments"]
+  routes = documents["facilities-water"].query("POLYLINE")
+  assert len(routes) == len(net)
+  for route in routes:
+    key = route.get_xdata("TEXSYS_AIDC")[0].value
+    for point,coordinate in zip(route.points(),net[key]["points_m"],strict=True):
+      assert tuple(point) == pytest.approx([value*1000 for value in coordinate])
 
 
 def _check_fws_network_delivery(root):

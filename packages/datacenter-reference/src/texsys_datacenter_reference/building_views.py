@@ -38,6 +38,14 @@ def _drawing(box, title, *, section=False):
   return root
 
 
+def _door_leaves(door):
+  x = door["landing_stations_m"][0][0]
+  outward = -1 if door["side"] == "west" else 1
+  length = door["clear_width_m"]/door["leaf_count"]
+  for y,direction in ((door["minimum_m"][1],1),(door["maximum_m"][1],-1))[:door["leaf_count"]]:
+    yield (x,y),length,outward,direction
+
+
 def _doors(root, architecture):
   for tag, door in architecture["doors"].items():
     x, y, _ = door["inside_m"]
@@ -49,13 +57,11 @@ def _doors(root, architecture):
     for a, b in ((edge, stop), (stop, bottom), (bottom, end)):
       _rect(root, (min(a[0], b[0]), y-half, max(a[0], b[0]), y+half), "land", data_ramp=tag)
     _text(root, (stop[0]+bottom[0])/2, y + half + .30, f"{100*door['ramp_slope']:.2f}%", .44)
-    leaf = door["clear_width_m"]/door["leaf_count"]
     if door["available"]:
-      for hinge, toward in ((y_min, 1), (y_max, -1))[:door["leaf_count"]]:
-        jamb = edge[0]
-        leaf_tip = jamb+handed*leaf
+      for (jamb,hinge),leaf,outward,toward in _door_leaves(door):
+        leaf_tip = jamb+outward*leaf
         _line(root, jamb, hinge, leaf_tip, hinge, "leaf")
-        sweep = int(handed != toward)
+        sweep = int(outward != toward)
         _add(root, "path", d=f"M{leaf_tip:g},{-hinge:g} A{leaf:g},{leaf:g} 0 0 {sweep} {jamb:g},{-(hinge+toward*leaf):g}",
              data_door=tag, **{"class": "leaf"})
     else:

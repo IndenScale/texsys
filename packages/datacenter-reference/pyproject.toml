@@ -4,10 +4,10 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "texsys-datacenter-reference"
-version = "0.29.0"
+version = "0.30.0"
 description = "Data center reference design component library and design-basis checks for texsys"
 requires-python = ">=3.11"
-dependencies = ["texsys", "texsys-bom", "texsys-electrical", "texsys-hvac-dynamics", "texsys-spatial", "texsys-structure", "numpy>=1.26,<3", "scipy>=1.15,<2"]
+dependencies = ["texsys", "texsys-bom", "texsys-electrical", "texsys-hvac-dynamics", "texsys-spatial", "texsys-structure", "numpy>=1.26,<3", "scipy>=1.15,<2", "ezdxf==1.4.5"]
 
 [project.entry-points."texsys.packages"]
 datacenter-reference = "texsys_datacenter_reference:package"
