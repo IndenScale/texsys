@@ -121,6 +121,7 @@ export function ScenePreview({
   const { selected, following, pinned } = inspection;
   const preferences = useUserPreferences();
   const navigationHint = React.useId();
+  const [keyboardFocus, setKeyboardFocus] = useState(false);
   const [result, setResult] = useState<{
     key: string;
     value: Exclude<Response, { status: "unchanged" }>;
@@ -536,9 +537,15 @@ export function ScenePreview({
               aria-describedby={navigationHint}
               aria-keyshortcuts="W A S D Q E ArrowUp ArrowDown ArrowLeft ArrowRight F Home Enter Shift+F"
               tabIndex={0}
+              data-keyboard-focus={keyboardFocus || undefined}
+              onFocus={(event) => {
+                // Capture the focus entry so navigation keys do not change the indicator.
+                setKeyboardFocus(event.currentTarget.matches(":focus-visible"));
+              }}
               onContextMenu={(event) => event.preventDefault()}
               onPointerDown={(event) => {
                 event.currentTarget.focus({ preventScroll: true });
+                setKeyboardFocus(false);
                 drag.current = {
                   x: event.clientX,
                   y: event.clientY,

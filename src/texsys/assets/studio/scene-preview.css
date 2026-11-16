@@ -43,9 +43,17 @@
 .scene-preview-canvas:active {
   cursor: grabbing;
 }
-.scene-preview-canvas:focus-visible {
-  outline: 2px solid var(--ui-proof);
-  outline-offset: -3px;
+.scene-preview-canvas:focus {
+  outline: none;
+}
+.scene-viewport:has(> .scene-preview-canvas[data-keyboard-focus]:focus)::before {
+  content: "";
+  position: absolute;
+  z-index: 1;
+  inset: 8px auto auto 8px;
+  width: 18px;
+  border-top: 2px solid var(--ui-proof);
+  pointer-events: none;
 }
 .scene-hover,
 .scene-view-message {
