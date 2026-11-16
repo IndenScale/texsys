@@ -12,7 +12,7 @@ build = "build"
 default_targets = ["review-package"]
 
 [dependencies]
-datacenter-reference = { path = "../../packages/datacenter-reference", version = "0.21.0" }
+datacenter-reference = { path = "../../packages/datacenter-reference", version = "0.22.2" }
 sheet = { path = "../../packages/sheet", version = "0.2.0" }
 
 [build.targets.review-package]
@@ -33,6 +33,8 @@ dependencies = [
   "dcr:lateral-scene",
   "dcr:roof-transfer-scene",
   "dcr:roof-transfer-results",
+  "dcr:equipment-foundation-check",
+  "dcr:equipment-foundation-scene",
   "dcr:roof-gravity-check",
   "dcr:roof-drainage-check",
   "dcr:roof-scene",
@@ -90,6 +92,11 @@ dependencies = [
   "sheet-roof-transfer-plan",
   "sheet-roof-transfer-detail",
   "sheet-roof-transfer-demands",
+  "sheet-equipment-foundation-power",
+  "sheet-equipment-foundation-cooling",
+  "sheet-equipment-foundation-generators",
+  "sheet-equipment-foundation-section",
+  "sheet-equipment-foundation-checks",
   "sheet-it-hall",
   "sheet-pod-plan",
   "sheet-pod-section",
@@ -880,3 +887,58 @@ using = "sheet:compose"
 dependencies = ["plan-roof-transfer-demands"]
 scope = { source = "assets/sheets/roof-transfer-demands.sheet.json" }
 output = "build/drawings/sheets/roof-transfer-demands.svg"
+
+[build.targets.plan-equipment-foundation-power]
+using = "dcr:equipment-foundation-view"
+output = "build/drawings/views/equipment-foundation-power.svg"
+scope = { view = "plan", zone = "POWER" }
+
+[build.targets.sheet-equipment-foundation-power]
+using = "sheet:compose"
+dependencies = ["plan-equipment-foundation-power"]
+scope = { source = "assets/sheets/equipment-foundation-power.sheet.json" }
+output = "build/drawings/sheets/equipment-foundation-power.svg"
+
+[build.targets.plan-equipment-foundation-cooling]
+using = "dcr:equipment-foundation-view"
+output = "build/drawings/views/equipment-foundation-cooling.svg"
+scope = { view = "plan", zone = "COOLING" }
+
+[build.targets.sheet-equipment-foundation-cooling]
+using = "sheet:compose"
+dependencies = ["plan-equipment-foundation-cooling"]
+scope = { source = "assets/sheets/equipment-foundation-cooling.sheet.json" }
+output = "build/drawings/sheets/equipment-foundation-cooling.svg"
+
+[build.targets.plan-equipment-foundation-generators]
+using = "dcr:equipment-foundation-view"
+output = "build/drawings/views/equipment-foundation-generators.svg"
+scope = { view = "plan", zone = "STANDBY" }
+
+[build.targets.sheet-equipment-foundation-generators]
+using = "sheet:compose"
+dependencies = ["plan-equipment-foundation-generators"]
+scope = { source = "assets/sheets/equipment-foundation-generators.sheet.json" }
+output = "build/drawings/sheets/equipment-foundation-generators.svg"
+
+[build.targets.plan-equipment-foundation-section]
+using = "dcr:equipment-foundation-view"
+output = "build/drawings/views/equipment-foundation-section.svg"
+scope = { view = "section", foundation = "FD-GenContainerA" }
+
+[build.targets.sheet-equipment-foundation-section]
+using = "sheet:compose"
+dependencies = ["plan-equipment-foundation-section"]
+scope = { source = "assets/sheets/equipment-foundation-section.sheet.json" }
+output = "build/drawings/sheets/equipment-foundation-section.svg"
+
+[build.targets.plan-equipment-foundation-checks]
+using = "dcr:equipment-foundation-study-view"
+output = "build/drawings/views/equipment-foundation-checks.svg"
+scope = { view = "schedule" }
+
+[build.targets.sheet-equipment-foundation-checks]
+using = "sheet:compose"
+dependencies = ["plan-equipment-foundation-checks"]
+scope = { source = "assets/sheets/equipment-foundation-checks.sheet.json" }
+output = "build/drawings/sheets/equipment-foundation-checks.svg"

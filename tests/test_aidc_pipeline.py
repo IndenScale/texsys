@@ -70,7 +70,7 @@ def test_aidc_deliverables_bind_to_the_same_geometry_and_recompute_the_fws_head(
   assert dossier["evidence_complete"]
   assert dossier["input_digest"] == _read(baseline.report)["input_digest"]
   assert dossier["engineering_acceptance"] == "pending-responsible-review"
-  assert len(list((root / "build/drawings/sheets").glob("*.svg"))) == 68
+  assert len(list((root / "build/drawings/sheets").glob("*.svg"))) == 73
   old_dossier = file_digest(root / "build/review/aidc-discipline-review.json")
   drawing = root / "build/drawings/sheets/fws-network.svg"
   old_route_drawing = file_digest(drawing)
@@ -82,6 +82,7 @@ def test_aidc_deliverables_bind_to_the_same_geometry_and_recompute_the_fws_head(
   _check_roof_delivery(root)
   _check_lateral_delivery(root)
   _check_roof_transfer_delivery(root)
+  _check_equipment_foundation_delivery(root)
   _check_storm_delivery(root)
   _check_fws_network_delivery(root)
   _check_building_delivery(root)
@@ -568,6 +569,49 @@ def test_aidc_roof_transfer_rejects_riser_clash_and_loss_of_retained_tension(tmp
   assert result.status == "fail"
   assert {issue["rule"] for issue in rows["dcr:lateral-check"]["diagnostics"]} == {"AIDC_ROOF_TRANSFER_TENSION"}
   assert rows["sheet-roof-transfer-demands"]["status"] == "pass"
+
+
+def _check_equipment_foundation_delivery(root):
+  model = _read(root / MODEL / "equipment-foundations.json")
+  geometry = model["foundations"]
+  fit = _read(root / MODEL / "equipment-foundation-coordination.json")
+  analysis = _read(root / MODEL / "equipment-foundation-study.json")
+  assert len(geometry) == 19
+  assert sum(len(row["anchors"]) for row in geometry.values()) == 96
+  assert min(fit["minimum_clearance_m"].values()) >= .055
+  assert fit["minimum_pad_gap_m"] == pytest.approx(.05)
+  assert min(row["minimum_anchor_bar_gap_m"] for row in geometry.values()) >= .012 - 1e-9
+  assert sum(map(len, analysis["foundations"].values())) == 1900
+  pad = geometry["FD-GenContainerA"]
+  assert (pad["dry_mass_kg"], pad["operating_mass_kg"]) == (40000, 44000)
+  state = analysis["foundations"]["FD-GenContainerA"]["operating/seismic/x+1/cross+1/ecc+1/high"]
+  assert sum(row["foot_down_kn"] for row in state["anchors"].values()) == pytest.approx(state["equipment_normal_kn"])
+  assert state["soil_integrals"] == pytest.approx([state["foundation_normal_kn"], *state["first_moments_kn_m"]])
+  cushion = geometry["FD-BT-01"]
+  assert cushion["operating_mass_kg"]-cushion["dry_mass_kg"] == pytest.approx(603.185789489)
+  scene = Usd.Stage.Open(str(root / "build/scenes/aidc-equipment-foundations.usda"))
+  prim = scene.GetPrimAtPath("/AIDC/EquipmentFoundations/FD_GenContainerA/Concrete")
+  assert prim.GetAttribute("texsys:equipment").Get() == "GenContainerA"
+  plan = ET.parse(root / "build/drawings/views/equipment-foundation-power.svg")
+  assert plan.find(f".//{SVG}circle[@data-anchor='FD-PowerPathB/A01']") is not None
+
+
+def test_aidc_equipment_foundation_gates_utility_space_and_anchor_demand(tmp_path):
+  root = _checkout(tmp_path)
+  source = root / "src/equipment-foundations.json"
+  base = _read(source)
+  write_json(source, {**base, "margins_by_equipment_m": {}})
+  failed, targets = _run(root, "dcr:equipment-foundation-coordination", "sheet-equipment-foundation-power")
+  assert failed.status == "fail"
+  assert any(row["objects"] == ["FD-PowerPathB", "B-ENTRY-02"]
+             for row in targets["dcr:equipment-foundation-coordination"]["diagnostics"])
+  assert targets["sheet-equipment-foundation-power"]["status"] == "pass"
+  base["anchor_types"]["M30"]["shear_kn"] = 4
+  write_json(source, base)
+  failed, targets = _run(root, "dcr:equipment-foundation-check", "sheet-equipment-foundation-checks")
+  assert failed.status == "fail"
+  assert {row["rule"] for row in targets["dcr:equipment-foundation-check"]["diagnostics"]} == {"AIDC_EQUIPMENT_FOUNDATION_BOLT"}
+  assert targets["sheet-equipment-foundation-checks"]["status"] == "pass"
 
 
 def test_aidc_lateral_reacts_to_mass_and_rejects_directional_mechanism(tmp_path):

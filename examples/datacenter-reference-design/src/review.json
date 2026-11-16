@@ -16,7 +16,9 @@
         "build/datacenter-reference/spatial/site-grading.json",
         "build/datacenter-reference/spatial/site-grading-check.json",
         "build/scenes/aidc-site-coordinated.usda",
-        "build/schedules/aidc-site-grading.csv"
+        "build/schedules/aidc-site-grading.csv",
+        "build/drawings/sheets/equipment-foundation-generators.svg",
+        "build/datacenter-reference/spatial/equipment-foundation-coordination.json"
       ],
       "pending": [
         "实测宗地红线、竖向测量与市政接驳条件",
@@ -138,12 +140,33 @@
         "build/scenes/aidc-roof-transfer.usda",
         "build/scenes/aidc-roof-transfer-coordinated.usda",
         "build/schedules/aidc-roof-transfer-forces.csv",
-        "build/schedules/aidc-roof-transfer-joints.csv"
+        "build/schedules/aidc-roof-transfer-joints.csv",
+        "build/drawings/sheets/equipment-foundation-power.svg",
+        "build/drawings/sheets/equipment-foundation-power-sheet.json",
+        "build/drawings/sheets/equipment-foundation-cooling.svg",
+        "build/drawings/sheets/equipment-foundation-cooling-sheet.json",
+        "build/drawings/sheets/equipment-foundation-generators.svg",
+        "build/drawings/sheets/equipment-foundation-generators-sheet.json",
+        "build/drawings/sheets/equipment-foundation-section.svg",
+        "build/drawings/sheets/equipment-foundation-section-sheet.json",
+        "build/drawings/sheets/equipment-foundation-checks.svg",
+        "build/drawings/sheets/equipment-foundation-checks-sheet.json",
+        "build/datacenter-reference/spatial/equipment-foundations.json",
+        "build/datacenter-reference/spatial/equipment-foundation-study.json",
+        "build/datacenter-reference/spatial/equipment-foundation-check.json",
+        "build/datacenter-reference/spatial/equipment-foundation-coordination.json",
+        "build/schedules/aidc-equipment-foundations.csv",
+        "build/schedules/aidc-equipment-anchors.csv",
+        "build/schedules/aidc-equipment-rebar.csv",
+        "build/schedules/aidc-equipment-foundation-cases.csv",
+        "build/scenes/aidc-equipment-foundations.usda",
+        "build/scenes/aidc-equipment-foundations-coordinated.usda"
       ],
       "pending": [
-        "实测地勘、真实风荷载和场地地震谱、楼板与设备基础、地基和基础配筋设计",
+        "实测地勘、实际风荷载及场地反应谱、主机房板与基础配筋设计",
         "钢承板局部承载、洞口加强、檩条座连接和屋盖抗风揭",
-        "屋面集力梁局部稳定、梁柱节点板与螺栓、预张拉施工及长期损失、柱脚锚栓、二阶效应、土体弹簧与动态响应"
+        "屋面集力梁局部稳定、梁柱节点板与螺栓、预张拉施工及长期损失、柱脚锚栓、二阶效应、土体弹簧与动态响应",
+        "室外设备实际底座反力、锚栓混凝土锥体与冲切、振动隔离、配筋锚固与垫层验收"
       ]
     },
     "it": {
@@ -234,7 +257,9 @@
         "build/scenes/aidc-facility-power-coordinated.usda",
         "build/schedules/aidc-facility-power-circuits.csv",
         "build/schedules/aidc-facility-power-duty.csv",
-        "build/schedules/aidc-facility-power-faults.csv"
+        "build/schedules/aidc-facility-power-faults.csv",
+        "build/drawings/sheets/equipment-foundation-power.svg",
+        "build/datacenter-reference/spatial/equipment-foundation-coordination.json"
       ],
       "pending": [
         "厂家时间电流曲线、接地和单相故障、全场并联及动态切换试验",
@@ -323,7 +348,9 @@
         "build/schedules/aidc-air-sections.csv",
         "build/schedules/aidc-air-rack-duty.csv",
         "build/datacenter-reference/spatial/facility-power-coordination.json",
-        "build/datacenter-reference/spatial/facility-power-study.json"
+        "build/datacenter-reference/spatial/facility-power-study.json",
+        "build/drawings/sheets/equipment-foundation-cooling.svg",
+        "build/datacenter-reference/spatial/equipment-foundation-coordination.json"
       ],
       "pending": [
         "承压缓冲罐及锚固专项、实测设备与罐内压损和混合、泵阀水锤与排空、共因故障、支吊架及穿越详图",

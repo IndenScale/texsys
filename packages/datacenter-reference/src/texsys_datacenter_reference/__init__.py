@@ -17,6 +17,10 @@ from .cw_network import build_cw_coordination, build_cw_network
 from .cw_study import build_cw_check, build_cw_study
 from .cw_views import build_cw_view
 from .electrical import build_power_study, build_power_topology
+from .equipment_foundation_coordination import build_equipment_foundation_coordination, build_equipment_foundation_scene
+from .equipment_foundation_study import build_equipment_foundation_check, build_equipment_foundation_study
+from .equipment_foundation_views import build_equipment_foundation_view
+from .equipment_foundations import build_equipment_foundations
 from .facility_power import build_facility_coordination, build_facility_power
 from .facility_power_scene import build_facility_power_scene
 from .facility_power_study import build_facility_power_check, build_facility_power_study
@@ -75,7 +79,7 @@ from .wet_utility_views import build_wet_view
 
 class DatacenterReferencePackage(TexsysPackage):
   name = "datacenter-reference"
-  version = "0.21.0"
+  version = "0.22.2"
 
   def targets(self) -> tuple[TargetDefinition, ...]:
     return (
@@ -224,6 +228,22 @@ class DatacenterReferencePackage(TexsysPackage):
                        dependencies=("dcr:air-study",), input_patterns=(), named_output=True),
       TargetDefinition("dcr:structure-model", self.name, self.version, build_structure, dependencies=("dcr:layout",),
                        input_patterns=spatial_inputs("structure.json")),
+      TargetDefinition("dcr:equipment-foundations", self.name, self.version, build_equipment_foundations,
+                       dependencies=("dcr:site-grading", "dcr:wet-utilities"),
+                       input_patterns=spatial_inputs("equipment-foundations.json")),
+      TargetDefinition("dcr:equipment-foundation-coordination", self.name, self.version,
+                       build_equipment_foundation_coordination,
+                       dependencies=("dcr:equipment-foundations", "dcr:facility-power", "dcr:site-storm"), input_patterns=()),
+      TargetDefinition("dcr:equipment-foundation-study", self.name, self.version, build_equipment_foundation_study,
+                       dependencies=("dcr:equipment-foundations",), input_patterns=()),
+      TargetDefinition("dcr:equipment-foundation-check", self.name, self.version, build_equipment_foundation_check,
+                       dependencies=("dcr:equipment-foundation-study",), input_patterns=()),
+      TargetDefinition("dcr:equipment-foundation-scene", self.name, self.version, build_equipment_foundation_scene,
+                       dependencies=("dcr:equipment-foundation-coordination", "dcr:roof-transfer-scene"), input_patterns=()),
+      TargetDefinition("dcr:equipment-foundation-view", self.name, self.version, build_equipment_foundation_view,
+                       dependencies=("dcr:equipment-foundations",), input_patterns=(), named_output=True),
+      TargetDefinition("dcr:equipment-foundation-study-view", self.name, self.version, build_equipment_foundation_view,
+                       dependencies=("dcr:equipment-foundation-study",), input_patterns=(), named_output=True),
       TargetDefinition("dcr:structure-gravity", self.name, self.version, build_gravity,
                        dependencies=("dcr:roof-actions", "dcr:roof-transfer"), input_patterns=spatial_inputs("structure-loads.json")),
       TargetDefinition("dcr:lateral-bracing", self.name, self.version, build_lateral_bracing,

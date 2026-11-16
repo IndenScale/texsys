@@ -255,6 +255,9 @@ def build_layout(context):
       "port_normals": {key: _world((0, 0, 0), rotation, vector(port["normal"], 3, key))
                        for key, port in specification["interfaces"].items()},
     }
+    mass = specification.get("properties", {}).get("mass_kg")
+    if mass is not None:
+      objects[name]["nominal_mass_kg"] = number(mass, name + " nominal module mass")
     if discipline == "it":
       definition = catalog.documents[document]["components"][component]
       load = binding.get("parameters", {}).get("it_load_kw", definition["behavior"]["parameters"]["it_load_kw"])

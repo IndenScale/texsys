@@ -1,0 +1,48 @@
+{
+  "schema_version": 1,
+  "state": "assumed",
+  "basis": "室外设备筏板和预埋锚栓候选尺寸。设备采用经锁定的名义质量，未给出的机械配重、液量、连接及地基参数须结合厂商和现场验证。发电机质量包含原设计方舱及内部发电机，液体增量另列。",
+  "soil": {"bearing_kpa": 95, "friction": 0.48, "minimum_contact_fraction": 0.55},
+  "loading": {
+    "wind_kpa": 0.85,
+    "horizontal_acceleration_g": 0.24,
+    "orthogonal_share": 0.3,
+    "low_gravity_factor": 0.9,
+    "high_gravity_factor": 1.1,
+    "plan_eccentric_fraction": 0.05,
+    "concrete_kn_m3": 24,
+    "concrete_shear_kpa": 450,
+    "rebar_stress_mpa": 260
+  },
+  "typical": {
+    "bedding_m": 0.08,
+    "utility_gap_m": 0.055,
+    "isolation_joint_m": 0.025,
+    "grade_above_cap_m": 0.012,
+    "anchor_edge_min_m": 0.115,
+    "mat_cover_m": 0.055,
+    "bar_diameter_m": 0.014,
+    "bar_spacing_m": 0.16,
+    "maximum_as_built_spacing_m": 0.215,
+    "maximum_bar_shift_m": 0.05,
+    "anchor_bar_gap_m": 0.012
+  },
+  "anchor_types": {
+    "M16": {"diameter_m": 0.016, "embed_m": 0.16, "tension_kn": 16, "shear_kn": 17, "seat_m2": 0.010, "seat_kpa": 2800},
+    "M20": {"diameter_m": 0.020, "embed_m": 0.21, "tension_kn": 27, "shear_kn": 28, "seat_m2": 0.018, "seat_kpa": 2800},
+    "M24": {"diameter_m": 0.024, "embed_m": 0.26, "tension_kn": 43, "shear_kn": 45, "seat_m2": 0.035, "seat_kpa": 3200},
+    "M30": {"diameter_m": 0.030, "embed_m": 0.29, "tension_kn": 63, "shear_kn": 70, "seat_m2": 0.060, "seat_kpa": 3600}
+  },
+  "margins_by_equipment_m": {"PowerPathB": [0.19, 0.08, 0.08, 0.17]},
+  "families": {
+    "facility-aux-transfer": {"anchor": "M16", "pattern": [2,2], "inset_m": [0.10,0.13], "edge_m": [0.11,0.10], "depth_m": 0.34, "cog_height_ratio": 0.48, "dry_mass_kg": 260, "added_operating_mass_kg": 0},
+    "generator-command-panel": {"anchor": "M16", "pattern": [2,2], "inset_m": [0.10,0.10], "edge_m": [0.11,0.10], "depth_m": 0.34, "cog_height_ratio": 0.48, "dry_mass_kg": 150, "added_operating_mass_kg": 0},
+    "power-container": {"anchor": "M24", "pattern": [3,2], "inset_m": [0.32,0.22], "edge_m": [0.19,0.17], "depth_m": 0.44, "cog_height_ratio": 0.50, "added_operating_mass_kg": 500},
+    "cooling-container": {"anchor": "M24", "pattern": [3,2], "inset_m": [0.30,0.22], "edge_m": [0.18,0.085], "depth_m": 0.44, "cog_height_ratio": 0.47, "added_operating_mass_kg": 1500},
+    "condenser-water-pump": {"anchor": "M16", "pattern": [2,2], "inset_m": [0.16,0.09], "edge_m": [0.08,0.10], "depth_m": 0.32, "cog_height_ratio": 0.52, "added_operating_mass_kg": 120},
+    "cooling-tower": {"anchor": "M24", "pattern": [2,2], "inset_m": [0.23,0.22], "edge_m": [0.17,0.15], "depth_m": 0.40, "cog_height_ratio": 0.55, "added_operating_mass_kg": 1200},
+    "generator-container": {"anchor": "M30", "pattern": [4,2], "inset_m": [0.44,0.25], "edge_m": [0.19,0.18], "depth_m": 0.50, "cog_height_ratio": 0.48, "added_operating_mass_kg": 4000},
+    "fws-buffer": {"anchor": "M20", "pattern": [2,2], "inset_m": [0.30,0.30], "edge_m": [0.045,0.045], "depth_m": 0.33, "cog_height_ratio": 0.53, "added_operating_mass_kg": 0},
+    "makeup-tank": {"anchor": "M20", "pattern": [3,2], "inset_m": [0.24,0.20], "edge_m": [0.15,0.16], "depth_m": 0.36, "cog_height_ratio": 0.49, "dry_mass_kg": 710, "added_operating_mass_kg": 0}
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "template": "sheet:a3-landscape",
+  "metadata": "assets/sheets/equipment-foundation-power.title.json",
+  "texts": {
+    "notes": "assets/sheets/equipment-foundation-power.txt",
+    "footer": "assets/sheets/footer.txt"
+  },
+  "views": {
+    "main": {
+      "path": "build/drawings/views/equipment-foundation-power.svg",
+      "scale": "1:100"
+    }
+  }
+}
