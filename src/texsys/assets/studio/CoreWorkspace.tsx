@@ -203,6 +203,22 @@ export const coreSidebarTitles: Record<Activity, string> = {
 const macKeys = /Mac|iPhone|iPad/.test(navigator.platform);
 const tabCloseKeys = macKeys ? "Delete Backspace" : "Delete";
 
+function editorDocumentTitle(
+  document: Document,
+  definitionName?: string,
+  openPaths: string[] = [],
+) {
+  if (document.extension) return t("扩展: {0}", { 0: document.extension.entry.name });
+  const selection = document.design?.selection;
+  if (selection)
+    return (
+      ("occurrence" in selection ? selection.occurrence.at(-1) : undefined) ??
+      definitionName ??
+      t("模型")
+    );
+  return document.untitled ?? fileDocumentTitle(document.path, openPaths);
+}
+
 function DocumentTab({
   selected,
   extension,
@@ -359,6 +375,7 @@ export function CoreWorkspaceProvider({
   navigationRequest?: WorkbenchProps["navigationRequest"];
   onNavigationState?: (next: {
     active: boolean;
+    editorTitle: string | undefined;
     canBack: boolean;
     canForward: boolean;
     canClose: boolean;
@@ -626,6 +643,21 @@ export function CoreWorkspaceProvider({
             : active
               ? "source"
               : null;
+  const diffFileName = diff?.path.split("/").pop() ?? t("读取中");
+  const activeDefinition =
+    activeTab === "source" && active?.design && designIndex
+      ? resolveDesign(designIndex, active.design.selection)?.definition
+      : undefined;
+  const editorTitle =
+    activeTab === "settings"
+      ? t("设置")
+      : activeTab === "search"
+        ? t("搜索结果")
+        : activeTab === "diff"
+          ? `${t("差异 ·")} ${diffFileName}`
+          : activeTab === "source" && active
+            ? editorDocumentTitle(active, activeDefinition?.name)
+            : undefined;
   const canBrowseScene =
     activeTab === "source" &&
     previewKind === "scene" &&
@@ -1053,6 +1085,7 @@ export function CoreWorkspaceProvider({
     const model = canEditSource ? sourceModels.get(active.path)?.model : undefined;
     onNavigationState?.({
       active: focusedGroup !== primaryEditorGroup || documentActive || settingsActive,
+      editorTitle,
       canBack: (focusedGroup !== primaryEditorGroup || !settingsActive) && history.index > 0,
       canForward:
         (focusedGroup !== primaryEditorGroup || !settingsActive) &&
@@ -1074,6 +1107,7 @@ export function CoreWorkspaceProvider({
   }, [
     documentActive,
     settingsActive,
+    editorTitle,
     history.index,
     history.entries.length,
     canClose,
@@ -2610,6 +2644,9 @@ export function CoreWorkspaceProvider({
     </>
   );
   const renderTabs = (group: EditorGroup) => {
+    const openFilePaths = documents
+      .filter((item) => !item.design && !item.extension)
+      .map((item) => item.path);
     const activePath = group.activePath;
     const activeTab =
       group.id === primaryEditorGroup
@@ -2658,19 +2695,7 @@ export function CoreWorkspaceProvider({
             const module = designIndex?.library.some(
               (item) => item.kind === "modules" && item.definition === scope?.key,
             );
-            const title =
-              (document.extension && t("扩展: {0}", { 0: document.extension.entry.name })) ??
-              (selection
-                ? (("occurrence" in selection ? selection.occurrence.at(-1) : undefined) ??
-                  scope?.definition?.name ??
-                  t("模型"))
-                : (document.untitled ??
-                  fileDocumentTitle(
-                    document.path,
-                    documents
-                      .filter((item) => !item.design && !item.extension)
-                      .map((item) => item.path),
-                  )));
+            const title = editorDocumentTitle(document, scope?.definition?.name, openFilePaths);
             const preview =
               resolvedEditorPresentation(
                 filePreviewKind(document),
@@ -2762,7 +2787,7 @@ export function CoreWorkspaceProvider({
           >
             <span>
               {t("差异 ·")}
-              {diff?.path.split("/").pop() ?? t("读取中")}
+              {diffFileName}
             </span>
           </DocumentTab>
         )}

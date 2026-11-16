@@ -278,12 +278,7 @@ function Studio({
     useUserPreferences();
   useEffect(() => {
     document.documentElement.lang = locale;
-    const workspaceTitle = `${t("工作区")} — Tex Studio`;
-    document.title =
-      emptyWorkspace && welcomeEditor?.welcomeVisible
-        ? `${t("欢迎")} — ${workspaceTitle}`
-        : workspaceTitle;
-  }, [emptyWorkspace, locale, welcomeEditor]);
+  }, [locale]);
   const [fileRequest, setFileRequest] = useState<{
     path: string;
     token: number;
@@ -371,6 +366,7 @@ function Studio({
   };
   const [coreHistory, setCoreHistory] = useState({
     active: true,
+    editorTitle: undefined as string | undefined,
     canBack: false,
     canForward: false,
     canClose: false,
@@ -391,6 +387,7 @@ function Studio({
     (next: typeof coreHistory) =>
       setCoreHistory((previous) =>
         previous.active === next.active &&
+        previous.editorTitle === next.editorTitle &&
         previous.canBack === next.canBack &&
         previous.canForward === next.canForward &&
         previous.canClose === next.canClose &&
@@ -421,6 +418,7 @@ function Studio({
         canNavigateProblems?: boolean;
         problemsCount?: number;
         objectDefinition?: string;
+        editorTitle?: string;
       }
     >
   >({});
@@ -549,6 +547,15 @@ function Studio({
       },
     }));
   const layout = layouts[active] ?? defaultLayout;
+  const editorTitle = emptyWorkspace
+    ? welcomeEditor?.editorTitle
+    : coreHistory.active
+      ? coreHistory.editorTitle
+      : historyStates[active]?.editorTitle;
+  useEffect(() => {
+    const workspaceTitle = `${t("工作区")} — Tex Studio`;
+    document.title = editorTitle ? `${editorTitle} — ${workspaceTitle}` : workspaceTitle;
+  }, [editorTitle, locale]);
   const professionalVisible = !coreHistory.active || layout.sidebarActivity === "instances";
   const activePlugin = state?.plugins.find((plugin) => plugin.id === active)?.id;
   const professionalRevision = state?.project.revision;
@@ -1509,7 +1516,8 @@ function Studio({
                             previous[id]?.canClose === next.canClose &&
                             previous[id]?.canNavigateProblems === next.canNavigateProblems &&
                             previous[id]?.problemsCount === next.problemsCount &&
-                            previous[id]?.objectDefinition === next.objectDefinition
+                            previous[id]?.objectDefinition === next.objectDefinition &&
+                            previous[id]?.editorTitle === next.editorTitle
                               ? previous
                               : { ...previous, [id]: next },
                           )

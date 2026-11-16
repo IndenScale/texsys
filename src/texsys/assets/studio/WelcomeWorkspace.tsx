@@ -32,7 +32,7 @@ export type WelcomeEditorState = {
   canSave: boolean;
   canSaveAs: boolean;
   canClose: boolean;
-  welcomeVisible: boolean;
+  editorTitle?: string;
 };
 type LocalDocument = {
   id: string;
@@ -93,6 +93,7 @@ export function WelcomeWorkspace({
   const canSaveAs = !!current && !busy;
   const canClose = !!active && !busy;
   const welcomeVisible = welcomeOpen && active === welcomeId;
+  const editorTitle = welcomeVisible ? t("欢迎") : current?.name;
   const sidebarActivity = layout.sidebarActivity ?? "explorer";
   const activity = isCoreActivity(sidebarActivity) ? sidebarActivity : "explorer";
   const lastActivityRequest = useRef(0);
@@ -114,8 +115,8 @@ export function WelcomeWorkspace({
     return () => window.removeEventListener("beforeunload", preventUnload);
   }, [dirty]);
   useEffect(() => {
-    onEditorState({ canSave, canSaveAs, canClose, welcomeVisible });
-  }, [canSave, canSaveAs, canClose, welcomeVisible, onEditorState]);
+    onEditorState({ canSave, canSaveAs, canClose, editorTitle });
+  }, [canSave, canSaveAs, canClose, editorTitle, onEditorState]);
   useEffect(() => {
     if (!focusRecent) return;
     recentSection.current?.scrollIntoView({ block: "nearest" });

@@ -135,6 +135,8 @@ export type WorkbenchProps = {
     /** Count of current items shown in the Problems panel. */
     problemsCount?: number;
     objectDefinition?: string;
+    /** Display name of the selected editor tab, when present. */
+    editorTitle?: string;
   }) => void;
 };
 export type WorkbenchObject = MenuItem & {

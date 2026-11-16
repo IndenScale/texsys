@@ -421,6 +421,13 @@ function Workspace({
       openView("simulation");
     } else openView(requested.action === "check" ? "checks" : "outputs");
   }, [taskResult?.token]);
+  const editorName = (id: View) =>
+    id === "file"
+      ? (filePath.split("/").pop() ?? t("文件预览"))
+      : id === "design"
+        ? source.root
+        : t(info(id).label);
+  const editorTitle = documents.includes(view) ? editorName(view) : undefined;
   useEffect(() => {
     onNavigationState?.({
       canBack: history.index > 0,
@@ -429,8 +436,16 @@ function Workspace({
       canNavigateProblems: currentIssues.length > 0,
       problemsCount: currentIssues.length,
       objectDefinition,
+      editorTitle,
     });
-  }, [history, documents.length, currentIssues.length, objectDefinition, onNavigationState]);
+  }, [
+    history,
+    documents.length,
+    currentIssues.length,
+    objectDefinition,
+    editorTitle,
+    onNavigationState,
+  ]);
   useEffect(() => {
     core?.setDomainTabsOpen?.(documents.length > 0);
   }, [core?.setDomainTabsOpen, documents.length]);
@@ -650,12 +665,7 @@ function Workspace({
   };
   const editorTabs: EditorGroupTab[] = documents.map((id) => ({
     id,
-    label:
-      id === "file"
-        ? (filePath.split("/").pop() ?? t("文件预览"))
-        : id === "design"
-          ? source.root
-          : t(info(id).label),
+    label: editorName(id),
     icon: info(id).icon,
     selected: view === id,
     dirty: hasDraft && ["design", "equipment", "source"].includes(id),
@@ -676,12 +686,7 @@ function Workspace({
       label={t("打开的文档")}
       tabs={documents.map((id) => ({
         id,
-        label:
-          id === "file"
-            ? (filePath.split("/").pop() ?? t("文件预览"))
-            : id === "design"
-              ? source.root
-              : t(info(id).label),
+        label: editorName(id),
         icon: info(id).icon,
         focused: view === id && !core?.documentActive,
         dirty: hasDraft && ["design", "equipment", "source"].includes(id),
