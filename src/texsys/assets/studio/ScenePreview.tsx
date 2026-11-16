@@ -269,6 +269,10 @@ export function ScenePreview({
   const [hover, setHover] = useState<ViewportPointer & { id: string }>();
   const [previewedId, setPreviewedId] = useState<string>();
   const [axis, setAxis] = useState<SceneAxis>();
+  const sectionAnchor = `--scene-section-${React.useId().replace(/[^a-zA-Z0-9_-]/g, "")}`;
+  const showSectionControl = useCallback((node: HTMLDivElement | null) => {
+    node?.showPopover?.();
+  }, []);
   const [section, setSection] = useState(0.5);
   const [measuring, setMeasuring] = useState(false);
   const [points, setPoints] = useState<Point3[]>([]);
@@ -692,6 +696,7 @@ export function ScenePreview({
         <NavigatorMenu
           label={t("剖切")}
           editorActionIcon="scene-section"
+          triggerStyle={{ anchorName: sectionAnchor }}
           placement="end"
           triggerDisabled={!hasObjects}
           items={([undefined, "x", "y", "z"] as const).map((next) => ({
@@ -700,18 +705,25 @@ export function ScenePreview({
             run: () => setAxis(next),
           }))}
         />
-        {axis && (
-          <input
-            aria-label={t("剖切位置")}
-            title={t("剖切位置")}
-            className="scene-section-range"
-            type="range"
-            min={0}
-            max={1}
-            step={0.005}
-            value={section}
-            onChange={(event) => setSection(Number(event.target.value))}
-          />
+        {axis && hasObjects && !renderError && (
+          <div
+            className="scene-section-control"
+            popover="manual"
+            ref={showSectionControl}
+            style={{ positionAnchor: sectionAnchor }}
+          >
+            <input
+              aria-label={t("剖切位置")}
+              title={t("剖切位置")}
+              className="scene-section-range"
+              type="range"
+              min={0}
+              max={1}
+              step={0.005}
+              value={section}
+              onInput={(event) => setSection(event.currentTarget.valueAsNumber)}
+            />
+          </div>
         )}
         <EditorActionButton
           label={t("测距")}

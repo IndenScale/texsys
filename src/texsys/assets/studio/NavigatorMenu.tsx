@@ -74,6 +74,7 @@ export function NavigatorMenu({
   placement = "start",
   direction = "auto",
   triggerClassName,
+  triggerStyle,
   triggerIcon = "more",
   editorActionIcon,
   menuClassName,
@@ -90,6 +91,7 @@ export function NavigatorMenu({
   placement?: "end" | "start" | "side";
   direction?: "down" | "up" | "auto";
   triggerClassName?: string;
+  triggerStyle?: React.CSSProperties;
   triggerIcon?: ReactNode;
   editorActionIcon?: string;
   menuClassName?: string;
@@ -210,6 +212,7 @@ export function NavigatorMenu({
     id: `${id}-trigger`,
     disabled: triggerDisabled,
     className: triggerClassName,
+    style: triggerStyle,
     "aria-haspopup": "menu",
     "aria-expanded": open,
     popoverTarget: id,

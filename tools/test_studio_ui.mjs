@@ -1920,6 +1920,27 @@ test("mounted artifact previews preserve their viewport when file geometry chang
 
   await render({ kind: "scene", version: "v1" });
   const controls = container.querySelector(".test-editor-controls");
+  const sectionButton = controls.querySelector('button[aria-label="剖切"]');
+  const sectionMenu = controls.querySelector('[role="menu"][aria-label="剖切"]');
+  sectionMenu.hidePopover = () => {};
+  const sectionOption = (name) =>
+    Array.from(sectionMenu.querySelectorAll("button")).find(
+      (button) => button.textContent === name,
+    );
+  const sectionSlider = () => controls.querySelector('[aria-label="剖切位置"]');
+  assert.equal(sectionSlider(), null);
+  await act(() => sectionOption("Z").click());
+  const sectionPanel = sectionSlider().closest('[popover="manual"]');
+  assert.ok(sectionPanel);
+  assert.equal(sectionPanel.style.positionAnchor, sectionButton.style.anchorName);
+  await act(() => {
+    const input = sectionSlider();
+    input.value = "0.7";
+    input.dispatchEvent(new window.Event("input", { bubbles: true }));
+  });
+  assert.equal(sectionSlider().getAttribute("value"), "0.7");
+  await act(() => sectionOption("关闭剖切").click());
+  assert.equal(sectionSlider(), null);
   const cameraControls = container.querySelector(
     '.scene-viewport [role="group"][aria-label="场景导航"]',
   );
