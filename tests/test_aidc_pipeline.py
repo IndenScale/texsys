@@ -72,7 +72,7 @@ def test_aidc_deliverables_bind_to_the_same_geometry_and_recompute_the_fws_head(
   assert dossier["engineering_acceptance"] == "pending-responsible-review"
   compiled_sheets = sorted((root / "build/drawings/sheets").glob("*.svg"))
   drawing_numbers = {ET.parse(path).getroot().get("data-drawing-number") for path in compiled_sheets}
-  assert len(compiled_sheets) == len(drawing_numbers) == 88 and None not in drawing_numbers
+  assert len(compiled_sheets) == len(drawing_numbers) == 93 and None not in drawing_numbers
   old_dossier = file_digest(root / "build/review/aidc-discipline-review.json")
   drawing = root / "build/drawings/sheets/fws-network.svg"
   old_route_drawing = file_digest(drawing)
@@ -88,6 +88,7 @@ def test_aidc_deliverables_bind_to_the_same_geometry_and_recompute_the_fws_head(
   _check_exit_access_delivery(root)
   _check_emergency_lighting_delivery(root)
   _check_lighting_distribution_delivery(root)
+  _check_earthing_delivery(root)
   _check_storm_delivery(root)
   _check_fws_network_delivery(root)
   _check_building_delivery(root)
@@ -686,6 +687,69 @@ def _check_lighting_distribution_delivery(root):
   board = stage.GetPrimAtPath("/AIDC/LightingDistribution/Board/Cabinet")
   assert board.GetAttribute("texsys:identity").Get() == "EL-MDB"
   assert len(stage.GetPrimAtPath("/AIDC/Architecture/W_over_D_NW").GetChildren()) == 4
+
+
+def _check_earthing_delivery(root):
+  model = _read(root / MODEL / "earthing.json")
+  study = _read(root / MODEL / "earth-fault-study.json")
+  config = model["assumptions"]
+  assert len(model["rods"]) == 10
+  assert len(model["steel_terminals"]) == 12
+  assert len(study["cases"]) == 332 and all(row["status"] == "pass" for row in study["cases"].values())
+  assert sum(row["length_m"] for row in model["links"].values() if row["kind"]=="ring") == pytest.approx(125)
+  assert study["electrodes"]["cases"]["all-connected"]["resistance_ohm"] == pytest.approx(2.0868, abs=.0001)
+  assert all(not case["disconnected"] for case in study["continuity"]["one_ring_segment_open"].values())
+  key = "IT:A:battery:IT01"
+  fault = study["cases"][key]
+  assert fault["pe"] == ["PE-BuswayA1", "PE-BuswayA1-IT01", "PE-A-IT01"]
+  expected_mohm = sum(
+    config["metal"]["copper_hot_ohm_mm2_m"]*1000*model["pe_runs"][key]["length_m"]/model["pe_runs"][key]["section_mm2"]
+    for key in fault["pe"]
+  )+4*config["metal"]["terminal_contact_mohm"]
+  assert fault["pe_hot_mohm"] == pytest.approx(expected_mohm)
+  stage = Usd.Stage.Open(str(root / "build/scenes/aidc-earthing-coordinated.usda"))
+  rod = stage.GetPrimAtPath("/AIDC/ProtectiveEarthing/Electrodes/ER_07")
+  assert rod.GetAttribute("texsys:identity").Get() == "ER-07"
+  assert stage.GetPrimAtPath("/AIDC/LightingDistribution/Board/Cabinet").IsValid()
+  for view,number in (("site","020"),("hall","021"),("section","022"),("electrodes","023"),("fault","024")):
+    svg = ET.parse(root / f"build/drawings/sheets/earthing-{view}.svg")
+    assert svg.getroot().get("data-drawing-number") == f"AIDC-E-{number}"
+
+
+def test_aidc_earthing_recalculates_and_keeps_diagnostic_drawings(tmp_path):
+  root = _checkout(tmp_path)
+  path = root / "src/earthing.json"
+  config = _read(path)
+  check, sheet = "dcr:earth-fault-check","sheet-earthing-electrodes"
+  result, _ = _run(root,check,sheet)
+  assert result.status == "pass", result.diagnostics
+  study = root / MODEL / "earth-fault-study.json"
+  original = _read(study)
+  drawing = root / "build/drawings/sheets/earthing-electrodes.svg"
+  original_drawing = file_digest(drawing)
+  config["electrodes"]["top_xy_m"][1][0] += 1
+  write_json(path,config)
+  result, status = _run(root,check,sheet)
+  assert result.status == "pass", result.diagnostics
+  assert status["dcr:earthing"]["status"] == "pass"
+  current = _read(study)
+  case = "all-connected"
+  assert current["electrodes"]["cases"][case]["resistance_ohm"] != original["electrodes"]["cases"][case]["resistance_ohm"]
+  assert current["cases"] == original["cases"]
+  assert file_digest(drawing) != original_drawing
+
+  config["fault"]["unavailable_pe"] = ["PE-A-IT01"]
+  write_json(path,config)
+  result, status = _run(root,check,"sheet-earthing-fault")
+  assert result.status == "fail" and status["sheet-earthing-fault"]["status"] == "pass"
+  failed = _read(study)["cases"]
+  assert {key for key,row in failed.items() if row["status"]=="fail"} == {"IT:A:battery:IT01","IT:A:inverter:IT01"}
+  assert failed["IT:A:battery:IT01"]["failed"] == ["metallic-path"]
+
+  path.unlink()
+  result, status = _run(root,check)
+  assert result.status != "pass"
+  assert status["dcr:earthing"]["status"] == "indeterminate"
 
 
 def test_aidc_lighting_distribution_rejects_double_weld_and_undersized_protection(tmp_path):

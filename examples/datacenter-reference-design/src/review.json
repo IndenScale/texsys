@@ -334,13 +334,32 @@
         "build/schedules/aidc-lighting-conduits.csv",
         "build/schedules/aidc-lighting-charging-circuits.csv",
         "build/scenes/aidc-lighting-distribution.usda",
-        "build/scenes/aidc-lighting-distribution-coordinated.usda"
+        "build/scenes/aidc-lighting-distribution-coordinated.usda",
+        "build/scenes/aidc-earthing.usda",
+        "build/scenes/aidc-earthing-coordinated.usda",
+        "build/datacenter-reference/spatial/earthing.json",
+        "build/datacenter-reference/spatial/earth-fault-study.json",
+        "build/datacenter-reference/spatial/earth-fault-check.json",
+        "build/schedules/aidc-earthing-conductors.csv",
+        "build/schedules/aidc-earth-electrode-cases.csv",
+        "build/schedules/aidc-earth-fault-cases.csv",
+        "build/drawings/sheets/earthing-site.svg",
+        "build/drawings/sheets/earthing-site-sheet.json",
+        "build/drawings/sheets/earthing-hall.svg",
+        "build/drawings/sheets/earthing-hall-sheet.json",
+        "build/drawings/sheets/earthing-section.svg",
+        "build/drawings/sheets/earthing-section-sheet.json",
+        "build/drawings/sheets/earthing-electrodes.svg",
+        "build/drawings/sheets/earthing-electrodes-sheet.json",
+        "build/drawings/sheets/earthing-fault.svg",
+        "build/drawings/sheets/earthing-fault-sheet.json"
       ],
       "pending": [
-        "厂家时间电流曲线、接地和单相故障、全场并联及动态切换试验",
+        "厂家时间电流曲线和相壳故障级配、源侧接地及转换极数、全场并联及动态切换试验",
         "屋面孔洞节点及封堵、耐候选型、弯曲半径与支架、载流量实测修正和谐波分析",
         "各冷源转换柜的机械电气联锁、脱扣和电机再启动、穿管热环境、共用发电机指令及独立黑启动、补水泵与照明检修配电、电源侧中压及发电机输出安装",
-        "应急照明充电盘及分支已编译候选布线。实际电源阻抗、断路器级配、接地、线缆与接头、充电和联动验收"
+        "应急照明充电盘及分支已编译候选布线。实际电源阻抗、断路器级配、接地、线缆与接头、充电和联动验收",
+        "中轴柱脚连接节点、土壤分层和实测、接地体的接触及跨步电压与独立防雷校核"
       ]
     },
     "mechanical": {

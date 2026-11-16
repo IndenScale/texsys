@@ -12,7 +12,7 @@ build = "build"
 default_targets = ["review-package"]
 
 [dependencies]
-datacenter-reference = { path = "../../packages/datacenter-reference", version = "0.25.0" }
+datacenter-reference = { path = "../../packages/datacenter-reference", version = "0.26.0" }
 sheet = { path = "../../packages/sheet", version = "0.2.0" }
 
 [build.targets.review-package]
@@ -74,6 +74,13 @@ dependencies = [
   "dcr:emergency-lighting-scene",
   "dcr:lighting-distribution-check",
   "dcr:lighting-distribution-scene",
+  "dcr:earth-fault-check",
+  "dcr:earthing-scene",
+  "sheet-earthing-site",
+  "sheet-earthing-hall",
+  "sheet-earthing-section",
+  "sheet-earthing-electrodes",
+  "sheet-earthing-fault",
   "sheet-lighting-distribution-site",
   "sheet-lighting-distribution-hall",
   "sheet-lighting-distribution-section",
@@ -1128,3 +1135,58 @@ using = "sheet:compose"
 dependencies = ["plan-lighting-distribution-sequence"]
 scope = { source = "assets/sheets/lighting-distribution-sequence.sheet.json" }
 output = "build/drawings/sheets/lighting-distribution-sequence.svg"
+
+[build.targets.plan-earthing-site]
+using = "dcr:earthing-view"
+output = "build/drawings/views/earthing-site.svg"
+scope = { view = "site" }
+
+[build.targets.sheet-earthing-site]
+using = "sheet:compose"
+dependencies = ["plan-earthing-site"]
+scope = { source = "assets/sheets/earthing-site.sheet.json" }
+output = "build/drawings/sheets/earthing-site.svg"
+
+[build.targets.plan-earthing-hall]
+using = "dcr:earthing-view"
+output = "build/drawings/views/earthing-hall.svg"
+scope = { view = "hall" }
+
+[build.targets.sheet-earthing-hall]
+using = "sheet:compose"
+dependencies = ["plan-earthing-hall"]
+scope = { source = "assets/sheets/earthing-hall.sheet.json" }
+output = "build/drawings/sheets/earthing-hall.svg"
+
+[build.targets.plan-earthing-section]
+using = "dcr:earthing-view"
+output = "build/drawings/views/earthing-section.svg"
+scope = { view = "section" }
+
+[build.targets.sheet-earthing-section]
+using = "sheet:compose"
+dependencies = ["plan-earthing-section"]
+scope = { source = "assets/sheets/earthing-section.sheet.json" }
+output = "build/drawings/sheets/earthing-section.svg"
+
+[build.targets.plan-earthing-electrodes]
+using = "dcr:earthing-view"
+output = "build/drawings/views/earthing-electrodes.svg"
+scope = { view = "electrodes" }
+
+[build.targets.sheet-earthing-electrodes]
+using = "sheet:compose"
+dependencies = ["plan-earthing-electrodes"]
+scope = { source = "assets/sheets/earthing-electrodes.sheet.json" }
+output = "build/drawings/sheets/earthing-electrodes.svg"
+
+[build.targets.plan-earthing-fault]
+using = "dcr:earthing-view"
+output = "build/drawings/views/earthing-fault.svg"
+scope = { view = "fault" }
+
+[build.targets.sheet-earthing-fault]
+using = "sheet:compose"
+dependencies = ["plan-earthing-fault"]
+scope = { source = "assets/sheets/earthing-fault.sheet.json" }
+output = "build/drawings/sheets/earthing-fault.svg"

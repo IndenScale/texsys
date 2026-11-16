@@ -50,6 +50,9 @@ from .lateral_bracing import build_lateral_bracing, build_lateral_coordination
 from .lateral_scene import build_lateral_scene
 from .lateral_study import build_lateral_check, build_lateral_study
 from .lateral_views import build_lateral_view
+from .earthing import build_earthing
+from .earthing_delivery import build_earthing_scene, build_earthing_view
+from .earth_fault import build_earth_fault_check, build_earth_fault_study
 from .lighting_distribution import build_lighting_distribution
 from .lighting_distribution_scene import build_lighting_distribution_scene
 from .lighting_distribution_study import build_lighting_distribution_check, build_lighting_distribution_study
@@ -91,7 +94,7 @@ from .wet_utility_views import build_wet_view
 
 class DatacenterReferencePackage(TexsysPackage):
   name = "datacenter-reference"
-  version = "0.25.0"
+  version = "0.26.0"
 
   def targets(self) -> tuple[TargetDefinition, ...]:
     return (
@@ -155,6 +158,16 @@ class DatacenterReferencePackage(TexsysPackage):
                        dependencies=("dcr:lighting-distribution-check", "dcr:emergency-lighting-scene"), input_patterns=()),
       TargetDefinition("dcr:lighting-distribution-view", self.name, self.version, build_lighting_distribution_view,
                        dependencies=("dcr:lighting-distribution-study",), input_patterns=(), named_output=True),
+      TargetDefinition("dcr:earthing", self.name, self.version, build_earthing,
+                       dependencies=("dcr:lighting-distribution",), input_patterns=spatial_inputs("earthing.json")),
+      TargetDefinition("dcr:earth-fault-study", self.name, self.version, build_earth_fault_study,
+                       dependencies=("dcr:earthing", "dcr:power-study", "dcr:facility-power-study"), input_patterns=()),
+      TargetDefinition("dcr:earth-fault-check", self.name, self.version, build_earth_fault_check,
+                       dependencies=("dcr:earth-fault-study",), input_patterns=()),
+      TargetDefinition("dcr:earthing-scene", self.name, self.version, build_earthing_scene,
+                       dependencies=("dcr:earth-fault-study", "dcr:lighting-distribution-scene"), input_patterns=()),
+      TargetDefinition("dcr:earthing-view", self.name, self.version, build_earthing_view,
+                       dependencies=("dcr:earth-fault-study",), input_patterns=(), named_output=True),
       TargetDefinition("dcr:fire-systems", self.name, self.version, build_fire_systems, dependencies=("dcr:architecture",),
                        input_patterns=spatial_inputs("*.sdl.json", "*/module.toml", "fire-systems.json",
                                                      "design-basis.json", "placement.study.json")),

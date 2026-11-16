@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "template": "sheet:a3-landscape",
+  "metadata": "assets/sheets/earthing-electrodes.title.json",
+  "texts": {
+    "notes": "assets/sheets/earthing-electrodes.txt",
+    "footer": "assets/sheets/footer.txt"
+  },
+  "views": {
+    "main": {
+      "path": "build/drawings/views/earthing-electrodes.svg",
+      "scale": "fit"
+    }
+  }
+}

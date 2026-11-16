@@ -1,0 +1,47 @@
+{
+  "schema_version": 1,
+  "state": "assumed",
+  "basis": "TN-S 参考断面。独立 PE 作为相壳故障返回路径，室外联合接地极只进入均匀土壤筛查。设备内中性点和转换极数、安装产品参数及现场土壤待专业核证。",
+  "references": {
+    "GB 55024-2022": "https://www.mohurd.gov.cn/gongkai/zc/wjk/art/2024/art_17339_765632.html",
+    "IEC 60364-4-41": "https://webstore.iec.ch/en/publication/1867",
+    "IEC 60364-5-54": "https://webstore.iec.ch/en/publication/1882"
+  },
+  "ring": {"extent_m": [5.8,3.25,43.4,28.15], "center_z_m": -0.79, "width_mm": 40, "thickness_mm": 4,
+           "cover_limit_m": 0.5, "north_tie_b_z_m": -1.80},
+  "bars": {"terminal_height_m": 0.68, "south_offset_m": 0.50, "body_m": [0.45,0.07,0.16],
+           "source_port_contact_mohm": 0.12, "cabinet_lugs_m": {"A":12.0,"B":20.0}},
+  "steel": {"base_offset_m": 0.255, "terminal_height_m": 0.43, "joint_mohm": 0.25, "north_crossing_z_m": -1.80},
+  "electrodes": {"diameter_m": 0.018, "length_m": 4.5, "rho_ohm_m": 70.0, "max_screening_ohm": 4.5,
+                 "top_xy_m": [[5.8,3.25],[16,3.25],[28,3.25],[43.4,3.25],[43.4,15],[43.4,28.15],
+                              [32,28.15],[16,28.15],[5.8,28.15],[5.8,16]]},
+  "metal": {"copper_hot_ohm_mm2_m": 0.0224, "copper_cold_ohm_mm2_m": 0.0178,
+            "reactance_ohm_per_km": 0.083, "terminal_contact_mohm": 0.22, "main_bond_path_limit_mohm": 85,
+            "adiabatic_k_a_sqrt_s_mm2": 115},
+  "pe": {
+    "critical_feeder": {"section_mm2":95,"outer_m":0.020},
+    "critical_busbar": {"section_mm2":160},
+    "critical_tap": {"section_mm2":35,"outer_m":0.012},
+    "plant": {"section_mm2":120,"outer_m":0.024},
+    "aux": {"section_mm2":70,"outer_m":0.018},
+    "pump": {"section_mm2":50,"outer_m":0.015},
+    "tower": {"section_mm2":50,"outer_m":0.015},
+    "control": {"section_mm2":35,"outer_m":0.012},
+    "lighting_feeder": {"section_mm2":6},
+    "lighting_tap": {"section_mm2":2.5},
+    "metal_bond": {"section_mm2":50}
+  },
+  "fault": {
+    "clearing_limit_s": 0.4,
+    "voltage_v": 230, "minimum_voltage_factor": 0.95, "maximum_voltage_factor": 1.05,
+    "source_profiles": {
+      "inverter": {"max_r_ohm":0.0035,"min_r_ohm":0.0027,"max_x_ohm":0.007,"min_x_ohm":0.004,"min_limit_ka":4.9,"max_limit_ka":7.5,"hold_s":0.46},
+      "battery": {"max_r_ohm":0.0045,"min_r_ohm":0.0031,"max_x_ohm":0.009,"min_x_ohm":0.005,"min_limit_ka":4.3,"max_limit_ka":6.8,"hold_s":0.44},
+      "utility": {"max_r_ohm":0.006,"min_r_ohm":0.004,"max_x_ohm":0.012,"min_x_ohm":0.008},
+      "lighting": {"max_r_ohm":0.24,"min_r_ohm":0.035,"max_x_ohm":0.09,"min_x_ohm":0.021},
+      "generator": {"max_r_ohm":0.009,"min_r_ohm":0.006,"max_x_ohm":0.021,"min_x_ohm":0.013,"hold_s":0.65}
+    },
+    "lighting_magnetic_s": 0.035,
+    "unavailable_pe": []
+  }
+}
