@@ -1694,8 +1694,20 @@ test("mounted artifact previews preserve their viewport when file geometry chang
   };
   let composition = "layer-v1";
   const requests = [];
-  const api = async (url) => {
+  const propertyRequests = [];
+  const api = async (url, body) => {
     const request = new URL(url, "http://studio.local");
+    if (request.pathname === "/api/scene/properties") {
+      propertyRequests.push(body);
+      return {
+        path: body.path,
+        version: body.version,
+        revision: body.revision,
+        properties: Object.fromEntries(
+          body.ids.map((id) => [id, { thickness: { prim: id, value: 0.5, unit: "m" } }]),
+        ),
+      };
+    }
     requests.push(request);
     const version = request.searchParams.get("version");
     return {
@@ -1703,6 +1715,7 @@ test("mounted artifact previews preserve their viewport when file geometry chang
       path: request.searchParams.get("path"),
       version,
       revision: composition,
+      properties_deferred: true,
       objects:
         version === "v1"
           ? [room]
@@ -1967,13 +1980,22 @@ test("mounted artifact previews preserve their viewport when file geometry chang
   assert.equal(quickLook(), null);
   await act(() => container.querySelector('[aria-label="缩小"]').click());
   const clickCanvas = (modifiers = {}) =>
-    act(() => {
+    act(async () => {
       const options = { ...pointer, ...modifiers };
       canvas.dispatchEvent(new window.MouseEvent("pointerdown", options));
       canvas.dispatchEvent(new window.MouseEvent("pointerup", options));
     });
+  assert.equal(requests.at(-1).searchParams.get("view"), "geometry");
+  assert.equal(propertyRequests.length, 0);
   await clickCanvas();
   assert.deepEqual(cards(), ["/Room"]);
+  assert.deepEqual(propertyRequests[0], {
+    path: "build/site.usda",
+    version: "v2",
+    revision: "layer-v2",
+    ids: ["/Room"],
+  });
+  assert.match(container.querySelector(".scene-authored").textContent, /thickness0\.5 m/);
   assert.ok(canvas.parentElement.querySelector(".scene-inspection-overlay [data-inspected]"));
   const treeItems = container.querySelectorAll('.scene-preview-objects [role="treeitem"]');
   const selectedIds = () =>

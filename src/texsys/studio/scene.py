@@ -258,7 +258,8 @@ class ScenePreview:
         _, (_, _, removed) = self._scenes.popitem(last=False)
         self._cache_bytes -= removed
 
-  def read_file(self, relative: str, known_revision: str = "", *, version: str = "", content: str | None = None) -> dict:
+  def read_file(self, relative: str, known_revision: str = "", *, version: str = "",
+                content: str | None = None, geometry_only=False) -> dict:
     """Preview the current document or an unsaved USDA buffer without writing it."""
     from .runtime import Conflict
 
@@ -282,6 +283,9 @@ class ScenePreview:
         raise Conflict("文件已被外部修改，请刷新后预览。")
       if known_revision == scene["revision"]:
         return {"status": "unchanged", "path": relative, "version": scene["version"]}
+      if geometry_only and not draft:
+        return {**scene, "properties_deferred": True,
+                "objects": [{key: value for key, value in obj.items() if key != "properties"} for obj in scene["objects"]]}
       return scene
 
     source_map = mapping()
@@ -353,6 +357,23 @@ class ScenePreview:
         raise ProjectError(f"Cannot preview current USD document: {error}") from error
       self._remember(key, scene, stamps, draft=draft)
       return response(scene)
+
+  def read_properties(self, relative, version, revision, ids):
+    """Read properties of objects in the exact disk scene shown by the caller."""
+    from .runtime import Conflict
+
+    if not isinstance(version, str) or not version or not isinstance(revision, str) or not revision:
+      raise ProjectError("Scene properties require a file version and scene revision.")
+    if not isinstance(ids, list) or not 1 <= len(ids) <= 64 or not all(isinstance(id_, str) and id_ for id_ in ids):
+      raise ProjectError("Request between 1 and 64 USD object identities.")
+    scene = self.read_file(relative, version=version)
+    if revision != scene["revision"]:
+      raise Conflict("USD 场景组合或来源映射已变化，请刷新后查看属性。")
+    wanted = set(ids)
+    rows = {obj["id"]: obj["properties"] for obj in scene["objects"] if obj["id"] in wanted}
+    if rows.keys() != wanted:
+      raise ProjectError("Requested object does not exist in this USD scene.")
+    return {"path": scene["path"], "version": scene["version"], "revision": revision, "properties": rows}
 
   def read(self, known_revision: str = "", *, run: str = "", target: str = "", artifact: str = "") -> dict:
     with self.lock:

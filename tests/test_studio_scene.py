@@ -236,7 +236,11 @@ def test_current_scene_http_uses_file_version_and_previews_buffer_without_writin
   from texsys.studio.files import project_file
 
   initialize_project(tmp_path)
-  _cube(tmp_path / "build/scene.usda", 4)
+  file = tmp_path / "build/scene.usda"
+  _cube(file, 4)
+  stage = Usd.Stage.Open(str(file))
+  stage.GetPrimAtPath("/Cube").CreateAttribute("thickness", Sdf.ValueTypeNames.Double).Set(0.5)
+  stage.Save()
   document = project_file(tmp_path, "build/scene.usda", "build")
   before = (tmp_path / "build/scene.usda").read_bytes()
   calls = []
@@ -252,32 +256,46 @@ def test_current_scene_http_uses_file_version_and_previews_buffer_without_writin
   runtime = SimpleNamespace(root=tmp_path, project=inspected, build=inspected.build)
   handler_type = server.create_server(runtime, frontend=tmp_path, token="scene-test")
 
-  def request(path, content=None, authorized=True):
+  def request(path, body=None, authorized=True):
     handler = object.__new__(handler_type)
     handler.server = SimpleNamespace(server_port=8710)
     handler.path = path
     handler.headers = {"Host": "127.0.0.1:8710", **({"X-Tex-Studio-Token": "scene-test"} if authorized else {})}
     result = []
     handler._send = lambda code, payload: result.extend([code, payload])
-    if content is None:
+    if body is None:
       handler.do_GET()
     else:
-      payload = json.dumps({"path": "build/scene.usda", "version": document["version"], "content": content}).encode()
+      payload = json.dumps(body).encode()
       handler.headers["Content-Length"] = str(len(payload))
       handler.rfile = BytesIO(payload)
       handler.do_POST()
     return result
 
-  current = request("/api/scene?path=build/scene.usda&version=" + document["version"])
+  url = "/api/scene?path=build/scene.usda&version=" + document["version"]
+  current = request(url + "&view=geometry")
   assert current[0] == 200 and current[1]["status"] == "ready"
   assert current[1]["version"] == document["version"]
-  conditional = "/api/scene?path=build/scene.usda&revision=" + current[1]["revision"]
+  assert current[1]["properties_deferred"] is True
+  assert "properties" not in current[1]["objects"][0]
+  expected = {"path": "build/scene.usda", "version": document["version"], "revision": current[1]["revision"], "ids": ["/Cube"]}
+  assert request("/api/scene/properties", expected, authorized=False)[0] == 403
+  code, details = request("/api/scene/properties", expected)
+  assert code == 200 and details["revision"] == current[1]["revision"]
+  full = request(url)[1]
+  assert details["properties"]["/Cube"] == full["objects"][0]["properties"]
+  assert details["properties"]["/Cube"]["thickness"]["value"] == 0.5
+  assert request("/api/scene/properties", {**expected, "revision": "stale"})[0] == 409
+  assert request("/api/scene/properties", {**expected, "ids": ["/missing"]})[0] == 400
+  conditional = url + "&view=geometry&revision=" + current[1]["revision"]
   assert request(conditional)[1]["status"] == "unchanged"
   assert len(calls) == 1
   content = document["content"].replace("double size = 4", "double size = 12")
-  assert request("/api/scene", content, authorized=False)[0] == 403
-  memory = request("/api/scene", content)
+  draft = {"path": "build/scene.usda", "version": document["version"], "content": content}
+  assert request("/api/scene", draft, authorized=False)[0] == 403
+  memory = request("/api/scene", draft)
   assert memory[0] == 200 and memory[1]["objects"][0]["points"][0] == (-6, -6, -6)
+  assert memory[1]["objects"][0]["properties"]["thickness"]["value"] == 0.5
   assert request(conditional)[1]["status"] == "unchanged"
   assert len(calls) == 2
   assert (tmp_path / "build/scene.usda").read_bytes() == before
@@ -286,6 +304,7 @@ def test_current_scene_http_uses_file_version_and_previews_buffer_without_writin
 
 def test_cached_scene_reloads_when_only_a_sublayer_changes(tmp_path, monkeypatch):
   from texsys.studio import scene
+  from texsys.studio.runtime import Conflict
 
   initialize_project(tmp_path)
   layer = tmp_path / "build/layer.usda"
@@ -309,6 +328,10 @@ def test_cached_scene_reloads_when_only_a_sublayer_changes(tmp_path, monkeypatch
   updated = preview.read_file("build/root.usda", baseline["revision"], version=baseline["version"])
   assert updated["revision"] != baseline["revision"]
   assert updated["objects"][0]["points"][0] == (-4, -4, -4)
+  assert len(reloads) == 1
+  with pytest.raises(Conflict):
+    preview.read_properties("build/root.usda", baseline["version"], baseline["revision"], ["/Cube"])
+  assert preview.read_properties("build/root.usda", updated["version"], updated["revision"], ["/Cube"])["properties"] == {"/Cube": {}}
   assert len(reloads) == 1
   layer.unlink()
   with pytest.raises(ProjectError):

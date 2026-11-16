@@ -275,7 +275,9 @@ def create_server(runtime: StudioRuntime, port=8710, frontend=None, token=None, 
         elif parsed.path == "/api/scene":
           query = parse_qs(parsed.query)
           if "path" in query:
-            self._send(200, scene_preview.read_file(query["path"][0], query.get("revision", [""])[0], version=query.get("version", [""])[0]))
+            self._send(200, scene_preview.read_file(query["path"][0], query.get("revision", [""])[0],
+                                                   version=query.get("version", [""])[0],
+                                                   geometry_only=query.get("view") == ["geometry"]))
           else:
             self._send(200, scene_preview.read(query.get("revision", [""])[0], run=query.get("run", [""])[0],
                                       target=query.get("target", [""])[0], artifact=query.get("artifact", [""])[0]))
@@ -375,6 +377,8 @@ def create_server(runtime: StudioRuntime, port=8710, frontend=None, token=None, 
           if not isinstance(body.get("content"), str):
             raise ProjectError("Scene preview requires the current document text.")
           result = scene_preview.read_file(body.get("path"), version=body.get("version", ""), content=body["content"])
+        elif self.path == "/api/scene/properties":
+          result = scene_preview.read_properties(body.get("path"), body.get("version"), body.get("revision"), body.get("ids"))
         elif self.path == "/api/file":
           with runtime.lock:
             result = file_operation(runtime.root, runtime.build, body)

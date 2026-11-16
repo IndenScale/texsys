@@ -24,8 +24,13 @@ type Scene = {
   revision: string;
   objects: ModelObject[];
   source_map?: Record<string, PreviewSource>;
+  properties_deferred?: true;
 };
 type Response = Scene | { status: "empty"; directory: string } | { status: "unchanged" };
+type AuthoredProperties = NonNullable<ModelObject["properties"]>;
+type PropertyResponse = Pick<Scene, "path" | "version" | "revision"> & {
+  properties: Record<string, AuthoredProperties>;
+};
 const sceneBuffers = new WeakMap<
   WorkbenchProps["api"],
   Map<string, { scene: Scene; weight: number }>
@@ -65,6 +70,7 @@ const categories = [
   ["role", "构件类型"],
   ["collection", "集合"],
 ] as const;
+const implicitProperties = new Set(["identity", ...categories.map(([facet]) => facet)]);
 type Category = (typeof categories)[number][0];
 type Filters = Partial<Record<Category, Set<string>>>;
 type ViewportPointer = { x: number; y: number };
@@ -195,10 +201,9 @@ export function ScenePreview({
       if (pending || !pageVisible() || controller.signal.aborted) return;
       pending = true;
       try {
-        const url =
-          revision && !dirty
-            ? `${request.url}&revision=${encodeURIComponent(revision)}`
-            : request.url;
+        const url = dirty
+          ? request.url
+          : `${request.url}&view=geometry${revision ? `&revision=${encodeURIComponent(revision)}` : ""}`;
         const response = await api<Response>(url, request.body, controller.signal);
         if (controller.signal.aborted) return;
         if (response.status === "ready" && (response.path !== path || response.version !== version))
@@ -294,6 +299,67 @@ export function ScenePreview({
       cards: ids.map((id) => byId.get(id)).filter((object): object is ModelObject => !!object),
     }))
     .filter(({ cards }) => cards.length > 0);
+  const propertyScene = scene?.properties_deferred ? scene : undefined;
+  const propertyKey = propertyScene
+    ? JSON.stringify([propertyScene.path, propertyScene.version, propertyScene.revision])
+    : undefined;
+  const [propertyResult, setPropertyResult] = useState<{
+    key: string;
+    values: Map<string, AuthoredProperties | null>;
+  }>();
+  const properties = propertyResult?.key === propertyKey ? propertyResult?.values : undefined;
+  const inspectedIds = useMemo(
+    () => [...new Set([...following, ...pinned])].filter((id) => byId.has(id)),
+    [following, pinned, byId],
+  );
+  const pendingProperties = propertyKey
+    ? JSON.stringify(inspectedIds.filter((id) => !properties?.has(id)).slice(0, 64))
+    : "[]";
+  useEffect(() => {
+    if (!active || !propertyScene || !propertyKey || pendingProperties === "[]") return;
+    const { path, version, revision } = propertyScene;
+    const ids = JSON.parse(pendingProperties) as string[];
+    const controller = new AbortController();
+    const store = (rows: Record<string, AuthoredProperties> | null) => {
+      if (controller.signal.aborted) return;
+      setPropertyResult((previous) => {
+        const values = new Map(previous?.key === propertyKey ? previous.values : undefined);
+        for (const id of ids) values.set(id, rows?.[id] ?? null);
+        if (values.size > 256) {
+          const keep = new Set(inspectedIds);
+          for (const id of values.keys()) {
+            if (values.size <= 256) break;
+            if (!keep.has(id)) values.delete(id);
+          }
+        }
+        return { key: propertyKey, values };
+      });
+    };
+    void api<PropertyResponse>(
+      "/api/scene/properties",
+      { path, version, revision, ids },
+      controller.signal,
+    )
+      .then((response) => {
+        if (
+          response.path === path &&
+          response.version === version &&
+          response.revision === revision
+        )
+          store(response.properties);
+        else store(null);
+      })
+      .catch(() => store(null));
+    return () => controller.abort();
+  }, [active, api, inspectedIds, pendingProperties, propertyKey, propertyScene]);
+  const retryProperties = (id: string) => {
+    setPropertyResult((previous) => {
+      if (!previous || previous.key !== propertyKey) return previous;
+      const values = new Map(previous.values);
+      values.delete(id);
+      return { key: previous.key, values };
+    });
+  };
   const filterOptions = useMemo(
     () =>
       categories
@@ -836,6 +902,11 @@ export function ScenePreview({
                   >
                     {cards.map((inspected) => {
                       const id = inspected.id;
+                      const authored = propertyScene ? properties?.get(id) : inspected.properties;
+                      const authoredRows = Object.entries(authored ?? {}).filter(
+                        ([key]) =>
+                          !key.startsWith("texsys:") || !implicitProperties.has(key.slice(7)),
+                      );
                       const locked = pinned.includes(id);
                       const source = sourceReference(scene, id, inspected.semantic_ref ?? "");
                       const relatedIds = inspected.owner_path
@@ -980,36 +1051,34 @@ export function ScenePreview({
                                 )),
                               )}
                             </dl>
-                            {Object.entries(inspected.properties ?? {}).some(
-                              ([key]) =>
-                                !key.startsWith("texsys:") ||
-                                !["identity", ...categories.map(([facet]) => facet)].includes(
-                                  key.slice(7),
-                                ),
-                            ) && (
+                            {propertyScene && authored === undefined && (
+                              <small>{t("正在读取 USD 属性")}</small>
+                            )}
+                            {authored === null && (
+                              <div className="scene-selection-actions">
+                                <small>{t("无法读取 USD 属性")}</small>
+                                <EditorActionButton
+                                  icon="refresh"
+                                  label={t("重试")}
+                                  onClick={() => retryProperties(id)}
+                                />
+                              </div>
+                            )}
+                            {authoredRows.length > 0 && (
                               <details className="scene-authored" open>
                                 <summary>{t("USD 属性")}</summary>
                                 <dl className="scene-properties">
-                                  {Object.entries(inspected.properties ?? {})
-                                    .filter(
-                                      ([key]) =>
-                                        !key.startsWith("texsys:") ||
-                                        ![
-                                          "identity",
-                                          ...categories.map(([facet]) => facet),
-                                        ].includes(key.slice(7)),
-                                    )
-                                    .map(([key, row]) => (
-                                      <React.Fragment key={key}>
-                                        <dt>{key}</dt>
-                                        <dd title={`${row.prim}\n${String(row.value)}`}>
-                                          {typeof row.value === "number"
-                                            ? inspectionNumber.format(row.value)
-                                            : String(row.value)}
-                                          {row.unit ? " " + row.unit : ""}
-                                        </dd>
-                                      </React.Fragment>
-                                    ))}
+                                  {authoredRows.map(([key, row]) => (
+                                    <React.Fragment key={key}>
+                                      <dt>{key}</dt>
+                                      <dd title={`${row.prim}\n${String(row.value)}`}>
+                                        {typeof row.value === "number"
+                                          ? inspectionNumber.format(row.value)
+                                          : String(row.value)}
+                                        {row.unit ? " " + row.unit : ""}
+                                      </dd>
+                                    </React.Fragment>
+                                  ))}
                                 </dl>
                               </details>
                             )}

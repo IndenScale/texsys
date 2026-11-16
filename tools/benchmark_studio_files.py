@@ -29,7 +29,7 @@ def measure(operation, repeat):
                   "max_ms": max(samples)}
 
 
-def benchmark_http(paths, scenes, repeat):
+def benchmark_http(paths, scenes, repeat, *, scene_geometry=False):
   endpoint = "http://127.0.0.1:8710"
   client = build_opener(ProxyHandler({}))
   with client.open(endpoint, timeout=10) as page:
@@ -59,9 +59,11 @@ def benchmark_http(paths, scenes, repeat):
   for path in scenes:
     document, opening = run("file", {"path": path}, 1)
     query = {"path": path, "version": document["version"]}
+    if scene_geometry:
+      query["view"] = "geometry"
     scene, initial = run("scene", query, 1)
     _, unchanged = run("scene", {**query, "revision": scene["revision"]}, repeat)
-    scene_results.append({"path": path, "objects": len(scene["objects"]), "file": opening,
+    scene_results.append({"path": path, "objects": len(scene["objects"]), "view": query.get("view", "full"), "file": opening,
                           "first": initial, "conditional": unchanged})
   state, state_first = run("state", {"summary": 1}, 1)
   _, state_unchanged = run("state", {"summary": 1, "revision": state["poll_revision"]}, repeat)
@@ -77,12 +79,13 @@ def main():
   parser.add_argument("--file", action="append", dest="files", help="Project-relative file; repeat for multiple files.")
   parser.add_argument("--http", action="store_true", help="Measure the existing Studio session at 127.0.0.1:8710.")
   parser.add_argument("--scene", action="append", default=[], help="USD path for --http; repeat for multiple scenes.")
+  parser.add_argument("--scene-geometry", action="store_true", help="Measure the geometry response used by Studio's USD viewport.")
   parser.add_argument("--shared", action="store_true", help="Reuse one preview service in direct-call mode.")
   parser.add_argument("--repeat", type=int, default=5)
   parser.add_argument("--output", type=Path, required=True)
   args = parser.parse_args()
-  if args.repeat < 1 or (args.scene and not args.http):
-    parser.error("Use a positive --repeat and pair --scene with --http.")
+  if args.repeat < 1 or ((args.scene or args.scene_geometry) and not args.http):
+    parser.error("Use a positive --repeat and pair scene options with --http.")
   root = args.project.resolve()
   project = inspect_project(root)
   if project is None and not args.http:
@@ -98,7 +101,7 @@ def main():
             "scope": "Sequential backend calls in one process; includes filesystem/runtime caches, excludes HTTP and editor rendering.",
             "files": []}
   if args.http:
-    report.update(benchmark_http(paths, args.scene, args.repeat))
+    report.update(benchmark_http(paths, args.scene, args.repeat, scene_geometry=args.scene_geometry))
   else:
     previews = ProjectPreview(root, project.build) if args.shared else None
     for path in paths:

@@ -1621,6 +1621,8 @@ export const englishMessages: Record<string, string> = {
   暂不支持显示源代码: "Source code cannot be displayed",
   无法预览此文件: "Cannot preview this file",
   场景响应与当前文件不匹配: "Scene response does not match the current file",
+  "正在读取 USD 属性": "Loading USD properties",
+  "无法读取 USD 属性": "Could not load USD properties",
   包络几何: "Envelope geometry",
   网格几何: "Mesh geometry",
   调整大纲高度: "Adjust outline height",

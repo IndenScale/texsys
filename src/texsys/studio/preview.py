@@ -3,6 +3,7 @@
 import hashlib
 import json
 from collections import OrderedDict, defaultdict
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 import re
 from stat import S_ISDIR, S_ISREG
@@ -20,6 +21,8 @@ _RUN = re.compile(r"[A-Za-z0-9_-]{1,128}\Z")
 _MAX_HISTORICAL_REPORT_BYTES = 16 * 1024 * 1024
 _INDEX_FORMAT = 1
 _MAX_DISK_INDEX_BYTES = 8 * 1024 * 1024
+_HISTORY_STAT_WORKERS = 8
+_HISTORY_STAT_POOL = ThreadPoolExecutor(max_workers=_HISTORY_STAT_WORKERS, thread_name_prefix="studio-history")
 
 
 def file_stamp(path: Path):
@@ -101,6 +104,18 @@ class ProjectPreview:
     except (OSError, ProjectError):
       return None
 
+  def _history_stamps_match(self, stamps):
+    def matches(batch):
+      return all(self._history_stamp(run) == stamp for run, stamp in batch)
+
+    # On shared volumes a series of independent stat calls can dominate an
+    # unchanged preview request. Keep short lineages in the request thread.
+    if len(stamps) < 32:
+      return matches(stamps.items())
+    entries = list(stamps.items())
+    batches = [entries[offset::_HISTORY_STAT_WORKERS] for offset in range(_HISTORY_STAT_WORKERS)]
+    return all(_HISTORY_STAT_POOL.map(matches, batches))
+
   def _metadata_report(self):
     path = self.build / "build.json"
     try:
@@ -138,7 +153,7 @@ class ProjectPreview:
       if (not reports or reports[0] != latest["run_id"] or len(reports) > MAX_HISTORY
           or len(stamps) > MAX_HISTORY or any(not _RUN.fullmatch(run) for run in stamps)
           or any(run not in stamps for run in reports[1:])
-          or any(self._history_stamp(run) != stamp for run, stamp in stamps.items())):
+          or not self._history_stamps_match(stamps)):
         return None
       records = {(target, identifier): matches for target, identifier, matches in index["records"]}
       identities = {path: {tuple(identity) for identity in matching} for path, matching in index["paths"].items()}
@@ -178,8 +193,7 @@ class ProjectPreview:
       runs = None
     except (OSError, ProjectError):
       return () if latest is None else ((latest, latest["artifacts"]),)
-    if cached is not None and (cached[0] != runs or any(
-        self._history_stamp(run) != stamp for run, stamp in cached[1].items())):
+    if cached is not None and (cached[0] != runs or not self._history_stamps_match(cached[1])):
       cached = None
     cached = cached if cached is not None else self._load_index(latest, runs)
     if cached is None:
