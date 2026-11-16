@@ -12,7 +12,7 @@ build = "build"
 default_targets = ["review-package"]
 
 [dependencies]
-datacenter-reference = { path = "../../packages/datacenter-reference", version = "0.26.0" }
+datacenter-reference = { path = "../../packages/datacenter-reference", version = "0.27.0" }
 sheet = { path = "../../packages/sheet", version = "0.2.0" }
 
 [build.targets.review-package]
@@ -76,6 +76,13 @@ dependencies = [
   "dcr:lighting-distribution-scene",
   "dcr:earth-fault-check",
   "dcr:earthing-scene",
+  "dcr:lightning-check",
+  "dcr:lightning-scene",
+  "sheet-lightning-roof",
+  "sheet-lightning-coverage",
+  "sheet-lightning-section",
+  "sheet-lightning-surge",
+  "sheet-lightning-checks",
   "sheet-earthing-site",
   "sheet-earthing-hall",
   "sheet-earthing-section",
@@ -1190,3 +1197,58 @@ using = "sheet:compose"
 dependencies = ["plan-earthing-fault"]
 scope = { source = "assets/sheets/earthing-fault.sheet.json" }
 output = "build/drawings/sheets/earthing-fault.svg"
+
+[build.targets.plan-lightning-roof]
+using = "dcr:lightning-view"
+output = "build/drawings/views/lightning-roof.svg"
+scope = { view = "roof" }
+
+[build.targets.sheet-lightning-roof]
+using = "sheet:compose"
+dependencies = ["plan-lightning-roof"]
+scope = { source = "assets/sheets/lightning-roof.sheet.json" }
+output = "build/drawings/sheets/lightning-roof.svg"
+
+[build.targets.plan-lightning-coverage]
+using = "dcr:lightning-view"
+output = "build/drawings/views/lightning-coverage.svg"
+scope = { view = "coverage" }
+
+[build.targets.sheet-lightning-coverage]
+using = "sheet:compose"
+dependencies = ["plan-lightning-coverage"]
+scope = { source = "assets/sheets/lightning-coverage.sheet.json" }
+output = "build/drawings/sheets/lightning-coverage.svg"
+
+[build.targets.plan-lightning-section]
+using = "dcr:lightning-view"
+output = "build/drawings/views/lightning-section.svg"
+scope = { view = "section" }
+
+[build.targets.sheet-lightning-section]
+using = "sheet:compose"
+dependencies = ["plan-lightning-section"]
+scope = { source = "assets/sheets/lightning-section.sheet.json" }
+output = "build/drawings/sheets/lightning-section.svg"
+
+[build.targets.plan-lightning-surge]
+using = "dcr:lightning-view"
+output = "build/drawings/views/lightning-surge.svg"
+scope = { view = "surge" }
+
+[build.targets.sheet-lightning-surge]
+using = "sheet:compose"
+dependencies = ["plan-lightning-surge"]
+scope = { source = "assets/sheets/lightning-surge.sheet.json" }
+output = "build/drawings/sheets/lightning-surge.svg"
+
+[build.targets.plan-lightning-checks]
+using = "dcr:lightning-view"
+output = "build/drawings/views/lightning-checks.svg"
+scope = { view = "checks" }
+
+[build.targets.sheet-lightning-checks]
+using = "sheet:compose"
+dependencies = ["plan-lightning-checks"]
+scope = { source = "assets/sheets/lightning-checks.sheet.json" }
+output = "build/drawings/sheets/lightning-checks.svg"

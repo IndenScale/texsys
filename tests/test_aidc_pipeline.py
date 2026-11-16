@@ -72,7 +72,7 @@ def test_aidc_deliverables_bind_to_the_same_geometry_and_recompute_the_fws_head(
   assert dossier["engineering_acceptance"] == "pending-responsible-review"
   compiled_sheets = sorted((root / "build/drawings/sheets").glob("*.svg"))
   drawing_numbers = {ET.parse(path).getroot().get("data-drawing-number") for path in compiled_sheets}
-  assert len(compiled_sheets) == len(drawing_numbers) == 93 and None not in drawing_numbers
+  assert len(compiled_sheets) == len(drawing_numbers) == 98 and None not in drawing_numbers
   old_dossier = file_digest(root / "build/review/aidc-discipline-review.json")
   drawing = root / "build/drawings/sheets/fws-network.svg"
   old_route_drawing = file_digest(drawing)
@@ -89,6 +89,7 @@ def test_aidc_deliverables_bind_to_the_same_geometry_and_recompute_the_fws_head(
   _check_emergency_lighting_delivery(root)
   _check_lighting_distribution_delivery(root)
   _check_earthing_delivery(root)
+  _check_lightning_delivery(root)
   _check_storm_delivery(root)
   _check_fws_network_delivery(root)
   _check_building_delivery(root)
@@ -750,6 +751,74 @@ def test_aidc_earthing_recalculates_and_keeps_diagnostic_drawings(tmp_path):
   result, status = _run(root,check)
   assert result.status != "pass"
   assert status["dcr:earthing"]["status"] == "indeterminate"
+
+
+def _check_lightning_delivery(root):
+  from texsys.studio.scene import _geometry
+
+  network = _read(root / MODEL / "lightning-roof.json")
+  study = _read(root / MODEL / "lightning-study.json")
+  gravity = _read(root / MODEL / "structure-gravity.json")
+  assert len(network["masts"]) == len(study["continuity"]["downleads"]) == 12
+  assert len(network["links"]) == 22
+  assert max(study["continuity"]["perimeter_pitch_m"].values()) == pytest.approx(9.5)
+  assert len(study["continuity"]["cases"]) == 13
+  assert all(not row["disconnected"] for row in study["continuity"]["cases"].values())
+  assert len(study["coverage"]["targets"]) == 138
+  assert min(row["minimum_margin_m"] for row in study["coverage"]["targets"].values()) > 0
+  assert sum(row["mass_kg"] for row in network["masts"].values())*.00980665 == pytest.approx(
+    sum(gravity["lightning_mast_weight_by_node_kn"].values()))
+  assert gravity["roof_dead_with_transfer_kpa"] < .8
+  assert len(study["surge_protection"]) == 4
+  assert study["surge_protection"]["SPD-A-TRANSFER"]["installed_protection_kv"] == pytest.approx(1.6+.4*.6*3.)
+  stage = Usd.Stage.Open(str(root / "build/scenes/aidc-lightning-coordinated.usda"))
+  assert stage.GetPrimAtPath("/AIDC/Lightning/AirTerminals/AT_3_C/Mast").GetAttribute("texsys:identity").Get() == "AT-3-C"
+  assert stage.GetPrimAtPath("/AIDC/ProtectiveEarthing/Electrodes/ER_07").IsValid()
+  assert stage.GetPrimAtPath("/AIDC/Lightning/Surge/SPD_A_TRANSFER/Body").IsValid()
+  air = UsdGeom.Imageable(stage.GetPrimAtPath("/AIDC/Air"))
+  assert air.ComputeVisibility() == UsdGeom.Tokens.invisible
+  assert any(row["name"]=="AT-3-C" for row in _geometry(stage,{}))
+  for view,no in (("roof",25),("coverage",26),("section",27),("surge",28),("checks",29)):
+    svg = ET.parse(root / f"build/drawings/sheets/lightning-{view}.svg")
+    assert svg.getroot().get("data-drawing-number") == f"AIDC-E-{no:03}"
+
+
+def test_aidc_lightning_height_and_spd_changes_recompute_affected_outputs(tmp_path):
+  root = _checkout(tmp_path)
+  check, drawing, gravity = "dcr:lightning-check","sheet-lightning-coverage","dcr:structure-gravity"
+  result, _ = _run(root,check,drawing,gravity)
+  assert result.status == "pass", result.diagnostics
+  mast_path = root / "src/lightning-roof.json"
+  original = _read(mast_path)
+  config = _read(mast_path)
+  report = root / MODEL / "structure-gravity.json"
+  original_weight = _read(report)["lightning_mast_weight_by_node_kn"]["C-1-C"]
+  config["roof"]["mast_height_m"]["1-C"] = 2
+  write_json(mast_path,config)
+  result, status = _run(root,check,drawing,gravity)
+  assert result.status == "fail" and status[drawing]["status"] == "pass"
+  assert "AIDC_LIGHTNING_ROLLING_SPHERE" in {row["rule"] for row in status[check]["diagnostics"]}
+  assert _read(report)["lightning_mast_weight_by_node_kn"]["C-1-C"] < original_weight
+
+  write_json(mast_path,original)
+  rest = root / "src/lightning.json"
+  surge = _read(rest)
+  surge["surge"]["local_lead_m"]["transfer"] = [.16,.43]
+  write_json(rest,surge)
+  result, status = _run(root,check,"sheet-lightning-surge",gravity)
+  assert result.status == "fail" and status["sheet-lightning-surge"]["status"] == "pass"
+  assert {"SPD-A-TRANSFER","SPD-B-TRANSFER"} <= {row["objects"][0] for row in status[check]["diagnostics"]}
+  assert _read(report)["lightning_mast_weight_by_node_kn"]["C-1-C"] == pytest.approx(original_weight)
+
+
+def test_rolling_sphere_contact_bound_matches_vertical_analytic_solution():
+  import numpy as np
+
+  from texsys_datacenter_reference.lightning_coverage import bounded_contacts
+
+  nominal,alternative,_ = bounded_contacts(np.zeros((1,3)),np.zeros(1),np.array([[0.,0.,2.],[0.,0.,1.]]),20,0,.05)
+  assert nominal == pytest.approx([2-4/40])
+  assert alternative == pytest.approx([1-1/40])
 
 
 def test_aidc_lighting_distribution_rejects_double_weld_and_undersized_protection(tmp_path):

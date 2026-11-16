@@ -21,6 +21,8 @@ from .site_storm import MODEL as STORM
 from .spatial_design import MODELS, artifact, source_path, staged_json
 from .telecom_coordination import _prim
 
+SCENE = "scenes/aidc-earthing-coordinated.usda"
+
 _STYLE = """
 .earth-ring{fill:none;stroke:#217755;stroke-width:.15}
 .earth-bond{fill:none;stroke:#38699a;stroke-width:.12}
@@ -247,7 +249,7 @@ def build_earthing_scene(context):
       stage.SetDefaultPrim(UsdGeom.Xform.Define(stage,"/AIDC").GetPrim())
     _draw_scene(stage,model,source,identities)
     key = "aidc-earthing-coordinated" if combined else "aidc-earthing"
-    path = context.build_path/f"scenes/{key}.usda"
+    path = context.build_path/(SCENE if combined else f"scenes/{key}.usda")
     path.parent.mkdir(parents=True,exist_ok=True)
     if not stage.Flatten(False).Export(str(path)):
       raise OSError(f"Export failed for {path.name}.")

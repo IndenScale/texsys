@@ -186,6 +186,9 @@ def _gravity_check(model, loads, roof, roof_transfer):
   columns = {key: dict.fromkeys(combinations, 0.) for key, val in members.items() if val["kind"] == "column"}
   checks, diagnostics = {}, []
   steel_weight = dict.fromkeys(combinations, 0.)
+  attachment_loads = roof["lightning_mast_kn_by_column"]
+  if attachment_loads.keys()-columns.keys():
+    raise ValueError("Lightning mast support must resolve to a primary column.")
   girder_actions = roof["girder_actions"]
   if set(girder_actions) != {key for key, row in members.items() if row["kind"] == "girder"}:
     raise ValueError("Roof reactions must be accounted for on all declared primary girders.")
@@ -214,7 +217,7 @@ def _gravity_check(model, loads, roof, roof_transfer):
     own = members[key]["physical_volume_m3"] * steel + roof_transfer[key]
     for case, (permanent, _) in combinations.items():
       steel_weight[case] += own * permanent
-      forces[case] += own * permanent
+      forces[case] += (own+attachment_loads.get(key,0))*permanent
     checks[key] = {"kind": "column", "base_kn": forces, "utilization": {"axial": forces["strength"] / axial_limit}}
     pad = members[key]["pad"]
     pad_weight = members[pad]["physical_volume_m3"] * concrete
@@ -231,11 +234,12 @@ def _gravity_check(model, loads, roof, roof_transfer):
   balances = {}
   for case in combinations:
     roof_load = roof["equilibrium"][case]["delivered_kn"]
-    applied = roof_load + steel_weight[case]
+    attachments = sum(attachment_loads.values())*combinations[case][0]
+    applied = roof_load + steel_weight[case] + attachments
     reactions = sum(force[case] for force in columns.values())
     if not math.isclose(applied, reactions, abs_tol=1e-7):
       raise ValueError(f"Gravity equilibrium does not close for {case}.")
-    balances[case] = {"roof_kn": roof_load, "steel_kn": steel_weight[case],
+    balances[case] = {"roof_kn": roof_load, "steel_kn": steel_weight[case], "lightning_masts_kn":attachments,
                       "column_reactions_kn": reactions, "residual_kn": applied - reactions}
   return checks, balances, diagnostics
 
@@ -257,7 +261,8 @@ def build_gravity(context):
     for node in row["nodes"]:
       weights[node] += row["free_length_m"]*row["area_m2"]*steel/2+end_weight
   checks, equilibrium, failures = _gravity_check(model, loads, roof, weights)
-  combined = (roof["dead_weight_kn"]+sum(weights.values()))/roof["gross_area_m2"]
+  mast_weights = roof["lightning_mast_kn_by_column"]
+  combined = (roof["dead_weight_kn"]+sum(weights.values())+sum(mast_weights.values()))/roof["gross_area_m2"]
   if combined > roof["dead_budget_kpa"]:
     failures.append({"rule": "AIDC_GRAVITY_ROOF_DEAD", "status": "fail", "objects": ["roof", "roof-transfer"],
                      "message": f"Roof with load-transfer steel weighs {combined:.3f} kPa versus the roof budget."})
@@ -266,5 +271,6 @@ def build_gravity(context):
     "roof_actions_digest": file_digest(context.build_path / roof_model), "roof_reactions": roof["girder_actions"],
     "roof_transfer_digest": file_digest(context.build_path/path_model), "roof_transfer_weight_by_node_kn": weights,
     "roof_dead_with_transfer_kpa": combined, "equilibrium": equilibrium,
-    "method": "Purlin point reactions, roof tie weight at end joints, axial columns and concentric footing bearing.",
+    "lightning_mast_weight_by_node_kn":mast_weights,
+    "method": "Purlin reactions with mesh weight, roof tie and mast weights at structural nodes, and concentric footing bearing.",
   }, failures)

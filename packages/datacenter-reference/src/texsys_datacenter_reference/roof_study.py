@@ -7,6 +7,7 @@ from texsys.evidence import file_digest
 from texsys.targets import TargetResult
 from texsys_structure.beam import simple_beam
 
+from .lightning_roof import MODEL as LIGHTNING_ROOF
 from .roof import LAYERS, MODEL, _issue, _schedule
 from .spatial_design import MODELS, missing_input, model_report, number, source_path, staged_json
 from .structure import _assumptions
@@ -19,6 +20,10 @@ def build_roof_actions(context):
   loads = _assumptions(source)
   roof = staged_json(context, MODEL)
   config = roof["assumptions"]
+  lightning = staged_json(context,LIGHTNING_ROOF)
+  net_weight = .00980665*lightning["mesh_mass_kg"]
+  mast_weights = {row["column"]:.00980665*row["mass_kg"] for row in lightning["masts"].values()}
+  gross = sum(row["gross_area_m2"] for row in roof["panels"].values())
   size = config["purlins"]
   b, h, t = (number(size[key], f"purlin {key}") for key in ("width_m", "depth_m", "wall_m"))
   if 2*t >= min(b, h):
@@ -31,6 +36,7 @@ def build_roof_actions(context):
   elasticity = 1e6*number(loads["elastic_modulus_gpa"], "elastic modulus")
   live = number(loads["roof_live_kpa"], "roof live pressure", zero=True)
   miscellaneous = number(config["miscellaneous_dead_kpa"], "attachment weight allowance", zero=True)
+  miscellaneous += net_weight/gross
   combinations = {"service": (1, 1), "strength": tuple(number(loads["strength_factors"][item], item)
                                                      for item in ("permanent", "variable"))}
   members, girder_actions, issues = {}, {}, []
@@ -72,7 +78,6 @@ def build_roof_actions(context):
     if not isclose(applied, delivered, abs_tol=1e-8):
       raise ValueError(f"Purlin to girder equilibrium failed for {case}.")
     balances[case] = {"applied_kn": applied, "delivered_kn": delivered, "residual_kn": applied-delivered}
-  gross = sum(row["gross_area_m2"] for row in roof["panels"].values())
   allocated = sum(row["gross_area_m2"] for row in roof["purlins"].values())
   if not isclose(allocated, gross, abs_tol=1e-8):
     raise ValueError("Roof deck tributary area must be allocated exactly once.")
@@ -86,6 +91,8 @@ def build_roof_actions(context):
     _issue(issues, "DEAD_BUDGET", ["roof"], f"Extracted roof weight {total_dead/gross:.3f} kPa exceeds {dead_budget:.3f} kPa.")
   report = model_report(context, "roof-actions", {
     "assembly_digest": file_digest(context.build_path / MODEL), "load_source_digest": file_digest(source),
+    "lightning_roof_digest": file_digest(context.build_path/LIGHTNING_ROOF),
+    "lightning_mesh_kn_on_purlins": net_weight,"lightning_mast_kn_by_column": mast_weights,
     "members": members, "girder_actions": girder_actions, "equilibrium": balances,
     "gross_area_m2": gross, "dead_weight_kn": total_dead, "dead_kpa": total_dead/gross,
     "dead_budget_kpa": dead_budget, "live_weight_kn": total_live,

@@ -53,6 +53,9 @@ from .lateral_views import build_lateral_view
 from .earthing import build_earthing
 from .earthing_delivery import build_earthing_scene, build_earthing_view
 from .earth_fault import build_earth_fault_check, build_earth_fault_study
+from .lightning import build_lightning, build_lightning_check
+from .lightning_delivery import build_lightning_scene, build_lightning_view
+from .lightning_roof import build_lightning_roof
 from .lighting_distribution import build_lighting_distribution
 from .lighting_distribution_scene import build_lighting_distribution_scene
 from .lighting_distribution_study import build_lighting_distribution_check, build_lighting_distribution_study
@@ -94,7 +97,7 @@ from .wet_utility_views import build_wet_view
 
 class DatacenterReferencePackage(TexsysPackage):
   name = "datacenter-reference"
-  version = "0.26.0"
+  version = "0.27.0"
 
   def targets(self) -> tuple[TargetDefinition, ...]:
     return (
@@ -168,6 +171,17 @@ class DatacenterReferencePackage(TexsysPackage):
                        dependencies=("dcr:earth-fault-study", "dcr:lighting-distribution-scene"), input_patterns=()),
       TargetDefinition("dcr:earthing-view", self.name, self.version, build_earthing_view,
                        dependencies=("dcr:earth-fault-study",), input_patterns=(), named_output=True),
+      TargetDefinition("dcr:lightning-roof", self.name, self.version, build_lightning_roof,
+                       dependencies=("dcr:roof-assembly",), input_patterns=spatial_inputs("lightning-roof.json")),
+      TargetDefinition("dcr:lightning-study", self.name, self.version, build_lightning,
+                       dependencies=("dcr:lightning-roof", "dcr:earth-fault-study"),
+                       input_patterns=spatial_inputs("lightning.json")),
+      TargetDefinition("dcr:lightning-check", self.name, self.version, build_lightning_check,
+                       dependencies=("dcr:lightning-study",), input_patterns=()),
+      TargetDefinition("dcr:lightning-scene", self.name, self.version, build_lightning_scene,
+                       dependencies=("dcr:lightning-study", "dcr:earthing-scene"), input_patterns=()),
+      TargetDefinition("dcr:lightning-view", self.name, self.version, build_lightning_view,
+                       dependencies=("dcr:lightning-study",), input_patterns=(), named_output=True),
       TargetDefinition("dcr:fire-systems", self.name, self.version, build_fire_systems, dependencies=("dcr:architecture",),
                        input_patterns=spatial_inputs("*.sdl.json", "*/module.toml", "fire-systems.json",
                                                      "design-basis.json", "placement.study.json")),
@@ -359,7 +373,7 @@ class DatacenterReferencePackage(TexsysPackage):
       TargetDefinition("dcr:site-storm-study-view", self.name, self.version, build_site_storm_view,
                        dependencies=("dcr:site-storm-study",), input_patterns=(), named_output=True),
       TargetDefinition("dcr:roof-actions", self.name, self.version, build_roof_actions,
-                       dependencies=("dcr:roof-assembly",), input_patterns=spatial_inputs("structure-loads.json")),
+                       dependencies=("dcr:roof-assembly", "dcr:lightning-roof"), input_patterns=spatial_inputs("structure-loads.json")),
       TargetDefinition("dcr:roof-gravity-check", self.name, self.version, build_roof_gravity_check,
                        dependencies=("dcr:roof-actions",), input_patterns=()),
       TargetDefinition("dcr:roof-drainage", self.name, self.version, build_roof_drainage,

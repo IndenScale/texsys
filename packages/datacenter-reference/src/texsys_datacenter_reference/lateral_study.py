@@ -57,8 +57,10 @@ def _weights(frame, bracing, gravity, roof_actions, config):
       live[end] += force*share_end
   dead = {name: gravity["checks"][name]["base_kn"]["service"]-force for name, force in live.items()}
   roof_tie_weight = sum(gravity["roof_transfer_weight_by_node_kn"].values())
+  mast_weight = sum(gravity["lightning_mast_weight_by_node_kn"].values())
+  expected_dead = roof_actions["dead_weight_kn"]+sum(steel.values())+roof_tie_weight+mast_weight
   if (not isclose(sum(live.values()), roof_actions["live_weight_kn"], abs_tol=1e-7)
-      or not isclose(sum(dead.values()), roof_actions["dead_weight_kn"]+sum(steel.values())+roof_tie_weight, abs_tol=1e-7)):
+      or not isclose(sum(dead.values()),expected_dead,abs_tol=1e-7)):
     raise ValueError("The permanent and live roof reactions must balance at the primary columns.")
   rods = 0.
   vertical_rod_by_node = dict.fromkeys(dead, 0.)
@@ -75,7 +77,7 @@ def _weights(frame, bracing, gravity, roof_actions, config):
   components = {
     "roof_dead_kn": roof_actions["dead_weight_kn"], "steel_effective_kn": elevated_steel,
     "rods_effective_kn": rods/2, "roof_live_part_kn": config["roof_live_mass_fraction"]*sum(live.values()),
-    "additional_roof_mass_kn": extra, "roof_transfer_weight_kn": roof_tie_weight,
+    "additional_roof_mass_kn": extra, "roof_transfer_weight_kn": roof_tie_weight, "lightning_mast_weight_kn": mast_weight,
   }
   if not isclose(sum(nodal_mass.values()), sum(components.values()), abs_tol=1e-7):
     raise ValueError("Lumped roof nodal weights do not sum to the effective seismic weight.")

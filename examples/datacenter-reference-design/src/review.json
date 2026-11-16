@@ -156,6 +156,7 @@
         "build/schedules/aidc-structure.csv",
         "build/datacenter-reference/spatial/structure.json",
         "build/datacenter-reference/spatial/structure-gravity.json",
+        "build/datacenter-reference/spatial/lightning-roof.json",
         "build/drawings/sheets/roof-secondary.svg",
         "build/drawings/sheets/roof-secondary-sheet.json",
         "build/datacenter-reference/spatial/roof-actions.json",
@@ -352,14 +353,32 @@
         "build/drawings/sheets/earthing-electrodes.svg",
         "build/drawings/sheets/earthing-electrodes-sheet.json",
         "build/drawings/sheets/earthing-fault.svg",
-        "build/drawings/sheets/earthing-fault-sheet.json"
+        "build/drawings/sheets/earthing-fault-sheet.json",
+        "build/drawings/sheets/lightning-roof.svg",
+        "build/drawings/sheets/lightning-roof-sheet.json",
+        "build/drawings/sheets/lightning-coverage.svg",
+        "build/drawings/sheets/lightning-coverage-sheet.json",
+        "build/drawings/sheets/lightning-section.svg",
+        "build/drawings/sheets/lightning-section-sheet.json",
+        "build/drawings/sheets/lightning-surge.svg",
+        "build/drawings/sheets/lightning-surge-sheet.json",
+        "build/drawings/sheets/lightning-checks.svg",
+        "build/drawings/sheets/lightning-checks-sheet.json",
+        "build/scenes/aidc-lightning.usda",
+        "build/scenes/aidc-lightning-coordinated.usda",
+        "build/datacenter-reference/spatial/lightning-roof.json",
+        "build/datacenter-reference/spatial/lightning-study.json",
+        "build/datacenter-reference/spatial/lightning-check.json",
+        "build/schedules/aidc-lightning-conductors.csv",
+        "build/schedules/aidc-lightning-coverage.csv",
+        "build/schedules/aidc-lightning-spds.csv"
       ],
       "pending": [
         "厂家时间电流曲线和相壳故障级配、源侧接地及转换极数、全场并联及动态切换试验",
         "屋面孔洞节点及封堵、耐候选型、弯曲半径与支架、载流量实测修正和谐波分析",
         "各冷源转换柜的机械电气联锁、脱扣和电机再启动、穿管热环境、共用发电机指令及独立黑启动、补水泵与照明检修配电、电源侧中压及发电机输出安装",
         "应急照明充电盘及分支已编译候选布线。实际电源阻抗、断路器级配、接地、线缆与接头、充电和联动验收",
-        "中轴柱脚连接节点、土壤分层和实测、接地体的接触及跨步电压与独立防雷校核"
+        "中轴柱脚连接节点、土壤分层和实测、接地体的接触及跨步电压，现场防雷类别及场外地形、室外独立设备和油区防雷、厂家浪涌级配及信号进线"
       ]
     },
     "mechanical": {

@@ -1,0 +1,75 @@
+{
+  "schema_version": 1,
+  "state": "assumed",
+  "basis": "主机房外部防雷候选断面。场址危险度、独立冷源和备用发电区、实际厂家配合和现场检测保留专业审查。",
+  "references": {
+    "GB 50057-2010": "https://ebook.chinabuilding.com.cn/zbooklib/book/detail/show?SiteID=1&bookID=60329",
+    "IEC 62305-4:2024": "https://webstore.iec.ch/en/publication/29590"
+  },
+  "downs": {
+    "west_x_m": 7.48,
+    "east_x_m": 40.53,
+    "south_y_m": 5.79,
+    "north_y_m": 26.22,
+    "test_joint_z_m": 1.2,
+    "minimum_clearance_m": 0.08,
+    "maximum_perimeter_pitch_m": 12,
+    "copper_rho_ohm_mm2_m": 0.0178,
+    "joint_mohm": 0.35,
+    "maximum_path_mohm": 45,
+    "unavailable": []
+  },
+  "coverage": {
+    "rolling_sphere_m": 45,
+    "assumed_surrounding_ground_floor_m": -0.5,
+    "sample_pitch_m": 0.45,
+    "angle_step_deg": 1.5,
+    "service_frame_xy_m": [
+      3.5,
+      6.0,
+      41.1,
+      29.7
+    ],
+    "minimum_service_z_m": 5.3
+  },
+  "surge": {
+    "candidate_supply_ll_v": 400,
+    "maximum_operating_factor": 1.1,
+    "effective_lead_inductance_uh_per_m": 0.6,
+    "max_total_lead_m": 0.5,
+    "stages": {
+      "transfer": {
+        "bus": "TransferBus1",
+        "class": "T1+T2",
+        "uc_v": 275,
+        "up_kv": 1.6,
+        "di_dt_ka_us": 3.0,
+        "withstand_kv": 4.0,
+        "duty": "10/350 µs",
+        "impulse_ka": 25,
+        "min_impulse_ka": 12.5
+      },
+      "outgoing": {
+        "bus": "OutputBus1",
+        "class": "T2",
+        "uc_v": 275,
+        "up_kv": 1.2,
+        "di_dt_ka_us": 4.0,
+        "withstand_kv": 2.5,
+        "duty": "8/20 µs",
+        "impulse_ka": 25,
+        "min_impulse_ka": 20
+      }
+    },
+    "local_lead_m": {
+      "transfer": [
+        0.16,
+        0.24
+      ],
+      "outgoing": [
+        0.17,
+        0.23
+      ]
+    }
+  }
+}
