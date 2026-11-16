@@ -16,7 +16,7 @@ from .files import MAX_PREVIEW_BYTES, file_version, version as content_version, 
 USD_SUFFIXES = {".usd", ".usda", ".usdc"}
 _MAX_LAYER_BYTES = 32 * 1024 * 1024
 _MAX_LAYERS = 64
-_MAX_ELEMENTS = 120_000
+_MAX_ELEMENTS = 150_000
 _BOX_FACES = ((0, 1, 3, 2), (4, 6, 7, 5), (0, 4, 5, 1),
               (2, 3, 7, 6), (0, 2, 6, 4), (1, 5, 7, 3))
 

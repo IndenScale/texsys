@@ -21,6 +21,10 @@ from .equipment_foundation_coordination import build_equipment_foundation_coordi
 from .equipment_foundation_study import build_equipment_foundation_check, build_equipment_foundation_study
 from .equipment_foundation_views import build_equipment_foundation_view
 from .equipment_foundations import build_equipment_foundations
+from .exit_access import build_exit_access
+from .exit_access_checks import build_exit_access_check, build_exit_access_study
+from .exit_access_scene import build_exit_access_scene
+from .exit_access_views import build_exit_access_view
 from .facility_power import build_facility_coordination, build_facility_power
 from .facility_power_scene import build_facility_power_scene
 from .facility_power_study import build_facility_power_check, build_facility_power_study
@@ -79,7 +83,7 @@ from .wet_utility_views import build_wet_view
 
 class DatacenterReferencePackage(TexsysPackage):
   name = "datacenter-reference"
-  version = "0.22.2"
+  version = "0.23.0"
 
   def targets(self) -> tuple[TargetDefinition, ...]:
     return (
@@ -106,6 +110,19 @@ class DatacenterReferencePackage(TexsysPackage):
                        dependencies=("dcr:architecture", "dcr:structure-model", "dcr:pod-layout"), input_patterns=()),
       TargetDefinition("dcr:fire-egress", self.name, self.version, build_egress_check, dependencies=("dcr:egress-model",),
                        input_patterns=spatial_inputs("design-basis.json")),
+      TargetDefinition("dcr:exit-access", self.name, self.version, build_exit_access,
+                       dependencies=("dcr:architecture",), input_patterns=spatial_inputs("exit-access.json")),
+      TargetDefinition("dcr:exit-access-study", self.name, self.version, build_exit_access_study,
+                       dependencies=("dcr:exit-access", "dcr:egress-model", "dcr:site-grading", "dcr:facility-power",
+                                     "dcr:equipment-foundations", "dcr:telecom"), input_patterns=()),
+      TargetDefinition("dcr:exit-access-check", self.name, self.version, build_exit_access_check,
+                       dependencies=("dcr:exit-access-study",), input_patterns=()),
+      TargetDefinition("dcr:exit-access-scene", self.name, self.version, build_exit_access_scene,
+                       dependencies=("dcr:exit-access-check", "dcr:equipment-foundation-scene"), input_patterns=()),
+      TargetDefinition("dcr:exit-access-view", self.name, self.version, build_exit_access_view,
+                       dependencies=("dcr:exit-access",), input_patterns=(), named_output=True),
+      TargetDefinition("dcr:exit-access-study-view", self.name, self.version, build_exit_access_view,
+                       dependencies=("dcr:exit-access-study",), input_patterns=(), named_output=True),
       TargetDefinition("dcr:fire-systems", self.name, self.version, build_fire_systems, dependencies=("dcr:architecture",),
                        input_patterns=spatial_inputs("*.sdl.json", "*/module.toml", "fire-systems.json",
                                                      "design-basis.json", "placement.study.json")),

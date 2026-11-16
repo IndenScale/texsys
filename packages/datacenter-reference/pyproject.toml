@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "texsys-datacenter-reference"
-version = "0.22.2"
+version = "0.23.0"
 description = "Data center reference design component library and design-basis checks for texsys"
 requires-python = ">=3.11"
 dependencies = ["texsys", "texsys-bom", "texsys-electrical", "texsys-hvac-dynamics", "texsys-spatial", "texsys-structure", "numpy>=1.26,<3", "scipy>=1.15,<2"]

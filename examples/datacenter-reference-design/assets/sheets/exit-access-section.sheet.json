@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "template": "sheet:a3-landscape",
+  "metadata": "assets/sheets/exit-access-section.title.json",
+  "texts": {
+    "notes": "assets/sheets/exit-access-section.txt",
+    "footer": "assets/sheets/footer.txt"
+  },
+  "views": {
+    "main": {
+      "path": "build/drawings/views/exit-access-section.svg",
+      "scale": "1:50"
+    }
+  }
+}

@@ -12,7 +12,7 @@ build = "build"
 default_targets = ["review-package"]
 
 [dependencies]
-datacenter-reference = { path = "../../packages/datacenter-reference", version = "0.22.2" }
+datacenter-reference = { path = "../../packages/datacenter-reference", version = "0.23.0" }
 sheet = { path = "../../packages/sheet", version = "0.2.0" }
 
 [build.targets.review-package]
@@ -68,6 +68,8 @@ dependencies = [
   "sheet-facility-power-section",
   "sheet-facility-power-continuity",
   "dcr:fire-egress",
+  "dcr:exit-access-check",
+  "dcr:exit-access-scene",
   "dcr:fire-systems-study",
   "dcr:fire-systems-coordination",
   "dcr:building-coordination",
@@ -79,6 +81,10 @@ dependencies = [
   "sheet-coordination",
   "sheet-architecture-l01",
   "sheet-architecture-exit",
+  "sheet-exit-access-plan",
+  "sheet-exit-access-section",
+  "sheet-evacuation-site-plan",
+  "sheet-evacuation-site-verification",
   "sheet-fire-egress",
   "sheet-fire-alarm",
   "sheet-fire-agent-pod",
@@ -942,3 +948,47 @@ using = "sheet:compose"
 dependencies = ["plan-equipment-foundation-checks"]
 scope = { source = "assets/sheets/equipment-foundation-checks.sheet.json" }
 output = "build/drawings/sheets/equipment-foundation-checks.svg"
+
+[build.targets.plan-exit-access-plan]
+using = "dcr:exit-access-view"
+output = "build/drawings/views/exit-access-plan.svg"
+scope = { view = "plan" }
+
+[build.targets.sheet-exit-access-plan]
+using = "sheet:compose"
+dependencies = ["plan-exit-access-plan"]
+scope = { source = "assets/sheets/exit-access-plan.sheet.json" }
+output = "build/drawings/sheets/exit-access-plan.svg"
+
+[build.targets.plan-exit-access-section]
+using = "dcr:exit-access-view"
+output = "build/drawings/views/exit-access-section.svg"
+scope = { view = "section", door = "D-NW" }
+
+[build.targets.sheet-exit-access-section]
+using = "sheet:compose"
+dependencies = ["plan-exit-access-section"]
+scope = { source = "assets/sheets/exit-access-section.sheet.json" }
+output = "build/drawings/sheets/exit-access-section.svg"
+
+[build.targets.plan-evacuation-site-plan]
+using = "dcr:exit-access-view"
+output = "build/drawings/views/evacuation-site-plan.svg"
+scope = { view = "site" }
+
+[build.targets.sheet-evacuation-site-plan]
+using = "sheet:compose"
+dependencies = ["plan-evacuation-site-plan"]
+scope = { source = "assets/sheets/evacuation-site-plan.sheet.json" }
+output = "build/drawings/sheets/evacuation-site-plan.svg"
+
+[build.targets.plan-evacuation-site-verification]
+using = "dcr:exit-access-study-view"
+output = "build/drawings/views/evacuation-site-verification.svg"
+scope = { view = "schedule" }
+
+[build.targets.sheet-evacuation-site-verification]
+using = "sheet:compose"
+dependencies = ["plan-evacuation-site-verification"]
+scope = { source = "assets/sheets/evacuation-site-verification.sheet.json" }
+output = "build/drawings/sheets/evacuation-site-verification.svg"

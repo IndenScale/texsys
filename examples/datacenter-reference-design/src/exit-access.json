@@ -1,0 +1,54 @@
+{
+  "schema_version": 1,
+  "state": "assumed",
+  "basis": "主机房室外疏散接口的候选布置。场区步道宽、集合点容量、烟气下风向及室外通行条件按实际属地、运行组织和责任审查确认。",
+  "reference_context": {
+    "GB 55037-2022": "https://www.mohurd.gov.cn/gongkai/zc/wjk/art/2024/art_17339_770016.html",
+    "GB 55019-2021": "https://www.mohurd.gov.cn/gongkai/zc/wjk/art/2021/art_17339_762461.html"
+  },
+  "door": {
+    "leaf_thickness_m": 0.045,
+    "hardware_sweep_allowance_m": 0.028,
+    "opening_degrees": 90,
+    "minimum_clear_landing_beyond_leaf_m": 0.36
+  },
+  "ramp": {
+    "structural_edge_extension_m": 0.085,
+    "slab_depth_m": 0.18,
+    "rail_outside_clear_edge_m": 0.04,
+    "post_diameter_m": 0.06,
+    "handrail_diameter_m": 0.044,
+    "guardrail_diameter_m": 0.05,
+    "grip_heights_m": [0.70, 0.90],
+    "guardrail_height_m": 1.10,
+    "maximum_post_spacing_m": 1.06,
+    "rail_lower_extension_m": 0.30,
+    "rail_start_offset_m": 0.10,
+    "edge_curb_height_m": 0.10,
+    "turn_space_m": 1.50
+  },
+  "paving": {
+    "width_m": 1.20,
+    "thickness_m": 0.12,
+    "crossfall": 0.012,
+    "maximum_longitudinal_slope": 0.048,
+    "maximum_crossfall": 0.020,
+    "maximum_joint_step_m": 0.012,
+    "maximum_terrain_adjustment_m": 0.16
+  },
+  "criteria": {
+    "people_per_pod": 2,
+    "additional_staff": 8,
+    "area_per_person_m2": 0.50,
+    "assembly_clearance_m": 10,
+    "maximum_route_to_assembly_m": 82
+  },
+  "sides": {
+    "west": {"offset_from_ramp_foot_m": 0.97, "route_station_y_m": 48.0, "meeting": "AP-W"},
+    "east": {"offset_from_ramp_foot_m": 1.06, "route_station_y_m": 3.6, "meeting": "AP-E"}
+  },
+  "meeting_areas": {
+    "AP-W": {"extent_m": [1.55,45.5,6.75,51], "elevation_m": -0.034},
+    "AP-E": {"extent_m": [55,1.4,61,5.8], "elevation_m": -0.056}
+  }
+}

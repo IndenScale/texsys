@@ -49,7 +49,7 @@ def _system_objects(model):
   return outside_pods, inside_pods
 
 
-def _obstacles(context, architecture):
+def _obstacles(context, architecture, *, reserved_clearance=True):
   structure = staged_json(context, STRUCTURE_MODEL)
   layout = staged_json(context, f"{MODELS}/layout.json")
   water = staged_json(context, WATER_MODEL)
@@ -65,7 +65,8 @@ def _obstacles(context, architecture):
     obstacles.update({key: tray_space(row) for key, row in assembly["runs"].items()})
     cabinet = assembly["cabinet"]
     obstacles[cabinet["id"]] = space(cabinet)
-  obstacles.update(_fire_clearance(architecture))
+  if reserved_clearance:
+    obstacles.update(_fire_clearance(architecture))
   return obstacles
 
 

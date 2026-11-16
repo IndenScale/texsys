@@ -2,7 +2,7 @@
 
 import csv
 import json
-from math import exp, log10, pi, sqrt
+from math import dist, exp, log10, pi, sqrt
 from pathlib import Path
 import shutil
 import xml.etree.ElementTree as ET
@@ -70,7 +70,9 @@ def test_aidc_deliverables_bind_to_the_same_geometry_and_recompute_the_fws_head(
   assert dossier["evidence_complete"]
   assert dossier["input_digest"] == _read(baseline.report)["input_digest"]
   assert dossier["engineering_acceptance"] == "pending-responsible-review"
-  assert len(list((root / "build/drawings/sheets").glob("*.svg"))) == 73
+  compiled_sheets = sorted((root / "build/drawings/sheets").glob("*.svg"))
+  drawing_numbers = {ET.parse(path).getroot().get("data-drawing-number") for path in compiled_sheets}
+  assert len(compiled_sheets) == len(drawing_numbers) == 77 and None not in drawing_numbers
   old_dossier = file_digest(root / "build/review/aidc-discipline-review.json")
   drawing = root / "build/drawings/sheets/fws-network.svg"
   old_route_drawing = file_digest(drawing)
@@ -83,6 +85,7 @@ def test_aidc_deliverables_bind_to_the_same_geometry_and_recompute_the_fws_head(
   _check_lateral_delivery(root)
   _check_roof_transfer_delivery(root)
   _check_equipment_foundation_delivery(root)
+  _check_exit_access_delivery(root)
   _check_storm_delivery(root)
   _check_fws_network_delivery(root)
   _check_building_delivery(root)
@@ -612,6 +615,43 @@ def test_aidc_equipment_foundation_gates_utility_space_and_anchor_demand(tmp_pat
   assert failed.status == "fail"
   assert {row["rule"] for row in targets["dcr:equipment-foundation-check"]["diagnostics"]} == {"AIDC_EQUIPMENT_FOUNDATION_BOLT"}
   assert targets["sheet-equipment-foundation-checks"]["status"] == "pass"
+
+
+def _check_exit_access_delivery(root):
+  geometry = _read(root / MODEL / "exit-access.json")
+  check = _read(root / MODEL / "exit-access-study.json")
+  assert check["occupancy"] == 40
+  assert sum(map(len, check["paths"].values())) == 32
+  assert check["hardware"]["D-NW"]["open_width_m"] == pytest.approx(1.455)
+  assert check["hardware"]["D-NW"]["standoff_m"] == pytest.approx(.0095)
+  assert all(area["area_m2"] > 20 for area in check["assembly"].values())
+  for branches in check["paths"].values():
+    assert {row["assembly"] for row in branches.values()} == {"AP-W", "AP-E"}
+    assert all(row["indoor_pass"] and row["supported_pavement"] and not row["blockers"]
+               for row in branches.values())
+  points = geometry["paths"]["D-SW"]["points_m"]
+  assert sum(dist(a,b) for a,b in zip(points,points[1:])) == pytest.approx(check["exits"]["D-SW"]["site_distance_m"])
+  stage = Usd.Stage.Open(str(root / "build/scenes/aidc-exit-access-coordinated.usda"))
+  door = stage.GetPrimAtPath("/AIDC/ExitAccess/Ramps/D_NW/Leaf_L1")
+  assert door.GetAttribute("texsys:identity").Get() == "EA-D-NW-L1"
+
+
+def test_aidc_exit_access_rejects_rail_encroachment_and_small_assembly_area(tmp_path):
+  root = _checkout(tmp_path)
+  config = root / "src/exit-access.json"
+  before = _read(config)
+  write_json(config, {**before, "ramp": {**before["ramp"], "rail_lower_extension_m": .55}})
+  failed, targets = _run(root, "dcr:exit-access-check", "sheet-exit-access-section", "sheet-evacuation-site-plan")
+  assert failed.status == "fail"
+  assert any(row["rule"] == "AIDC_EXIT_ACCESS_ROUTE_CLASH"
+             for row in targets["dcr:exit-access-check"]["diagnostics"])
+  assert targets["sheet-evacuation-site-plan"]["status"] == "pass"
+  before["meeting_areas"]["AP-W"]["extent_m"][2] = 5.
+  write_json(config,before)
+  failed, targets = _run(root, "dcr:exit-access-check", "sheet-evacuation-site-verification")
+  assert failed.status == "fail"
+  assert {row["rule"] for row in targets["dcr:exit-access-check"]["diagnostics"]} == {"AIDC_EXIT_ACCESS_ASSEMBLY_CAPACITY"}
+  assert targets["sheet-evacuation-site-verification"]["status"] == "pass"
 
 
 def test_aidc_lateral_reacts_to_mass_and_rejects_directional_mechanism(tmp_path):

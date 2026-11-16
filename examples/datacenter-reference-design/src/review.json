@@ -18,11 +18,14 @@
         "build/scenes/aidc-site-coordinated.usda",
         "build/schedules/aidc-site-grading.csv",
         "build/drawings/sheets/equipment-foundation-generators.svg",
-        "build/datacenter-reference/spatial/equipment-foundation-coordination.json"
+        "build/datacenter-reference/spatial/equipment-foundation-coordination.json",
+        "build/drawings/sheets/evacuation-site-plan.svg",
+        "build/schedules/aidc-evacuation-pavement.csv"
       ],
       "pending": [
         "实测宗地红线、竖向测量与市政接驳条件",
-        "等高线与地形控制需实测，土类、岩土支护、回填压实及车辆接驳按实核证"
+        "等高线与地形控制需实测，土类、岩土支护、回填压实及车辆接驳按实核证",
+        "室外步道收边及汇水接法，退界使用、围栏和消防车行组织"
       ]
     },
     "architecture": {
@@ -52,10 +55,17 @@
         "build/scenes/aidc-roof-assembly.usda",
         "build/scenes/aidc-roof-coordinated.usda",
         "build/schedules/aidc-roof-openings.csv",
-        "build/schedules/aidc-roof-panels.csv"
+        "build/schedules/aidc-roof-panels.csv",
+        "build/drawings/sheets/exit-access-plan.svg",
+        "build/drawings/sheets/exit-access-plan-sheet.json",
+        "build/drawings/sheets/exit-access-section.svg",
+        "build/drawings/sheets/exit-access-section-sheet.json",
+        "build/datacenter-reference/spatial/exit-access.json",
+        "build/schedules/aidc-exit-hardware.csv",
+        "build/scenes/aidc-exit-access.usda"
       ],
       "pending": [
-        "实际门五金、坡道栏杆与平台节点、屋面围护和接地现场条件",
+        "实际门五金、闭门反馈、栏杆材料及锚固防腐、踏面防滑与现场净宽",
         "屋面墙顶收口、防水泛水与耐火封堵节点，实际产品和试验资料"
       ]
     },
@@ -87,12 +97,21 @@
         "build/datacenter-reference/spatial/pod-coordination.json",
         "build/schedules/aidc-roof-openings.csv",
         "build/datacenter-reference/spatial/site-grading-check.json",
-        "build/datacenter-reference/spatial/site-storm-study.json"
+        "build/datacenter-reference/spatial/site-storm-study.json",
+        "build/drawings/sheets/evacuation-site-plan.svg",
+        "build/drawings/sheets/evacuation-site-plan-sheet.json",
+        "build/drawings/sheets/evacuation-site-verification.svg",
+        "build/drawings/sheets/evacuation-site-verification-sheet.json",
+        "build/datacenter-reference/spatial/exit-access-study.json",
+        "build/datacenter-reference/spatial/exit-access-check.json",
+        "build/schedules/aidc-evacuation-to-assembly.csv",
+        "build/scenes/aidc-exit-access-coordinated.usda"
       ],
       "pending": [
         "厂家舱门、人群疏散与探测和声光现场验证、介质与喷放专项设计、控制柜型式、穿越构造和封堵产品",
         "实际屋盖穿越的封堵系统和材料构造核证",
-        "发电机区事故液体封闭围挡、坡道阈值和密闭池抽排处置现场核证"
+        "发电机区事故液体封闭围挡、坡道阈值和密闭池抽排处置现场核证",
+        "集合点运营组织、下风向烟气、人员流、夜间照明与室外出口衔接"
       ]
     },
     "structure": {
