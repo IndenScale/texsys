@@ -469,10 +469,14 @@ class AgentSession:
       "agent": self.definition.id,
       "agent_name": self.agent_info.get("title") or self.definition.name,
       "agent_version": self.agent_info.get("version", ""),
+      "command": shlex.join(self.definition.command),
+      "cwd": str(self.cwd),
       "title": self.title,
       "state": self.state,
       "error": self.error,
       "created_at": self.created_at,
+      "seq": self.seq,
+      "stderr": self.connection.stderr_tail(),
       "auth_methods": self.auth_methods,
       "capabilities": self.capabilities,
     }
@@ -582,6 +586,14 @@ class AgentSession:
       raise Conflict("智能体会话尚未建立。")
     self.connection.request("session/set_mode", {"sessionId": self.acp_session, "modeId": mode}, timeout=60)
     self.emit("update", update={"sessionUpdate": "current_mode_update", "currentModeId": mode})
+
+  def set_model(self, model):
+    if self.acp_session is None:
+      raise Conflict("智能体会话尚未建立。")
+    if not isinstance(model, str) or not model.strip():
+      raise ProjectError("模型标识无效。")
+    self.connection.request("session/set_model", {"sessionId": self.acp_session, "modelId": model}, timeout=60)
+    self.emit("update", update={"sessionUpdate": "current_model_update", "currentModelId": model})
 
   def close(self):
     if self.closed:

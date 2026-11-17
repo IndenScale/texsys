@@ -455,6 +455,9 @@ def create_server(runtime: StudioRuntime, port=8710, frontend=None, token=None, 
         elif self.path == "/api/agent/mode":
           agents.get(body.get("session")).set_mode(body.get("mode"))
           result = {"ok": True}
+        elif self.path == "/api/agent/model":
+          agents.get(body.get("session")).set_model(body.get("model"))
+          result = {"ok": True}
         elif self.path == "/api/agent/authenticate":
           agents.get(body.get("session")).authenticate(body.get("method"))
           result = {"ok": True}

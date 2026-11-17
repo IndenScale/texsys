@@ -27,6 +27,7 @@ export type StudioLayout = {
   hiddenActivities?: string[];
   hiddenActivityBadges?: string[];
   inspectorOpen: boolean;
+  inspectorMaximized?: boolean;
   bottomOpen: boolean;
   bottomMaximized?: boolean;
   bottomTab: "problems" | "tasks" | "terminal" | string;

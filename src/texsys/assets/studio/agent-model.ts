@@ -18,10 +18,14 @@ export type AgentSessionSummary = {
   agent: string;
   agent_name: string;
   agent_version: string;
+  command?: string;
+  cwd?: string;
   title: string;
   state: AgentSessionState;
   error: string;
   created_at: number;
+  seq?: number;
+  stderr?: string;
   auth_methods: AgentAuthMethod[];
   capabilities: Record<string, unknown>;
 };
@@ -82,7 +86,9 @@ export type ConfigOption = {
 };
 
 export type SessionMode = { id: string; name: string; description?: string };
+export type SessionModel = { modelId: string; name: string; description?: string };
 export type AvailableCommand = { name: string; description?: string; input?: unknown };
+export type AgentDebugEntry = { seq: number; kind: string; detail: string };
 
 export type TranscriptItem =
   | { kind: "user"; key: string; text: string; context: string[] }
@@ -137,12 +143,14 @@ export type Transcript = {
   state: AgentSessionState;
   error: string;
   configOptions: ConfigOption[];
+  models?: { currentModelId: string; availableModels: SessionModel[] };
   modes?: { currentModeId: string; availableModes: SessionMode[] };
   commands: AvailableCommand[];
   usage?: { used: number; size: number };
   changed: string[];
   /** Incremented when the agent changed project files and the workspace should refresh. */
   fileChanges: number;
+  debugLog: AgentDebugEntry[];
 };
 
 export const emptyTranscript = (): Transcript => ({
@@ -155,6 +163,7 @@ export const emptyTranscript = (): Transcript => ({
   commands: [],
   changed: [],
   fileChanges: 0,
+  debugLog: [],
 });
 
 const editKinds = new Set(["edit", "delete", "move"]);
@@ -298,6 +307,13 @@ function applyUpdate(next: Transcript, update: Record<string, unknown>, seq: num
     };
     return;
   }
+  if (kind === "current_model_update" && next.models) {
+    next.models = {
+      ...next.models,
+      currentModelId: text(update.currentModelId) || next.models.currentModelId,
+    };
+    return;
+  }
   if (
     (kind === "config_option_update" || kind === "config_options_update") &&
     Array.isArray(update.configOptions)
@@ -314,6 +330,54 @@ function applyUpdate(next: Transcript, update: Record<string, unknown>, seq: num
   }
 }
 
+function appendDebug(log: AgentDebugEntry[], seq: number, event: AgentEvent) {
+  let detail = "";
+  switch (event.type) {
+    case "state":
+      detail = `${text(event.state)}${event.error ? ` (${text(event.error).slice(0, 80)})` : ""}`;
+      break;
+    case "initialized": {
+      const info = isRecord(event.agent) ? event.agent : {};
+      detail = [text(info.title) || text(info.name), text(info.version)].filter(Boolean).join(" ");
+      break;
+    }
+    case "configured":
+      detail = `options=${Array.isArray(event.configOptions) ? event.configOptions.length : 0}`;
+      break;
+    case "user":
+      detail = text(event.text).slice(0, 60);
+      break;
+    case "update": {
+      const u = isRecord(event.update) ? event.update : {};
+      const kind = text(u.sessionUpdate);
+      if (kind.endsWith("_chunk")) return log;
+      detail = [kind, text(u.title) || text(u.currentModeId) || text(u.currentModelId)]
+        .filter(Boolean)
+        .join(" ");
+      break;
+    }
+    case "permission": {
+      const tc = isRecord(event.toolCall) ? event.toolCall : {};
+      detail = text(tc.title) || text(event.key);
+      break;
+    }
+    case "permission_resolved":
+      detail = text(event.optionId) || "cancelled";
+      break;
+    case "fs":
+      detail = `${text(event.op)} ${text(event.path)}`;
+      break;
+    case "terminal":
+      detail = `${text(event.terminalId)} ${text(event.command)}`.trim();
+      break;
+    case "turn_end":
+      detail = text(event.stopReason);
+      break;
+  }
+  const next = [...log, { seq, kind: event.type, detail }];
+  return next.length > 120 ? next.slice(-120) : next;
+}
+
 /** Fold ordered session events into a new transcript without mutating the input. */
 export function applyAgentEvents(
   previous: Transcript,
@@ -323,11 +387,17 @@ export function applyAgentEvents(
 ): Transcript {
   const next: Transcript = reset
     ? emptyTranscript()
-    : { ...previous, items: [...previous.items], terminals: { ...previous.terminals } };
+    : {
+        ...previous,
+        items: [...previous.items],
+        terminals: { ...previous.terminals },
+        debugLog: [...previous.debugLog],
+      };
   for (const event of events) {
     if (event.seq <= next.seq) continue;
     next.seq = event.seq;
     const seq = event.seq;
+    next.debugLog = appendDebug(next.debugLog, seq, event);
     switch (event.type) {
       case "state":
         next.state = event.state as AgentSessionState;
@@ -340,6 +410,8 @@ export function applyAgentEvents(
           next.configOptions = event.configOptions as ConfigOption[];
         if (isRecord(event.modes) && Array.isArray(event.modes.availableModes))
           next.modes = event.modes as Transcript["modes"];
+        if (isRecord(event.models) && Array.isArray(event.models.availableModels))
+          next.models = event.models as Transcript["models"];
         break;
       case "user":
         next.items.push({
@@ -543,6 +615,37 @@ const titleKinds: Record<string, string> = {
   webfetch: "fetch",
 };
 
+function rawOutputTexts(rawOutput: unknown): string[] {
+  if (typeof rawOutput === "string") return rawOutput.trim() ? [rawOutput] : [];
+  if (Array.isArray(rawOutput))
+    return rawOutput
+      .map((entry) => (typeof entry === "string" ? entry : blockText(entry)))
+      .filter(Boolean);
+  if (!isRecord(rawOutput)) return [];
+  const parts: string[] = [];
+  for (const key of [
+    "output",
+    "stdout",
+    "stderr",
+    "content",
+    "text",
+    "result",
+    "error",
+    "message",
+  ]) {
+    const value = rawOutput[key];
+    if (typeof value === "string" && value.trim()) parts.push(value);
+    else if (Array.isArray(value)) {
+      const nested = value
+        .map((entry) => (typeof entry === "string" ? entry : blockText(entry)))
+        .filter(Boolean)
+        .join("\n");
+      if (nested) parts.push(nested);
+    }
+  }
+  return parts;
+}
+
 /** Normalize a tool call for display, including agents that only send raw inputs. */
 export function presentTool(
   item: Extract<TranscriptItem, { kind: "tool" }>,
@@ -576,7 +679,7 @@ export function presentTool(
     else if (typeof raw.content === "string")
       diffs.push({ path, oldText: "", newText: raw.content, partial: false });
   }
-  const textContent = item.content
+  const contentTexts = item.content
     .filter(
       (content): content is Extract<ToolContent, { type: "content" }> => content.type === "content",
     )
@@ -588,6 +691,8 @@ export function presentTool(
         content.type === "terminal",
     )
     .map((content) => content.terminalId);
+  const textContent =
+    contentTexts.length > 0 || terminals.length > 0 ? contentTexts : rawOutputTexts(item.rawOutput);
   const pattern = text(raw.pattern) || text(raw.query);
   return {
     icon: kindIcons[kind] ?? "module",
@@ -608,6 +713,61 @@ export function configChoices(option: ConfigOption): ConfigOptionValue[] {
     "options" in entry && Array.isArray(entry.options)
       ? entry.options
       : [entry as ConfigOptionValue],
+  );
+}
+
+export function isModelOption(option: ConfigOption): boolean {
+  return (
+    option.type === "select" &&
+    (option.category === "model" || option.id === "model" || /^model$/i.test(option.name.trim()))
+  );
+}
+
+export type NormalizedModelCatalog = {
+  source: "config" | "models";
+  configId?: string;
+  currentValue: string;
+  currentLabel: string;
+  choices: ConfigOptionValue[];
+};
+
+export function modelCatalog(
+  transcript: Pick<Transcript, "configOptions" | "models">,
+): NormalizedModelCatalog | undefined {
+  const option = transcript.configOptions.find(isModelOption);
+  if (option) {
+    const choices = configChoices(option);
+    const current = choices.find((item) => item.value === option.currentValue);
+    return {
+      source: "config",
+      configId: option.id,
+      currentValue: option.currentValue,
+      currentLabel: current?.name ?? option.currentValue,
+      choices,
+    };
+  }
+  if (transcript.models && transcript.models.availableModels.length > 0) {
+    const choices = transcript.models.availableModels.map((item) => ({
+      value: item.modelId,
+      name: item.name || item.modelId,
+      description: item.description,
+    }));
+    const current = choices.find((item) => item.value === transcript.models?.currentModelId);
+    return {
+      source: "models",
+      currentValue: transcript.models.currentModelId,
+      currentLabel: current?.name ?? transcript.models.currentModelId,
+      choices,
+    };
+  }
+  return undefined;
+}
+
+export function nonModelConfigOptions(
+  transcript: Pick<Transcript, "configOptions">,
+): ConfigOption[] {
+  return transcript.configOptions.filter(
+    (option) => option.type === "select" && !isModelOption(option),
   );
 }
 

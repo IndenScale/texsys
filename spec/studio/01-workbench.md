@@ -182,15 +182,16 @@ POC 输出明确的退出码、诊断与结果文件；失败展示、合并门�
 
 ## 智能体面板
 
-右侧面板专用于「智能体」，不再承载属性面板。面板通过 Agent Client Protocol（ACP）驱动外部智能体，Studio 不内置模型循环；空白工作区与项目工作区均可直接对话。决策见 [ADR-0034](../../docs/adr/0034-acp-agent-client.md)，交互见 [DDR-0030](../../docs/ddr/0030-studio-agent-panel.md)。
+右侧面板专用于「智能体」，不再承载属性面板，支持面板最大化与还原。面板通过 Agent Client Protocol（ACP）驱动外部智能体，Studio 不内置模型循环；空白工作区与项目工作区均可直接对话。决策见 [ADR-0034](../../docs/adr/0034-acp-agent-client.md)，交互见 [DDR-0030](../../docs/ddr/0030-studio-agent-panel.md) 与后继 [DDR-0031](../../docs/ddr/0031-studio-agent-panel-vscode-parity.md)。
 
 - 内置智能体为 DeepSeek Harness（`dsh --profile acp`）、Claude Code（`claude-agent-acp`）、Codex（`codex-acp`）和 Gemini CLI（`gemini --acp`）。命令在 Studio 后端的 `PATH` 与 `~/.local/bin` 中查找，未找到时标为不可用。
 - `~/.config/texsys/studio-agents.json` 的 `agents` 对象按标识覆盖 `name`、`command`、`env`，或以 `"disabled": true` 停用条目，也可新增本机智能体。文件不得位于项目或仓库内，API 只返回环境变量名。
 - `GET /api/agent?workspace=project|empty` 返回智能体清单、对应工作区的会话摘要、配置路径与诊断。`POST /api/agent/sessions` 以 `agent` 和 `workspace` 新建会话；后端启动子进程，完成 `initialize` 与 `session/new`，项目模式的工作目录为项目根目录，空白工作区模式为 `~/.cache/texsys/agent-scratch`。
-- `GET /api/agent/events?session=&after=&wait=` 长轮询有序事件，最长等待 25 秒。事件包括状态、配置项、用户消息、原样转发的 `session/update`、权限请求与处理、文件读写、终端输出和轮次结束。日志超过上限时丢弃最早事件，客户端收到 `reset` 后重建对话。
-- `POST /api/agent/prompt` 发送文本和最多 16 个当前工作区相对路径；路径以 `resource_link` 附带。同一会话一次只处理一轮。`/cancel`、`/permission`、`/config`、`/mode`、`/authenticate` 和 `/close` 分别对应取消、授权选择、配置项、模式、登录和关闭。
+- `GET /api/agent/events?session=&after=&wait=` 长轮询有序事件，最长等待 25 秒。事件包括状态、配置项与模型清单、用户消息、原样转发的 `session/update`、权限请求与处理、文件读写、终端输出和轮次结束。日志超过上限时丢弃最早事件，客户端收到 `reset` 后重建对话。
+- `POST /api/agent/prompt` 发送文本和最多 16 个当前工作区相对路径；路径以 `resource_link` 附带。同一会话一次只处理一轮。`/cancel`、`/permission`、`/config`、`/model`、`/mode`、`/authenticate` 和 `/close` 分别对应取消、授权选择、配置项、模型切换（`session/set_model`）、模式、登录和关闭。
+- 输入区采用对标 VS Code 的叠栈双层结构：框内提供 `+` 项目文件上下文选择器、`✨` 带搜索的模型与推理配置浮层、`⇄` 选项与斜杠命令浮层、环形上下文用量指示及圆形发送／停止按钮；框外次级工具栏提供随时可切换的 Harness 选择器与权限／模式选择器；标题栏提供 `+ ⌵` 分段新建会话、会话副栏筛选搜索、调试日志开关与面板最大化。
 - 客户端代办只接受会话所属工作区内的绝对路径，拒绝版本库内部目录与本机 AI 设置。`fs/write_text_file` 原子写入；`terminal/create` 在会话工作区内运行命令，保留有界输出、退出状态和终止能力。
-- 智能体修改直接落在源文件上，评审使用源代码管理、Git diff 和构建检查。ACP 权限选项只授权单次工具操作，不代表工程接受。
+- 智能体修改直接落在源文件上，评审使用源代码管理、Git diff 和构建检查。ACP 权限选项（含会话内自动允许工具请求）只授权工具操作，不代表工程接受。
 
 ## HVAC 首个切片
 

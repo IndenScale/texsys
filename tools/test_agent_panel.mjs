@@ -27,6 +27,8 @@ const {
   diffStats,
   emptyTranscript,
   lineDiff,
+  modelCatalog,
+  nonModelConfigOptions,
   presentTool,
   projectPath,
 } = load("src/texsys/assets/studio/agent-model.ts");
@@ -281,4 +283,81 @@ test("project paths stay inside the project root", () => {
   assert.equal(projectPath(`${root}-other/a.json`, root), undefined);
   assert.equal(projectPath(root, root), undefined);
   assert.equal(projectPath("./src/b.json", root), "src/b.json");
+});
+
+test("rawOutput falls back cleanly for agents that do not emit content blocks", () => {
+  const transcript = applyAgentEvents(
+    emptyTranscript(),
+    [
+      update(1, {
+        sessionUpdate: "tool_call",
+        toolCallId: "dsh-1",
+        title: "bash",
+        kind: "other",
+        status: "completed",
+        rawInput: { command: "pwd; ls -la" },
+        rawOutput: { stdout: "/workspace/project\n", stderr: "" },
+        content: [],
+      }),
+    ],
+    root,
+  );
+  const view = presentTool(transcript.items[0], root);
+  assert.equal(view.command, "pwd; ls -la");
+  assert.deepEqual(view.text, ["/workspace/project\n"]);
+});
+
+test("modelCatalog normalizes both ACP configOptions and ACP models", () => {
+  const fromConfig = applyAgentEvents(
+    emptyTranscript(),
+    [
+      {
+        seq: 1,
+        type: "configured",
+        configOptions: [
+          {
+            id: "model",
+            name: "Model",
+            type: "select",
+            currentValue: "deepseek-v4-flash",
+            options: [{ value: "deepseek-v4-flash", name: "deepseek-v4-flash" }],
+          },
+          {
+            id: "effort",
+            name: "Effort",
+            type: "select",
+            currentValue: "high",
+            options: [{ value: "high", name: "High" }],
+          },
+        ],
+      },
+    ],
+    root,
+  );
+  assert.equal(modelCatalog(fromConfig)?.source, "config");
+  assert.equal(modelCatalog(fromConfig)?.currentLabel, "deepseek-v4-flash");
+  assert.equal(nonModelConfigOptions(fromConfig).length, 1);
+
+  const fromModels = applyAgentEvents(
+    emptyTranscript(),
+    [
+      {
+        seq: 1,
+        type: "configured",
+        configOptions: [],
+        models: {
+          currentModelId: "sonnet",
+          availableModels: [
+            { modelId: "sonnet", name: "Claude Sonnet" },
+            { modelId: "opus", name: "Claude Opus" },
+          ],
+        },
+      },
+      update(2, { sessionUpdate: "current_model_update", currentModelId: "opus" }),
+    ],
+    root,
+  );
+  assert.equal(modelCatalog(fromModels)?.source, "models");
+  assert.equal(modelCatalog(fromModels)?.currentLabel, "Claude Opus");
+  assert.ok(fromModels.debugLog.length >= 2);
 });

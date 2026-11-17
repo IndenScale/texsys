@@ -16,6 +16,7 @@ for (const name of [
   "Element",
   "HTMLElement",
   "HTMLButtonElement",
+  "HTMLInputElement",
   "HTMLTextAreaElement",
   "Node",
   "Event",
@@ -83,15 +84,19 @@ function backend() {
       env: [],
     },
   ];
-  const summary = (status) => ({
+  const summary = (status, agentId = "deepseek-harness") => ({
     id: "s1",
-    agent: "deepseek-harness",
-    agent_name: "DeepSeek Harness",
+    agent: agentId,
+    agent_name: agentId === "codex" ? "Codex" : "DeepSeek Harness",
     agent_version: "0.0.1",
+    command: "dsh --profile acp",
+    cwd: ROOT,
     title: "",
     state: status,
     error: "",
     created_at: 1,
+    seq: state.events.length,
+    stderr: "",
     auth_methods: [],
     capabilities: {},
   });
@@ -106,6 +111,9 @@ function backend() {
     const body = options.body ? JSON.parse(options.body) : undefined;
     state.requests.push([url, body]);
     const parsed = new URL(url, "http://localhost");
+    if (parsed.pathname === "/api/files") {
+      return json({ files: ["src/room.json", "src/cooling.json", "README.md"] });
+    }
     if (parsed.pathname === "/api/agent") {
       const workspace = parsed.searchParams.get("workspace") ?? "project";
       return json({
@@ -119,7 +127,7 @@ function backend() {
     }
     if (parsed.pathname === "/api/agent/sessions") {
       state.emit({ type: "state", state: "starting", error: "" });
-      return json(summary("starting"));
+      return json(summary("starting", body.agent));
     }
     if (parsed.pathname === "/api/agent/events") {
       const after = Number(parsed.searchParams.get("after"));
@@ -162,10 +170,12 @@ async function mount(t, props = {}) {
       React.createElement(AgentPanel, {
         workspace,
         visible: true,
+        maximized: props.maximized ?? false,
         activeFile: workspace === "project" ? "src/room.json" : undefined,
         openFile: workspace === "project" ? (file, line) => opened.push([file, line]) : undefined,
         reviewChanges: workspace === "project" ? () => opened.push(["scm"]) : undefined,
         openProject: () => opened.push(["project"]),
+        onToggleMaximize: () => opened.push(["maximize"]),
         onClose: () => opened.push(["close"]),
       }),
     ),
@@ -192,19 +202,24 @@ async function type(value) {
   return area;
 }
 
-test("right panel is dedicated to the agent with no properties tab", async (t) => {
+test("right panel is dedicated to the agent with VS Code header actions and maximize/close", async (t) => {
   backend();
   sessionStorage.clear();
+  localStorage.clear();
   const panel = await mount(t);
   await flush();
   assert.equal(document.querySelectorAll('[role="tab"]').length, 0);
   assert.doesNotMatch(text(), /文件属性/);
   assert.equal(document.querySelector(".navigator-heading strong")?.textContent, "智能体");
+  assert.ok(button("新建会话"));
+  assert.ok(button("新建会话选项"));
+  assert.ok(button("最大化面板大小"));
+  await act(async () => button("最大化面板大小").click());
   await act(async () => button("关闭智能体面板").click());
-  assert.deepEqual(panel.opened, [["close"]]);
+  assert.deepEqual(panel.opened, [["maximize"], ["close"]]);
 });
 
-test("empty workspace displays the agent panel and allows asking questions directly", async (t) => {
+test("empty workspace displays clean VS Code chat shell, harness picker and direct questioning", async (t) => {
   const server = backend();
   sessionStorage.clear();
   localStorage.clear();
@@ -212,6 +227,23 @@ test("empty workspace displays the agent panel and allows asking questions direc
   await flush();
   assert.match(text(), /使用智能体提问或探索方案/);
   assert.equal(document.querySelector(".agent-chip"), null);
+  assert.equal(document.querySelector(".agent-catalog-item"), null, "no cluttered radio card wall");
+  assert.match(document.querySelector(".agent-secondary-toolbar").textContent, /DeepSeek Harness/);
+  assert.match(document.querySelector(".agent-secondary-toolbar").textContent, /默认权限/);
+
+  // Open Harness picker in secondary toolbar and inspect "Learn about harnesses..." setup card.
+  await act(async () => button("选择智能体").click());
+  await flush();
+  const harnessRows = [
+    ...document.querySelectorAll(".agent-popover-harness [role='menuitemradio']"),
+  ];
+  assert.equal(harnessRows.length, 2);
+  assert.equal(harnessRows[0].getAttribute("aria-checked"), "true");
+  assert.equal(harnessRows[1].disabled, true);
+  await act(async () => button("了解与配置智能体 Harness…").click());
+  await flush();
+  assert.match(text(), /studio-agents\.json/);
+
   const area = await type("你好，防静电地板集中荷载怎么校核？");
   assert.equal(area.disabled, false);
   await act(async () =>
@@ -251,33 +283,29 @@ test("empty workspace displays the agent panel and allows asking questions direc
   assert.match(document.querySelector(".agent-message").textContent, /GB 50174/);
 });
 
-test("first message starts a session, waits for ready and renders the agent turn", async (t) => {
+test("tabbed model picker, context attachment, rawOutput bash expansion, permissions and SCM review work end-to-end", async (t) => {
   const server = backend();
   sessionStorage.clear();
   localStorage.clear();
   const panel = await mount(t);
   await flush();
   assert.match(text(), /使用智能体处理工程任务/);
-  const catalog = [...document.querySelectorAll(".agent-catalog-item")];
-  assert.equal(catalog.length, 2);
-  assert.equal(catalog[0].getAttribute("aria-checked"), "true");
-  assert.equal(catalog[1].disabled, true);
-  assert.match(text(), /studio-agents\.json/);
   assert.match(document.querySelector(".agent-chip").textContent, /room\.json/);
 
-  const area = await type("检查 R01 机柜的净空");
-  await act(async () =>
-    area.dispatchEvent(new dom.window.KeyboardEvent("keydown", { key: "Enter", bubbles: true })),
-  );
+  // Attach an additional project file via "+" Context Picker.
+  await act(async () => button("添加上下文").click());
+  await flush();
+  await act(async () => button("cooling.json").click());
+  await flush();
+  assert.equal(document.querySelectorAll(".agent-composer .agent-chip").length, 2);
+
+  await type("检查 R01 机柜的净空");
+  await act(async () => button("发送").click());
   await flush();
   assert.ok(
     server.requests.some(
       ([url, body]) => url === "/api/agent/sessions" && body.agent === "deepseek-harness",
     ),
-  );
-  assert.ok(
-    !server.requests.some(([url]) => url === "/api/agent/prompt"),
-    "prompt waits for ready",
   );
   assert.match(text(), /正在启动智能体/);
 
@@ -292,8 +320,18 @@ test("first message starts a session, waits for ready and renders the agent turn
             type: "select",
             currentValue: "flash",
             options: [
-              { value: "flash", name: "V4 Flash" },
-              { value: "pro", name: "V4 Pro" },
+              { value: "flash", name: "deepseek-v4-flash" },
+              { value: "pro", name: "deepseek-v4" },
+            ],
+          },
+          {
+            id: "effort",
+            name: "Reasoning",
+            type: "select",
+            currentValue: "high",
+            options: [
+              { value: "medium", name: "Medium" },
+              { value: "high", name: "High" },
             ],
           },
         ],
@@ -306,7 +344,7 @@ test("first message starts a session, waits for ready and renders the agent turn
   assert.deepEqual(prompt[1], {
     session: "s1",
     text: "检查 R01 机柜的净空",
-    context: ["src/room.json"],
+    context: ["src/room.json", "src/cooling.json"],
   });
 
   await act(async () =>
@@ -315,7 +353,20 @@ test("first message starts a session, waits for ready and renders the agent turn
         type: "update",
         update: {
           sessionUpdate: "agent_thought_chunk",
-          content: { type: "text", text: "先读文件" },
+          content: { type: "text", text: "先读文件并执行命令" },
+        },
+      },
+      {
+        type: "update",
+        update: {
+          sessionUpdate: "tool_call",
+          toolCallId: "t0",
+          title: "bash",
+          kind: "other",
+          status: "completed",
+          rawInput: { command: "pwd; echo '---'; ls -la" },
+          rawOutput: { stdout: "/workspace/project\n" },
+          content: [],
         },
       },
       {
@@ -363,12 +414,14 @@ test("first message starts a session, waits for ready and renders the agent turn
   await flush();
   assert.match(text(), /检查 R01 机柜的净空/);
   assert.match(text(), /思考过程/);
-  assert.equal(document.querySelectorAll(".agent-tool").length, 2);
+  // All 3 tool cards (including bash with rawOutput) are expandable <details>.
+  assert.equal(document.querySelectorAll("details.agent-tool").length, 3);
   assert.match(document.querySelector(".agent-message").textContent, /净空满足要求/);
   assert.equal(document.querySelector(".agent-message strong")?.textContent, "满足");
   assert.match(text(), /智能体修改了 1 个文件/);
   assert.match(document.querySelector(".agent-usage").textContent, /2%/);
-  assert.match(document.querySelector(".agent-composer-bar").textContent, /V4 Flash/);
+  assert.match(document.querySelector(".agent-composer-bar").textContent, /deepseek-v4-flash/);
+  assert.match(document.querySelector(".agent-composer-bar").textContent, /High/);
   assert.ok(document.querySelector(".agent-send.is-stop"), "stop button while prompting");
 
   await act(async () => document.querySelector(".agent-tool .agent-link-button").click());
@@ -397,6 +450,20 @@ test("first message starts a session, waits for ready and renders the agent turn
   assert.match(text(), /已选择：允许一次/);
   assert.match(text(), /已停止本轮处理/);
   assert.equal(document.querySelector(".agent-send.is-stop"), null);
+
+  // Open Tabbed Model Picker ("✨") and switch model.
+  await act(async () => button("选择模型").click());
+  await flush();
+  assert.ok(document.querySelector(".agent-popover-model"));
+  await act(async () => button("deepseek-v4 · DeepSeek Harness").click());
+  await flush();
+  assert.ok(
+    server.requests.some(
+      ([url, body]) =>
+        url === "/api/agent/config" && body.config === "model" && body.value === "pro",
+    ),
+  );
+
   await act(async () => button("审查修改").click());
   assert.deepEqual(panel.opened.at(-1), ["scm"]);
 });

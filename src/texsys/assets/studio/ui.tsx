@@ -364,6 +364,40 @@ const paths: Record<string, React.ReactNode> = {
       <path d="M12 2v20M3.34 7l17.32 10M3.34 17 20.66 7M9 4l3 3 3-3M9 20l3-3 3 3M3.5 10.5l4-1-1-4M20.5 13.5l-4 1 1 4M6.5 18.5l1-4-4-1M17.5 5.5l-1 4 4 1" />
     </>
   ),
+  "arrow-up": <path d="M12 19V5m-6 6 6-6 6 6" />,
+  "arrow-down": <path d="M12 5v14m-6-6 6 6 6-6" />,
+  sliders: (
+    <>
+      <path d="M4 8h9m4 0h3M4 16h3m4 0h9" />
+      <circle cx="15" cy="8" r="2" />
+      <circle cx="9" cy="16" r="2" />
+    </>
+  ),
+  monitor: (
+    <>
+      <rect x="3" y="4" width="18" height="12" rx="2" />
+      <path d="M8 20h8M12 16v4" />
+    </>
+  ),
+  shield: <path d="M12 3 5 6v5.5C5 16.2 8 19.8 12 21c4-1.2 7-4.8 7-9.5V6l-7-3Z" />,
+  "sessions-pane": (
+    <>
+      <rect x="3" y="4" width="18" height="16" rx="2" />
+      <path d="M15 4v16" />
+    </>
+  ),
+  copy: (
+    <>
+      <rect x="9" y="9" width="11" height="11" rx="2" />
+      <path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1" />
+    </>
+  ),
+  bot: (
+    <>
+      <rect x="4" y="7" width="16" height="12" rx="2" />
+      <path d="M12 3v4M9 3h6M9 13h.01M15 13h.01M9 16h6" />
+    </>
+  ),
 };
 const panelDividers: Record<string, { open: string; closed: string }> = {
   sidebar: { open: "M9 4v16", closed: "M6 8v8" },

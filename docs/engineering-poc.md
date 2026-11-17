@@ -2143,3 +2143,9 @@ CLI 回放 0→0→1→1→1→0。净内径增至 0.84 m，使工作水量增�
 验证：`tests/test_studio_agent.py` 8 项以脚本化智能体和 HTTP 路由覆盖握手、配置项、上下文、项目与空白工作区边界隔离、权限、终端、取消与进程退出；`tools/test_agent_panel.mjs` 8 项与 `tools/test_agent_panel_ui.mjs` 3 项覆盖事件折叠、工具呈现、差异、无属性标签专职面板与空白工作区提问；其余前端套件、tsc、ESLint、Prettier 与生产打包通过。常驻容器内安装 DeepSeek Harness 0.2.2-rc.1，经 `AgentService` 对 AIDC 参考项目与空白工作区均完成端到端提问验证。
 
 边界：DeepSeek Harness ACP 0.0.1 自行执行文件与命令，不经客户端代办和权限确认，也不发送 diff，面板按工具原始输入降级呈现；Gemini CLI 个人 Google 账号登录已被服务端拒绝，需要 API 密钥；Claude Code 与 Codex 适配器未安装验证。会话不跨后端重启保留。本会话无法接入既有 Chrome（未开启远程调试），真实浏览器走查未执行。telecom-room 违规修复任务的端到端闭环尚未在面板中验收。
+
+### 2026-11-18 对标 VS Code 开源实现重构智能体面板
+
+基线 `ec83e77`。依据用户真机截图与 VS Code 开源聊天模块（`src/vs/workbench/contrib/chat/browser/`）重构右侧智能体面板（[DDR-0031](ddr/0031-studio-agent-panel-vscode-parity.md)）：补齐右侧面板导航内边距变量与面板最大化／还原；将挤爆窄侧栏的单行底栏拆分为 VS Code 叠栈双层输入区——框内 22 px 工具栏承载 `+` 多文件上下文选择器、`✨` 带搜索过滤的模型与推理配置浮层、`⇄` 选项／斜杠命令浮层、环形上下文用量及固定不收缩的圆形 `↑` 发送／停止按钮，框外次级工具栏承载可随时切换的 `[🖥 Harness]` 选择器与 `[🛡 默认权限]` 权限／ACP 模式选择器；标题栏提供 `+ ⌵` 分段新建会话、可搜索筛选的「会话」副栏、会话标题返回条与智能体调试日志抽屉；后端补充 `POST /api/agent/model`（`session/set_model`），前端修复仅回传 `rawOutput` 的 `bash` 工具展开及回答区列表与行内代码换行。这消除 G14 入口在真机侧栏宽度下的控件裁切与排版失真，不新增工程变更确认流程。
+
+验证：`tests/test_studio_agent.py` 8 项覆盖 `session/set_model` 与会话诊断隔离；`tools/test_agent_panel.mjs` 10 项与 `tools/test_agent_panel_ui.mjs` 3 项覆盖 `rawOutput` 降级展开、双源模型目录归一化、上下文多选、模型搜索浮层、Harness 浮层、面板最大化与全量 145 项前端回归测试；`tsc --noEmit --strict`、ESLint、`ruff`、`studio-no-bold`、Prettier、`markdownlint` 与文档语言检查全部通过，常驻开发容器已重启同步新后端。

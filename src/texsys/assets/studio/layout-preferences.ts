@@ -186,6 +186,9 @@ export function readLayoutPreferences(project: string, defaults: StudioLayout): 
                   ...(typeof layout.bottomMaximized === "boolean" && {
                     bottomMaximized: layout.bottomMaximized,
                   }),
+                  ...(typeof layout.inspectorMaximized === "boolean" && {
+                    inspectorMaximized: layout.inspectorMaximized,
+                  }),
                 },
               ],
             ];

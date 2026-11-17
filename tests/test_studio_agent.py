@@ -98,6 +98,8 @@ FAKE_AGENT = textwrap.dedent(r'''
       send({"jsonrpc": "2.0", "id": identifier, "result": {"configOptions": [
         {"id": "model", "name": "Model", "type": "select", "currentValue": params["value"],
          "options": [{"value": "a", "name": "A"}, {"value": "b", "name": "B"}]}]}})
+    elif method == "session/set_model":
+      send({"jsonrpc": "2.0", "id": identifier, "result": {"modelId": params["modelId"]}})
     elif method == "session/prompt":
       threading.Thread(target=prompt, args=(identifier, params), daemon=True).start()
     elif method == "session/cancel":
@@ -294,6 +296,9 @@ def test_http_routes_drive_a_session_and_keep_secrets_private(service, tmp_path,
       seen.extend(batch["events"])
       after = batch["seq"]
     assert any(event.get("state") == "ready" for event in seen)
+    assert created["cwd"] == str(project.resolve()) and "secret-value" not in json.dumps(created)
+    assert request("/api/agent/model", {"session": created["id"], "model": "b"})[0] == 200
+    assert request("/api/agent/model", {"session": created["id"], "model": " "})[0] == 400
     assert request("/api/agent/prompt", {"session": created["id"], "text": " "})[0] == 400
     assert request(f"/api/agent/events?session={created['id']}&after=x")[0] == 400
     assert request("/api/agent/permission", {"session": created["id"], "key": "missing", "option": "x"})[0] == 409

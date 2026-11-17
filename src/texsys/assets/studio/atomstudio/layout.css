@@ -265,12 +265,29 @@
   min-height: 0;
 }
 .workbench-inspector {
+  --navigator-gutter: 10px;
+  --navigator-end: 8px;
   grid-column: var(--inspector-column);
   grid-row: 1;
 }
 .workbench-inspector > * {
   height: 100%;
   min-width: var(--inspector-min-width);
+}
+.workbench-layout.is-inspector-maximized {
+  --inspector-track: minmax(0, 1fr);
+  --inspector-track-gap: 0px;
+  grid-template-columns: var(--sidebar-track) var(--workbench-gap) 0px 0px var(--inspector-track);
+}
+.workbench-layout.is-inspector-maximized.sidebar-on-right {
+  grid-template-columns: var(--inspector-track) 0px 0px var(--workbench-gap) var(--sidebar-track);
+}
+.workbench-layout.is-inspector-maximized > .right-panel-layout-resizer {
+  display: none;
+}
+.workbench-layout.is-inspector-maximized > .workbench-stage {
+  visibility: hidden;
+  pointer-events: none;
 }
 .layout-resizer {
   position: relative;
@@ -496,6 +513,9 @@
       var(--inspector-size),
       calc(100% - var(--activity-rail-width) - 3 * var(--workbench-gap))
     );
+  }
+  .workbench-layout.is-inspector-maximized {
+    --inspector-overlay-width: calc(100% - var(--activity-rail-width) - 3 * var(--workbench-gap));
   }
   .workbench-inspector,
   .right-panel-layout-resizer {

@@ -62,3 +62,4 @@ ddr/NNNN-short-title.md
 | [0027](0027-studio-usd-preview-interaction.md)                           | USD 预览器的资源、属性、导航、构件速览和修饰键多选                                          | 已接受 |
 | [0029](0029-studio-view-selector-and-scene-camera.md)                    | 统一编辑／预览区的查看方式选择器，调整场景取景与缩放入口并提供固定机位                      | 已接受 |
 | [0030](0030-studio-agent-panel.md)                                       | 右侧面板改为专职智能体面板，空白工作区与项目模式均可对话                                    | 已接受 |
+| [0031](0031-studio-agent-panel-vscode-parity.md)                         | 对标 VS Code 开源实现的智能体面板会话栏、双层输入区与模型／Harness／权限选择器              | 已接受 |

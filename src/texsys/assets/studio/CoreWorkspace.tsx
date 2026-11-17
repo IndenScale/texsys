@@ -3570,10 +3570,14 @@ export function WorkbenchSurface({
         <AgentPanel
           workspace="project"
           visible={layout.inspectorOpen}
+          maximized={Boolean(layout.inspectorMaximized)}
           activeFile={core.documentActive ? core.activeFile : undefined}
           openFile={core.openProjectFile}
           reviewChanges={() => core.select("scm")}
-          onClose={() => change({ inspectorOpen: false })}
+          onToggleMaximize={() =>
+            change({ inspectorMaximized: !layout.inspectorMaximized, inspectorOpen: true })
+          }
+          onClose={() => change({ inspectorOpen: false, inspectorMaximized: false })}
         />
       }
       bottom={bottom}

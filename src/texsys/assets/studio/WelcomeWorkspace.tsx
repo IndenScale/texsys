@@ -595,8 +595,12 @@ export function WelcomeWorkspace({
         <AgentPanel
           workspace="empty"
           visible={layout.inspectorOpen}
+          maximized={Boolean(layout.inspectorMaximized)}
           openProject={openProject}
-          onClose={() => changeLayout({ inspectorOpen: false })}
+          onToggleMaximize={() =>
+            changeLayout({ inspectorMaximized: !layout.inspectorMaximized, inspectorOpen: true })
+          }
+          onClose={() => changeLayout({ inspectorOpen: false, inspectorMaximized: false })}
         />
       }
       bottom={

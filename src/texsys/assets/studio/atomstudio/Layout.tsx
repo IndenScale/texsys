@@ -123,6 +123,7 @@ export function WorkbenchLayout({
         `dock-panel-${panelPosition}`,
         !layout.sidebarOpen && "is-sidebar-collapsed",
         !layout.inspectorOpen && "is-inspector-hidden",
+        layout.inspectorOpen && layout.inspectorMaximized && "is-inspector-maximized",
         layout.bottomOpen && "is-bottom-open",
         layout.bottomOpen && layout.bottomMaximized && "is-bottom-maximized",
         sidebarOnRight && "sidebar-on-right",
