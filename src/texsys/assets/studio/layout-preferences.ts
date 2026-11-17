@@ -186,6 +186,10 @@ export function readLayoutPreferences(project: string, defaults: StudioLayout): 
                   ...(typeof layout.bottomMaximized === "boolean" && {
                     bottomMaximized: layout.bottomMaximized,
                   }),
+                  ...((layout.inspectorView === "properties" ||
+                    layout.inspectorView === "agent") && {
+                    inspectorView: layout.inspectorView,
+                  }),
                 },
               ],
             ];

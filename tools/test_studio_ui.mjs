@@ -391,7 +391,18 @@ test("menu and command search share group names and stable action identities", (
     filterCommands(commands, "")
       .filter((item) => item.id.startsWith("view."))
       .map((item) => item.id),
-    ["view.open", "view.panelPosition", "view.statusbar", "view.wordWrap", "view.fullscreen"],
+    [
+      "view.open",
+      "view.agent",
+      "view.panelPosition",
+      "view.statusbar",
+      "view.wordWrap",
+      "view.fullscreen",
+    ],
+  );
+  assert.deepEqual(
+    filterCommands(commands, "智能体").map((item) => item.id),
+    ["view.agent"],
   );
   assert.deepEqual(
     filterCommands(commands, "布局").map((item) => item.id),

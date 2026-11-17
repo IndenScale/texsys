@@ -11,6 +11,7 @@ import React, {
   type ReactNode,
 } from "react";
 import { ActivityBar, WorkbenchLayout } from "./atomstudio/Layout";
+import { RightPanel } from "./AgentPanel";
 import { ExplorerSideSections } from "./ExplorerSideSections";
 import { TimelineView } from "./TimelineView";
 import { Empty, Icon } from "./ui";
@@ -180,6 +181,10 @@ type Core = {
   changeCount: number;
   sourceProblems: SourceProblem[];
   openSourceProblem: (problem: SourceProblem) => void;
+  /** Open a project file from panels outside the editor, such as the agent panel. */
+  openProjectFile: (path: string, line?: number) => void;
+  /** Path of the active ordinary project file, when one is shown. */
+  activeFile?: string;
 };
 const CoreContext = createContext<Core | null>(null);
 export const useCoreWorkspace = () => useContext(CoreContext);
@@ -890,12 +895,14 @@ export function CoreWorkspaceProvider({
       void readFiles();
     };
     window.addEventListener("texsys:terminal:completed", terminalCompleted);
+    window.addEventListener("texsys:workspace:changed", terminalCompleted);
     const timer = setInterval(() => {
       if (document.visibilityState !== "hidden" && activity === "scm" && !busy) void readGit();
     }, 5000);
     return () => {
       window.removeEventListener("focus", focus);
       window.removeEventListener("texsys:terminal:completed", terminalCompleted);
+      window.removeEventListener("texsys:workspace:changed", terminalCompleted);
       clearInterval(timer);
     };
   }, [readFiles, readGit, activity, busy]);
@@ -3491,6 +3498,16 @@ export function CoreWorkspaceProvider({
     sourceProblems,
     openSourceProblem: ({ path, line, column }) =>
       void openFile(path, { location: { line, column }, focus: true, presentation: "source" }),
+    openProjectFile: (path, line) =>
+      void openFile(path, line ? { location: { line, column: 1 }, focus: true } : {}),
+    activeFile:
+      active &&
+      !active.design &&
+      !active.extension &&
+      !active.untitled &&
+      !active.path.startsWith("\0")
+        ? active.path
+        : undefined,
   };
   return (
     <CoreContext.Provider value={value}>
@@ -3583,14 +3600,27 @@ export function WorkbenchSurface({
       }
       sidebar={core.sidebar(editorTabs)}
       inspector={
-        <>
-          <div className="core-inspector-slot" hidden={!core.documentActive}>
-            {core.inspector}
-          </div>
-          <div className="core-inspector-slot" hidden={core.documentActive}>
-            {inspector}
-          </div>
-        </>
+        <RightPanel
+          view={layout.inspectorView ?? "properties"}
+          changeView={(inspectorView) => change({ inspectorView })}
+          properties={
+            <>
+              <div className="core-inspector-slot" hidden={!core.documentActive}>
+                {core.inspector}
+              </div>
+              <div className="core-inspector-slot" hidden={core.documentActive}>
+                {inspector}
+              </div>
+            </>
+          }
+          agent={{
+            enabled: true,
+            visible: layout.inspectorOpen,
+            activeFile: core.documentActive ? core.activeFile : undefined,
+            openFile: core.openProjectFile,
+            reviewChanges: () => core.select("scm"),
+          }}
+        />
       }
       bottom={bottom}
     >

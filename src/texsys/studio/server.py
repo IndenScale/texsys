@@ -14,6 +14,7 @@ from urllib.parse import parse_qs, urlparse
 
 from texsys.evidence import canonical_digest
 from texsys.project import ProjectError
+from .agent import AgentService, is_agent_config_path
 from .ai import AiSettings, draft_commit_message, is_ai_config_path, test_connection
 from .extensions import (StudioExtensions, check_compatibility as extension_compatibility,
                          detail as extension_detail, recommend, search as extension_search)
@@ -75,6 +76,9 @@ class StudioServer(ThreadingHTTPServer):
 
   def server_close(self):
     self.terminals.close()
+    agents = getattr(self, "agents", None)
+    if agents is not None:
+      agents.close()
     super().server_close()
 
 
@@ -150,6 +154,7 @@ def create_server(runtime: StudioRuntime, port=8710, frontend=None, token=None, 
   ai_settings = AiSettings()
   extensions = StudioExtensions()
   terminals = TerminalService()
+  agents = AgentService(runtime.root, runtime.build)
 
   project_previews = ProjectPreview(runtime.root, runtime.build, persist_index=True)
   scene_preview = ScenePreview(runtime.root, runtime.build, previews=project_previews)
@@ -283,6 +288,16 @@ def create_server(runtime: StudioRuntime, port=8710, frontend=None, token=None, 
                                       target=query.get("target", [""])[0], artifact=query.get("artifact", [""])[0]))
         elif parsed.path == "/api/ai/settings":
           self._send(200, ai_settings.read().public())
+        elif parsed.path == "/api/agent":
+          self._send(200, agents.state())
+        elif parsed.path == "/api/agent/events":
+          query = parse_qs(parsed.query)
+          try:
+            after = int(query.get("after", ["0"])[0])
+            wait = min(max(float(query.get("wait", ["0"])[0]), 0), 25)
+          except ValueError:
+            raise ProjectError("事件序号无效。")
+          self._send(200, agents.get(query.get("session", [""])[0]).read_events(after, wait))
         elif parsed.path == "/api/files":
           query = parse_qs(parsed.query)
           listing = project_files(runtime.root, runtime.build, previews=project_previews, compact=query.get("compact") == ["1"])
@@ -330,7 +345,8 @@ def create_server(runtime: StudioRuntime, port=8710, frontend=None, token=None, 
           relative = parse_qs(parsed.query).get("path", [""])[0]
           file = (runtime.root / relative).resolve()
           build = (runtime.root / runtime.build).resolve()
-          if not file.is_relative_to(build) or not file.is_file() or is_ai_config_path(file):
+          if (not file.is_relative_to(build) or not file.is_file() or is_ai_config_path(file)
+              or is_agent_config_path(file)):
             self._send(404, {"error": "Artifact not found."})
           elif file.suffix not in {".json", ".svg", ".drawio", ".log", ".csv", ".mo", ".txt"}:
             self._send(403, {"error": "Unsupported artifact type."})
@@ -419,6 +435,30 @@ def create_server(runtime: StudioRuntime, port=8710, frontend=None, token=None, 
             verify_source_snapshot(root, build, snapshot)
           ai_settings.verify(connection)
           result = {"message": message}
+        elif self.path == "/api/agent/sessions":
+          result = agents.create(body.get("agent"))
+        elif self.path == "/api/agent/prompt":
+          result = agents.prompt(body)
+        elif self.path == "/api/agent/cancel":
+          agents.get(body.get("session")).cancel()
+          result = {"ok": True}
+        elif self.path == "/api/agent/permission":
+          option = body.get("option")
+          if option is not None and not isinstance(option, str):
+            raise ProjectError("授权选项无效。")
+          agents.get(body.get("session")).resolve_permission(body.get("key"), option)
+          result = {"ok": True}
+        elif self.path == "/api/agent/config":
+          agents.get(body.get("session")).set_config(body.get("config"), body.get("value"))
+          result = {"ok": True}
+        elif self.path == "/api/agent/mode":
+          agents.get(body.get("session")).set_mode(body.get("mode"))
+          result = {"ok": True}
+        elif self.path == "/api/agent/authenticate":
+          agents.get(body.get("session")).authenticate(body.get("method"))
+          result = {"ok": True}
+        elif self.path == "/api/agent/close":
+          result = agents.close_session(body.get("session"))
         elif self.path == "/api/edit":
           result = runtime.edit(body)
         elif self.path == "/api/jobs":
@@ -437,7 +477,9 @@ def create_server(runtime: StudioRuntime, port=8710, frontend=None, token=None, 
       except (ProjectError, OSError, ValueError, TypeError, KeyError) as error:
         self._send(400, {"error": str(error)})
 
-  return StudioServer(("127.0.0.1", port), Handler, terminals)
+  studio_server = StudioServer(("127.0.0.1", port), Handler, terminals)
+  studio_server.agents = agents
+  return studio_server
 
 
 def serve(root: Path, port=8710, open_browser=False, *, empty_workspace=False):

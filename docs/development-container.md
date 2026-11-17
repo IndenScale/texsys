@@ -24,6 +24,22 @@ Tex Studio 在 Podman 的 Linux 虚拟机内运行。macOS 登录当前用户后
 - 修改镜像或容器启动脚本后运行 `/usr/bin/python3 tools/dev_container.py rebuild`。脚本先构建镜像，再替换本工作树的容器。
 - 用 `podman logs --tail 100 texsys-studio-dev` 查看依赖同步及 Studio 输出。启动与恢复日志保存在 `~/Library/Logs/TexSys/`。
 
+## 智能体
+
+Studio 右侧的智能体在容器内启动。智能体命令安装到容器用户主目录卷中，重建容器后仍保留。用上文的 `shell` 进入容器后安装，例如 DeepSeek Harness：
+
+```bash
+npm install -g --prefix ~/.local @deepseek-ai/dsh
+```
+
+凭据写入容器内的 `~/.config/texsys/studio-agents.json`，权限设为仅本人可读：
+
+```json
+{ "agents": { "deepseek-harness": { "env": { "DEEPSEEK_API_KEY": "…" } } } }
+```
+
+修改该文件后在智能体视图刷新清单即可生效，无需重启 Studio。
+
 ## 暂停与恢复
 
 只暂停 Studio 时，卸载它的登录服务，Podman 和其它容器不受影响：

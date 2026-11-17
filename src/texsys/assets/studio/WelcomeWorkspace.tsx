@@ -7,6 +7,7 @@ import { ExplorerTree } from "./ExplorerTree";
 import { ExplorerSideSections } from "./ExplorerSideSections";
 import { NavigatorMenu, type NavigatorMenuItem } from "./NavigatorMenu";
 import { NavigatorButton, NavigatorPage, NavigatorPanel, NavigatorToolbar } from "./NavigatorPanel";
+import { RightPanel } from "./AgentPanel";
 import { SourceEditor, revealSourceOutline, type SourceModels } from "./SourceEditor";
 import { t } from "./i18n";
 import { closeDocumentCommand } from "./menus";
@@ -591,9 +592,12 @@ export function WelcomeWorkspace({
         </NavigatorPanel>
       }
       inspector={
-        <NavigatorPanel title={t("属性")}>
-          <p className="core-hint">{t("当前没有可显示的属性。")}</p>
-        </NavigatorPanel>
+        <RightPanel
+          view={layout.inspectorView ?? "properties"}
+          changeView={(inspectorView) => changeLayout({ inspectorView })}
+          properties={<p className="core-hint">{t("当前没有可显示的属性。")}</p>}
+          agent={{ enabled: false, visible: layout.inspectorOpen, openProject }}
+        />
       }
       bottom={
         <WorkbenchBottomPanel

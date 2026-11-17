@@ -149,6 +149,12 @@ export const studioMenus: MenuGroup[] = [
         keywords: "Source Control Git 版本控制",
       },
       {
+        id: "view.agent",
+        label: "智能体",
+        icon: "sparkles",
+        keywords: "Agent Chat AI ACP 聊天 对话 助手",
+      },
+      {
         id: "view.sidebar",
         label: "资源面板",
         icon: "sidebar",

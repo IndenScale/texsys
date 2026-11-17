@@ -9,6 +9,7 @@ import tempfile
 
 from texsys.project import ProjectError
 from texsys.evidence import canonical_digest
+from .agent import is_agent_config_path
 from .ai import is_ai_config_path
 from .jsonc import strip_jsonc
 from .preview import ProjectPreview
@@ -102,6 +103,7 @@ def workspace_path(root: Path, relative: str, build: str, *, missing=False) -> P
       or candidate == output
       or _private_build_path(candidate, output)
       or is_ai_config_path(candidate)
+      or is_agent_config_path(candidate)
       or (not missing and not candidate.exists())):
     raise ProjectError("Project file not found.")
   return candidate
@@ -142,7 +144,8 @@ def project_files(root: Path, build: str, *, previews: ProjectPreview | None = N
           if item.is_dir(follow_symlinks=False):
             directories.append(file)
             folders.append(relative)
-          elif item.is_file(follow_symlinks=False) and not is_ai_config_path(file):
+          elif (item.is_file(follow_symlinks=False) and not is_ai_config_path(file)
+                and not is_agent_config_path(file)):
             try:
               size = {} if compact else {"size": item.stat(follow_symlinks=False).st_size}
             except OSError:

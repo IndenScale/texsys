@@ -1,0 +1,284 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import Module from "node:module";
+import path from "node:path";
+import esbuild from "esbuild-wasm";
+
+function load(source) {
+  const filename = path.resolve(source);
+  const result = esbuild.buildSync({
+    entryPoints: [filename],
+    bundle: true,
+    write: false,
+    platform: "node",
+    format: "cjs",
+    packages: "external",
+    loader: { ".css": "empty" },
+  });
+  const module = new Module(filename);
+  module.paths = Module._nodeModulePaths(process.cwd());
+  module._compile(result.outputFiles[0].text, filename);
+  return module.exports;
+}
+
+const {
+  applyAgentEvents,
+  configChoices,
+  diffStats,
+  emptyTranscript,
+  lineDiff,
+  presentTool,
+  projectPath,
+} = load("src/texsys/assets/studio/agent-model.ts");
+
+const root = "/workspace/project";
+const update = (seq, payload) => ({ seq, type: "update", update: payload });
+
+test("message and thought chunks merge by message while turns stay separate", () => {
+  const transcript = applyAgentEvents(
+    emptyTranscript(),
+    [
+      { seq: 1, type: "state", state: "ready", error: "" },
+      { seq: 2, type: "user", text: "检查机柜", context: ["src/room.json"] },
+      update(3, {
+        sessionUpdate: "agent_thought_chunk",
+        messageId: "a",
+        content: { type: "text", text: "思考" },
+      }),
+      update(4, {
+        sessionUpdate: "agent_message_chunk",
+        messageId: "b",
+        content: { type: "text", text: "Hello " },
+      }),
+      update(5, {
+        sessionUpdate: "agent_message_chunk",
+        messageId: "b",
+        content: { type: "text", text: "world" },
+      }),
+      update(6, {
+        sessionUpdate: "agent_message_chunk",
+        messageId: "c",
+        content: { type: "text", text: "Next" },
+      }),
+      { seq: 7, type: "turn_end", stopReason: "end_turn" },
+    ],
+    root,
+  );
+  assert.deepEqual(
+    transcript.items.map((item) => [item.kind, item.text ?? item.stopReason]),
+    [
+      ["user", "检查机柜"],
+      ["thought", "思考"],
+      ["agent", "Hello world"],
+      ["agent", "Next"],
+      ["turn", "end_turn"],
+    ],
+  );
+  assert.deepEqual(transcript.items[0].context, ["src/room.json"]);
+  assert.equal(transcript.state, "ready");
+});
+
+test("events are idempotent by sequence and a reset rebuilds from the log", () => {
+  const events = [
+    update(1, { sessionUpdate: "agent_message_chunk", content: { type: "text", text: "A" } }),
+  ];
+  const once = applyAgentEvents(emptyTranscript(), events, root);
+  const twice = applyAgentEvents(once, events, root);
+  assert.equal(twice.items[0].text, "A");
+  const reset = applyAgentEvents(
+    twice,
+    [update(5, { sessionUpdate: "agent_message_chunk", content: { type: "text", text: "B" } })],
+    root,
+    true,
+  );
+  assert.deepEqual(
+    reset.items.map((item) => item.text),
+    ["B"],
+  );
+});
+
+test("tool calls merge updates and record changed project files", () => {
+  const transcript = applyAgentEvents(
+    emptyTranscript(),
+    [
+      update(1, {
+        sessionUpdate: "tool_call",
+        toolCallId: "t1",
+        title: "edit",
+        kind: "other",
+        status: "in_progress",
+        rawInput: { file_path: `${root}/src/rack.json`, old_string: "a\n", new_string: "b\n" },
+      }),
+      update(2, { sessionUpdate: "tool_call_update", toolCallId: "t1", status: "completed" }),
+      update(3, {
+        sessionUpdate: "tool_call",
+        toolCallId: "t2",
+        title: "Edit outside",
+        kind: "edit",
+        status: "completed",
+        locations: [{ path: "/etc/hosts" }],
+        content: [{ type: "diff", path: `${root}/README.md`, oldText: "x", newText: "y" }],
+      }),
+      {
+        seq: 4,
+        type: "fs",
+        op: "write",
+        path: "src/new.json",
+        created: true,
+        oldText: null,
+        newText: "{}",
+      },
+      { seq: 5, type: "fs", op: "read", path: "src/rack.json" },
+    ],
+    root,
+  );
+  const tools = transcript.items.filter((item) => item.kind === "tool");
+  assert.equal(tools.length, 2);
+  assert.equal(tools[0].status, "completed");
+  assert.deepEqual(transcript.changed, ["src/rack.json", "README.md", "src/new.json"]);
+  assert.ok(transcript.fileChanges >= 3);
+  const view = presentTool(tools[0], root);
+  assert.equal(view.path, "src/rack.json");
+  assert.equal(view.icon, "edit");
+  assert.deepEqual(view.diffs, [
+    { path: "src/rack.json", oldText: "a\n", newText: "b\n", partial: true },
+  ]);
+  assert.equal(presentTool(tools[1], root).diffs[0].path, "README.md");
+});
+
+test("shell tools present their command and terminal output is tracked", () => {
+  const transcript = applyAgentEvents(
+    emptyTranscript(),
+    [
+      update(1, {
+        sessionUpdate: "tool_call",
+        toolCallId: "b",
+        title: "bash",
+        kind: "other",
+        status: "completed",
+        rawInput: { command: "uv run texsys build", workdir: root },
+        content: [{ type: "terminal", terminalId: "term-1" }],
+      }),
+      {
+        seq: 2,
+        type: "terminal",
+        terminalId: "term-1",
+        command: "uv run texsys build",
+        cwd: ".",
+        output: "",
+        truncated: false,
+      },
+      {
+        seq: 3,
+        type: "terminal",
+        terminalId: "term-1",
+        output: "ok\n",
+        truncated: false,
+        exitStatus: { exitCode: 0, signal: null },
+      },
+    ],
+    root,
+  );
+  const view = presentTool(transcript.items[0], root);
+  assert.equal(view.icon, "terminal");
+  assert.equal(view.command, "uv run texsys build");
+  assert.deepEqual(view.terminals, ["term-1"]);
+  assert.equal(transcript.terminals["term-1"].output, "ok\n");
+  assert.equal(transcript.terminals["term-1"].command, "uv run texsys build");
+  assert.equal(transcript.terminals["term-1"].exitStatus.exitCode, 0);
+});
+
+test("permissions settle, plans replace within a turn and session options update", () => {
+  const transcript = applyAgentEvents(
+    emptyTranscript(),
+    [
+      {
+        seq: 1,
+        type: "configured",
+        configOptions: [
+          {
+            id: "model",
+            name: "Model",
+            type: "select",
+            currentValue: "m2",
+            options: [
+              {
+                group: "g",
+                name: "G",
+                options: [
+                  { value: "m1", name: "One" },
+                  { value: "m2", name: "Two" },
+                ],
+              },
+            ],
+          },
+        ],
+        modes: {
+          currentModeId: "ask",
+          availableModes: [
+            { id: "ask", name: "Ask" },
+            { id: "code", name: "Code" },
+          ],
+        },
+      },
+      { seq: 2, type: "user", text: "go", context: [] },
+      update(3, { sessionUpdate: "plan", entries: [{ content: "a", status: "pending" }] }),
+      update(4, { sessionUpdate: "plan", entries: [{ content: "a", status: "completed" }] }),
+      {
+        seq: 5,
+        type: "permission",
+        key: "k1",
+        toolCall: { title: "Write" },
+        options: [{ optionId: "ok", name: "Allow", kind: "allow_once" }],
+      },
+      { seq: 6, type: "permission_resolved", key: "k1", optionId: "ok" },
+      update(7, { sessionUpdate: "current_mode_update", currentModeId: "code" }),
+      update(8, {
+        sessionUpdate: "available_commands_update",
+        availableCommands: [{ name: "review" }],
+      }),
+      update(9, { sessionUpdate: "usage_update", used: 50, size: 1000 }),
+    ],
+    root,
+  );
+  const plans = transcript.items.filter((item) => item.kind === "plan");
+  assert.equal(plans.length, 1);
+  assert.equal(plans[0].entries[0].status, "completed");
+  const permission = transcript.items.find((item) => item.kind === "permission");
+  assert.equal(permission.settled, true);
+  assert.equal(permission.optionId, "ok");
+  assert.equal(transcript.modes.currentModeId, "code");
+  assert.deepEqual(transcript.commands, [{ name: "review" }]);
+  assert.deepEqual(transcript.usage, { used: 50, size: 1000 });
+  assert.deepEqual(
+    configChoices(transcript.configOptions[0]).map((choice) => choice.value),
+    ["m1", "m2"],
+  );
+});
+
+test("failures surface as notices", () => {
+  const transcript = applyAgentEvents(
+    emptyTranscript(),
+    [{ seq: 1, type: "state", state: "exited", error: "智能体进程已退出（退出码 3）。" }],
+    root,
+  );
+  assert.equal(transcript.items[0].kind, "notice");
+  assert.match(transcript.items[0].text, /退出码 3/);
+});
+
+test("line diff keeps changed lines with collapsed context", () => {
+  const before = Array.from({ length: 12 }, (_, index) => `line ${index}`).join("\n");
+  const after = before.replace("line 6", "line six");
+  const diff = lineDiff(before, after);
+  assert.deepEqual(diffStats(diff), { added: 1, removed: 1 });
+  assert.equal(diff[0].type, "gap");
+  assert.ok(diff.some((line) => line.type === "add" && line.text === "line six"));
+  assert.deepEqual(diffStats(lineDiff("", "a\nb\n")), { added: 2, removed: 0 });
+});
+
+test("project paths stay inside the project root", () => {
+  assert.equal(projectPath(`${root}/src/a.json`, root), "src/a.json");
+  assert.equal(projectPath(`${root}-other/a.json`, root), undefined);
+  assert.equal(projectPath(root, root), undefined);
+  assert.equal(projectPath("./src/b.json", root), "src/b.json");
+});

@@ -180,6 +180,18 @@ POC 输出明确的退出码、诊断与结果文件；失败展示、合并门�
 - `GET /api/ai/settings` 返回连接方式、基础 URL、模型或 Agent 标识及密钥是否存在。`POST /api/ai/settings` 保存连接，密钥字段为空时清除。连接测试 `POST /api/ai/test` 使用已保存的配置和固定测试文本。
 - 源代码管理的「AI 生成」显示当前范围、接收地址与模型或 Agent，确认后以 Git 状态快照请求 `POST /api/ai/commit-message`。只发送范围内的 UTF-8 暂存差异，最多 48 KiB，快照、范围和连接须与确认时一致。服务返回可编辑的提交说明草稿，实际提交仍由用户触发。
 
+## 智能体面板
+
+右侧面板分为「属性」与「智能体」两个视图。智能体视图通过 Agent Client Protocol（ACP）驱动外部智能体，Studio 不内置模型循环。决策见 [ADR-0034](../../docs/adr/0034-acp-agent-client.md)，交互见 [DDR-0030](../../docs/ddr/0030-studio-agent-panel.md)。
+
+- 内置智能体为 DeepSeek Harness（`dsh --profile acp`）、Claude Code（`claude-agent-acp`）、Codex（`codex-acp`）和 Gemini CLI（`gemini --acp`）。命令在 Studio 后端的 `PATH` 与 `~/.local/bin` 中查找，未找到时标为不可用。
+- `~/.config/texsys/studio-agents.json` 的 `agents` 对象按标识覆盖 `name`、`command`、`env`，或以 `"disabled": true` 停用条目，也可新增本机智能体。文件不得位于项目或仓库内，API 只返回环境变量名。
+- `GET /api/agent` 返回智能体清单、会话摘要、配置路径与诊断。`POST /api/agent/sessions` 以 `agent` 新建会话；后端启动子进程，完成 `initialize` 与 `session/new`，工作目录为项目根目录。
+- `GET /api/agent/events?session=&after=&wait=` 长轮询有序事件，最长等待 25 秒。事件包括状态、配置项、用户消息、原样转发的 `session/update`、权限请求与处理、文件读写、终端输出和轮次结束。日志超过上限时丢弃最早事件，客户端收到 `reset` 后重建对话。
+- `POST /api/agent/prompt` 发送文本和最多 16 个项目相对路径；路径以 `resource_link` 附带。同一会话一次只处理一轮。`/cancel`、`/permission`、`/config`、`/mode`、`/authenticate` 和 `/close` 分别对应取消、授权选择、配置项、模式、登录和关闭。
+- 客户端代办只接受项目根目录内的绝对路径，拒绝版本库内部目录与本机 AI 设置。`fs/write_text_file` 原子写入；`terminal/create` 在项目内运行命令，保留有界输出、退出状态和终止能力。
+- 智能体修改直接落在源文件上，评审使用源代码管理、Git diff 和构建检查。ACP 权限选项只授权单次工具操作，不代表工程接受。
+
 ## HVAC 首个切片
 
 专业 ID 为 `texsys:hvac`。工作台包含系统设计、设备表、器件库、仿真分析、检查报告、模型源与专业能力说明。复用既有工程图元、系统投影、check、build 与动态求解器，浏览器不实现第二套物理方程。

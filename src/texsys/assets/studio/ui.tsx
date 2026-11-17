@@ -201,6 +201,8 @@ const paths: Record<string, React.ReactNode> = {
   chevron: <path d="m8 10 4 4 4-4" />,
   "scm-chevron": <path d="m5 9 7 7 7-7" />,
   "scm-open-file": <path d="M9 4h7l5 5v11H9M16 4v5h5M9 7H3v6m0 0 3-3m-3 3-2-3" />,
+  send: <path d="M4 12 20 4l-6 16-3-7-7-1Z" />,
+  stop: <rect x="6" y="6" width="12" height="12" rx="1.5" />,
   sparkles: (
     <path d="M10 2c0 5-2 7-7 8 5 1 7 3 7 8 1-5 3-7 8-8-5-1-7-3-8-8Zm9 12c0 3-1 4-4 5 3 0 4 1 4 4 1-3 2-4 5-4-3-1-4-2-5-5Z" />
   ),

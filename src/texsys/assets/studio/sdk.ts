@@ -27,6 +27,8 @@ export type StudioLayout = {
   hiddenActivities?: string[];
   hiddenActivityBadges?: string[];
   inspectorOpen: boolean;
+  /** Active view in the right panel. */
+  inspectorView?: "properties" | "agent";
   bottomOpen: boolean;
   bottomMaximized?: boolean;
   bottomTab: "problems" | "tasks" | "terminal" | string;

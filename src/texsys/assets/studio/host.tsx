@@ -245,6 +245,7 @@ const emptyWorkspaceCommands = new Set([
   "view.fullscreen",
   "view.bottom",
   "view.inspector",
+  "view.agent",
   "view.statusbar",
   "view.toggleMaximize",
   "view.panelPosition",
@@ -775,6 +776,18 @@ function Studio({
       case "view.inspector":
         updateLayout(active, { inspectorOpen: !layout.inspectorOpen });
         break;
+      case "view.agent": {
+        const showing = layout.inspectorOpen && layout.inspectorView === "agent";
+        updateLayout(
+          active,
+          showing ? { inspectorOpen: false } : { inspectorOpen: true, inspectorView: "agent" },
+        );
+        if (!showing)
+          requestAnimationFrame(() =>
+            document.querySelector<HTMLTextAreaElement>(".agent-composer textarea")?.focus(),
+          );
+        break;
+      }
       case "view.panelPosition":
         openCommands("panel");
         break;
@@ -925,7 +938,13 @@ function Studio({
       ).map((item) => ({
         ...item,
         label: t(item.label),
-        keys: isSourceEditCommand(item.id) ? editKeys[item.id] : item.keys,
+        keys: isSourceEditCommand(item.id)
+          ? editKeys[item.id]
+          : item.id === "view.agent"
+            ? macKeys
+              ? ["⌃", "⌘", "I"]
+              : ["Ctrl", "Alt", "I"]
+            : item.keys,
       })),
     }));
   }, [locale, activeRunCommands, emptyWorkspace]);
@@ -1060,6 +1079,15 @@ function Studio({
       if ((event.metaKey || event.ctrlKey) && event.shiftKey && event.key.toLowerCase() === "p") {
         event.preventDefault();
         openCommands("commands");
+        return;
+      }
+      if (
+        (macKeys ? event.metaKey && event.ctrlKey : event.ctrlKey && event.altKey) &&
+        !event.shiftKey &&
+        event.key.toLowerCase() === "i"
+      ) {
+        event.preventDefault();
+        invokeCommand("view.agent");
         return;
       }
       if ((event.metaKey || event.ctrlKey) && !event.shiftKey && event.key.toLowerCase() === "p") {
