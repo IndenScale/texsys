@@ -13,6 +13,7 @@ from .bom import project_reference_bom
 from .building_views import build_building_view
 from .cad_delivery import build_cad_view
 from .checks import evaluate_design_checks
+from .ifc_delivery import build_ifc_coordination
 from .coordination import build_building_coordination, build_coordinated_scene, build_fws_network_coordination
 from .cw_network import build_cw_coordination, build_cw_network
 from .cw_study import build_cw_check, build_cw_study
@@ -103,10 +104,15 @@ from .wet_utility_views import build_wet_view
 
 class DatacenterReferencePackage(TexsysPackage):
   name = "datacenter-reference"
-  version = "0.31.0"
+  version = "0.32.0"
 
   def targets(self) -> tuple[TargetDefinition, ...]:
     return (
+      TargetDefinition("dcr:ifc-coordination", self.name, self.version, build_ifc_coordination,
+                       profiles=("coordination",), default_profile="coordination",
+                       dependencies=("dcr:layout", "dcr:pod-layout", "dcr:fws-network"),
+                       input_patterns=spatial_inputs("ifc.json", "*.sdl.json", "*/module.toml", "design-basis.json",
+                                                     "placement.study.json"), named_output=True),
       TargetDefinition("dcr:design-checks", self.name, self.version, self.build_checks,
                        profiles=("concept",), default_profile="concept",
                        input_patterns=spatial_inputs("*.sdl.json", "*/module.toml", "design-basis.json",

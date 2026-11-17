@@ -11,14 +11,20 @@ build = "build"
 [build]
 default_targets = ["review-package"]
 
+[build.targets.ifc-coordination]
+using = "dcr:ifc-coordination"
+profile = "coordination"
+output = "build/ifc/aidc-coordination.ifc"
+
 [dependencies]
-datacenter-reference = { path = "../../packages/datacenter-reference", version = "0.31.0" }
+datacenter-reference = { path = "../../packages/datacenter-reference", version = "0.32.0" }
 sheet = { path = "../../packages/sheet", version = "0.2.0" }
 
 [build.targets.review-package]
 using = "dcr:review"
 output = "build/review/aidc-discipline-review.json"
 dependencies = [
+  "ifc-coordination",
   "dcr:design-checks",
   "cad-site",
   "cad-architecture-l01",

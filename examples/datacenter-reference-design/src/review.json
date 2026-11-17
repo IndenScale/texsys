@@ -1,6 +1,18 @@
 {
   "schema_version": 1,
   "disciplines": {
+    "ifc-exchange": {
+      "name": "IFC 协调交换",
+      "required_artifacts": [
+        "build/ifc/aidc-coordination.ifc",
+        "build/ifc/aidc-coordination.sources.json",
+        "build/ifc/aidc-coordination.validation.json"
+      ],
+      "pending": [
+        "当前范围为概念包络、IT 舱内设备和设施水网络；建筑完整围护、结构详图及其他专业管网未覆盖。",
+        "接收方工具与 Revit 编辑能力、双向修改及真实项目责任审查尚未验证。"
+      ]
+    },
     "site": {
       "name": "总图",
       "required_artifacts": [

@@ -21,32 +21,33 @@ datacenter-reference 器件/单元库（本包）
 
 ## 模块
 
-| 类别 | 模块 | 说明 |
-| --- | --- | --- |
-| 设备 | dry-type-transformer | 3150 kVA 干式变压器 |
-| 设备 | lv-switchboard | 4000 A 低压开关柜 |
-| 设备 | ats | 自动转换开关 |
-| 设备 | ups-module | 500 kVA 模块化 UPS |
-| 设备 | battery-cabinet | 电池柜（15 min 后备） |
-| 设备 | busway | 密集型母线槽 |
-| 设备 | rack-pdu | 机柜 PDU |
-| 设备 | diesel-generator | 3000 kW 柴油发电机组 |
-| 设备 | water-cooled-chiller | 1200 kW 水冷冷水机组 |
-| 设备 | cooling-tower | 1500 kW 闭式冷却塔 |
-| 设备 | circulation-pump | 端吸冷冻循环泵 |
-| 设备 | condenser-water-pump | 冷却水循环泵 |
-| 设备 | raised-access-floor | 防静电活动地板 |
-| 单元 | it-container | IT 方舱：8 柜 + 2N CDU + 2N 精密空调 + 气体灭火 |
-| 单元 | power-container | 配电方舱：变压器→开关柜→ATS→5×500 kVA UPS→输出，每模块 120 kWh 电池 |
-| 单元 | cooling-container | 冷却方舱：冷机 + 2 冷冻泵（1 用 1 备），对外 FWS 接口 |
-| 单元 | generator-container | 发电机方舱：2×3000 kW N+1 + 9000 L 储油 |
-| 构造 | steel-frame-bay | 8.0 × 9.5 m 钢框架标准跨（组合 structure 库） |
-| 构造 | fire-partition-wall | 2.0 h 防火隔墙（组合 architecture 库） |
+| 类别 | 模块                 | 说明                                                                |
+| ---- | -------------------- | ------------------------------------------------------------------- |
+| 设备 | dry-type-transformer | 3150 kVA 干式变压器                                                 |
+| 设备 | lv-switchboard       | 4000 A 低压开关柜                                                   |
+| 设备 | ats                  | 自动转换开关                                                        |
+| 设备 | ups-module           | 500 kVA 模块化 UPS                                                  |
+| 设备 | battery-cabinet      | 电池柜（15 min 后备）                                               |
+| 设备 | busway               | 密集型母线槽                                                        |
+| 设备 | rack-pdu             | 机柜 PDU                                                            |
+| 设备 | diesel-generator     | 3000 kW 柴油发电机组                                                |
+| 设备 | water-cooled-chiller | 1200 kW 水冷冷水机组                                                |
+| 设备 | cooling-tower        | 1500 kW 闭式冷却塔                                                  |
+| 设备 | circulation-pump     | 端吸冷冻循环泵                                                      |
+| 设备 | condenser-water-pump | 冷却水循环泵                                                        |
+| 设备 | raised-access-floor  | 防静电活动地板                                                      |
+| 单元 | it-container         | IT 方舱：8 柜 + 2N CDU + 2N 精密空调 + 气体灭火                     |
+| 单元 | power-container      | 配电方舱：变压器→开关柜→ATS→5×500 kVA UPS→输出，每模块 120 kWh 电池 |
+| 单元 | cooling-container    | 冷却方舱：冷机 + 2 冷冻泵（1 用 1 备），对外 FWS 接口               |
+| 单元 | generator-container  | 发电机方舱：2×3000 kW N+1 + 9000 L 储油                             |
+| 构造 | steel-frame-bay      | 8.0 × 9.5 m 钢框架标准跨（组合 structure 库）                       |
+| 构造 | fire-partition-wall  | 2.0 h 防火隔墙（组合 architecture 库）                              |
 
 每个模块含 SDL 接口（端口、行为参数）、`module.toml` 资产绑定与四类资产：`geometry.usda`（包络）、`symbol.svg`（符号）、`specification.json`（接口、防火/耐候属性）、`behavior.json`（模型与适用边界）。方舱另含 `boundary` 边界映射，声明外部端口对应的内部实例端口。
 
 ## 构建目标
 
+- `dcr:ifc-coordination`：从已编译空间、设备和设施水图生成 IFC4、来源映射及真实回读校验；输出为概念协调交换模型。范围与复现入口见 [IFC 构建契约](../../spec/build/05-ifc-coordination.md)。
 - `dcr:design-checks`：按项目 `src/design-basis.json` 的 GB 50174 条款校核装配（供电 2N、冷却 N+1、储油、防火分隔、耐火等级、净高、灭火、进风温度、功能分区、变压器容量）。必需检查不满足返回失败。
 - `dcr:bom`：把装配实例投影为中性 BOM 条目（`texsys_bom` 契约），按 `src/wbs.json` 分组。选型状态 `candidate`，参数状态 `assumed`。
 

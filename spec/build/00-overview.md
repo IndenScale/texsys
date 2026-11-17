@@ -2,7 +2,7 @@
 
 > 状态：有效。本文定义当前可执行的 target 选择、结果和证据子集。架构依据见 ADR-0011、ADR-0012、ADR-0013 和 [ADR-0027](../../docs/adr/0027-incremental-build-and-project-preview.md)。
 
-特定交付物契约见 [Target BOM](01-target-bom.md)、[Hook Runner](02-hooks.md) 和 [HVAC 系统图／原理图](03-system-schematic.md)。
+特定交付物契约见 [Target BOM](01-target-bom.md)、[Hook Runner](02-hooks.md)、[HVAC 系统图／原理图](03-system-schematic.md) 和 [IFC 协调模型](05-ifc-coordination.md)。
 
 ## 选择构建目标
 

@@ -1,0 +1,6 @@
+{
+  "schema_version": 1,
+  "schema": "IFC4",
+  "project_id": "urn:texsys:aidc-reference-design:coordination",
+  "name": "AIDC reference coordination"
+}
