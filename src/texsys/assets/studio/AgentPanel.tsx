@@ -8,7 +8,7 @@ import React, {
   type ReactNode,
 } from "react";
 import { Icon } from "./ui";
-import { NavigatorButton } from "./NavigatorPanel";
+import { NavigatorButton, NavigatorPanel } from "./NavigatorPanel";
 import { NavigatorMenu, type NavigatorMenuItem } from "./NavigatorMenu";
 import { MarkdownPreview } from "./MarkdownPreview";
 import { t, localizeError } from "./i18n";
@@ -77,14 +77,15 @@ function writeStorage(
 }
 
 export type AgentPanelProps = {
-  /** A project is bound and the agent may work in it. */
-  enabled: boolean;
-  /** The agent view is showing; the service list refreshes when it becomes visible. */
+  /** Workspace scope: bound project or standalone empty workspace. */
+  workspace?: "project" | "empty";
+  /** The right panel is open; refreshes the agent list when shown. */
   visible: boolean;
   activeFile?: string;
   openFile?: (path: string, line?: number) => void;
   reviewChanges?: () => void;
   openProject?: () => void;
+  onClose?: () => void;
 };
 
 function DiffView({ oldText, newText }: { oldText: string; newText: string }) {
@@ -476,12 +477,14 @@ function Picker({
 }
 
 function AgentWelcome({
+  workspace,
   service,
   selected,
   choose,
   resume,
   error,
 }: {
+  workspace: "project" | "empty";
   service?: AgentServiceState;
   selected?: string;
   choose: (id: string) => void;
@@ -494,10 +497,12 @@ function AgentWelcome({
       <div className="agent-welcome-icon">
         <Icon name="sparkles" size={26} />
       </div>
-      <h2>{t("使用智能体处理工程任务")}</h2>
+      <h2>{t(workspace === "empty" ? "使用智能体提问或探索方案" : "使用智能体处理工程任务")}</h2>
       <p>
         {t(
-          "智能体在当前项目中读写源文件并运行命令。修改通过源代码管理审查，工程判定以构建和检查结果为准。",
+          workspace === "empty"
+            ? "当前未打开项目工作区，可直接提问讨论；打开项目后智能体可读写源文件并运行构建与检查。"
+            : "智能体在当前项目中读写源文件并运行命令。修改通过源代码管理审查，工程判定以构建和检查结果为准。",
         )}
       </p>
       {error && <p className="agent-notice is-error">{error}</p>}
@@ -566,17 +571,19 @@ function AgentWelcome({
 
 /** Agent panel controller: actions for the right panel header and the panel body. */
 export function useAgentPanel({
-  enabled,
+  workspace = "project",
   visible,
   activeFile,
   openFile,
   reviewChanges,
   openProject,
+  onClose,
 }: AgentPanelProps): { actions: ReactNode; body: ReactNode; prompting: boolean } {
+  const sessionKey = `${SESSION_KEY}.${workspace}`;
   const [service, setService] = useState<AgentServiceState>();
   const [serviceError, setServiceError] = useState("");
   const [sessionId, setSessionIdState] = useState<string | undefined>(() =>
-    readStorage(SESSION_KEY, globalThis.sessionStorage),
+    readStorage(sessionKey, globalThis.sessionStorage),
   );
   const [summary, setSummary] = useState<AgentSessionSummary>();
   const [transcript, setTranscript] = useState<Transcript>(emptyTranscript);
@@ -593,14 +600,23 @@ export function useAgentPanel({
   const input = useRef<HTMLTextAreaElement>(null);
   const root = service?.root ?? "";
 
-  const setSessionId = useCallback((id: string | undefined) => {
-    writeStorage(SESSION_KEY, id, globalThis.sessionStorage);
-    setSessionIdState(id);
-  }, []);
+  const setSessionId = useCallback(
+    (id: string | undefined) => {
+      writeStorage(sessionKey, id, globalThis.sessionStorage);
+      setSessionIdState(id);
+    },
+    [sessionKey],
+  );
+
+  useEffect(() => {
+    setSessionIdState(readStorage(sessionKey, globalThis.sessionStorage));
+  }, [sessionKey]);
 
   const loadService = useCallback(async () => {
     try {
-      const next = await request<AgentServiceState>("/api/agent");
+      const next = await request<AgentServiceState>(
+        `/api/agent?workspace=${encodeURIComponent(workspace)}`,
+      );
       setService(next);
       setServiceError("");
       return next;
@@ -608,11 +624,11 @@ export function useAgentPanel({
       setServiceError(String(cause instanceof Error ? cause.message : cause));
       return undefined;
     }
-  }, []);
+  }, [workspace]);
 
   useEffect(() => {
-    if (enabled && visible) void loadService();
-  }, [enabled, visible, loadService]);
+    if (visible) void loadService();
+  }, [visible, loadService]);
 
   const agents = service?.agents ?? [];
   const agent: AgentInfo | undefined =
@@ -622,7 +638,7 @@ export function useAgentPanel({
 
   // Long-poll the backend event log of the current session.
   useEffect(() => {
-    if (!enabled || !sessionId || !root) return;
+    if (!sessionId || !root) return;
     let stopped = false;
     const controller = new AbortController();
     let after = 0;
@@ -661,11 +677,12 @@ export function useAgentPanel({
       stopped = true;
       controller.abort();
     };
-  }, [enabled, sessionId, root, loadService, setSessionId]);
+  }, [sessionId, root, loadService, setSessionId]);
 
   // Ask the workbench to re-read files and Git after the agent touched the project.
   const announced = useRef(0);
   useEffect(() => {
+    if (workspace !== "project") return;
     if (transcript.fileChanges <= announced.current) {
       announced.current = transcript.fileChanges;
       return;
@@ -676,7 +693,7 @@ export function useAgentPanel({
       400,
     );
     return () => clearTimeout(timer);
-  }, [transcript.fileChanges]);
+  }, [workspace, transcript.fileChanges]);
 
   useLayoutEffect(() => {
     const element = scroller.current;
@@ -709,16 +726,19 @@ export function useAgentPanel({
 
   const startSession = useCallback(async () => {
     if (!agent) throw new Error(t("没有可用的智能体。"));
-    const created = await request<AgentSessionSummary>("/api/agent/sessions", { agent: agent.id });
+    const created = await request<AgentSessionSummary>("/api/agent/sessions", {
+      agent: agent.id,
+      workspace,
+    });
     setSessionId(created.id);
     void loadService();
     return created.id;
-  }, [agent, loadService, setSessionId]);
+  }, [agent, workspace, loadService, setSessionId]);
 
   const send = useCallback(async () => {
     const text = draft.trim();
     if (!text || prompting || pending) return;
-    const context = includeActive && activeFile ? [activeFile] : [];
+    const context = workspace === "project" && includeActive && activeFile ? [activeFile] : [];
     setDraft("");
     stick.current = true;
     try {
@@ -739,6 +759,7 @@ export function useAgentPanel({
     draft,
     prompting,
     pending,
+    workspace,
     includeActive,
     activeFile,
     sessionId,
@@ -811,10 +832,21 @@ export function useAgentPanel({
           },
         ]
       : []),
+    ...(workspace === "empty" && openProject
+      ? [
+          {
+            label: t("打开已启动的项目"),
+            icon: "grid",
+            run: openProject,
+            separator: true,
+          },
+        ]
+      : []),
   ];
 
-  const actions = enabled ? (
+  const actions = (
     <>
+      {prompting && <span className="agent-busy-dot" aria-label={t("处理中")} />}
       <NavigatorButton label={t("新建会话")} icon="plus" onClick={newSession} />
       <NavigatorMenu
         label={t("会话历史")}
@@ -823,8 +855,9 @@ export function useAgentPanel({
         onOpen={() => void loadService()}
       />
       <NavigatorMenu label={t("更多智能体操作")} items={moreItems} />
+      {onClose && <NavigatorButton label={t("关闭智能体面板")} icon="close" onClick={onClose} />}
     </>
-  ) : null;
+  );
 
   const configPicker = (option: ConfigOption) => {
     const choices = configChoices(option);
@@ -853,26 +886,11 @@ export function useAgentPanel({
   };
 
   const liveSession = Boolean(sessionId && state && liveStates.has(state));
-  const canType = enabled && (liveSession || Boolean(agent));
-  const contextName = activeFile?.split("/").at(-1);
+  const canType = liveSession || Boolean(agent);
+  const contextName = workspace === "project" ? activeFile?.split("/").at(-1) : undefined;
   const usage = transcript.usage && transcript.usage.size > 0 ? transcript.usage : undefined;
 
-  const body = !enabled ? (
-    <div className="agent-panel">
-      <div className="agent-welcome">
-        <div className="agent-welcome-icon">
-          <Icon name="sparkles" size={26} />
-        </div>
-        <h2>{t("使用智能体处理工程任务")}</h2>
-        <p>{t("打开已启动的项目后，智能体可以在项目中读写源文件并运行构建与检查。")}</p>
-        {openProject && (
-          <button type="button" className="core-primary" onClick={openProject}>
-            {t("打开已启动的项目")}
-          </button>
-        )}
-      </div>
-    </div>
-  ) : (
+  const body = (
     <div className="agent-panel">
       <div
         ref={scroller}
@@ -887,6 +905,7 @@ export function useAgentPanel({
       >
         {!sessionId ? (
           <AgentWelcome
+            workspace={workspace}
             service={service}
             selected={agent?.id}
             error={serviceError}
@@ -956,15 +975,22 @@ export function useAgentPanel({
           <ul>
             {transcript.changed.map((path) => (
               <li key={path}>
-                <button
-                  type="button"
-                  className="agent-link-button"
-                  title={path}
-                  onClick={() => openFile?.(path)}
-                >
-                  <Icon name="file" size={12} />
-                  {path}
-                </button>
+                {openFile ? (
+                  <button
+                    type="button"
+                    className="agent-link-button"
+                    title={path}
+                    onClick={() => openFile(path)}
+                  >
+                    <Icon name="file" size={12} />
+                    {path}
+                  </button>
+                ) : (
+                  <span className="agent-changed-path" title={path}>
+                    <Icon name="file" size={12} />
+                    {path}
+                  </span>
+                )}
               </li>
             ))}
           </ul>
@@ -995,7 +1021,7 @@ export function useAgentPanel({
             ))}
           </div>
         )}
-        {activeFile && (
+        {workspace === "project" && activeFile && (
           <div className="agent-chips">
             <button
               type="button"
@@ -1025,7 +1051,11 @@ export function useAgentPanel({
           aria-label={t("向智能体发送消息")}
           placeholder={
             canType
-              ? t("描述要完成的工程任务，Enter 发送，Shift+Enter 换行")
+              ? t(
+                  workspace === "empty"
+                    ? "输入问题或要讨论的内容，Enter 发送，Shift+Enter 换行"
+                    : "描述要完成的工程任务，Enter 发送，Shift+Enter 换行",
+                )
               : t("没有可用的智能体，请先完成配置。")
           }
           onChange={(event) => {
@@ -1157,72 +1187,16 @@ const stateLabels: Record<string, string> = {
   closed: "已关闭",
 };
 
-/** Right panel with VS Code style view tabs: properties and the agent. */
-export function RightPanel({
-  view,
-  changeView,
-  properties,
-  agent,
-}: {
-  view: "properties" | "agent";
-  changeView: (view: "properties" | "agent") => void;
-  properties: ReactNode;
-  agent: AgentPanelProps;
-}) {
-  const controller = useAgentPanel({ ...agent, visible: agent.visible && view === "agent" });
-  const tabs = [
-    { id: "properties" as const, label: t("属性"), icon: "info" },
-    { id: "agent" as const, label: t("智能体"), icon: "sparkles" },
-  ];
+/** Dedicated right-side agent panel shared by empty and project workspaces. */
+export function AgentPanel(props: AgentPanelProps) {
+  const controller = useAgentPanel(props);
   return (
-    <div className="right-panel">
-      <header className="right-panel-heading">
-        <div className="right-panel-tabs" role="tablist" aria-label={t("右侧面板视图")}>
-          {tabs.map((tab) => (
-            <button
-              key={tab.id}
-              type="button"
-              role="tab"
-              id={`right-panel-tab-${tab.id}`}
-              aria-selected={view === tab.id}
-              aria-controls={`right-panel-view-${tab.id}`}
-              tabIndex={view === tab.id ? 0 : -1}
-              onClick={() => changeView(tab.id)}
-              onKeyDown={(event) => {
-                if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
-                event.preventDefault();
-                const next = tab.id === "agent" ? "properties" : "agent";
-                changeView(next);
-                document.getElementById(`right-panel-tab-${next}`)?.focus();
-              }}
-            >
-              {tab.label}
-              {tab.id === "agent" && controller.prompting && (
-                <span className="right-panel-busy" aria-label={t("处理中")} />
-              )}
-            </button>
-          ))}
-        </div>
-        {view === "agent" && <div className="right-panel-actions">{controller.actions}</div>}
-      </header>
-      <div
-        id="right-panel-view-properties"
-        role="tabpanel"
-        aria-labelledby="right-panel-tab-properties"
-        className="right-panel-view"
-        hidden={view !== "properties"}
-      >
-        {properties}
-      </div>
-      <div
-        id="right-panel-view-agent"
-        role="tabpanel"
-        aria-labelledby="right-panel-tab-agent"
-        className="right-panel-view"
-        hidden={view !== "agent"}
-      >
-        {controller.body}
-      </div>
-    </div>
+    <NavigatorPanel
+      title={t("智能体")}
+      actions={controller.actions}
+      className="agent-navigator-panel"
+    >
+      {controller.body}
+    </NavigatorPanel>
   );
 }

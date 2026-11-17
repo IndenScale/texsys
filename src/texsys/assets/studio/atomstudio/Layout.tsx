@@ -222,7 +222,7 @@ export function WorkbenchLayout({
       </div>
       <WidthResizeHandle
         className="right-panel-layout-resizer"
-        label={t("调整属性面板宽度")}
+        label={t("调整智能体面板宽度")}
         panelRef={inspectorPanel}
         previewProperty="--inspector-preview-width"
         value={layout.inspectorWidth}
@@ -238,6 +238,7 @@ export function WorkbenchLayout({
       <aside
         ref={inspectorPanel}
         className="workbench-inspector workbench-card"
+        aria-label={t("智能体")}
         inert={!layout.inspectorOpen}
         aria-hidden={!layout.inspectorOpen}
       >

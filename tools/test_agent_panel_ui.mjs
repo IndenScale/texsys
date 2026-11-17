@@ -48,9 +48,10 @@ function loadStudioModule(source) {
   loaded._compile(result.outputFiles[0].text, filename);
   return loaded.exports;
 }
-const { RightPanel } = loadStudioModule("AgentPanel.tsx");
+const { AgentPanel } = loadStudioModule("AgentPanel.tsx");
 
 const ROOT = "/workspace/project";
+const SCRATCH = "/tmp/agent-scratch";
 
 /** In-memory Studio agent API with a long-poll event log. */
 function backend() {
@@ -105,14 +106,17 @@ function backend() {
     const body = options.body ? JSON.parse(options.body) : undefined;
     state.requests.push([url, body]);
     const parsed = new URL(url, "http://localhost");
-    if (parsed.pathname === "/api/agent")
+    if (parsed.pathname === "/api/agent") {
+      const workspace = parsed.searchParams.get("workspace") ?? "project";
       return json({
         agents,
         sessions: state.session ? [state.session] : [],
         config_path: "~/.config/texsys/studio-agents.json",
         diagnostics: [],
-        root: ROOT,
+        root: workspace === "empty" ? SCRATCH : ROOT,
+        workspace,
       });
+    }
     if (parsed.pathname === "/api/agent/sessions") {
       state.emit({ type: "state", state: "starting", error: "" });
       return json(summary("starting"));
@@ -152,34 +156,22 @@ async function mount(t, props = {}) {
   document.body.innerHTML = '<div id="app"></div>';
   const root = createRoot(document.getElementById("app"));
   const opened = [];
-  let view = props.view ?? "agent";
-  const render = () =>
+  const workspace = props.workspace ?? "project";
+  await act(async () =>
     root.render(
-      React.createElement(RightPanel, {
-        view,
-        changeView: (next) => {
-          view = next;
-          render();
-        },
-        properties: React.createElement("p", null, "文件属性内容"),
-        agent: {
-          enabled: props.enabled ?? true,
-          visible: true,
-          activeFile: "src/room.json",
-          openFile: (file, line) => opened.push([file, line]),
-          reviewChanges: () => opened.push(["scm"]),
-          openProject: () => opened.push(["project"]),
-        },
+      React.createElement(AgentPanel, {
+        workspace,
+        visible: true,
+        activeFile: workspace === "project" ? "src/room.json" : undefined,
+        openFile: workspace === "project" ? (file, line) => opened.push([file, line]) : undefined,
+        reviewChanges: workspace === "project" ? () => opened.push(["scm"]) : undefined,
+        openProject: () => opened.push(["project"]),
+        onClose: () => opened.push(["close"]),
       }),
-    );
-  await act(async () => render());
+    ),
+  );
   t.after(async () => act(async () => root.unmount()));
-  return {
-    opened,
-    get view() {
-      return view;
-    },
-  };
+  return { opened };
 }
 
 const text = () => document.body.textContent;
@@ -200,28 +192,63 @@ async function type(value) {
   return area;
 }
 
-test("right panel switches between properties and agent views with tab semantics", async (t) => {
+test("right panel is dedicated to the agent with no properties tab", async (t) => {
   backend();
   sessionStorage.clear();
-  const panel = await mount(t, { view: "properties" });
-  const tabs = [...document.querySelectorAll('[role="tab"]')];
-  assert.deepEqual(
-    tabs.map((tab) => tab.textContent),
-    ["属性", "智能体"],
-  );
-  assert.equal(tabs[0].getAttribute("aria-selected"), "true");
-  assert.equal(document.getElementById("right-panel-view-agent").hidden, true);
-  await act(async () => tabs[1].click());
-  assert.equal(panel.view, "agent");
-  assert.equal(document.getElementById("right-panel-view-properties").hidden, true);
+  const panel = await mount(t);
+  await flush();
+  assert.equal(document.querySelectorAll('[role="tab"]').length, 0);
+  assert.doesNotMatch(text(), /文件属性/);
+  assert.equal(document.querySelector(".navigator-heading strong")?.textContent, "智能体");
+  await act(async () => button("关闭智能体面板").click());
+  assert.deepEqual(panel.opened, [["close"]]);
 });
 
-test("welcome shell explains that the agent needs the started project", async (t) => {
-  backend();
-  const panel = await mount(t, { enabled: false });
-  assert.match(text(), /打开已启动的项目后/);
-  await act(async () => button("打开已启动的项目").click());
-  assert.deepEqual(panel.opened, [["project"]]);
+test("empty workspace displays the agent panel and allows asking questions directly", async (t) => {
+  const server = backend();
+  sessionStorage.clear();
+  localStorage.clear();
+  await mount(t, { workspace: "empty" });
+  await flush();
+  assert.match(text(), /使用智能体提问或探索方案/);
+  assert.equal(document.querySelector(".agent-chip"), null);
+  const area = await type("你好，防静电地板集中荷载怎么校核？");
+  assert.equal(area.disabled, false);
+  await act(async () =>
+    area.dispatchEvent(new dom.window.KeyboardEvent("keydown", { key: "Enter", bubbles: true })),
+  );
+  await flush();
+  assert.ok(
+    server.requests.some(
+      ([url, body]) =>
+        url === "/api/agent/sessions" &&
+        body.agent === "deepseek-harness" &&
+        body.workspace === "empty",
+    ),
+  );
+  await act(async () => server.emit({ type: "state", state: "ready", error: "" }));
+  await flush();
+  const prompt = server.requests.find(([url]) => url === "/api/agent/prompt");
+  assert.deepEqual(prompt[1], {
+    session: "s1",
+    text: "你好，防静电地板集中荷载怎么校核？",
+    context: [],
+  });
+  await act(async () =>
+    server.emit(
+      {
+        type: "update",
+        update: {
+          sessionUpdate: "agent_message_chunk",
+          content: { type: "text", text: "可按 GB 50174 校核单脚集中荷载。" },
+        },
+      },
+      { type: "turn_end", stopReason: "end_turn" },
+      { type: "state", state: "ready", error: "" },
+    ),
+  );
+  await flush();
+  assert.match(document.querySelector(".agent-message").textContent, /GB 50174/);
 });
 
 test("first message starts a session, waits for ready and renders the agent turn", async (t) => {

@@ -215,7 +215,7 @@ function TaskPanel({
 function initialLayout(): StudioLayout {
   return {
     sidebarOpen: window.innerWidth > 760,
-    inspectorOpen: false,
+    inspectorOpen: window.innerWidth > 1080,
     bottomOpen: false,
     bottomTab: "problems",
     sidebarWidth: DEFAULT_SIDEBAR_WIDTH,
@@ -777,12 +777,9 @@ function Studio({
         updateLayout(active, { inspectorOpen: !layout.inspectorOpen });
         break;
       case "view.agent": {
-        const showing = layout.inspectorOpen && layout.inspectorView === "agent";
-        updateLayout(
-          active,
-          showing ? { inspectorOpen: false } : { inspectorOpen: true, inspectorView: "agent" },
-        );
-        if (!showing)
+        const nextOpen = !layout.inspectorOpen;
+        updateLayout(active, { inspectorOpen: nextOpen });
+        if (nextOpen)
           requestAnimationFrame(() =>
             document.querySelector<HTMLTextAreaElement>(".agent-composer textarea")?.focus(),
           );
@@ -1302,8 +1299,9 @@ function Studio({
                     <Icon name="bottom-panel" size={18} expanded={layout.bottomOpen} />
                   </ToolbarButton>
                   <ToolbarButton
-                    aria-label={t("切换属性面板")}
-                    tooltip={t("显示/隐藏属性面板")}
+                    aria-label={t("切换智能体面板")}
+                    tooltip={t("显示/隐藏智能体面板")}
+                    shortcut={macKeys ? ["⌃", "⌘", "I"] : ["Ctrl", "Alt", "I"]}
                     aria-pressed={layout.inspectorOpen}
                     onClick={() => updateLayout(active, { inspectorOpen: !layout.inspectorOpen })}
                   >
@@ -1356,6 +1354,7 @@ function Studio({
                             "workspace.explorer",
                             "workspace.search",
                             "workspace.scm",
+                            "view.agent",
                             "view.problems",
                             "view.terminal",
                             "tasks.show",

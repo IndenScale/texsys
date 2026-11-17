@@ -11,7 +11,7 @@ import React, {
   type ReactNode,
 } from "react";
 import { ActivityBar, WorkbenchLayout } from "./atomstudio/Layout";
-import { RightPanel } from "./AgentPanel";
+import { AgentPanel } from "./AgentPanel";
 import { ExplorerSideSections } from "./ExplorerSideSections";
 import { TimelineView } from "./TimelineView";
 import { Empty, Icon } from "./ui";
@@ -170,7 +170,6 @@ type Core = {
   focusedGroup: string;
   maximizedEditor?: string;
   focusGroup: (id: string) => void;
-  inspector: ReactNode;
   documentActive: boolean;
   closeFocusRequest: number;
   activateDomain: () => void;
@@ -3423,35 +3422,6 @@ export function CoreWorkspaceProvider({
       </section>
     );
   };
-  const inspector = (
-    <section className="core-file-properties">
-      <div className="core-heading">
-        <strong>{t("文件属性")}</strong>
-      </div>
-      {active && !active.design && !active.extension && !diffActive && !searchEditorActive ? (
-        <dl>
-          <dt>{t("路径")}</dt>
-          <dd>{active.untitled ?? active.path}</dd>
-          <dt>{t("编码")}</dt>
-          <dd>{editorTextFormat(active).encoding === "utf8bom" ? "UTF-8 BOM" : "UTF-8"}</dd>
-          <dt>{t("状态")}</dt>
-          <dd>
-            {active.loading
-              ? t("读取中")
-              : active.reason
-                ? t("不可编辑")
-                : active.untitled || isDocumentDirty(active)
-                  ? t("未保存")
-                  : t("已保存")}
-          </dd>
-          <dt>{t("行数")}</dt>
-          <dd>{active.content.split("\n").length}</dd>
-        </dl>
-      ) : (
-        <p className="core-hint">{t("选择文件后查看属性。")}</p>
-      )}
-    </section>
-  );
   const primaryGroup = editorGroups[0];
   const secondaryGroup = editorGroups.find((group) => group.id === secondaryEditorGroup);
   const value: Core = {
@@ -3486,7 +3456,6 @@ export function CoreWorkspaceProvider({
     focusedGroup,
     maximizedEditor,
     focusGroup,
-    inspector,
     documentActive: documentActive || settingsActive,
     closeFocusRequest,
     activateDomain,
@@ -3545,7 +3514,6 @@ export function CoreWorkspaceProvider({
 export function WorkbenchSurface({
   layout,
   change,
-  inspector,
   bottom,
   tabs,
   tabActions,
@@ -3554,7 +3522,6 @@ export function WorkbenchSurface({
 }: {
   layout: StudioLayout;
   change: WorkbenchProps["changeLayout"];
-  inspector?: ReactNode;
   bottom?: ReactNode;
   tabs?: ReactNode;
   tabActions?: ReactNode;
@@ -3600,26 +3567,13 @@ export function WorkbenchSurface({
       }
       sidebar={core.sidebar(editorTabs)}
       inspector={
-        <RightPanel
-          view={layout.inspectorView ?? "properties"}
-          changeView={(inspectorView) => change({ inspectorView })}
-          properties={
-            <>
-              <div className="core-inspector-slot" hidden={!core.documentActive}>
-                {core.inspector}
-              </div>
-              <div className="core-inspector-slot" hidden={core.documentActive}>
-                {inspector}
-              </div>
-            </>
-          }
-          agent={{
-            enabled: true,
-            visible: layout.inspectorOpen,
-            activeFile: core.documentActive ? core.activeFile : undefined,
-            openFile: core.openProjectFile,
-            reviewChanges: () => core.select("scm"),
-          }}
+        <AgentPanel
+          workspace="project"
+          visible={layout.inspectorOpen}
+          activeFile={core.documentActive ? core.activeFile : undefined}
+          openFile={core.openProjectFile}
+          reviewChanges={() => core.select("scm")}
+          onClose={() => change({ inspectorOpen: false })}
         />
       }
       bottom={bottom}

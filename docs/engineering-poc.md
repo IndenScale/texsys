@@ -2136,10 +2136,10 @@ CLI 回放 0→0→1→1→1→0。净内径增至 0.84 m，使工作水量增�
 
 在现有 Chrome 的后台 Studio 标签中用临时浮层核对真实样式，浮层和按钮水平中心一致，垂直间距为 4 CSS px。加上和移除浮层时，文档操作区宽度保持 204 CSS px，测距按钮位置保持一致。测试完成后移除临时浮层。前端回归覆盖选择剖切轴、调整位置和关闭时移除滑杆。
 
-### 2026-11-17 Studio 右侧智能体视图
+### 2026-11-17 Studio 右侧智能体面板
 
-基线 `30c9841`。按用户决策放弃独立可视化应用，在 Studio 内提供 VS Code 式智能体面板，并以 ACP 复用现成智能体而非自建模型循环（[ADR-0034](adr/0034-acp-agent-client.md)、[DDR-0030](ddr/0030-studio-agent-panel.md)）。右侧面板分为「属性」与「智能体」；后端 `texsys.studio.agent` 启动智能体子进程，代办项目内文件读写、终端与权限请求，以有序事件日志供浏览器长轮询。这推进 G14：智能体修改与人工修改共用源文件、源代码管理和构建检查，不新增接受步骤。
+基线 `30c9841`。按用户决策放弃独立可视化应用，将 Studio 右侧面板改为专职智能体面板（移除原有的文件属性与专业工作台右侧检查器，空白工作区与项目工作区均可直接对话），并以 ACP 复用现成智能体而非自建模型循环（[ADR-0034](adr/0034-acp-agent-client.md)、[DDR-0030](ddr/0030-studio-agent-panel.md)）。后端 `texsys.studio.agent` 启动智能体子进程，按项目工作区或独立空白工作区缓存目录隔离文件与终端代办，以有序事件日志供浏览器长轮询。这推进 G14：智能体修改与人工修改共用源文件、源代码管理和构建检查，不新增接受步骤。
 
-验证：`tests/test_studio_agent.py` 7 项以脚本化智能体和 HTTP 路由覆盖握手、配置项、上下文、项目边界、权限、终端、取消与进程退出；`tools/test_agent_panel.mjs` 8 项与 `tools/test_agent_panel_ui.mjs` 3 项覆盖事件折叠、工具呈现、差异和面板交互；其余前端套件、tsc、ESLint、Prettier 与生产打包通过。常驻容器内安装 DeepSeek Harness 0.2.2-rc.1，经 `AgentService` 对 AIDC 参考项目完成一次只读任务，事件包含 `bash ls -la`、读取 README、思考、回答与 `end_turn`。
+验证：`tests/test_studio_agent.py` 8 项以脚本化智能体和 HTTP 路由覆盖握手、配置项、上下文、项目与空白工作区边界隔离、权限、终端、取消与进程退出；`tools/test_agent_panel.mjs` 8 项与 `tools/test_agent_panel_ui.mjs` 3 项覆盖事件折叠、工具呈现、差异、无属性标签专职面板与空白工作区提问；其余前端套件、tsc、ESLint、Prettier 与生产打包通过。常驻容器内安装 DeepSeek Harness 0.2.2-rc.1，经 `AgentService` 对 AIDC 参考项目与空白工作区均完成端到端提问验证。
 
 边界：DeepSeek Harness ACP 0.0.1 自行执行文件与命令，不经客户端代办和权限确认，也不发送 diff，面板按工具原始输入降级呈现；Gemini CLI 个人 Google 账号登录已被服务端拒绝，需要 API 密钥；Claude Code 与 Codex 适配器未安装验证。会话不跨后端重启保留。本会话无法接入既有 Chrome（未开启远程调试），真实浏览器走查未执行。telecom-room 违规修复任务的端到端闭环尚未在面板中验收。

@@ -74,6 +74,13 @@ def config_path() -> Path:
   return config_root / "texsys" / CONFIG_FILENAME
 
 
+def scratch_path() -> Path:
+  cache_root = Path(os.environ.get("XDG_CACHE_HOME", ""))
+  if not cache_root.is_absolute():
+    cache_root = Path.home() / ".cache"
+  return cache_root / "texsys" / "agent-scratch"
+
+
 def is_agent_config_path(path: Path) -> bool:
   if path.name.casefold() != CONFIG_FILENAME:
     return False
@@ -406,9 +413,11 @@ class AgentTerminal:
 
 
 class AgentSession:
-  def __init__(self, service, definition: AgentDefinition):
+  def __init__(self, service, definition: AgentDefinition, workspace: str = "project"):
     self.service = service
     self.definition = definition
+    self.workspace = workspace
+    self.cwd = service.workspace_root(workspace)
     self.id = uuid.uuid4().hex
     self.created_at = time.time()
     self.title = ""
@@ -426,7 +435,7 @@ class AgentSession:
     self.terminals = {}
     self.terminal_seq = 0
     self.closed = False
-    self.connection = AcpConnection(definition, service.root, self._request, self._notification, self._exit)
+    self.connection = AcpConnection(definition, self.cwd, self._request, self._notification, self._exit)
 
   # Event log -------------------------------------------------------------
 
@@ -456,6 +465,7 @@ class AgentSession:
   def summary(self) -> dict:
     return {
       "id": self.id,
+      "workspace": self.workspace,
       "agent": self.definition.id,
       "agent_name": self.agent_info.get("title") or self.definition.name,
       "agent_version": self.agent_info.get("version", ""),
@@ -494,7 +504,7 @@ class AgentSession:
 
   def _new_session(self):
     try:
-      result = self.connection.request("session/new", {"cwd": str(self.service.root), "mcpServers": []},
+      result = self.connection.request("session/new", {"cwd": str(self.cwd), "mcpServers": []},
                                        timeout=120) or {}
     except AgentError as error:
       if error.code == -32000 and self.auth_methods:
@@ -532,7 +542,7 @@ class AgentSession:
       raise Conflict("智能体尚未就绪或正在处理上一条消息。")
     blocks = [{"type": "text", "text": text}]
     for relative in context:
-      file = self.service.resolve(relative, must_exist=True)
+      file = self.service.resolve(relative, must_exist=True, root=self.cwd)
       blocks.append({"type": "resource_link", "uri": file.as_uri(), "name": file.name})
     if not self.title:
       self.title = " ".join(text.split())[:80]
@@ -619,7 +629,7 @@ class AgentSession:
     raise AgentError(f"Tex Studio 不支持 {method}。", -32601)
 
   def _read_file(self, params):
-    file = self.service.resolve_absolute(params.get("path"))
+    file = self.service.resolve_absolute(params.get("path"), root=self.cwd)
     if not file.is_file():
       raise AgentError("文件不存在。", -32002)
     if file.stat().st_size > MAX_READ_BYTES:
@@ -631,11 +641,11 @@ class AgentSession:
       start = max(int(line or 1) - 1, 0)
       end = start + int(limit) if limit is not None else None
       text = "".join(lines[start:end])
-    self.emit("fs", op="read", path=self.service.relative(file))
+    self.emit("fs", op="read", path=self.service.relative(file, root=self.cwd))
     return {"content": text}
 
   def _write_file(self, params):
-    file = self.service.resolve_absolute(params.get("path"))
+    file = self.service.resolve_absolute(params.get("path"), root=self.cwd)
     content = params.get("content")
     if not isinstance(content, str):
       raise AgentError("写入内容必须是文本。", -32602)
@@ -643,7 +653,7 @@ class AgentSession:
     old = file.read_text(encoding="utf-8", errors="replace") if existed and file.stat().st_size <= MAX_READ_BYTES else None
     file.parent.mkdir(parents=True, exist_ok=True)
     _atomic_write(file, content)
-    self.emit("fs", op="write", path=self.service.relative(file), created=not existed,
+    self.emit("fs", op="write", path=self.service.relative(file, root=self.cwd), created=not existed,
               oldText=old if old is not None and len(old) <= 256 * 1024 else None,
               newText=content if len(content) <= 256 * 1024 else None)
     return None
@@ -676,7 +686,8 @@ class AgentSession:
         or not all(isinstance(item, str) for item in args):
       raise AgentError("终端命令无效。", -32602)
     argv = [command, *args] if args or shutil.which(command) else ["/bin/sh", "-c", command]
-    cwd = self.service.resolve_absolute(params["cwd"], directory=True) if params.get("cwd") else self.service.root
+    cwd = (self.service.resolve_absolute(params["cwd"], directory=True, root=self.cwd)
+           if params.get("cwd") else self.cwd)
     env = self.definition.environment()
     for item in params.get("env") or []:
       if isinstance(item, dict) and isinstance(item.get("name"), str) and isinstance(item.get("value"), str):
@@ -686,7 +697,7 @@ class AgentSession:
     self.terminal_seq += 1
     identifier = f"term-{self.terminal_seq}"
     display = shlex.join(argv[2:] if argv[:2] == ["/bin/sh", "-c"] else argv)
-    self.emit("terminal", terminalId=identifier, command=display, cwd=self.service.relative(cwd) or ".",
+    self.emit("terminal", terminalId=identifier, command=display, cwd=self.service.relative(cwd, root=self.cwd) or ".",
               output="", truncated=False)
     self.terminals[identifier] = AgentTerminal(identifier, argv, cwd, env, min(limit, 4 * 1024 * 1024),
                                                lambda terminal: self.emit("terminal", terminalId=terminal.id,
@@ -711,52 +722,68 @@ class AgentSession:
 
 
 class AgentService:
-  """Owns agent sessions for one Studio project root."""
+  """Owns agent sessions for Studio project and empty-workspace scopes."""
 
-  def __init__(self, root: Path, build: str = "build", config: Path | None = None):
+  def __init__(self, root: Path, build: str = "build", config: Path | None = None, scratch: Path | None = None):
     self.root = root.resolve()
     self.build = build
     self.config = config
+    self.scratch = scratch
     self.sessions: dict[str, AgentSession] = {}
     self.lock = threading.Lock()
 
+  def workspace_root(self, workspace: str = "project") -> Path:
+    if workspace == "project":
+      return self.root
+    if workspace == "empty":
+      directory = (self.scratch or scratch_path()).expanduser().resolve()
+      if directory == self.root or directory.is_relative_to(self.root):
+        raise ProjectError("空白工作区缓存目录不得位于项目目录内。")
+      directory.mkdir(parents=True, exist_ok=True)
+      return directory
+    raise ProjectError("未知的工作区模式。")
+
   # Paths -----------------------------------------------------------------
 
-  def _check(self, file: Path) -> Path:
-    if not file.is_relative_to(self.root):
-      raise AgentError("智能体只能访问当前项目内的文件。", -32602)
-    parts = file.relative_to(self.root).parts
+  def _check(self, file: Path, root: Path | None = None) -> Path:
+    boundary = root or self.root
+    if not file.is_relative_to(boundary):
+      raise AgentError("智能体只能访问当前工作区内的文件。", -32602)
+    parts = file.relative_to(boundary).parts
     if any(part in PROTECTED_PARTS for part in parts):
       raise AgentError("智能体不能直接访问版本库内部目录。", -32602)
     if is_ai_config_path(file) or is_agent_config_path(file):
       raise AgentError("智能体不能访问本机 AI 设置。", -32602)
     return file
 
-  def resolve_absolute(self, value, *, directory=False) -> Path:
+  def resolve_absolute(self, value, *, directory=False, root: Path | None = None) -> Path:
     if not isinstance(value, str) or not value or "\0" in value or not os.path.isabs(value):
       raise AgentError("ACP 文件路径必须是绝对路径。", -32602)
-    file = self._check(Path(value).resolve())
+    file = self._check(Path(value).resolve(), root)
     if directory and not file.is_dir():
       raise AgentError("工作目录不存在。", -32602)
     return file
 
-  def resolve(self, relative, *, must_exist=False) -> Path:
+  def resolve(self, relative, *, must_exist=False, root: Path | None = None) -> Path:
+    boundary = root or self.root
     if not isinstance(relative, str) or not relative or "\0" in relative or os.path.isabs(relative):
       raise ProjectError("请输入项目内的相对路径。")
-    file = self._check((self.root / relative).resolve())
+    file = self._check((boundary / relative).resolve(), boundary)
     if must_exist and not file.is_file():
       raise ProjectError(f"文件不存在：{relative}")
     return file
 
-  def relative(self, file: Path) -> str:
-    return file.relative_to(self.root).as_posix() if file != self.root else ""
+  def relative(self, file: Path, root: Path | None = None) -> str:
+    boundary = root or self.root
+    return file.relative_to(boundary).as_posix() if file != boundary else ""
 
   # Sessions --------------------------------------------------------------
 
-  def state(self) -> dict:
+  def state(self, workspace: str = "project") -> dict:
+    boundary = self.workspace_root(workspace)
     agents, diagnostics = load_agents(self.config)
     with self.lock:
-      sessions = [session.summary() for session in self.sessions.values()]
+      sessions = [session.summary() for session in self.sessions.values() if session.workspace == workspace]
     path = self.config or config_path()
     home = Path.home()
     display = "~/" + path.relative_to(home).as_posix() if path.is_relative_to(home) else str(path)
@@ -765,10 +792,12 @@ class AgentService:
       "sessions": sorted(sessions, key=lambda item: item["created_at"], reverse=True),
       "config_path": display,
       "diagnostics": diagnostics,
-      "root": str(self.root),
+      "root": str(boundary),
+      "workspace": workspace,
     }
 
-  def create(self, agent_id) -> dict:
+  def create(self, agent_id, workspace: str = "project") -> dict:
+    self.workspace_root(workspace)
     agents, _ = load_agents(self.config)
     definition = agents.get(agent_id)
     if definition is None:
@@ -779,7 +808,7 @@ class AgentService:
       live = [item for item in self.sessions.values() if item.state not in {"closed"}]
       if len(live) >= MAX_SESSIONS:
         raise Conflict("智能体会话数量已达上限，请先关闭不用的会话。")
-      session = AgentSession(self, definition)
+      session = AgentSession(self, definition, workspace=workspace)
       self.sessions[session.id] = session
     session.start()
     return session.summary()

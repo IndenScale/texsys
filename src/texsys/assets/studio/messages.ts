@@ -1644,6 +1644,12 @@ export const englishMessages: Record<string, string> = {
   不附带当前文件: "Current file not attached",
   会话历史: "Session history",
   使用智能体处理工程任务: "Work on engineering tasks with an agent",
+  使用智能体提问或探索方案: "Ask questions or explore ideas with an agent",
+  切换智能体面板: "Toggle agent panel",
+  "显示/隐藏智能体面板": "Show/hide agent panel",
+  智能体面板: "Agent panel",
+  调整智能体面板宽度: "Resize agent panel",
+  关闭智能体面板: "Close agent panel",
   停止: "Stop",
   "停止 (Esc)": "Stop (Esc)",
   关闭当前会话: "Close current session",
@@ -1652,7 +1658,6 @@ export const englishMessages: Record<string, string> = {
   "发送 (Enter)": "Send (Enter)",
   "发送时附带当前文件：{path}": "Attach the current file when sending: {path}",
   "发送消息后创建会话。": "A session starts when you send a message.",
-  右侧面板视图: "Right panel views",
   向智能体发送消息: "Message the agent",
   启动中: "Starting",
   启动失败: "Failed to start",
@@ -1670,12 +1675,14 @@ export const englishMessages: Record<string, string> = {
   已退出: "Exited",
   "已选择：{option}": "Selected: {option}",
   当前文件: "Current file",
+  "当前未打开项目工作区，可直接提问讨论；打开项目后智能体可读写源文件并运行构建与检查。":
+    "No project workspace is open; you can ask questions directly. Open a project to let the agent read and write source files and run builds and checks.",
   "当前没有会话。": "There is no current session.",
   思考过程: "Reasoning",
-  "打开已启动的项目后，智能体可以在项目中读写源文件并运行构建与检查。":
-    "Open the started project to let an agent read and write source files and run builds and checks in it.",
   "描述要完成的工程任务，Enter 发送，Shift+Enter 换行":
     "Describe the engineering task. Enter to send, Shift+Enter for a new line",
+  "输入问题或要讨论的内容，Enter 发送，Shift+Enter 换行":
+    "Ask a question or describe what to discuss. Enter to send, Shift+Enter for a new line",
   新建: "New",
   新建会话: "New session",
   智能体: "Agent",

@@ -61,4 +61,4 @@ ddr/NNNN-short-title.md
 | [0026](0026-usd-selection-and-inspection-layout.md)                      | USD 多选、固定属性上置和右侧等高布局                                                        | 已接受 |
 | [0027](0027-studio-usd-preview-interaction.md)                           | USD 预览器的资源、属性、导航、构件速览和修饰键多选                                          | 已接受 |
 | [0029](0029-studio-view-selector-and-scene-camera.md)                    | 统一编辑／预览区的查看方式选择器，调整场景取景与缩放入口并提供固定机位                      | 已接受 |
-| [0030](0030-studio-agent-panel.md)                                       | 右侧面板增加智能体视图，以 ACP 会话呈现工具调用、授权与修改清单                             | 已接受 |
+| [0030](0030-studio-agent-panel.md)                                       | 右侧面板改为专职智能体面板，空白工作区与项目模式均可对话                                    | 已接受 |

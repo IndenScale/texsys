@@ -4,7 +4,7 @@ import {
   useCoreWorkspace,
   type EditorGroupTab,
 } from "../../../../../src/texsys/assets/studio/CoreWorkspace";
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { WorkbenchPlugin, WorkbenchProps } from "../../../../../src/texsys/assets/studio/sdk";
 import { labels } from "../../../../../src/texsys/assets/studio/sdk";
 import { Empty, Icon } from "../../../../../src/texsys/assets/studio/ui";
@@ -21,7 +21,6 @@ import {
 } from "../../../../hvac-graphics/src/texsys_hvac_graphics/assets/simulation";
 import { assertionLocation } from "../../../../hvac-graphics/src/texsys_hvac_graphics/assets/analysis";
 import { resolveGraphic } from "../../../../hvac-graphics/src/texsys_hvac_graphics/assets/symbols";
-import { Inspector } from "./inspector";
 import {
   bindingValue,
   download,
@@ -235,9 +234,6 @@ function Workspace({
   const [backend, setBackend] = useState("scipy");
   const [saving, setSaving] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const [hasDraft, setHasDraft] = useState(false);
-  const hasDraftRef = useRef(hasDraft);
-  hasDraftRef.current = hasDraft;
   const [undo, setUndo] = useState<{ operation: Record<string, unknown>; revision: string }>();
   const [issueScope, setIssueScope] = useState("current");
   const [issueSearch, setIssueSearch] = useState("");
@@ -301,26 +297,14 @@ function Workspace({
     },
     [activateDomain],
   );
-  const setInspectorOpen = (inspectorOpen: boolean) => changeLayout({ inspectorOpen });
-  const choose = (next: Selection, reveal = true) => {
-    if (hasDraft && (next.id !== selection?.id || next.kind !== selection?.kind)) {
-      setInspectorOpen(true);
-      notify(t("请先保存或放弃右侧的参数草稿，再切换对象。"), true);
-      return false;
-    }
+  const choose = (next: Selection) => {
     setSelection(next);
     setObjectTarget(undefined);
     if (next.id !== selection?.id || next.kind !== selection?.kind)
       setPlayback((previous) => ({ ...previous, variable: "", token: previous.token + 1 }));
-    if (reveal) setInspectorOpen(true);
     return true;
   };
   const locateObject = (object: ModelObject) => {
-    if (hasDraft) {
-      setInspectorOpen(true);
-      notify(t("请先保存或放弃右侧的参数草稿，再切换对象。"), true);
-      return;
-    }
     setSelection(
       object.selection.owner && object.selection.owner !== source.root
         ? undefined
@@ -346,7 +330,7 @@ function Workspace({
     if (!target || !assertion) return;
     const variable = assertion.variable ? target.result.variables[assertion.variable] : undefined;
     const object = variable ? instanceFromRef(source, variable.semantic_ref) : undefined;
-    if (object && !choose({ kind: "instance", id: object }, false)) return;
+    if (object && !choose({ kind: "instance", id: object })) return;
     const location = assertionLocation(target.result, assertion);
     setPlayback((previous) => ({
       path,
@@ -364,7 +348,7 @@ function Workspace({
     setIssueCursor(issue.id);
     if (issue.runPath && issue.assertion !== undefined)
       locateAssertion(issue.runPath, issue.assertion);
-    else if (issue.object && choose({ kind: "instance", id: issue.object }, false)) {
+    else if (issue.object && choose({ kind: "instance", id: issue.object })) {
       openView("design");
       setLocateToken((previous) => previous + 1);
     }
@@ -525,7 +509,7 @@ function Workspace({
       setSaving(false);
     }
   };
-  const canRun = !busy && !submitting && !saving && !hasDraft;
+  const canRun = !busy && !submitting && !saving;
   const submit = useCallback(
     async (action: string, options?: Record<string, unknown>) => {
       if (!canRun || requestPending.current) return;
@@ -668,15 +652,8 @@ function Workspace({
     label: editorName(id),
     icon: info(id).icon,
     selected: view === id,
-    dirty: hasDraft && ["design", "equipment", "source"].includes(id),
     select: () => openView(id),
     close: () => {
-      if (hasDraftRef.current && ["design", "equipment", "source"].includes(id)) {
-        openView(id);
-        changeLayout({ inspectorOpen: true });
-        notify(t("请先保存或放弃参数草稿，再关闭此编辑器。"), true);
-        return false;
-      }
       closeDocument(id);
       return true;
     },
@@ -689,8 +666,6 @@ function Workspace({
         label: editorName(id),
         icon: info(id).icon,
         focused: view === id && !core?.documentActive,
-        dirty: hasDraft && ["design", "equipment", "source"].includes(id),
-        dirtyLabel: t("有未保存参数"),
         action: { label: t("关闭文档 {0}", { "0": t(info(id).label) }), icon: "close" },
       }))}
       onSelect={(id) => openView(id as View)}
@@ -748,12 +723,6 @@ function Workspace({
           <output className="drawing-zoom">{Math.round(zoom * 100)}%</output>
         </>
       )}
-      {hasDraft && (
-        <span className="draft-status">
-          <span className="draft-dot" aria-hidden="true" />
-          {t("参数未保存")}
-        </span>
-      )}
     </>
   );
   const tabActions = (
@@ -779,18 +748,11 @@ function Workspace({
           <EditorActionButton label={t("适合图面")} icon="fit" onClick={drawingCamera.fit} />
         </div>
       )}
-      {hasDraft && (
-        <EditorActionButton
-          label={t("查看未保存参数")}
-          icon="inspector"
-          onClick={() => setInspectorOpen(true)}
-        />
-      )}
       {undo && (
         <EditorActionButton
           label={t("撤销上次参数修改")}
           icon="undo"
-          disabled={saving || hasDraft}
+          disabled={saving}
           onClick={() =>
             void save(undo.operation, undo.revision).catch((error) => notify(String(error), true))
           }
@@ -864,29 +826,11 @@ function Workspace({
         tabs={tabs}
         editorTabs={editorTabs}
         tabActions={
-          hasDraft || undo || ["design", "equipment", "checks", "outputs", "source"].includes(view)
+          undo || ["design", "equipment", "checks", "outputs", "source"].includes(view)
             ? tabActions
             : null
         }
         bottom={bottom}
-        inspector={
-          <Inspector
-            selection={selection}
-            source={source}
-            sourcePath={data.source_path}
-            revision={state.project.revision}
-            save={save}
-            busy={saving}
-            onDirtyChange={setHasDraft}
-            onSelectInstance={(id) => {
-              if (choose({ kind: "instance", id })) openView("equipment");
-            }}
-            onLocate={(next) => {
-              openView(next);
-              setLocateToken((previous) => previous + 1);
-            }}
-          />
-        }
       >
         <EditorArea breadcrumb={breadcrumb} chrome="breadcrumb-only" layout="full-bleed">
           <div
@@ -1215,7 +1159,7 @@ function Workspace({
                                 label={t("图中定位 {0}", { "0": id })}
                                 icon="locate"
                                 onClick={() => {
-                                  if (choose({ kind: "instance", id }, false)) {
+                                  if (choose({ kind: "instance", id })) {
                                     openView("design");
                                     setLocateToken((previous) => previous + 1);
                                   }

@@ -402,7 +402,7 @@ test("menu and command search share group names and stable action identities", (
   );
   assert.deepEqual(
     filterCommands(commands, "智能体").map((item) => item.id),
-    ["view.agent"],
+    ["view.agent", "view.inspector"],
   );
   assert.deepEqual(
     filterCommands(commands, "布局").map((item) => item.id),

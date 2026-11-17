@@ -882,24 +882,6 @@
   transform: rotate(-90deg);
 }
 
-.core-inspector-slot {
-  height: 100%;
-  min-height: 0;
-}
-.core-file-properties dl {
-  margin: 10px 15px;
-  font-size: 12px;
-}
-.core-file-properties dt {
-  color: var(--ui-text-muted);
-  margin-top: 17px;
-  font-size: 11px;
-}
-.core-file-properties dd {
-  margin: 5px 0 0;
-  overflow-wrap: anywhere;
-  line-height: 1.6;
-}
 .core-file-icon {
   display: inline-flex;
   align-items: center;

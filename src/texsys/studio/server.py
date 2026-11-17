@@ -289,7 +289,8 @@ def create_server(runtime: StudioRuntime, port=8710, frontend=None, token=None, 
         elif parsed.path == "/api/ai/settings":
           self._send(200, ai_settings.read().public())
         elif parsed.path == "/api/agent":
-          self._send(200, agents.state())
+          query = parse_qs(parsed.query)
+          self._send(200, agents.state(query.get("workspace", ["project"])[0]))
         elif parsed.path == "/api/agent/events":
           query = parse_qs(parsed.query)
           try:
@@ -436,7 +437,7 @@ def create_server(runtime: StudioRuntime, port=8710, frontend=None, token=None, 
           ai_settings.verify(connection)
           result = {"message": message}
         elif self.path == "/api/agent/sessions":
-          result = agents.create(body.get("agent"))
+          result = agents.create(body.get("agent"), body.get("workspace", "project"))
         elif self.path == "/api/agent/prompt":
           result = agents.prompt(body)
         elif self.path == "/api/agent/cancel":

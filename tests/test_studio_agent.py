@@ -122,6 +122,7 @@ def service(tmp_path, monkeypatch):
     "gemini": {"disabled": True},
   }}))
   monkeypatch.setenv("XDG_CONFIG_HOME", str(config.parent.parent))
+  monkeypatch.setenv("XDG_CACHE_HOME", str(tmp_path / "cache"))
   agents = AgentService(project)
   try:
     yield agents
@@ -177,7 +178,7 @@ def test_full_turn_covers_files_permissions_terminals_and_boundaries(service):
   report = json.loads(chunks[-1])
   assert chunks[:2] == ["Hello ", "links=1"]
   assert report["read"] == "second\n"
-  assert "当前项目" in report["outside"]
+  assert "当前工作区" in report["outside"]
   assert "版本库" in report["git"]
   assert report["permission"] == {"outcome": "selected", "optionId": "allow"}
   assert report["exit"]["exitCode"] == 0 and report["output"].strip() == "terminal-ok"
@@ -219,6 +220,30 @@ def test_unavailable_agent_cannot_start(service, monkeypatch):
   with pytest.raises(Exception, match="未找到命令"):
     service.create("codex")
   assert os.environ["PATH"] == "/nonexistent"
+
+
+def test_empty_workspace_session_is_isolated_from_bound_project(service):
+  empty_state = service.state("empty")
+  assert empty_state["workspace"] == "empty"
+  assert Path(empty_state["root"]) != service.root
+  summary = service.create("fake", workspace="empty")
+  assert summary["workspace"] == "empty"
+  assert [item["id"] for item in service.state("empty")["sessions"]] == [summary["id"]]
+  assert service.state("project")["sessions"] == []
+  session = service.get(summary["id"])
+  wait_for(session, lambda items: any(item.get("state") == "ready" for item in items))
+  (session.cwd / "notes.txt").write_text("a\nempty-line\nc\n")
+  service.prompt({"session": session.id, "text": "ask in empty workspace"})
+  events = wait_for(session, lambda items: any(item["type"] == "permission" for item in items))
+  permission = next(item for item in events if item["type"] == "permission")
+  session.resolve_permission(permission["key"], "allow")
+  events = wait_for(session, lambda items: any(item["type"] == "turn_end" for item in items))
+  chunks = [item["update"]["content"]["text"] for item in events
+            if item["type"] == "update" and item["update"]["sessionUpdate"] == "agent_message_chunk"]
+  report = json.loads(chunks[-1])
+  assert report["read"] == "empty-line\n"
+  assert not (service.root / "src" / "new.txt").exists()
+  assert (session.cwd / "src" / "new.txt").read_text() == "created\n"
 
 
 def test_http_routes_drive_a_session_and_keep_secrets_private(service, tmp_path, monkeypatch):

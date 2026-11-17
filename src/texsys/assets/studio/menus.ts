@@ -170,10 +170,10 @@ export const studioMenus: MenuGroup[] = [
       },
       {
         id: "view.inspector",
-        label: "属性面板",
+        label: "智能体面板",
         icon: "inspector",
         searchOnly: true,
-        keywords: "布局 侧栏 右侧",
+        keywords: "布局 侧栏 右侧 Agent Chat",
       },
       {
         id: "view.toggleMaximize",
