@@ -365,6 +365,9 @@ const paths: Record<string, React.ReactNode> = {
     </>
   ),
   "arrow-up": <path d="M12 19V5m-6 6 6-6 6 6" />,
+  chat: (
+    <path d="M4 5.5A1.5 1.5 0 0 1 5.5 4h13A1.5 1.5 0 0 1 20 5.5v9a1.5 1.5 0 0 1-1.5 1.5H10l-4.5 4v-4h0A1.5 1.5 0 0 1 4 14.5z" />
+  ),
   "arrow-down": <path d="M12 5v14m-6-6 6 6 6-6" />,
   sliders: (
     <>

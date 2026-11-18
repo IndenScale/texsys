@@ -182,14 +182,17 @@ POC 输出明确的退出码、诊断与结果文件；失败展示、合并门�
 
 ## 智能体面板
 
-右侧面板专用于「智能体」，不再承载属性面板，支持面板最大化与还原。面板通过 Agent Client Protocol（ACP）驱动外部智能体，Studio 不内置模型循环；空白工作区与项目工作区均可直接对话。决策见 [ADR-0034](../../docs/adr/0034-acp-agent-client.md)，交互见 [DDR-0030](../../docs/ddr/0030-studio-agent-panel.md)、[DDR-0031](../../docs/ddr/0031-studio-agent-panel-vscode-parity.md) 与 [DDR-0032](../../docs/ddr/0032-studio-agent-panel-grid-and-model-sliders.md)。
+右侧面板专用于「智能体」，不再承载属性面板，支持面板最大化与还原。面板以 DeepSeek Harness（DSH）为唯一智能体内核，后端通过 DSH 自带的 ACP profile 驱动它，ACP 只是内部线协议；Studio 不内置模型循环，空白工作区与项目工作区均可直接对话。决策见 [ADR-0034](../../docs/adr/0034-acp-agent-client.md) 与 [ADR-0035](../../docs/adr/0035-deepseek-harness-as-agent-kernel.md)，交互见 [DDR-0033](../../docs/ddr/0033-studio-agent-panel-qoder-redesign.md)。
 
-- 内置智能体为 DeepSeek Harness（`dsh --profile acp`）、Claude Code（`claude-agent-acp`）、Codex（`codex-acp`）和 Gemini CLI（`gemini --acp`）。命令在 Studio 后端的 `PATH` 与 `~/.local/bin` 中查找，未找到时标为不可用。
-- `~/.config/texsys/studio-agents.json` 的 `agents` 对象按标识覆盖 `name`、`command`、`env`，或以 `"disabled": true` 停用条目，也可新增本机智能体。文件不得位于项目或仓库内，API 只返回环境变量名。
-- `GET /api/agent?workspace=project|empty` 返回智能体清单、对应工作区的会话摘要、配置路径与诊断。`POST /api/agent/sessions` 以 `agent` 和 `workspace` 新建会话；后端启动子进程，完成 `initialize` 与 `session/new`，项目模式的工作目录为项目根目录，空白工作区模式为 `~/.cache/texsys/agent-scratch`。
-- `GET /api/agent/events?session=&after=&wait=` 长轮询有序事件，最长等待 25 秒。事件包括状态、配置项与模型清单、用户消息、原样转发的 `session/update`、权限请求与处理、文件读写、终端输出和轮次结束。日志超过上限时丢弃最早事件，客户端收到 `reset` 后重建对话。
-- `POST /api/agent/prompt` 发送文本和最多 16 个当前工作区相对路径；路径以 `resource_link` 附带。同一会话一次只处理一轮。`/cancel`、`/permission`、`/config`、`/model`、`/mode`、`/authenticate` 和 `/close` 分别对应取消、授权选择、配置项、模型切换（`session/set_model`）、模式、登录和关闭。
-- 输入区采用双层同尺度对齐的叠栈结构：框内主工具栏提供 `+` 项目文件上下文选择器、仅展示精简模型名与推理强度及上下文窗口的 ChatGPT 风格内联模型触发器、环形上下文用量指示及圆形发送／停止按钮；点击模型触发器打开上方为模型切换入口、下方为「推理强度」与「上下文窗口」双胶囊离散滑块的配置浮层，进入模型目录后在最顶部提供搜索输入框并按 Provider 分组纵向堆叠精简模型名（不设来源选项卡）；框外次级工具栏提供随时可切换的 Harness 选择器与权限／模式选择器；顶部标题栏与「会话」副栏同字号、同图标尺寸严格对齐，「切换会话列表」仅位于会话副栏。
+- 内核固定为 DeepSeek Harness，默认命令 `dsh --profile acp`，在 Studio 后端的 `PATH`、`~/.local/bin` 与 `~/.bun/bin` 中查找，未找到时标为不可用。不提供智能体清单、Harness 选择、登录方式及 `session/set_mode`／`session/set_model` 兼容路径。
+- `~/.config/texsys/studio-agents.json` 只读取 `agents.deepseek-harness` 的 `command` 与 `env`，其余条目忽略。文件不得位于项目或仓库内，文件 API 与智能体代办拒绝访问，API 不回传环境变量。模型路由、工具与插件等定制交给 DSH 自己的 profile。
+- `GET /api/agent?workspace=project|empty` 返回 `kernel`（`id`、`name`、`command`、`available`、`reason`）、`diagnostics`、对应工作区的在线会话摘要 `sessions`、同一工作区与工作目录的历史 `history`（`id`、`title`、`created_at`、`updated_at`、`live`，按更新时间倒序，最多 200 条）、`root` 与 `workspace`。`POST /api/agent/sessions` 以 `workspace` 新建会话；后端启动 DSH 子进程，完成 `initialize` 与 `session/new`，项目模式的工作目录为项目根目录，空白工作区模式为 `~/.cache/texsys/agent-scratch`。同时在线的会话最多 8 个。
+- 会话摘要包含 `id`、`workspace`、`title`、`state`（`starting`、`ready`、`prompting`、`error`、`exited`、`closed`）、`error`、`created_at`、`updated_at`、`seq`、`cwd`、`stderr`、`kernel`（`name`、`version`）与 `resumed`。
+- 会话历史保存在 `$XDG_STATE_HOME/texsys/agent-sessions`（默认 `~/.local/state/texsys/agent-sessions`），不得位于项目目录内。`index.json` 记录标题、工作区、工作目录、创建与更新时间及 DSH 会话标识；每个会话的配置项、用户消息、`session/update`、文件读写、终端、权限请求与处理及轮次结束事件追加到 `<id>.jsonl`，单个文件最多 16 MiB。会话在发出第一条消息时才进入历史；历史写入失败不影响在线会话。
+- `POST /api/agent/resume` 以 `session` 和 `workspace` 重新打开历史会话：在线时直接返回；否则沿用原标识，按序重放已保存事件（丢弃未处理的权限请求）并追加 `history` 事件，再启动 DSH 并调用 `session/resume`。DSH 无法恢复时会话进入 `error`，已重放的记录仍可阅读。`POST /api/agent/history/delete` 关闭在线会话并删除 Studio 侧记录，不改写 DSH 自身的持久化；`POST /api/agent/close` 只结束进程，历史保留。
+- `GET /api/agent/events?session=&after=&wait=` 长轮询有序事件，最长等待 25 秒。事件包括状态、配置项、历史重放标记、用户消息、原样转发的 `session/update`、权限请求与处理、文件读写、终端输出和轮次结束。日志超过上限时丢弃最早事件，客户端收到 `reset` 后重建对话。
+- `POST /api/agent/prompt` 发送文本和最多 16 个当前工作区相对路径；路径以 `resource_link` 附带。同一会话一次只处理一轮。`/cancel`、`/permission` 和 `/config` 分别对应取消、授权选择和配置项（`session/set_config_option`，含模型与推理强度）。
+- 面板自上而下为会话标签栏、对话区与输入区（[DDR-0033](../../docs/ddr/0033-studio-agent-panel-qoder-redesign.md)，组件与令牌见[智能体面板设计系统](02-agent-panel-design-system.md)）。标签栏每个标签对应一个打开的会话，右侧只有新建会话、对话历史与更多操作；对话历史为可搜索、按日分组的快速选择器，可恢复或删除历史会话。空态显示品牌标语与任务示例；输入区为无边框多行输入，`@` 添加项目文件上下文、`/` 列出内核命令，底部只有模型触发器、上下文用量与发送按钮。模型菜单只列模型名，悬停浮出说明卡，编辑图标展开思考模式等设置；不设模式、Harness、权限胶囊与计费信息。
 - 客户端代办只接受会话所属工作区内的绝对路径，拒绝版本库内部目录与本机 AI 设置。`fs/write_text_file` 原子写入；`terminal/create` 在会话工作区内运行命令，保留有界输出、退出状态和终止能力。
 - 智能体修改直接落在源文件上，评审使用源代码管理、Git diff 和构建检查。ACP 权限选项（含会话内自动允许工具请求）只授权工具操作，不代表工程接受。
 

@@ -3,7 +3,7 @@
 - 状态：已接受
 - 日期：2026-11-17
 - 取代：无
-- 被取代：无
+- 被取代：部分由 [ADR-0035](0035-deepseek-harness-as-agent-kernel.md) 取代（决策 5 与通用 ACP 客户端定位）
 - 补充：[ADR-0021](0021-tex-studio-plugin-based-disciplinary-workbenches.md)、[ADR-0026](0026-git-build-workflow-and-devops-boundary.md)
 
 ## 背景

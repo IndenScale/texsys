@@ -64,110 +64,200 @@ const { AgentPanel } = loadStudioModule("AgentPanel.tsx");
 
 const ROOT = "/workspace/project";
 const SCRATCH = "/tmp/agent-scratch";
+const NOW = Date.now() / 1000;
 
-/** In-memory Studio agent API with a long-poll event log. */
-function backend() {
-  const state = {
-    requests: [],
-    events: [],
-    waiters: [],
-    session: undefined,
-  };
-  const agents = [
+const modelOption = (current = '["deepseek-official","deepseek-v4-flash"]') => ({
+  id: "model",
+  name: "Model",
+  category: "model",
+  type: "select",
+  currentValue: current,
+  options: [
     {
-      id: "deepseek-harness",
-      name: "DeepSeek Harness",
-      description: "dsh",
-      command: "dsh --profile acp",
-      source: "builtin",
-      available: true,
-      reason: "",
-      env: ["DEEPSEEK_API_KEY"],
+      group: "deepseek-official",
+      name: "DeepSeek",
+      options: [
+        { value: '["deepseek-official","deepseek-v4-flash"]', name: "deepseek-v4-flash" },
+        {
+          value: '["deepseek-official","deepseek-v4-pro"]',
+          name: "deepseek-v4-pro",
+          description: "适合复杂工程推理。",
+        },
+      ],
     },
-    {
-      id: "codex",
-      name: "Codex",
-      description: "",
-      command: "codex-acp",
-      source: "builtin",
-      available: false,
-      reason: "未找到命令 codex-acp。",
-      env: [],
-    },
-  ];
-  const summary = (status, agentId = "deepseek-harness") => ({
-    id: "s1",
-    agent: agentId,
-    agent_name: agentId === "codex" ? "Codex" : "DeepSeek Harness",
-    agent_version: "0.0.1",
-    command: "dsh --profile acp",
-    cwd: ROOT,
-    title: "",
-    state: status,
+  ],
+});
+const reasoningOption = (current = "high") => ({
+  id: "reasoning_effort",
+  name: "Reasoning effort",
+  category: "thought_level",
+  type: "select",
+  currentValue: current,
+  options: ["off", "low", "high", "max"].map((value) => ({
+    value,
+    name: value[0].toUpperCase() + value.slice(1),
+  })),
+});
+
+/** In-memory Studio agent API (ADR-0035) with one long-poll event log per session. */
+function backend({ available = true, history = [] } = {}) {
+  const state = { requests: [], sessions: new Map(), history: [...history], next: 1 };
+  const summaryOf = (session) => ({
+    id: session.id,
+    workspace: session.workspace,
+    title: session.title,
+    state: session.state,
     error: "",
-    created_at: 1,
-    seq: state.events.length,
+    created_at: NOW,
+    updated_at: NOW,
+    seq: session.events.length,
+    cwd: ROOT,
     stderr: "",
-    auth_methods: [],
-    capabilities: {},
+    kernel: { name: "DeepSeek Harness", version: "0.0.1" },
+    resumed: session.resumed,
   });
-  state.emit = (...events) => {
-    for (const event of events) state.events.push({ seq: state.events.length + 1, ...event });
-    if (events.some((event) => event.type === "state"))
-      state.session = summary(events.findLast((event) => event.type === "state").state);
-    for (const wake of state.waiters.splice(0)) wake();
+  state.emit = (id, ...events) => {
+    const session = state.sessions.get(id);
+    for (const event of events) {
+      session.events.push({ seq: session.events.length + 1, ...event });
+      if (event.type === "state") session.state = event.state;
+      if (event.type === "configured") session.config = event.configOptions;
+    }
+    for (const wake of session.waiters.splice(0)) wake();
   };
+  const create = (id, workspace, replay = []) => {
+    const session = {
+      id,
+      workspace,
+      title: "",
+      state: "starting",
+      events: [],
+      waiters: [],
+      config: [],
+      resumed: replay.length > 0,
+    };
+    state.sessions.set(id, session);
+    state.emit(id, ...replay, { type: "state", state: "starting", error: "" });
+    setTimeout(
+      () =>
+        state.emit(
+          id,
+          { type: "configured", configOptions: [modelOption(), reasoningOption()] },
+          { type: "state", state: "ready", error: "" },
+        ),
+      1,
+    );
+    return session;
+  };
+  state.reply = (id, text) =>
+    state.emit(
+      id,
+      {
+        type: "update",
+        update: { sessionUpdate: "agent_message_chunk", content: { type: "text", text } },
+      },
+      { type: "turn_end", stopReason: "end_turn" },
+      { type: "state", state: "ready", error: "" },
+    );
   const json = (data, status = 200) => ({ ok: status < 400, status, json: async () => data });
   globalThis.fetch = async (url, options = {}) => {
     const body = options.body ? JSON.parse(options.body) : undefined;
     state.requests.push([url, body]);
     const parsed = new URL(url, "http://localhost");
-    if (parsed.pathname === "/api/files") {
+    const path = parsed.pathname;
+    if (path === "/api/files")
       return json({ files: ["src/room.json", "src/cooling.json", "README.md"] });
-    }
-    if (parsed.pathname === "/api/agent") {
+    if (path === "/api/agent") {
       const workspace = parsed.searchParams.get("workspace") ?? "project";
       return json({
-        agents,
-        sessions: state.session ? [state.session] : [],
-        config_path: "~/.config/texsys/studio-agents.json",
+        kernel: {
+          id: "deepseek-harness",
+          name: "DeepSeek Harness",
+          command: "dsh --profile acp",
+          available,
+          reason: available ? "" : "未找到命令 dsh。",
+        },
         diagnostics: [],
+        sessions: [...state.sessions.values()]
+          .filter((item) => item.state !== "closed")
+          .map(summaryOf),
+        history: state.history,
         root: workspace === "empty" ? SCRATCH : ROOT,
         workspace,
       });
     }
-    if (parsed.pathname === "/api/agent/sessions") {
-      state.emit({ type: "state", state: "starting", error: "" });
-      return json(summary("starting", body.agent));
+    if (path === "/api/agent/sessions") {
+      const id = `s${state.next++}`;
+      return json(summaryOf(create(id, body.workspace)));
     }
-    if (parsed.pathname === "/api/agent/events") {
+    if (path === "/api/agent/resume") {
+      const entry = state.history.find((item) => item.id === body.session);
+      const session = create(body.session, body.workspace, [
+        { type: "user", text: entry.title, context: [] },
+        {
+          type: "update",
+          update: {
+            sessionUpdate: "agent_message_chunk",
+            content: { type: "text", text: "旧回答" },
+          },
+        },
+        { type: "turn_end", stopReason: "end_turn" },
+        { type: "history", count: 3 },
+      ]);
+      session.title = entry.title;
+      return json(summaryOf(session));
+    }
+    if (path === "/api/agent/events") {
+      const session = state.sessions.get(parsed.searchParams.get("session"));
+      if (!session) return json({ error: "智能体会话不存在或已关闭。" }, 400);
       const after = Number(parsed.searchParams.get("after"));
-      if (state.events.length <= after)
+      if (session.events.length <= after)
         await new Promise((resolve, reject) => {
-          state.waiters.push(resolve);
+          session.waiters.push(resolve);
           options.signal?.addEventListener("abort", () => reject(new Error("aborted")));
         });
       return json({
-        session: state.session,
-        events: state.events.filter((event) => event.seq > after),
-        seq: state.events.length,
+        session: summaryOf(session),
+        events: session.events.filter((event) => event.seq > after),
+        seq: session.events.length,
         reset: false,
       });
     }
-    if (parsed.pathname === "/api/agent/prompt") {
+    if (path === "/api/agent/prompt") {
+      const session = state.sessions.get(body.session);
+      session.title ||= body.text;
       state.emit(
+        body.session,
         { type: "user", text: body.text, context: body.context },
         { type: "state", state: "prompting", error: "" },
       );
-      return json(summary("prompting"));
+      return json(summaryOf(session));
+    }
+    if (path === "/api/agent/config") {
+      const session = state.sessions.get(body.session);
+      const options = session.config.map((option) =>
+        option.id === body.config ? { ...option, currentValue: body.value } : option,
+      );
+      state.emit(body.session, { type: "configured", configOptions: options });
+      return json({ ok: true });
+    }
+    if (path === "/api/agent/close") {
+      state.emit(body.session, { type: "state", state: "closed", error: "" });
+      return json({ closed: body.session });
+    }
+    if (path === "/api/agent/history/delete") {
+      state.history = state.history.filter((item) => item.id !== body.session);
+      return json({ deleted: body.session });
     }
     return json({ ok: true });
   };
+  state.posts = (endpoint) =>
+    state.requests.filter(([url, body]) => url === endpoint && body).map(([, body]) => body);
   return state;
 }
 
-const flush = async () => {
-  for (let index = 0; index < 5; index += 1)
+const flush = async (rounds = 6) => {
+  for (let index = 0; index < rounds; index += 1)
     await act(async () => new Promise((resolve) => setTimeout(resolve, 5)));
 };
 
@@ -181,10 +271,9 @@ async function mount(t, props = {}) {
       React.createElement(AgentPanel, {
         workspace,
         visible: true,
-        maximized: props.maximized ?? false,
         activeFile: workspace === "project" ? "src/room.json" : undefined,
-        openFile: workspace === "project" ? (file, line) => opened.push([file, line]) : undefined,
-        reviewChanges: workspace === "project" ? () => opened.push(["scm"]) : undefined,
+        openFile: (file, line) => opened.push([file, line]),
+        reviewChanges: () => opened.push(["scm"]),
         openProject: () => opened.push(["project"]),
         onToggleMaximize: () => opened.push(["maximize"]),
         onClose: () => opened.push(["close"]),
@@ -196,440 +285,234 @@ async function mount(t, props = {}) {
 }
 
 const text = () => document.body.textContent;
+const $ = (selector) => document.querySelector(selector);
+const $$ = (selector) => [...document.querySelectorAll(selector)];
 const button = (label) =>
-  [...document.querySelectorAll("button")].find(
-    (item) => item.textContent.includes(label) || item.getAttribute("aria-label") === label,
+  $$("button").find(
+    (item) => item.getAttribute("aria-label") === label || item.textContent.trim() === label,
   );
+const tabs = () => $$('[role="tab"]').map((tab) => tab.querySelector(".ag-tab-title").textContent);
+async function click(element) {
+  await act(async () => {
+    element.dispatchEvent(new dom.window.MouseEvent("click", { bubbles: true }));
+  });
+}
 async function type(value) {
-  const area = document.querySelector(".agent-composer textarea");
+  const area = $(".ag-input");
   const setter = Object.getOwnPropertyDescriptor(
     dom.window.HTMLTextAreaElement.prototype,
     "value",
   ).set;
   await act(async () => {
     setter.call(area, value);
+    area.selectionStart = area.selectionEnd = value.length;
     area.dispatchEvent(new dom.window.Event("input", { bubbles: true }));
   });
   return area;
 }
-
-test("right panel is dedicated to the agent with single session-list toggle and uniform two-row icon sizes", async (t) => {
-  backend();
+async function key(name, init = {}) {
+  await act(async () => {
+    $(".ag-input").dispatchEvent(
+      new dom.window.KeyboardEvent("keydown", { key: name, bubbles: true, ...init }),
+    );
+  });
+}
+function reset() {
   sessionStorage.clear();
   localStorage.clear();
-  const panel = await mount(t);
+}
+
+test("panel opens on a quiet hero with session tabs and no harness, mode or billing chrome", async (t) => {
+  const api = backend();
+  reset();
+  await mount(t);
   await flush();
-  assert.equal(document.querySelectorAll('[role="tab"]').length, 0);
-  assert.doesNotMatch(text(), /文件属性/);
-  assert.equal(document.querySelector(".navigator-heading strong")?.textContent, "智能体");
-  assert.ok(button("新建会话"));
-  assert.ok(button("新建会话选项"));
-  assert.ok(button("最大化面板大小"));
-
-  // Top header must NOT duplicate "切换会话列表"; it exists only once in the "会话" sub-bar.
-  const sessionPaneButtons = [...document.querySelectorAll('button[aria-label="切换会话列表"]')];
-  assert.equal(sessionPaneButtons.length, 1);
+  assert.deepEqual(tabs(), ["新会话"]);
+  assert.equal($('[role="tab"]').getAttribute("aria-selected"), "true");
+  for (const label of ["新建会话", "对话历史", "更多智能体操作"]) assert.ok(button(label), label);
+  assert.equal($$(".ag-tabbar-actions > button").length, 3);
+  assert.match(text(), /看清系统/);
+  assert.match($(".ag-hero-title").textContent, /验证每一次修改/);
+  assert.equal($(".ag-hero-accent").textContent, "验证");
+  assert.ok(button("解释 room.json 的作用与结构"));
+  assert.equal($(".ag-input").placeholder, "规划与修改，@ 添加上下文，/ 使用命令");
+  assert.doesNotMatch(text(), /Harness|默认权限|智能问答|专家团|用量|Credit|倍/);
+  assert.equal($(".ag-picker-label").textContent, "DeepSeek");
+  assert.equal(button("发送").disabled, true);
   assert.equal(
-    document.querySelector('.navigator-heading button[aria-label="切换会话列表"]'),
-    null,
+    api.posts("/api/agent/sessions").length,
+    0,
+    "no kernel process before the first message",
   );
-  assert.ok(document.querySelector('.agent-subbar button[aria-label="切换会话列表"]'));
-
-  // Row 1 primary icons and Row 2 subbar icons share the exact same 16px SVG size.
-  const row1PrimaryIcons = [
-    ...document.querySelectorAll(
-      ".navigator-heading .navigator-button:not(.agent-split-chevron) svg",
-    ),
-  ];
-  const row2Icons = [...document.querySelectorAll(".agent-subbar-actions > button svg")];
-  assert.equal(row1PrimaryIcons.length, 4);
-  assert.equal(row2Icons.length, 4);
-  for (const svg of [...row1PrimaryIcons, ...row2Icons]) {
-    assert.equal(svg.getAttribute("width"), "16");
-    assert.equal(svg.getAttribute("height"), "16");
-  }
-
-  // Composer Row 1 and Row 2 toolbar icons share the exact same 14px SVG size.
-  const composerPrimaryIcons = [
-    ...document.querySelectorAll(".agent-input-toolbar .agent-toolbar-chip svg"),
-  ];
-  const composerSecondaryIcons = [
-    ...document.querySelectorAll(".agent-secondary-toolbar .agent-secondary-chip svg"),
-  ];
-  assert.equal(composerPrimaryIcons.length, 1);
-  assert.equal(composerSecondaryIcons.length, 2);
-  for (const svg of [...composerPrimaryIcons, ...composerSecondaryIcons]) {
-    assert.equal(svg.getAttribute("width"), "14");
-    assert.equal(svg.getAttribute("height"), "14");
-  }
-
-  await act(async () => button("最大化面板大小").click());
-  await act(async () => button("关闭智能体面板").click());
-  assert.deepEqual(panel.opened, [["maximize"], ["close"]]);
+  assert.ok($(".ag-chip"), "current file attached as a chip");
 });
 
-test("empty workspace displays clean VS Code chat shell, harness picker and direct questioning", async (t) => {
-  const server = backend();
-  sessionStorage.clear();
-  localStorage.clear();
+test("suggestions only fill the composer; Enter starts the kernel and sends with context", async (t) => {
+  const api = backend();
+  reset();
+  await mount(t);
+  await flush();
+  await click(button("运行构建，解读失败的检查"));
+  assert.equal($(".ag-input").value, "运行构建，解读失败的检查");
+  assert.equal(api.posts("/api/agent/prompt").length, 0);
+
+  await type("检查冷通道温度");
+  await key("Enter");
+  await flush(10);
+  assert.equal(api.posts("/api/agent/sessions").length, 1);
+  assert.deepEqual(api.posts("/api/agent/prompt"), [
+    { session: "s1", text: "检查冷通道温度", context: ["src/room.json"] },
+  ]);
+  assert.deepEqual(tabs(), ["检查冷通道温度"]);
+  assert.ok(button("停止"), "send turns into stop while prompting");
+  await act(async () => api.reply("s1", "冷通道温度 **正常**。"));
+  await flush();
+  assert.match($(".ag-message").textContent, /冷通道温度/);
+  assert.ok(button("复制回答"));
+  assert.equal($(".ag-hero"), null);
+});
+
+test("@ mentions add project files as chips and / lists kernel commands", async (t) => {
+  const api = backend();
+  reset();
+  await mount(t);
+  await flush();
+  await type("对比 @coo");
+  await flush();
+  const menu = $(".ag-mention-menu");
+  assert.ok(menu, "mention menu opens");
+  assert.match(menu.textContent, /cooling\.json/);
+  await key("Enter");
+  await flush();
+  assert.equal($(".ag-input").value, "对比 ");
+  assert.deepEqual(
+    $$(".ag-composer .ag-chip").map((chip) => chip.textContent),
+    ["room.json", "cooling.json"],
+  );
+  await type("对比两个文件");
+  await key("Enter");
+  await flush(10);
+  assert.deepEqual(api.posts("/api/agent/prompt")[0].context, [
+    "src/room.json",
+    "src/cooling.json",
+  ]);
+});
+
+test("model menu lists names only, explains on hover and edits thinking in a side card", async (t) => {
+  const api = backend();
+  reset();
+  await mount(t);
+  await flush();
+  await click($(".ag-picker"));
+  await flush(8);
+  assert.equal(api.posts("/api/agent/sessions").length, 1, "opening the menu warms the kernel");
+  assert.ok($(".ag-hero"), "warm-up keeps the hero");
+  assert.deepEqual(tabs(), ["新会话"]);
+  const menu = $(".ag-model-menu");
+  assert.deepEqual(
+    $$(".ag-model-menu .ag-menu-item-label").map((item) => item.textContent),
+    ["deepseek-v4-flash", "deepseek-v4-pro"],
+  );
+  assert.doesNotMatch(menu.textContent, /x$|倍|折扣|自定义/);
+  assert.equal($(".ag-model-menu .ag-menu-label"), null, "single provider has no group label");
+
+  const pro = $$(".ag-model-menu .ag-menu-item").find((item) => /v4-pro/.test(item.textContent));
+  await act(async () =>
+    pro.dispatchEvent(new dom.window.MouseEvent("mouseover", { bubbles: true })),
+  );
+  assert.match($(".ag-flyout").textContent, /适合复杂工程推理/);
+  assert.match($(".ag-flyout").textContent, /提供方DeepSeek/);
+
+  await click(button("模型设置"));
+  const settings = $(".ag-flyout.is-settings");
+  assert.match(settings.textContent, /思考模式/);
+  assert.equal(settings.querySelector('[role="switch"]').getAttribute("aria-checked"), "true");
+  const low = [...settings.querySelectorAll(".ag-menu-item")].find((item) =>
+    /低/.test(item.textContent),
+  );
+  await click(low);
+  await flush();
+  assert.deepEqual(api.posts("/api/agent/config").at(-1), {
+    session: "s1",
+    config: "reasoning_effort",
+    value: "low",
+  });
+  assert.equal(JSON.parse(localStorage.getItem("texsys.agent.modelPrefs")).reasoning, "low");
+
+  // A brand-new session adopts the remembered thinking level before its first prompt.
+  await click(button("新建会话"));
+  assert.deepEqual(tabs(), ["新会话"], "the blank warm tab is reused");
+  await act(async () =>
+    document.dispatchEvent(new dom.window.KeyboardEvent("keydown", { key: "Escape" })),
+  );
+});
+
+test("tabs, history resume and delete keep each conversation separate", async (t) => {
+  const api = backend({
+    history: [
+      { id: "h1", title: "核算冷却塔", created_at: NOW - 60, updated_at: NOW - 60, live: false },
+      {
+        id: "h2",
+        title: "旧的拓扑讨论",
+        created_at: NOW - 86400 * 40,
+        updated_at: NOW - 86400 * 40,
+        live: false,
+      },
+    ],
+  });
+  reset();
+  await mount(t);
+  await flush();
+  await type("第一个会话");
+  await key("Enter");
+  await flush(10);
+  await click(button("新建会话"));
+  assert.deepEqual(tabs(), ["第一个会话", "新会话"]);
+  assert.ok($(".ag-hero"));
+
+  await click(button("对话历史"));
+  await flush();
+  const picker = $(".ag-history");
+  assert.match(picker.textContent, /对话历史/);
+  assert.deepEqual(
+    $$(".ag-history .ag-menu-label").map((label) => label.textContent),
+    ["今天", "更早"],
+  );
+  const row = $$(".ag-history .ag-menu-item").find((item) => /核算冷却塔/.test(item.textContent));
+  await click(row);
+  await flush(10);
+  assert.deepEqual(api.posts("/api/agent/resume"), [{ session: "h1", workspace: "project" }]);
+  assert.deepEqual(tabs(), ["第一个会话", "核算冷却塔"], "resume reuses the blank tab");
+  assert.match(text(), /旧回答/);
+  assert.ok($(".ag-history-divider"));
+
+  // Delete needs confirmation.
+  await click(button("对话历史"));
+  await flush();
+  const target = $$(".ag-history-row").find((item) => /旧的拓扑讨论/.test(item.textContent));
+  await click(target.querySelector(".ag-history-delete"));
+  assert.match($(".ag-history-confirm").textContent, /删除此记录？/);
+  await click($(".ag-history-confirm .is-danger"));
+  await flush();
+  assert.deepEqual(api.posts("/api/agent/history/delete"), [{ session: "h2" }]);
+
+  // Closing a tab ends its kernel process.
+  const first = $$('[role="tab"]')[0];
+  await click(first.querySelector(".ag-tab-close"));
+  await flush();
+  assert.deepEqual(api.posts("/api/agent/close"), [{ session: "s1" }]);
+  assert.deepEqual(tabs(), ["核算冷却塔"]);
+});
+
+test("empty workspace explains isolation and a missing kernel disables the composer", async (t) => {
+  backend({ available: false });
+  reset();
   await mount(t, { workspace: "empty" });
   await flush();
-  assert.match(text(), /使用智能体提问或探索方案/);
-  assert.equal(document.querySelector(".agent-chip"), null);
-  assert.equal(document.querySelector(".agent-catalog-item"), null, "no cluttered radio card wall");
-  assert.match(document.querySelector(".agent-secondary-toolbar").textContent, /DeepSeek Harness/);
-  assert.match(document.querySelector(".agent-secondary-toolbar").textContent, /默认权限/);
-
-  // Open Harness picker in secondary toolbar and inspect "Learn about harnesses..." setup card.
-  await act(async () => button("选择智能体").click());
-  await flush();
-  const harnessRows = [
-    ...document.querySelectorAll(".agent-popover-harness [role='menuitemradio']"),
-  ];
-  assert.equal(harnessRows.length, 2);
-  assert.equal(harnessRows[0].getAttribute("aria-checked"), "true");
-  assert.equal(harnessRows[1].disabled, true);
-  await act(async () => button("了解与配置智能体 Harness…").click());
-  await flush();
-  assert.match(text(), /studio-agents\.json/);
-
-  const area = await type("你好，防静电地板集中荷载怎么校核？");
-  assert.equal(area.disabled, false);
-  await act(async () =>
-    area.dispatchEvent(new dom.window.KeyboardEvent("keydown", { key: "Enter", bubbles: true })),
-  );
-  await flush();
-  assert.ok(
-    server.requests.some(
-      ([url, body]) =>
-        url === "/api/agent/sessions" &&
-        body.agent === "deepseek-harness" &&
-        body.workspace === "empty",
-    ),
-  );
-  await act(async () => server.emit({ type: "state", state: "ready", error: "" }));
-  await flush();
-  const prompt = server.requests.find(([url]) => url === "/api/agent/prompt");
-  assert.deepEqual(prompt[1], {
-    session: "s1",
-    text: "你好，防静电地板集中荷载怎么校核？",
-    context: [],
-  });
-  await act(async () =>
-    server.emit(
-      {
-        type: "update",
-        update: {
-          sessionUpdate: "agent_message_chunk",
-          content: { type: "text", text: "可按 GB 50174 校核单脚集中荷载。" },
-        },
-      },
-      { type: "turn_end", stopReason: "end_turn" },
-      { type: "state", state: "ready", error: "" },
-    ),
-  );
-  await flush();
-  assert.match(document.querySelector(".agent-message").textContent, /GB 50174/);
-});
-
-test("ChatGPT-style model trigger, two-slider controls, stacked provider model picker, tools, permissions and SCM review work end-to-end", async (t) => {
-  const server = backend();
-  sessionStorage.clear();
-  localStorage.clear();
-  const panel = await mount(t);
-  await flush();
-  assert.match(text(), /使用智能体处理工程任务/);
-  assert.match(document.querySelector(".agent-chip").textContent, /room\.json/);
-
-  // Warming up model config before any conversation keeps Welcome and "会话" subbar intact.
-  await act(async () => button("选择模型").click());
-  await flush();
-  assert.ok(document.querySelector(".agent-popover-model.is-controls"));
-  assert.ok(document.querySelector(".agent-welcome"));
-  assert.ok(document.querySelector(".agent-subbar"));
-  assert.equal(document.querySelector(".agent-title-control"), null);
-  await act(async () => button("选择模型").click());
-  await flush();
-
-  // Attach an additional project file via "+" Context Picker.
-  await act(async () => button("添加上下文").click());
-  await flush();
-  await act(async () => button("cooling.json").click());
-  await flush();
-  assert.equal(document.querySelectorAll(".agent-composer .agent-chip").length, 2);
-
-  await type("检查 R01 机柜的净空");
-  await act(async () => button("发送").click());
-  await flush();
-  assert.ok(
-    server.requests.some(
-      ([url, body]) => url === "/api/agent/sessions" && body.agent === "deepseek-harness",
-    ),
-  );
-  assert.match(text(), /正在启动智能体/);
-
-  await act(async () =>
-    server.emit(
-      {
-        type: "configured",
-        configOptions: [
-          {
-            id: "model",
-            name: "Model",
-            category: "model",
-            type: "select",
-            currentValue: "flash",
-            options: [
-              {
-                group: "deepseek",
-                name: "DeepSeek Harness",
-                options: [
-                  { value: "flash", name: "deepseek-v4-flash · DeepSeek Harness" },
-                  { value: "pro", name: "DeepSeek-V4-Pro · DeepSeek Harness" },
-                ],
-              },
-              {
-                group: "kimi-coding",
-                name: "kimi-coding",
-                options: [{ value: "kimi-k3", name: "Kimi K3-256K" }],
-              },
-            ],
-          },
-          {
-            id: "effort",
-            name: "Reasoning",
-            category: "thought_level",
-            type: "select",
-            currentValue: "high",
-            options: [
-              { value: "low", name: "Low" },
-              { value: "medium", name: "Medium" },
-              { value: "high", name: "High" },
-            ],
-          },
-          {
-            id: "context_window",
-            name: "Context window",
-            category: "context_window",
-            type: "select",
-            currentValue: "200k",
-            options: [
-              { value: "64k", name: "64K" },
-              { value: "200k", name: "200K" },
-              { value: "1m", name: "1M" },
-            ],
-          },
-        ],
-      },
-      { type: "state", state: "ready", error: "" },
-    ),
-  );
-  await flush();
-  const prompt = server.requests.find(([url]) => url === "/api/agent/prompt");
-  assert.deepEqual(prompt[1], {
-    session: "s1",
-    text: "检查 R01 机柜的净空",
-    context: ["src/room.json", "src/cooling.json"],
-  });
-
-  await act(async () =>
-    server.emit(
-      {
-        type: "update",
-        update: {
-          sessionUpdate: "agent_thought_chunk",
-          content: { type: "text", text: "先读文件并执行命令" },
-        },
-      },
-      {
-        type: "update",
-        update: {
-          sessionUpdate: "tool_call",
-          toolCallId: "t0",
-          title: "bash",
-          kind: "other",
-          status: "completed",
-          rawInput: { command: "pwd; echo '---'; ls -la" },
-          rawOutput: { stdout: "/workspace/project\n" },
-          content: [],
-        },
-      },
-      {
-        type: "update",
-        update: {
-          sessionUpdate: "tool_call",
-          toolCallId: "t1",
-          title: "read",
-          kind: "other",
-          status: "completed",
-          rawInput: { file_path: `${ROOT}/src/room.json` },
-          content: [{ type: "content", content: { type: "text", text: "{...}" } }],
-        },
-      },
-      {
-        type: "update",
-        update: {
-          sessionUpdate: "tool_call",
-          toolCallId: "t2",
-          title: "edit",
-          kind: "other",
-          status: "completed",
-          rawInput: { file_path: `${ROOT}/src/room.json`, old_string: "a", new_string: "b" },
-        },
-      },
-      {
-        type: "permission",
-        key: "k1",
-        toolCall: { title: "运行构建" },
-        options: [
-          { optionId: "allow", name: "允许一次", kind: "allow_once" },
-          { optionId: "reject", name: "拒绝", kind: "reject_once" },
-        ],
-      },
-      {
-        type: "update",
-        update: {
-          sessionUpdate: "agent_message_chunk",
-          content: { type: "text", text: "净空**满足**要求。" },
-        },
-      },
-      { type: "update", update: { sessionUpdate: "usage_update", used: 20000, size: 1000000 } },
-    ),
-  );
-  await flush();
-  assert.match(text(), /检查 R01 机柜的净空/);
-  assert.match(text(), /思考过程/);
-  assert.equal(document.querySelectorAll("details.agent-tool").length, 3);
-  assert.match(document.querySelector(".agent-message").textContent, /净空满足要求/);
-  assert.equal(document.querySelector(".agent-message strong")?.textContent, "满足");
-  assert.match(text(), /智能体修改了 1 个文件/);
-  assert.match(document.querySelector(".agent-usage").textContent, /2%/);
-
-  // Composer trigger renders ChatGPT-style clean model name + effort + context window, no separate sliders icon.
-  const triggerText = document.querySelector(".agent-model-trigger").textContent;
-  assert.match(triggerText, /deepseek-v4-flash/);
-  assert.match(triggerText, /高/);
-  assert.match(triggerText, /200K/);
-  assert.doesNotMatch(triggerText, /DeepSeek Harness/);
-  assert.equal(button("更多会话选项"), undefined);
-  assert.ok(document.querySelector(".agent-send.is-stop"), "stop button while prompting");
-
-  await act(async () => document.querySelector(".agent-tool .agent-link-button").click());
-  assert.deepEqual(panel.opened.at(-1), ["src/room.json", undefined]);
-
-  await act(async () => button("允许一次").click());
-  assert.ok(
-    server.requests.some(
-      ([url, body]) =>
-        url === "/api/agent/permission" && body.key === "k1" && body.option === "allow",
-    ),
-  );
-  await act(async () => document.querySelector(".agent-send.is-stop").click());
-  assert.ok(
-    server.requests.some(([url, body]) => url === "/api/agent/cancel" && body.session === "s1"),
-  );
-
-  await act(async () =>
-    server.emit(
-      { type: "permission_resolved", key: "k1", optionId: "allow" },
-      { type: "turn_end", stopReason: "cancelled" },
-      { type: "state", state: "ready", error: "" },
-    ),
-  );
-  await flush();
-  assert.match(text(), /已选择：允许一次/);
-  assert.match(text(), /已停止本轮处理/);
-  assert.equal(document.querySelector(".agent-send.is-stop"), null);
-
-  // Level 1: Model Controls Popover with model switcher on top and 2 discrete sliders below.
-  await act(async () => document.querySelector(".agent-model-trigger").click());
-  await flush();
-  const controlsPop = document.querySelector(".agent-popover-model.is-controls");
-  assert.ok(controlsPop);
-  const sliders = [...controlsPop.querySelectorAll('[role="slider"]')];
-  assert.equal(sliders.length, 2);
-  assert.equal(sliders[0].getAttribute("aria-label"), "推理强度");
-  assert.equal(sliders[0].getAttribute("aria-valuetext"), "高");
-  assert.equal(sliders[1].getAttribute("aria-label"), "上下文窗口");
-  assert.equal(sliders[1].getAttribute("aria-valuetext"), "200K");
-
-  // Adjust both sliders via keyboard and pointer release.
-  await act(async () =>
-    sliders[0].dispatchEvent(
-      new dom.window.KeyboardEvent("keydown", { key: "ArrowLeft", bubbles: true }),
-    ),
-  );
-  await flush();
-  assert.ok(
-    server.requests.some(
-      ([url, body]) =>
-        url === "/api/agent/config" && body.config === "effort" && body.value === "medium",
-    ),
-  );
-
-  await act(async () => {
-    sliders[1].dispatchEvent(
-      new globalThis.PointerEvent("pointerdown", { clientX: 220, button: 0, bubbles: true }),
-    );
-    sliders[1].dispatchEvent(
-      new globalThis.PointerEvent("pointerup", { clientX: 220, button: 0, bubbles: true }),
-    );
-  });
-  await flush();
-  assert.ok(
-    server.requests.some(
-      ([url, body]) =>
-        url === "/api/agent/config" && body.config === "context_window" && body.value === "1m",
-    ),
-  );
-
-  // Level 2: Stacked Provider Model List with search input right at the very top and clean names.
-  await act(async () => document.querySelector(".agent-model-switch-btn").click());
-  await flush();
-  const modelsPop = document.querySelector(".agent-popover-model.is-models");
-  assert.ok(modelsPop);
-  assert.equal(modelsPop.querySelectorAll('[role="tab"]').length, 0, "no provider tabs");
-  assert.ok(
-    modelsPop
-      .querySelector(".agent-model-catalog-view")
-      ?.firstElementChild?.classList.contains("agent-model-search"),
-    "search input is at the very top",
-  );
-  const groups = [...modelsPop.querySelectorAll('[role="group"]')];
-  assert.deepEqual(
-    groups.map((g) => g.getAttribute("aria-label")),
-    ["DeepSeek", "kimi-coding"],
-  );
-  assert.doesNotMatch(modelsPop.textContent, /DeepSeek Harness/);
-
-  // Filter models via top search input, then clear and select DeepSeek-V4-Pro.
-  const searchInput = modelsPop.querySelector(".agent-model-search input");
-  const inputSetter = Object.getOwnPropertyDescriptor(
-    dom.window.HTMLInputElement.prototype,
-    "value",
-  ).set;
-  await act(async () => {
-    inputSetter.call(searchInput, "Kimi");
-    searchInput.dispatchEvent(new dom.window.Event("input", { bubbles: true }));
-  });
-  await flush();
-  assert.equal(modelsPop.querySelectorAll('[role="group"]').length, 1);
-  assert.match(modelsPop.textContent, /Kimi K3-256K/);
-
-  await act(async () => {
-    inputSetter.call(searchInput, "");
-    searchInput.dispatchEvent(new dom.window.Event("input", { bubbles: true }));
-  });
-  await flush();
-  await act(async () => button("DeepSeek-V4-Pro").click());
-  await flush();
-  assert.ok(
-    server.requests.some(
-      ([url, body]) =>
-        url === "/api/agent/config" && body.config === "model" && body.value === "pro",
-    ),
-  );
-
-  await act(async () => button("审查修改").click());
-  assert.deepEqual(panel.opened.at(-1), ["scm"]);
+  assert.match(text(), /当前未打开项目/);
+  assert.match(text(), /DeepSeek Harness 不可用/);
+  assert.match(text(), /npm install -g @deepseek-ai\/dsh/);
+  assert.equal($(".ag-input").disabled, true);
+  assert.equal($(".ag-chip"), null);
+  assert.equal($(".ag-input").placeholder, "提问或讨论方案，/ 使用命令");
 });

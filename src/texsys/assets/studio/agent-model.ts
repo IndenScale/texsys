@@ -1,44 +1,47 @@
 /** Pure state for the agent panel: ACP session events folded into a transcript. */
 
-export type AgentInfo = {
+/** The single agent kernel (DeepSeek Harness, ADR-0035). */
+export type AgentKernel = {
   id: string;
   name: string;
-  description: string;
   command: string;
-  source: "builtin" | "local";
   available: boolean;
   reason: string;
-  env: string[];
 };
-
-export type AgentAuthMethod = { id: string; name: string; description?: string };
 
 export type AgentSessionSummary = {
   id: string;
-  agent: string;
-  agent_name: string;
-  agent_version: string;
-  command?: string;
-  cwd?: string;
+  workspace?: string;
   title: string;
   state: AgentSessionState;
   error: string;
   created_at: number;
+  updated_at?: number;
   seq?: number;
+  cwd?: string;
   stderr?: string;
-  auth_methods: AgentAuthMethod[];
-  capabilities: Record<string, unknown>;
+  kernel?: { name: string; version: string };
+  resumed?: boolean;
 };
 
-export type AgentSessionState =
-  "starting" | "ready" | "prompting" | "auth_required" | "error" | "exited" | "closed";
+export type AgentSessionState = "starting" | "ready" | "prompting" | "error" | "exited" | "closed";
+
+/** A persisted conversation listed in the history picker. */
+export type AgentHistoryEntry = {
+  id: string;
+  title: string;
+  created_at: number;
+  updated_at: number;
+  live: boolean;
+};
 
 export type AgentServiceState = {
-  agents: AgentInfo[];
-  sessions: AgentSessionSummary[];
-  config_path: string;
+  kernel: AgentKernel;
   diagnostics: string[];
+  sessions: AgentSessionSummary[];
+  history: AgentHistoryEntry[];
   root: string;
+  workspace?: string;
 };
 
 export type AgentEvent = { seq: number; type: string } & Record<string, unknown>;
@@ -126,7 +129,8 @@ export type TranscriptItem =
       newText?: string | null;
     }
   | { kind: "turn"; key: string; stopReason: string; error?: string }
-  | { kind: "notice"; key: string; tone: "error" | "info"; text: string };
+  | { kind: "notice"; key: string; tone: "error" | "info"; text: string }
+  | { kind: "history"; key: string; count: number };
 
 export type TerminalRecord = {
   command: string;
@@ -402,7 +406,7 @@ export function applyAgentEvents(
       case "state":
         next.state = event.state as AgentSessionState;
         next.error = text(event.error);
-        if (next.error && ["error", "exited", "auth_required"].includes(next.state))
+        if (next.error && ["error", "exited"].includes(next.state))
           next.items.push({ kind: "notice", key: `n${seq}`, tone: "error", text: next.error });
         break;
       case "configured":
@@ -490,6 +494,13 @@ export function applyAgentEvents(
           error: text(event.error) || undefined,
         });
         next.fileChanges += 1;
+        break;
+      case "history":
+        next.items.push({
+          kind: "history",
+          key: `h${seq}`,
+          count: typeof event.count === "number" ? event.count : 0,
+        });
         break;
     }
   }
@@ -1080,6 +1091,51 @@ export function nonModelConfigOptions(
   );
 }
 
-export function sessionLabel(session: Pick<AgentSessionSummary, "title" | "agent_name">) {
-  return session.title || session.agent_name;
+export function sessionLabel(session: Pick<AgentSessionSummary, "title"> | undefined) {
+  return session?.title?.trim() || "";
+}
+
+export type HistoryGroup = { key: string; label: string; entries: AgentHistoryEntry[] };
+
+/** Group history newest first into 今天 / 昨天 / 近 7 天 / 更早 by local calendar day. */
+export function groupHistory(
+  entries: readonly AgentHistoryEntry[],
+  now: Date = new Date(),
+): HistoryGroup[] {
+  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime() / 1000;
+  const day = 86400;
+  const buckets: HistoryGroup[] = [
+    { key: "today", label: "今天", entries: [] },
+    { key: "yesterday", label: "昨天", entries: [] },
+    { key: "week", label: "近 7 天", entries: [] },
+    { key: "older", label: "更早", entries: [] },
+  ];
+  const sorted = [...entries].sort((a, b) => b.updated_at - a.updated_at);
+  for (const entry of sorted) {
+    const at = entry.updated_at || entry.created_at;
+    const bucket =
+      at >= startOfToday ? 0 : at >= startOfToday - day ? 1 : at >= startOfToday - 6 * day ? 2 : 3;
+    buckets[bucket].entries.push(entry);
+  }
+  return buckets.filter((group) => group.entries.length > 0);
+}
+
+/** Compact relative time for history rows: 刚刚, N 分钟前, HH:MM, 昨天, M月D日. */
+export function relativeTime(
+  seconds: number,
+  now: Date = new Date(),
+): { key: string; values?: Record<string, string | number> } {
+  const delta = now.getTime() / 1000 - seconds;
+  if (delta < 60) return { key: "刚刚" };
+  if (delta < 3600) return { key: "{n} 分钟前", values: { n: Math.floor(delta / 60) } };
+  const date = new Date(seconds * 1000);
+  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+  const pad = (value: number) => String(value).padStart(2, "0");
+  if (date.getTime() >= startOfToday)
+    return { key: "{time}", values: { time: `${pad(date.getHours())}:${pad(date.getMinutes())}` } };
+  if (date.getTime() >= startOfToday - 86400000) return { key: "昨天" };
+  return {
+    key: "{month}月{day}日",
+    values: { month: date.getMonth() + 1, day: date.getDate() },
+  };
 }

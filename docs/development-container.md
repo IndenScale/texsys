@@ -26,19 +26,19 @@ Tex Studio 在 Podman 的 Linux 虚拟机内运行。macOS 登录当前用户后
 
 ## 智能体
 
-Studio 右侧的智能体在容器内启动。智能体命令安装到容器用户主目录卷中，重建容器后仍保留。用上文的 `shell` 进入容器后安装，例如 DeepSeek Harness：
+Studio 右侧的智能体以 DeepSeek Harness 为唯一内核，在容器内启动。智能体命令安装到容器用户主目录卷中，重建容器后仍保留。用上文的 `shell` 进入容器后安装 DeepSeek Harness：
 
 ```bash
 npm install -g --prefix ~/.local @deepseek-ai/dsh
 ```
 
-凭据写入容器内的 `~/.config/texsys/studio-agents.json`，权限设为仅本人可读：
+凭据写入容器内的 `~/.config/texsys/studio-agents.json`，权限设为仅本人可读。Studio 只读取其中 `deepseek-harness` 一项的 `command` 与 `env`，其余条目忽略：
 
 ```json
 { "agents": { "deepseek-harness": { "env": { "DEEPSEEK_API_KEY": "…" } } } }
 ```
 
-修改该文件后在智能体视图刷新清单即可生效，无需重启 Studio。
+修改该文件后新建或恢复的会话即可生效，无需重启 Studio。会话历史保存在容器内的 `~/.local/state/texsys/agent-sessions`，位于用户主目录卷中，重建容器后仍保留。
 
 ## 暂停与恢复
 

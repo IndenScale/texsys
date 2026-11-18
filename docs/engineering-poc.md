@@ -21,7 +21,7 @@
 | G11  | 真实资料支撑的小场景               | 部分实现（条件容量审查）           | 报告配置已作为版本化输入，来源失配、变更重算和未定结论拒绝接受已验证；真实性能、独立参考及责任人审查仍未完成                     |
 | G12  | 第二个项目复用与独立重跑           | 部分实现（两个消费项目）           | 两个独立项目复用同一已发布能力、参数隔离和显式升级已验证；第二位使用者、真实项目迁移和准备工时仍未验证                           |
 | G13  | 外部工具及组织间能力交换           | 部分实现（文件与只读 HTTP 源交换） | 本地／共享文件仓库与只读 HTTP 源的发布、采用与升级影响可审查，独立 CI 冷启动复现已验证；跨组织部署和既有工程工具往返验收仍未完成 |
-| G14  | AI 与工程师共享开发工具            | 部分实现（Studio 内 ACP 智能体）   | 同一源文件、Git diff 和 CLI 构建／检查；Studio 右侧以 ACP 驱动外部智能体，修改进入源代码管理；真实工程任务闭环仍未验收           |
+| G14  | AI 与工程师共享开发工具            | 部分实现（Studio 内 DSH 智能体）   | 同一源文件、Git diff 和 CLI 构建／检查；Studio 右侧以 ACP 驱动外部智能体，修改进入源代码管理；真实工程任务闭环仍未验收           |
 
 本表中的“部分实现”只承认已存在的底座，不把尚未统一的局部能力升级为整项完成。远程执行、更多专业、通用高保真求解与能力生态沿 G09、G12、G13 的实际需求扩展。
 
@@ -2149,3 +2149,11 @@ CLI 回放 0→0→1→1→1→0。净内径增至 0.84 m，使工作水量增�
 基线 `ec83e77`。依据用户真机截图与 VS Code 开源聊天模块（`src/vs/workbench/contrib/chat/browser/`）重构右侧智能体面板（[DDR-0031](ddr/0031-studio-agent-panel-vscode-parity.md)）：补齐右侧面板导航内边距变量与面板最大化／还原；将挤爆窄侧栏的单行底栏拆分为 VS Code 叠栈双层输入区——框内 22 px 工具栏承载 `+` 多文件上下文选择器、`✨` 带搜索过滤的模型与推理配置浮层、`⇄` 选项／斜杠命令浮层、环形上下文用量及固定不收缩的圆形 `↑` 发送／停止按钮，框外次级工具栏承载可随时切换的 `[🖥 Harness]` 选择器与 `[🛡 默认权限]` 权限／ACP 模式选择器；标题栏提供 `+ ⌵` 分段新建会话、可搜索筛选的「会话」副栏、会话标题返回条与智能体调试日志抽屉；后端补充 `POST /api/agent/model`（`session/set_model`），前端修复仅回传 `rawOutput` 的 `bash` 工具展开及回答区列表与行内代码换行。这消除 G14 入口在真机侧栏宽度下的控件裁切与排版失真，不新增工程变更确认流程。
 
 验证：`tests/test_studio_agent.py` 8 项覆盖 `session/set_model` 与会话诊断隔离；`tools/test_agent_panel.mjs` 10 项与 `tools/test_agent_panel_ui.mjs` 3 项覆盖 `rawOutput` 降级展开、双源模型目录归一化、上下文多选、模型搜索浮层、Harness 浮层、面板最大化与全量 145 项前端回归测试；`tsc --noEmit --strict`、ESLint、`ruff`、`studio-no-bold`、Prettier、`markdownlint` 与文档语言检查全部通过，常驻开发容器已重启同步新后端。
+
+### 2026-11-18 以 DeepSeek Harness 为唯一内核并对标 Qoder 重新设计智能体面板
+
+基线 `7bdbcde`（先行提交既有会话的 DDR-0032 成果）。按用户决策改以 Qoder IDE 为交互参照，并评估“砍掉 ACP、绑死 DSH”：核对 DSH 0.2.2-rc.1 的 ACP、SDK 与 Web 网关三种接入面后，产品层只保留 DeepSeek Harness，删除多智能体清单、Harness 选择、登录与 `set_mode`／`set_model` 兼容路径，线协议继续使用 DSH 自带的 ACP profile（SDK 无取消、无运行中配置与权限请求；Web 网关为私有内部 RPC），见 [ADR-0035](adr/0035-deepseek-harness-as-agent-kernel.md)。后端新增 Studio 侧会话呈现日志与索引（`~/.local/state/texsys/agent-sessions`），历史会话可在后端重启后经 `session/resume` 恢复并继续对话。前端按 [DDR-0033](ddr/0033-studio-agent-panel-qoder-redesign.md) 与新的[设计系统](../spec/studio/02-agent-panel-design-system.md)重写为会话标签栏、对话区、单层输入区三段式：品牌空态与任务示例、可搜索的对话历史选择器、`@` 文件上下文与 `/` 命令、只列模型名的模型菜单及侧挂说明／思考模式设置；订阅计费相关元素不引入，模式选择器因内核不提供模式而不显示。这降低 G14 入口的认知负担，并让会话跨重启可追溯；不新增工程变更确认流程。
+
+验证：`tests/test_studio_agent.py` 16 项（含历史持久化、重放、`session/resume`、恢复失败降级、删除与单一内核配置）；`tools/test_agent_panel.mjs` 13 项与 `tools/test_agent_panel_ui.mjs` 6 项覆盖历史分组与相对时间、空态、示例填充、首条消息启动内核、`@` 提及、模型菜单与思考档位记忆、标签／历史恢复／删除、内核缺失；全部 12 个前端套件 151 项、`tsc --noEmit --strict`、ESLint 通过。常驻容器重启后以真实 DSH 完成提问、关闭、从历史恢复并在恢复后的会话中正确回忆上一轮内容、删除记录的端到端流程。
+
+边界：本会话无法接入既有 Chrome（未开启远程调试），真实浏览器视觉走查未执行；DSH ACP 不提供计划、待办、模式与子智能体，「专家团」类能力待 DSH 提供稳定接口后复审；恢复后的模型上下文以 DSH 自身持久化为准，可能与 Studio 呈现日志不完全一致。

@@ -1,15 +1,19 @@
-"""Agent Client Protocol host for the Studio agent panel.
+"""DeepSeek Harness host for the Studio agent panel.
 
-Studio does not implement an agent loop. It starts an external ACP agent as a
-subprocess, speaks JSON-RPC 2.0 over newline-delimited stdio, answers the
-client-side methods (project files, terminals and permission prompts) and
-relays session updates to the browser as an ordered event log.
+Studio does not implement an agent loop. It starts DeepSeek Harness
+(`dsh --profile acp`) as a subprocess, speaks ACP v1 (JSON-RPC 2.0 over
+newline-delimited stdio) as an internal wire protocol, answers the client-side
+methods (workspace files, terminals and permission prompts) and relays session
+updates to the browser as an ordered event log. The presentation log of every
+session is persisted outside the project so it can be reopened after a restart
+(ADR-0035).
 """
 
 from dataclasses import dataclass, field
 import json
 import os
 from pathlib import Path
+import re
 import shlex
 import shutil
 import signal
@@ -31,33 +35,16 @@ MAX_CONTEXT_FILES = 16
 MAX_READ_BYTES = 4 * 1024 * 1024
 DEFAULT_TERMINAL_OUTPUT = 256 * 1024
 MAX_SESSIONS = 8
+MAX_HISTORY_LIST = 200
+MAX_HISTORY_BYTES = 16 * 1024 * 1024
 STDERR_LINES = 80
 PROTECTED_PARTS = {".git", ".hg", ".svn"}
+PERSISTED_EVENTS = {"configured", "user", "update", "fs", "terminal", "permission", "permission_resolved", "turn_end"}
+SESSION_ID = re.compile(r"^[0-9a-f]{32}$")
 
-# Well-known ACP agents. Each one owns its model access, tools and login; Studio
-# only needs the launch command. Local overrides live in studio-agents.json.
-BUILTIN_AGENTS = {
-  "deepseek-harness": {
-    "name": "DeepSeek Harness",
-    "command": ["dsh", "--profile", "acp"],
-    "description": "DeepSeek 官方 Harness 的 ACP 配置（@deepseek-ai/dsh）。",
-  },
-  "claude-code": {
-    "name": "Claude Code",
-    "command": ["claude-agent-acp"],
-    "description": "Claude Code 的官方 ACP 适配器（@agentclientprotocol/claude-agent-acp）。",
-  },
-  "codex": {
-    "name": "Codex",
-    "command": ["codex-acp"],
-    "description": "Codex 的官方 ACP 适配器（@agentclientprotocol/codex-acp）。",
-  },
-  "gemini": {
-    "name": "Gemini CLI",
-    "command": ["gemini", "--acp"],
-    "description": "Gemini CLI 原生 ACP 模式。",
-  },
-}
+KERNEL_ID = "deepseek-harness"
+KERNEL_NAME = "DeepSeek Harness"
+KERNEL_COMMAND = ["dsh", "--profile", "acp"]
 
 
 class AgentError(ProjectError):
@@ -67,18 +54,23 @@ class AgentError(ProjectError):
     self.data = data
 
 
+def _xdg(variable: str, fallback: str) -> Path:
+  root = Path(os.environ.get(variable, ""))
+  if not root.is_absolute():
+    root = Path.home() / fallback
+  return root
+
+
 def config_path() -> Path:
-  config_root = Path(os.environ.get("XDG_CONFIG_HOME", ""))
-  if not config_root.is_absolute():
-    config_root = Path.home() / ".config"
-  return config_root / "texsys" / CONFIG_FILENAME
+  return _xdg("XDG_CONFIG_HOME", ".config") / "texsys" / CONFIG_FILENAME
 
 
 def scratch_path() -> Path:
-  cache_root = Path(os.environ.get("XDG_CACHE_HOME", ""))
-  if not cache_root.is_absolute():
-    cache_root = Path.home() / ".cache"
-  return cache_root / "texsys" / "agent-scratch"
+  return _xdg("XDG_CACHE_HOME", ".cache") / "texsys" / "agent-scratch"
+
+
+def history_path() -> Path:
+  return _xdg("XDG_STATE_HOME", ".local/state") / "texsys" / "agent-sessions"
 
 
 def is_agent_config_path(path: Path) -> bool:
@@ -94,38 +86,36 @@ def is_agent_config_path(path: Path) -> bool:
 
 
 def _search_path(env: dict) -> str:
-  extra = [str(Path.home() / ".local" / "bin")]
+  extra = [str(Path.home() / ".local" / "bin"), str(Path.home() / ".bun" / "bin")]
   current = env.get("PATH", os.defpath).split(os.pathsep)
   return os.pathsep.join([*current, *(item for item in extra if item not in current)])
 
 
-def _command(value, label):
+def _command(value):
   if isinstance(value, str):
     value = shlex.split(value)
   if (not isinstance(value, list) or not value or len(value) > 64
       or not all(isinstance(item, str) and item and "\0" not in item for item in value)):
-    raise ProjectError(f"智能体 {label} 的 command 必须是非空字符串数组。")
+    raise ProjectError(f"{KERNEL_ID} 的 command 必须是非空字符串数组。")
   return value
 
 
-def _environment(value, label):
+def _environment(value):
   if value is None:
     return {}
   if not isinstance(value, dict) or not all(
       isinstance(key, str) and key and "=" not in key and "\0" not in key
       and isinstance(item, str) and "\0" not in item for key, item in value.items()):
-    raise ProjectError(f"智能体 {label} 的 env 必须是字符串映射。")
+    raise ProjectError(f"{KERNEL_ID} 的 env 必须是字符串映射。")
   return dict(value)
 
 
 @dataclass
 class AgentDefinition:
-  id: str
-  name: str
-  command: list
+  id: str = KERNEL_ID
+  name: str = KERNEL_NAME
+  command: list = field(default_factory=lambda: list(KERNEL_COMMAND))
   env: dict = field(default_factory=dict)
-  description: str = ""
-  source: str = "builtin"
 
   def environment(self) -> dict:
     env = {key: value for key, value in os.environ.items() if not key.startswith("TEX_STUDIO_")}
@@ -145,52 +135,161 @@ class AgentDefinition:
     return {
       "id": self.id,
       "name": self.name,
-      "description": self.description,
       "command": shlex.join(self.command),
-      "source": self.source,
       "available": executable is not None,
       "reason": "" if executable else f"未找到命令 {self.command[0]}。",
-      "env": sorted(self.env),
     }
 
 
-def load_agents(path: Path | None = None) -> tuple[dict[str, AgentDefinition], list[str]]:
-  """Merge built-in agents with the local, private studio-agents.json."""
+def load_kernel(path: Path | None = None) -> tuple[AgentDefinition, list[str]]:
+  """Return the DeepSeek Harness launch definition.
+
+  Only `agents["deepseek-harness"].command` and `.env` of the private
+  studio-agents.json are honoured; every other entry is ignored.
+  """
   path = path or config_path()
-  agents = {key: AgentDefinition(key, value["name"], list(value["command"]), {}, value["description"])
-            for key, value in BUILTIN_AGENTS.items()}
-  diagnostics = []
+  kernel = AgentDefinition()
   try:
     raw = path.read_text(encoding="utf-8")
   except FileNotFoundError:
-    return agents, diagnostics
+    return kernel, []
   except OSError as error:
-    return agents, [f"无法读取智能体配置：{error.strerror or error}"]
+    return kernel, [f"无法读取智能体配置：{error.strerror or error}"]
   try:
     data = json.loads(raw)
     entries = data.get("agents", {}) if isinstance(data, dict) else None
     if not isinstance(entries, dict):
       raise ProjectError("智能体配置需要 agents 对象。")
-    for key, entry in entries.items():
-      if not isinstance(key, str) or not key or len(key) > 64 or not isinstance(entry, dict):
-        raise ProjectError("智能体配置的每一项需要标识和对象。")
-      base = agents.get(key)
-      if entry.get("disabled") is True:
-        agents.pop(key, None)
-        continue
-      command = _command(entry["command"], key) if "command" in entry else (base.command if base else None)
-      if command is None:
-        raise ProjectError(f"智能体 {key} 缺少 command。")
-      name = entry.get("name", base.name if base else key)
-      if not isinstance(name, str) or not name.strip():
-        raise ProjectError(f"智能体 {key} 的 name 无效。")
-      description = entry.get("description", base.description if base else "")
-      agents[key] = AgentDefinition(key, name.strip(), command, _environment(entry.get("env"), key),
-                                    description if isinstance(description, str) else "",
-                                    "builtin" if base and "command" not in entry else "local")
-  except (ValueError, KeyError, ProjectError) as error:
-    diagnostics.append(f"智能体配置无效：{error}")
-  return agents, diagnostics
+    entry = entries.get(KERNEL_ID)
+    if entry is None:
+      return kernel, []
+    if not isinstance(entry, dict):
+      raise ProjectError(f"{KERNEL_ID} 的配置必须是对象。")
+    command = _command(entry["command"]) if "command" in entry else kernel.command
+    env = _environment(entry.get("env"))
+    return AgentDefinition(command=command, env=env), []
+  except (ValueError, ProjectError) as error:
+    return kernel, [f"智能体配置无效：{error}"]
+
+
+class AgentHistory:
+  """Studio-side presentation log of agent sessions (index + one JSONL per session).
+
+  Every I/O failure is swallowed: persistence must never break a live session.
+  """
+
+  def __init__(self, directory: Path):
+    self.directory = directory
+    self.lock = threading.RLock()
+    self.index = None
+    self.sizes = {}
+    self.diagnostics = []
+
+  def _load(self) -> dict:
+    if self.index is None:
+      self.index = {}
+      try:
+        data = json.loads((self.directory / "index.json").read_text(encoding="utf-8"))
+        sessions = data.get("sessions") if isinstance(data, dict) else None
+        if isinstance(sessions, dict):
+          self.index = {key: value for key, value in sessions.items()
+                        if isinstance(key, str) and SESSION_ID.match(key) and isinstance(value, dict)}
+      except FileNotFoundError:
+        pass
+      except (OSError, ValueError) as error:
+        self.diagnostics.append(f"无法读取会话历史索引：{error}")
+    return self.index
+
+  def _save(self):
+    try:
+      self.directory.mkdir(parents=True, exist_ok=True)
+      _atomic_write(self.directory / "index.json",
+                    json.dumps({"version": 1, "sessions": self.index}, ensure_ascii=False, indent=1) + "\n")
+    except OSError:
+      pass
+
+  def _log(self, identifier: str) -> Path:
+    return self.directory / f"{identifier}.jsonl"
+
+  def entries(self) -> list[dict]:
+    with self.lock:
+      return [dict(value) for value in self._load().values()]
+
+  def get(self, identifier: str) -> dict | None:
+    with self.lock:
+      entry = self._load().get(identifier)
+      return dict(entry) if entry is not None else None
+
+  def contains(self, identifier: str) -> bool:
+    with self.lock:
+      return identifier in self._load()
+
+  def create(self, entry: dict, events: list[dict]):
+    with self.lock:
+      self._load()[entry["id"]] = dict(entry)
+      self._save()
+      for event in events:
+        self.append(entry["id"], event)
+
+  def update(self, identifier: str, **fields):
+    with self.lock:
+      entry = self._load().get(identifier)
+      if entry is None:
+        return
+      entry.update(fields)
+      self._save()
+
+  def append(self, identifier: str, event: dict):
+    with self.lock:
+      if identifier not in self._load():
+        return
+      data = (json.dumps(event, ensure_ascii=False) + "\n").encode("utf-8")
+      try:
+        size = self.sizes.get(identifier)
+        if size is None:
+          try:
+            size = self._log(identifier).stat().st_size
+          except FileNotFoundError:
+            size = 0
+        if size + len(data) > MAX_HISTORY_BYTES:
+          self.sizes[identifier] = size
+          return
+        self.directory.mkdir(parents=True, exist_ok=True)
+        with self._log(identifier).open("ab") as stream:
+          stream.write(data)
+        self.sizes[identifier] = size + len(data)
+      except OSError:
+        self.sizes.pop(identifier, None)
+
+  def events(self, identifier: str) -> list[dict]:
+    events = []
+    try:
+      with self._log(identifier).open("rb") as stream:
+        for raw in stream:
+          try:
+            event = json.loads(raw)
+          except ValueError:
+            continue
+          if isinstance(event, dict) and event.get("type") in PERSISTED_EVENTS:
+            events.append(event)
+    except OSError:
+      pass
+    return events
+
+  def remove(self, identifier: str) -> bool:
+    with self.lock:
+      existed = self._load().pop(identifier, None) is not None
+      if existed:
+        self._save()
+      self.sizes.pop(identifier, None)
+      try:
+        self._log(identifier).unlink()
+        existed = True
+      except FileNotFoundError:
+        pass
+      except OSError:
+        pass
+      return existed
 
 
 class AcpConnection:
@@ -412,21 +511,25 @@ class AgentTerminal:
         pass
 
 
+
 class AgentSession:
-  def __init__(self, service, definition: AgentDefinition, workspace: str = "project"):
+  def __init__(self, service, definition: AgentDefinition, workspace: str = "project", record: dict | None = None):
     self.service = service
     self.definition = definition
     self.workspace = workspace
     self.cwd = service.workspace_root(workspace)
-    self.id = uuid.uuid4().hex
-    self.created_at = time.time()
-    self.title = ""
+    record = record or {}
+    self.id = record.get("id") or uuid.uuid4().hex
+    now = time.time()
+    self.created_at = record.get("created_at", now)
+    self.updated_at = record.get("updated_at", self.created_at)
+    self.title = record.get("title", "")
     self.state = "starting"
     self.error = ""
-    self.acp_session = None
+    self.acp_session = record.get("acp_session")
+    self.resumed = bool(record)
     self.agent_info = {}
     self.capabilities = {}
-    self.auth_methods = []
     self.events = []
     self.first_seq = 1
     self.seq = 0
@@ -435,6 +538,9 @@ class AgentSession:
     self.terminals = {}
     self.terminal_seq = 0
     self.closed = False
+    # A session enters history with its first prompt; resumed sessions already have a record.
+    self.recorded = bool(record)
+    self.pending_history = []
     self.connection = AcpConnection(definition, self.cwd, self._request, self._notification, self._exit)
 
   # Event log -------------------------------------------------------------
@@ -442,12 +548,69 @@ class AgentSession:
   def emit(self, kind, **payload):
     with self.condition:
       self.seq += 1
-      self.events.append({"seq": self.seq, "type": kind, **payload})
+      event = {"seq": self.seq, "type": kind, **payload}
+      self.events.append(event)
       if len(self.events) > MAX_EVENTS:
         drop = len(self.events) - MAX_EVENTS
         del self.events[:drop]
         self.first_seq = self.events[0]["seq"]
+      self._persist(kind, payload)
       self.condition.notify_all()
+
+  def _persist(self, kind, payload):
+    if kind not in PERSISTED_EVENTS:
+      return
+    # Running terminals publish full snapshots several times per second; keep the
+    # creation and the final snapshot only.
+    if kind == "terminal" and "command" not in payload and "exitStatus" not in payload:
+      return
+    record = {"type": kind, **payload}
+    if not self.recorded:
+      self.pending_history.append(record)
+      return
+    history = self.service.history
+    if history is not None:
+      try:
+        history.append(self.id, record)
+      except Exception:  # noqa: BLE001 - persistence must never break a live session
+        pass
+
+  def preload(self, events: list[dict]):
+    """Replay persisted events into the log with fresh sequence numbers."""
+    resolved = {event.get("key") for event in events if event.get("type") == "permission_resolved"}
+    replay = [event for event in events if event.get("type") != "permission" or event.get("key") in resolved]
+    with self.condition:
+      for event in replay:
+        self.seq += 1
+        self.events.append({**event, "seq": self.seq})
+      if len(self.events) > MAX_EVENTS:
+        del self.events[:len(self.events) - MAX_EVENTS]
+        self.first_seq = self.events[0]["seq"]
+    self.emit("history", count=len(replay))
+
+  def _record(self):
+    entry = {"id": self.id, "title": self.title, "workspace": self.workspace, "cwd": str(self.cwd),
+             "created_at": self.created_at, "updated_at": self.updated_at, "acp_session": self.acp_session}
+    history = self.service.history
+    try:
+      if not self.recorded:
+        pending, self.pending_history = self.pending_history, []
+        self.recorded = True
+        if history is not None:
+          history.create(entry, pending)
+      elif history is not None:
+        history.update(self.id, title=self.title, updated_at=self.updated_at, acp_session=self.acp_session)
+    except Exception:  # noqa: BLE001 - persistence must never break a live session
+      pass
+
+  def _touch(self):
+    self.updated_at = time.time()
+    history = self.service.history
+    if history is not None and self.recorded:
+      try:
+        history.update(self.id, updated_at=self.updated_at)
+      except Exception:  # noqa: BLE001
+        pass
 
   def set_state(self, state, error=""):
     self.state = state
@@ -466,19 +629,17 @@ class AgentSession:
     return {
       "id": self.id,
       "workspace": self.workspace,
-      "agent": self.definition.id,
-      "agent_name": self.agent_info.get("title") or self.definition.name,
-      "agent_version": self.agent_info.get("version", ""),
-      "command": shlex.join(self.definition.command),
-      "cwd": str(self.cwd),
       "title": self.title,
       "state": self.state,
       "error": self.error,
       "created_at": self.created_at,
+      "updated_at": self.updated_at,
       "seq": self.seq,
+      "cwd": str(self.cwd),
       "stderr": self.connection.stderr_tail(),
-      "auth_methods": self.auth_methods,
-      "capabilities": self.capabilities,
+      "kernel": {"name": self.agent_info.get("title") or self.definition.name,
+                 "version": self.agent_info.get("version", "")},
+      "resumed": self.resumed,
     }
 
   # Lifecycle -------------------------------------------------------------
@@ -495,51 +656,47 @@ class AgentSession:
         "clientInfo": {"name": "tex-studio", "title": "Tex Studio", "version": "0.1"},
       }, timeout=90) or {}
       if result.get("protocolVersion") != PROTOCOL_VERSION:
-        raise AgentError(f"智能体使用不兼容的 ACP 协议版本 {result.get('protocolVersion')}。")
+        raise AgentError(f"DeepSeek Harness 使用不兼容的 ACP 协议版本 {result.get('protocolVersion')}。")
       self.agent_info = result.get("agentInfo") or {}
       self.capabilities = result.get("agentCapabilities") or {}
-      self.auth_methods = result.get("authMethods") or []
-      self.emit("initialized", agent=self.agent_info, capabilities=self.capabilities, authMethods=self.auth_methods)
-      self._new_session()
+      self.emit("initialized", agent=self.agent_info, capabilities=self.capabilities)
+      if self.resumed:
+        self._resume_session()
+      else:
+        self._new_session()
     except AgentError as error:
       self._fail(error)
     except OSError as error:
-      self._fail(AgentError(f"无法启动智能体：{error.strerror or error}"))
+      self._fail(AgentError(f"无法启动 DeepSeek Harness：{error.strerror or error}"))
 
   def _new_session(self):
-    try:
-      result = self.connection.request("session/new", {"cwd": str(self.cwd), "mcpServers": []},
-                                       timeout=120) or {}
-    except AgentError as error:
-      if error.code == -32000 and self.auth_methods:
-        self.set_state("auth_required", str(error))
-        return
-      raise
+    result = self.connection.request("session/new", {"cwd": str(self.cwd), "mcpServers": []}, timeout=120) or {}
     self.acp_session = result.get("sessionId")
     if not isinstance(self.acp_session, str):
-      raise AgentError("智能体没有返回会话标识。")
-    self.emit("configured", configOptions=result.get("configOptions") or [], modes=result.get("modes"),
-              models=result.get("models"))
+      raise AgentError("DeepSeek Harness 没有返回会话标识。")
+    self.emit("configured", configOptions=result.get("configOptions") or [])
+    self.set_state("ready")
+
+  def _resume_session(self):
+    capabilities = self.capabilities.get("sessionCapabilities")
+    if not isinstance(capabilities, dict) or "resume" not in capabilities:
+      raise AgentError("当前版本不支持 session/resume。")
+    if not isinstance(self.acp_session, str) or not self.acp_session:
+      raise AgentError("历史记录缺少 DeepSeek Harness 会话标识。")
+    result = self.connection.request("session/resume", {"sessionId": self.acp_session, "cwd": str(self.cwd),
+                                                        "mcpServers": []}, timeout=120) or {}
+    if isinstance(result.get("configOptions"), list) and result["configOptions"]:
+      self.emit("configured", configOptions=result["configOptions"])
     self.set_state("ready")
 
   def _fail(self, error):
     tail = self.connection.stderr_tail()
-    self.set_state("error", str(error) + (f"\n{tail}" if tail and self.connection.closed.is_set() else ""))
-
-  def authenticate(self, method):
-    if self.state != "auth_required":
-      raise Conflict("当前会话不需要登录。")
-    if not any(isinstance(item, dict) and item.get("id") == method for item in self.auth_methods):
-      raise ProjectError("未知的登录方式。")
-    self.set_state("starting")
-
-    def run():
-      try:
-        self.connection.request("authenticate", {"methodId": method}, timeout=300)
-        self._new_session()
-      except AgentError as error:
-        self._fail(error)
-    threading.Thread(target=run, daemon=True, name="acp-auth").start()
+    message = str(error) + (f"\n{tail}" if tail and self.connection.closed.is_set() else "")
+    if self.resumed and self.state == "starting":
+      message = f"无法在 DeepSeek Harness 中恢复该会话：{message}"
+    self.set_state("error", message)
+    # The process cannot serve this session any more; the transcript stays readable.
+    self.connection.close()
 
   def prompt(self, text, context):
     if self.state != "ready":
@@ -550,6 +707,8 @@ class AgentSession:
       blocks.append({"type": "resource_link", "uri": file.as_uri(), "name": file.name})
     if not self.title:
       self.title = " ".join(text.split())[:80]
+    self.updated_at = time.time()
+    self._record()
     self.emit("user", text=text, context=list(context))
     self.set_state("prompting")
 
@@ -557,10 +716,12 @@ class AgentSession:
       try:
         result = self.connection.request("session/prompt", {"sessionId": self.acp_session, "prompt": blocks}) or {}
         self.emit("turn_end", stopReason=result.get("stopReason", "end_turn"))
+        self._touch()
         if not self.closed:
           self.set_state("ready")
       except AgentError as error:
         self.emit("turn_end", stopReason="error", error=str(error))
+        self._touch()
         if not self.connection.closed.is_set():
           self.set_state("ready")
     threading.Thread(target=run, daemon=True, name="acp-prompt").start()
@@ -573,27 +734,13 @@ class AgentSession:
       self.resolve_permission(key, None)
 
   def set_config(self, config, value):
-    if self.acp_session is None:
+    if self.acp_session is None or self.state not in {"ready", "prompting"}:
       raise Conflict("智能体会话尚未建立。")
     result = self.connection.request("session/set_config_option",
                                      {"sessionId": self.acp_session, "configId": config, "value": value},
                                      timeout=60) or {}
     if isinstance(result.get("configOptions"), list):
       self.emit("configured", configOptions=result["configOptions"])
-
-  def set_mode(self, mode):
-    if self.acp_session is None:
-      raise Conflict("智能体会话尚未建立。")
-    self.connection.request("session/set_mode", {"sessionId": self.acp_session, "modeId": mode}, timeout=60)
-    self.emit("update", update={"sessionUpdate": "current_mode_update", "currentModeId": mode})
-
-  def set_model(self, model):
-    if self.acp_session is None:
-      raise Conflict("智能体会话尚未建立。")
-    if not isinstance(model, str) or not model.strip():
-      raise ProjectError("模型标识无效。")
-    self.connection.request("session/set_model", {"sessionId": self.acp_session, "modelId": model}, timeout=60)
-    self.emit("update", update={"sessionUpdate": "current_model_update", "currentModelId": model})
 
   def close(self):
     if self.closed:
@@ -602,7 +749,8 @@ class AgentSession:
     for key in list(self.permissions):
       self.resolve_permission(key, None)
     if self.acp_session and isinstance(self.capabilities.get("sessionCapabilities"), dict) \
-        and "close" in self.capabilities["sessionCapabilities"] and not self.connection.closed.is_set():
+        and "close" in self.capabilities["sessionCapabilities"] and not self.connection.closed.is_set() \
+        and self.state in {"ready", "prompting"}:
       try:
         self.connection.request("session/close", {"sessionId": self.acp_session}, timeout=3)
       except AgentError:
@@ -617,9 +765,9 @@ class AgentSession:
   def _exit(self, code):
     for key in list(self.permissions):
       self.resolve_permission(key, None)
-    if not self.closed:
+    if not self.closed and self.state != "error":
       tail = self.connection.stderr_tail()
-      self.set_state("exited", f"智能体进程已退出（退出码 {code}）。" + (f"\n{tail}" if tail else ""))
+      self.set_state("exited", f"DeepSeek Harness 进程已退出（退出码 {code}）。" + (f"\n{tail}" if tail else ""))
 
   # Agent -> client -------------------------------------------------------
 
@@ -734,15 +882,23 @@ class AgentSession:
 
 
 class AgentService:
-  """Owns agent sessions for Studio project and empty-workspace scopes."""
+  """Owns DeepSeek Harness sessions for Studio project and empty-workspace scopes."""
 
-  def __init__(self, root: Path, build: str = "build", config: Path | None = None, scratch: Path | None = None):
+  def __init__(self, root: Path, build: str = "build", config: Path | None = None, scratch: Path | None = None,
+               history: Path | None = None):
     self.root = root.resolve()
     self.build = build
     self.config = config
     self.scratch = scratch
     self.sessions: dict[str, AgentSession] = {}
     self.lock = threading.Lock()
+    self.history_diagnostics = []
+    directory = (history or history_path()).expanduser().resolve()
+    if directory == self.root or directory.is_relative_to(self.root):
+      self.history = None
+      self.history_diagnostics.append("会话历史目录不得位于项目目录内，本次不保存会话历史。")
+    else:
+      self.history = AgentHistory(directory)
 
   def workspace_root(self, workspace: str = "project") -> Path:
     if workspace == "project":
@@ -793,34 +949,67 @@ class AgentService:
 
   def state(self, workspace: str = "project") -> dict:
     boundary = self.workspace_root(workspace)
-    agents, diagnostics = load_agents(self.config)
+    kernel, diagnostics = load_kernel(self.config)
     with self.lock:
       sessions = [session.summary() for session in self.sessions.values() if session.workspace == workspace]
-    path = self.config or config_path()
-    home = Path.home()
-    display = "~/" + path.relative_to(home).as_posix() if path.is_relative_to(home) else str(path)
+      live = set(self.sessions)
+    history = []
+    if self.history is not None:
+      history = [
+        {"id": entry["id"], "title": entry.get("title", ""), "created_at": entry.get("created_at", 0),
+         "updated_at": entry.get("updated_at", 0), "live": entry["id"] in live}
+        for entry in self.history.entries()
+        if entry.get("id") and entry.get("workspace") == workspace and entry.get("cwd") == str(boundary)
+      ]
+      history.sort(key=lambda item: item["updated_at"] or 0, reverse=True)
+      diagnostics = [*diagnostics, *self.history.diagnostics]
     return {
-      "agents": [agent.public() for agent in agents.values()],
+      "kernel": kernel.public(),
+      "diagnostics": [*diagnostics, *self.history_diagnostics],
       "sessions": sorted(sessions, key=lambda item: item["created_at"], reverse=True),
-      "config_path": display,
-      "diagnostics": diagnostics,
+      "history": history[:MAX_HISTORY_LIST],
       "root": str(boundary),
       "workspace": workspace,
     }
 
-  def create(self, agent_id, workspace: str = "project") -> dict:
+  def _reserve(self):
+    live = [item for item in self.sessions.values() if item.state != "closed"]
+    if len(live) >= MAX_SESSIONS:
+      raise Conflict("智能体会话数量已达上限，请先关闭不用的会话。")
+
+  def create(self, workspace: str = "project") -> dict:
     self.workspace_root(workspace)
-    agents, _ = load_agents(self.config)
-    definition = agents.get(agent_id)
-    if definition is None:
-      raise ProjectError("未知的智能体。")
-    if definition.executable() is None:
-      raise ProjectError(definition.public()["reason"])
+    kernel, _ = load_kernel(self.config)
+    if kernel.executable() is None:
+      raise ProjectError(kernel.public()["reason"])
     with self.lock:
-      live = [item for item in self.sessions.values() if item.state not in {"closed"}]
-      if len(live) >= MAX_SESSIONS:
-        raise Conflict("智能体会话数量已达上限，请先关闭不用的会话。")
-      session = AgentSession(self, definition, workspace=workspace)
+      self._reserve()
+      session = AgentSession(self, kernel, workspace=workspace)
+      self.sessions[session.id] = session
+    session.start()
+    return session.summary()
+
+  def resume(self, identifier, workspace: str = "project") -> dict:
+    if not isinstance(identifier, str) or not SESSION_ID.match(identifier):
+      raise ProjectError("会话标识无效。")
+    boundary = self.workspace_root(workspace)
+    with self.lock:
+      session = self.sessions.get(identifier)
+      if session is not None:
+        return session.summary()
+    entry = self.history.get(identifier) if self.history is not None else None
+    if entry is None or entry.get("workspace") != workspace or entry.get("cwd") != str(boundary):
+      raise ProjectError("历史会话不存在或不属于当前工作区。")
+    entry["id"] = identifier
+    events = self.history.events(identifier)
+    kernel, _ = load_kernel(self.config)
+    with self.lock:
+      session = self.sessions.get(identifier)
+      if session is not None:
+        return session.summary()
+      self._reserve()
+      session = AgentSession(self, kernel, workspace=workspace, record=entry)
+      session.preload(events)
       self.sessions[session.id] = session
     session.start()
     return session.summary()
@@ -849,6 +1038,21 @@ class AgentService:
       self.sessions.pop(identifier, None)
     session.close()
     return {"closed": identifier}
+
+  def delete_history(self, identifier):
+    if not isinstance(identifier, str) or not SESSION_ID.match(identifier):
+      raise ProjectError("会话标识无效。")
+    with self.lock:
+      session = self.sessions.pop(identifier, None)
+    removed = self.history.remove(identifier) if self.history is not None else False
+    if session is not None:
+      session.close()
+      # Late events of the closing process must not recreate the record.
+      if self.history is not None:
+        self.history.remove(identifier)
+    elif not removed:
+      raise ProjectError("历史会话不存在。")
+    return {"deleted": identifier}
 
   def close(self):
     with self.lock:

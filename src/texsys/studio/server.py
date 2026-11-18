@@ -437,7 +437,11 @@ def create_server(runtime: StudioRuntime, port=8710, frontend=None, token=None, 
           ai_settings.verify(connection)
           result = {"message": message}
         elif self.path == "/api/agent/sessions":
-          result = agents.create(body.get("agent"), body.get("workspace", "project"))
+          result = agents.create(body.get("workspace", "project"))
+        elif self.path == "/api/agent/resume":
+          result = agents.resume(body.get("session"), body.get("workspace", "project"))
+        elif self.path == "/api/agent/history/delete":
+          result = agents.delete_history(body.get("session"))
         elif self.path == "/api/agent/prompt":
           result = agents.prompt(body)
         elif self.path == "/api/agent/cancel":
@@ -451,15 +455,6 @@ def create_server(runtime: StudioRuntime, port=8710, frontend=None, token=None, 
           result = {"ok": True}
         elif self.path == "/api/agent/config":
           agents.get(body.get("session")).set_config(body.get("config"), body.get("value"))
-          result = {"ok": True}
-        elif self.path == "/api/agent/mode":
-          agents.get(body.get("session")).set_mode(body.get("mode"))
-          result = {"ok": True}
-        elif self.path == "/api/agent/model":
-          agents.get(body.get("session")).set_model(body.get("model"))
-          result = {"ok": True}
-        elif self.path == "/api/agent/authenticate":
-          agents.get(body.get("session")).authenticate(body.get("method"))
           result = {"ok": True}
         elif self.path == "/api/agent/close":
           result = agents.close_session(body.get("session"))

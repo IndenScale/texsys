@@ -1,9 +1,9 @@
 # DDR-0031：对标 VS Code 开源实现的智能体面板与双层输入区
 
-- 状态：已接受
+- 状态：已取代
 - 日期：2026-11-18
 - 取代：部分修订 [DDR-0030](0030-studio-agent-panel.md) 的标题栏动作、会话列表、欢迎页智能体单选墙、单行输入栏与工具卡片输出展开；右侧专职面板职责与双工作区隔离继续有效
-- 被取代：部分由 [DDR-0032](0032-studio-agent-panel-grid-and-model-sliders.md) 修订（顶部与输入区双层同尺度网格对齐、移除顶部重复会话切换按钮、ChatGPT 风格双滑块模型调节与按 Provider 堆叠的模型目录）
+- 被取代：[DDR-0033](0033-studio-agent-panel-qoder-redesign.md)（对标 Qoder 重新设计智能体面板；此前由 DDR-0032 部分修订）
 
 ## 用户体验与交互背景
 

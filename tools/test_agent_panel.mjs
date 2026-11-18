@@ -519,3 +519,61 @@ test("modelCatalog preserves stacked Provider groups, strips verbose harness suf
   assert.equal(inferModelContextTokens("Kimi K3-256K", undefined), "256K");
   assert.equal(inferModelContextTokens("deepseek-v4-flash", 1000000), "1M");
 });
+
+test("resumed sessions show replayed events followed by a history divider", () => {
+  const model = load("src/texsys/assets/studio/agent-model.ts");
+  const transcript = model.applyAgentEvents(
+    model.emptyTranscript(),
+    [
+      { seq: 1, type: "user", text: "检查构建", context: [] },
+      {
+        seq: 2,
+        type: "update",
+        update: { sessionUpdate: "agent_message_chunk", content: { type: "text", text: "完成" } },
+      },
+      { seq: 3, type: "turn_end", stopReason: "end_turn" },
+      { seq: 4, type: "history", count: 3 },
+    ],
+    "/p",
+  );
+  assert.deepEqual(
+    transcript.items.map((item) => item.kind),
+    ["user", "agent", "turn", "history"],
+  );
+  assert.equal(transcript.items.at(-1).count, 3);
+  assert.equal(model.sessionLabel({ title: "  " }), "");
+  assert.equal(model.sessionLabel(undefined), "");
+});
+
+test("history groups by local day and formats compact relative times", () => {
+  const { groupHistory, relativeTime } = load("src/texsys/assets/studio/agent-model.ts");
+  const now = new Date(2026, 10, 18, 10, 0, 0);
+  const at = (days, hours = 9) => new Date(2026, 10, 18 - days, hours, 30).getTime() / 1000;
+  const entries = [
+    { id: "a", title: "旧", created_at: at(30), updated_at: at(30), live: false },
+    { id: "b", title: "今天", created_at: at(0), updated_at: at(0), live: true },
+    { id: "c", title: "昨天", created_at: at(1), updated_at: at(1), live: false },
+    { id: "d", title: "本周", created_at: at(4), updated_at: at(4), live: false },
+  ];
+  const groups = groupHistory(entries, now);
+  assert.deepEqual(
+    groups.map((group) => [group.label, group.entries.map((entry) => entry.id)]),
+    [
+      ["今天", ["b"]],
+      ["昨天", ["c"]],
+      ["近 7 天", ["d"]],
+      ["更早", ["a"]],
+    ],
+  );
+  assert.deepEqual(relativeTime(now.getTime() / 1000 - 20, now), { key: "刚刚" });
+  assert.deepEqual(relativeTime(now.getTime() / 1000 - 600, now), {
+    key: "{n} 分钟前",
+    values: { n: 10 },
+  });
+  assert.deepEqual(relativeTime(at(0, 8), now), { key: "{time}", values: { time: "08:30" } });
+  assert.deepEqual(relativeTime(at(1), now), { key: "昨天" });
+  assert.deepEqual(relativeTime(at(30), now), {
+    key: "{month}月{day}日",
+    values: { month: 10, day: 19 },
+  });
+});
