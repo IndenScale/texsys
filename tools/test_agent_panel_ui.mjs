@@ -20,6 +20,7 @@ for (const name of [
   "HTMLTextAreaElement",
   "Node",
   "Event",
+  "MouseEvent",
   "KeyboardEvent",
   "localStorage",
   "sessionStorage",
@@ -27,6 +28,16 @@ for (const name of [
   "cancelAnimationFrame",
 ])
   globalThis[name] = dom.window[name];
+globalThis.PointerEvent =
+  dom.window.PointerEvent ??
+  class PointerEvent extends dom.window.MouseEvent {
+    constructor(type, init = {}) {
+      super(type, init);
+      this.pointerId = init.pointerId ?? 1;
+      this.isPrimary = init.isPrimary ?? true;
+    }
+  };
+dom.window.PointerEvent = globalThis.PointerEvent;
 Object.defineProperty(globalThis, "navigator", { value: dom.window.navigator, configurable: true });
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 dom.window.HTMLElement.prototype.showPopover = function () {};
@@ -202,7 +213,7 @@ async function type(value) {
   return area;
 }
 
-test("right panel is dedicated to the agent with VS Code header actions and maximize/close", async (t) => {
+test("right panel is dedicated to the agent with single session-list toggle and uniform two-row icon sizes", async (t) => {
   backend();
   sessionStorage.clear();
   localStorage.clear();
@@ -214,6 +225,44 @@ test("right panel is dedicated to the agent with VS Code header actions and maxi
   assert.ok(button("新建会话"));
   assert.ok(button("新建会话选项"));
   assert.ok(button("最大化面板大小"));
+
+  // Top header must NOT duplicate "切换会话列表"; it exists only once in the "会话" sub-bar.
+  const sessionPaneButtons = [...document.querySelectorAll('button[aria-label="切换会话列表"]')];
+  assert.equal(sessionPaneButtons.length, 1);
+  assert.equal(
+    document.querySelector('.navigator-heading button[aria-label="切换会话列表"]'),
+    null,
+  );
+  assert.ok(document.querySelector('.agent-subbar button[aria-label="切换会话列表"]'));
+
+  // Row 1 primary icons and Row 2 subbar icons share the exact same 16px SVG size.
+  const row1PrimaryIcons = [
+    ...document.querySelectorAll(
+      ".navigator-heading .navigator-button:not(.agent-split-chevron) svg",
+    ),
+  ];
+  const row2Icons = [...document.querySelectorAll(".agent-subbar-actions > button svg")];
+  assert.equal(row1PrimaryIcons.length, 4);
+  assert.equal(row2Icons.length, 4);
+  for (const svg of [...row1PrimaryIcons, ...row2Icons]) {
+    assert.equal(svg.getAttribute("width"), "16");
+    assert.equal(svg.getAttribute("height"), "16");
+  }
+
+  // Composer Row 1 and Row 2 toolbar icons share the exact same 14px SVG size.
+  const composerPrimaryIcons = [
+    ...document.querySelectorAll(".agent-input-toolbar .agent-toolbar-chip svg"),
+  ];
+  const composerSecondaryIcons = [
+    ...document.querySelectorAll(".agent-secondary-toolbar .agent-secondary-chip svg"),
+  ];
+  assert.equal(composerPrimaryIcons.length, 1);
+  assert.equal(composerSecondaryIcons.length, 2);
+  for (const svg of [...composerPrimaryIcons, ...composerSecondaryIcons]) {
+    assert.equal(svg.getAttribute("width"), "14");
+    assert.equal(svg.getAttribute("height"), "14");
+  }
+
   await act(async () => button("最大化面板大小").click());
   await act(async () => button("关闭智能体面板").click());
   assert.deepEqual(panel.opened, [["maximize"], ["close"]]);
@@ -283,7 +332,7 @@ test("empty workspace displays clean VS Code chat shell, harness picker and dire
   assert.match(document.querySelector(".agent-message").textContent, /GB 50174/);
 });
 
-test("tabbed model picker, context attachment, rawOutput bash expansion, permissions and SCM review work end-to-end", async (t) => {
+test("ChatGPT-style model trigger, two-slider controls, stacked provider model picker, tools, permissions and SCM review work end-to-end", async (t) => {
   const server = backend();
   sessionStorage.clear();
   localStorage.clear();
@@ -291,6 +340,16 @@ test("tabbed model picker, context attachment, rawOutput bash expansion, permiss
   await flush();
   assert.match(text(), /使用智能体处理工程任务/);
   assert.match(document.querySelector(".agent-chip").textContent, /room\.json/);
+
+  // Warming up model config before any conversation keeps Welcome and "会话" subbar intact.
+  await act(async () => button("选择模型").click());
+  await flush();
+  assert.ok(document.querySelector(".agent-popover-model.is-controls"));
+  assert.ok(document.querySelector(".agent-welcome"));
+  assert.ok(document.querySelector(".agent-subbar"));
+  assert.equal(document.querySelector(".agent-title-control"), null);
+  await act(async () => button("选择模型").click());
+  await flush();
 
   // Attach an additional project file via "+" Context Picker.
   await act(async () => button("添加上下文").click());
@@ -317,21 +376,47 @@ test("tabbed model picker, context attachment, rawOutput bash expansion, permiss
           {
             id: "model",
             name: "Model",
+            category: "model",
             type: "select",
             currentValue: "flash",
             options: [
-              { value: "flash", name: "deepseek-v4-flash" },
-              { value: "pro", name: "deepseek-v4" },
+              {
+                group: "deepseek",
+                name: "DeepSeek Harness",
+                options: [
+                  { value: "flash", name: "deepseek-v4-flash · DeepSeek Harness" },
+                  { value: "pro", name: "DeepSeek-V4-Pro · DeepSeek Harness" },
+                ],
+              },
+              {
+                group: "kimi-coding",
+                name: "kimi-coding",
+                options: [{ value: "kimi-k3", name: "Kimi K3-256K" }],
+              },
             ],
           },
           {
             id: "effort",
             name: "Reasoning",
+            category: "thought_level",
             type: "select",
             currentValue: "high",
             options: [
+              { value: "low", name: "Low" },
               { value: "medium", name: "Medium" },
               { value: "high", name: "High" },
+            ],
+          },
+          {
+            id: "context_window",
+            name: "Context window",
+            category: "context_window",
+            type: "select",
+            currentValue: "200k",
+            options: [
+              { value: "64k", name: "64K" },
+              { value: "200k", name: "200K" },
+              { value: "1m", name: "1M" },
             ],
           },
         ],
@@ -414,14 +499,19 @@ test("tabbed model picker, context attachment, rawOutput bash expansion, permiss
   await flush();
   assert.match(text(), /检查 R01 机柜的净空/);
   assert.match(text(), /思考过程/);
-  // All 3 tool cards (including bash with rawOutput) are expandable <details>.
   assert.equal(document.querySelectorAll("details.agent-tool").length, 3);
   assert.match(document.querySelector(".agent-message").textContent, /净空满足要求/);
   assert.equal(document.querySelector(".agent-message strong")?.textContent, "满足");
   assert.match(text(), /智能体修改了 1 个文件/);
   assert.match(document.querySelector(".agent-usage").textContent, /2%/);
-  assert.match(document.querySelector(".agent-composer-bar").textContent, /deepseek-v4-flash/);
-  assert.match(document.querySelector(".agent-composer-bar").textContent, /High/);
+
+  // Composer trigger renders ChatGPT-style clean model name + effort + context window, no separate sliders icon.
+  const triggerText = document.querySelector(".agent-model-trigger").textContent;
+  assert.match(triggerText, /deepseek-v4-flash/);
+  assert.match(triggerText, /高/);
+  assert.match(triggerText, /200K/);
+  assert.doesNotMatch(triggerText, /DeepSeek Harness/);
+  assert.equal(button("更多会话选项"), undefined);
   assert.ok(document.querySelector(".agent-send.is-stop"), "stop button while prompting");
 
   await act(async () => document.querySelector(".agent-tool .agent-link-button").click());
@@ -451,11 +541,87 @@ test("tabbed model picker, context attachment, rawOutput bash expansion, permiss
   assert.match(text(), /已停止本轮处理/);
   assert.equal(document.querySelector(".agent-send.is-stop"), null);
 
-  // Open Tabbed Model Picker ("✨") and switch model.
-  await act(async () => button("选择模型").click());
+  // Level 1: Model Controls Popover with model switcher on top and 2 discrete sliders below.
+  await act(async () => document.querySelector(".agent-model-trigger").click());
   await flush();
-  assert.ok(document.querySelector(".agent-popover-model"));
-  await act(async () => button("deepseek-v4 · DeepSeek Harness").click());
+  const controlsPop = document.querySelector(".agent-popover-model.is-controls");
+  assert.ok(controlsPop);
+  const sliders = [...controlsPop.querySelectorAll('[role="slider"]')];
+  assert.equal(sliders.length, 2);
+  assert.equal(sliders[0].getAttribute("aria-label"), "推理强度");
+  assert.equal(sliders[0].getAttribute("aria-valuetext"), "高");
+  assert.equal(sliders[1].getAttribute("aria-label"), "上下文窗口");
+  assert.equal(sliders[1].getAttribute("aria-valuetext"), "200K");
+
+  // Adjust both sliders via keyboard and pointer release.
+  await act(async () =>
+    sliders[0].dispatchEvent(
+      new dom.window.KeyboardEvent("keydown", { key: "ArrowLeft", bubbles: true }),
+    ),
+  );
+  await flush();
+  assert.ok(
+    server.requests.some(
+      ([url, body]) =>
+        url === "/api/agent/config" && body.config === "effort" && body.value === "medium",
+    ),
+  );
+
+  await act(async () => {
+    sliders[1].dispatchEvent(
+      new globalThis.PointerEvent("pointerdown", { clientX: 220, button: 0, bubbles: true }),
+    );
+    sliders[1].dispatchEvent(
+      new globalThis.PointerEvent("pointerup", { clientX: 220, button: 0, bubbles: true }),
+    );
+  });
+  await flush();
+  assert.ok(
+    server.requests.some(
+      ([url, body]) =>
+        url === "/api/agent/config" && body.config === "context_window" && body.value === "1m",
+    ),
+  );
+
+  // Level 2: Stacked Provider Model List with search input right at the very top and clean names.
+  await act(async () => document.querySelector(".agent-model-switch-btn").click());
+  await flush();
+  const modelsPop = document.querySelector(".agent-popover-model.is-models");
+  assert.ok(modelsPop);
+  assert.equal(modelsPop.querySelectorAll('[role="tab"]').length, 0, "no provider tabs");
+  assert.ok(
+    modelsPop
+      .querySelector(".agent-model-catalog-view")
+      ?.firstElementChild?.classList.contains("agent-model-search"),
+    "search input is at the very top",
+  );
+  const groups = [...modelsPop.querySelectorAll('[role="group"]')];
+  assert.deepEqual(
+    groups.map((g) => g.getAttribute("aria-label")),
+    ["DeepSeek", "kimi-coding"],
+  );
+  assert.doesNotMatch(modelsPop.textContent, /DeepSeek Harness/);
+
+  // Filter models via top search input, then clear and select DeepSeek-V4-Pro.
+  const searchInput = modelsPop.querySelector(".agent-model-search input");
+  const inputSetter = Object.getOwnPropertyDescriptor(
+    dom.window.HTMLInputElement.prototype,
+    "value",
+  ).set;
+  await act(async () => {
+    inputSetter.call(searchInput, "Kimi");
+    searchInput.dispatchEvent(new dom.window.Event("input", { bubbles: true }));
+  });
+  await flush();
+  assert.equal(modelsPop.querySelectorAll('[role="group"]').length, 1);
+  assert.match(modelsPop.textContent, /Kimi K3-256K/);
+
+  await act(async () => {
+    inputSetter.call(searchInput, "");
+    searchInput.dispatchEvent(new dom.window.Event("input", { bubbles: true }));
+  });
+  await flush();
+  await act(async () => button("DeepSeek-V4-Pro").click());
   await flush();
   assert.ok(
     server.requests.some(

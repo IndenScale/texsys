@@ -716,6 +716,81 @@ export function configChoices(option: ConfigOption): ConfigOptionValue[] {
   );
 }
 
+/** Clean a provider or harness label without redundant "(ACP)" or "Harness" noise. */
+export function cleanProviderName(raw: string): string {
+  const trimmed = raw
+    .trim()
+    .replace(/\s*(?:\(ACP\)|\[ACP\])\s*$/i, "")
+    .trim();
+  const stripped = trimmed.replace(/\s+(?:Harness|CLI)$/i, "").trim();
+  return stripped || trimmed || "Models";
+}
+
+function inferFamilyProvider(modelName: string): string | undefined {
+  const s = modelName.trim();
+  if (/^deepseek/i.test(s)) return "DeepSeek";
+  if (/^claude/i.test(s)) return "Anthropic";
+  if (/^(?:gpt-|o[134](?:$|-|\b)|codex|chatgpt)/i.test(s)) return "OpenAI";
+  if (/^gemini/i.test(s)) return "Google";
+  if (/^(?:kimi|moonshot)/i.test(s)) return "Kimi";
+  if (/^qwen/i.test(s)) return "Qwen";
+  if (/^glm/i.test(s)) return "Zhipu";
+  if (/^minimax/i.test(s)) return "MiniMax";
+  return undefined;
+}
+
+/** Strip provider suffixes, route prefixes, and ACP noise from a model's display name. */
+export function cleanModelName(
+  rawName: string,
+  rawValue?: string,
+): { name: string; inferredProvider?: string } {
+  let inferredProvider: string | undefined;
+  let candidate = rawName.trim();
+
+  for (const probe of [rawValue, candidate]) {
+    if (!probe || !probe.startsWith("[")) continue;
+    try {
+      const parsed = JSON.parse(probe) as unknown;
+      if (
+        Array.isArray(parsed) &&
+        parsed.length >= 2 &&
+        typeof parsed[0] === "string" &&
+        typeof parsed[1] === "string"
+      ) {
+        inferredProvider ??= parsed[0].trim() || undefined;
+        if (probe === candidate) candidate = parsed[1].trim();
+      }
+    } catch {
+      // Plain model identifier.
+    }
+  }
+
+  const sepMatch = /^(.+?)\s+[·•]\s+(.+)$/.exec(candidate);
+  if (sepMatch) {
+    candidate = sepMatch[1].trim();
+    inferredProvider ??= cleanProviderName(sepMatch[2]);
+  }
+
+  candidate = candidate.replace(/\s*(?:\(ACP\)|\[ACP\])\s*$/i, "").trim();
+
+  if (rawValue && !rawValue.startsWith("[") && rawValue.includes("/") && !rawValue.includes(" ")) {
+    const firstSlash = rawValue.indexOf("/");
+    const prefix = rawValue.slice(0, firstSlash).trim();
+    if (prefix) inferredProvider ??= prefix;
+  }
+
+  if (candidate.includes("/") && !candidate.includes(" ")) {
+    const parts = candidate.split("/").filter(Boolean);
+    if (parts.length >= 2) {
+      inferredProvider ??= parts[0];
+      candidate = parts.at(-1)!;
+    }
+  }
+
+  inferredProvider ??= inferFamilyProvider(candidate);
+  return { name: candidate || rawName.trim(), inferredProvider };
+}
+
 export function isModelOption(option: ConfigOption): boolean {
   return (
     option.type === "select" &&
@@ -723,44 +798,278 @@ export function isModelOption(option: ConfigOption): boolean {
   );
 }
 
+export function isReasoningOption(option: ConfigOption): boolean {
+  return (
+    option.type === "select" &&
+    !isModelOption(option) &&
+    (option.category === "thought_level" ||
+      option.category === "reasoning" ||
+      /reason|effort|thought|thinking|推理|思考/i.test(`${option.id} ${option.name}`))
+  );
+}
+
+export function isContextWindowOption(option: ConfigOption): boolean {
+  return (
+    option.type === "select" &&
+    !isModelOption(option) &&
+    !isReasoningOption(option) &&
+    (option.category === "context" ||
+      option.category === "context_window" ||
+      option.category === "tokens" ||
+      /context|window|num_ctx|max_context|tokens|上下文/i.test(`${option.id} ${option.name}`))
+  );
+}
+
+export type NormalizedModelChoice = ConfigOptionValue & {
+  group: string;
+  groupKey: string;
+  agentId?: string;
+};
+
+export type ModelGroup = {
+  key: string;
+  label: string;
+  options: NormalizedModelChoice[];
+};
+
 export type NormalizedModelCatalog = {
   source: "config" | "models";
   configId?: string;
   currentValue: string;
   currentLabel: string;
-  choices: ConfigOptionValue[];
+  choices: NormalizedModelChoice[];
+  groups: ModelGroup[];
 };
+
+function appendGroupedChoice(groups: Map<string, ModelGroup>, item: NormalizedModelChoice) {
+  let group = groups.get(item.groupKey);
+  if (!group) {
+    group = { key: item.groupKey, label: item.group, options: [] };
+    groups.set(item.groupKey, group);
+  }
+  if (!group.options.some((existing) => existing.value === item.value)) {
+    group.options.push(item);
+  }
+}
 
 export function modelCatalog(
   transcript: Pick<Transcript, "configOptions" | "models">,
+  fallbackProvider?: string,
+  agentId?: string,
 ): NormalizedModelCatalog | undefined {
+  const defaultGroup = cleanProviderName(fallbackProvider ?? "Models");
   const option = transcript.configOptions.find(isModelOption);
   if (option) {
-    const choices = configChoices(option);
+    const groups = new Map<string, ModelGroup>();
+    const choices: NormalizedModelChoice[] = [];
+    for (const entry of option.options) {
+      if ("options" in entry && Array.isArray(entry.options)) {
+        const groupLabel = cleanProviderName(entry.name || entry.group || defaultGroup);
+        const groupKey = (entry.group || groupLabel).trim().toLowerCase();
+        for (const sub of entry.options) {
+          const cleaned = cleanModelName(sub.name || sub.value, sub.value);
+          const normalized: NormalizedModelChoice = {
+            value: sub.value,
+            name: cleaned.name,
+            description: sub.description,
+            group: groupLabel,
+            groupKey,
+            ...(agentId ? { agentId } : {}),
+          };
+          choices.push(normalized);
+          appendGroupedChoice(groups, normalized);
+        }
+      } else {
+        const sub = entry as ConfigOptionValue;
+        const cleaned = cleanModelName(sub.name || sub.value, sub.value);
+        const groupLabel = cleaned.inferredProvider ?? defaultGroup;
+        const groupKey = groupLabel.trim().toLowerCase();
+        const normalized: NormalizedModelChoice = {
+          value: sub.value,
+          name: cleaned.name,
+          description: sub.description,
+          group: groupLabel,
+          groupKey,
+          ...(agentId ? { agentId } : {}),
+        };
+        choices.push(normalized);
+        appendGroupedChoice(groups, normalized);
+      }
+    }
     const current = choices.find((item) => item.value === option.currentValue);
+    const currentLabel =
+      current?.name ?? cleanModelName(option.currentValue, option.currentValue).name;
     return {
       source: "config",
       configId: option.id,
       currentValue: option.currentValue,
-      currentLabel: current?.name ?? option.currentValue,
+      currentLabel,
       choices,
+      groups: [...groups.values()],
     };
   }
   if (transcript.models && transcript.models.availableModels.length > 0) {
-    const choices = transcript.models.availableModels.map((item) => ({
-      value: item.modelId,
-      name: item.name || item.modelId,
-      description: item.description,
-    }));
+    const groups = new Map<string, ModelGroup>();
+    const choices: NormalizedModelChoice[] = transcript.models.availableModels.map((item) => {
+      const cleaned = cleanModelName(item.name || item.modelId, item.modelId);
+      const groupLabel = cleaned.inferredProvider ?? defaultGroup;
+      const groupKey = groupLabel.trim().toLowerCase();
+      const normalized: NormalizedModelChoice = {
+        value: item.modelId,
+        name: cleaned.name,
+        description: item.description,
+        group: groupLabel,
+        groupKey,
+        ...(agentId ? { agentId } : {}),
+      };
+      appendGroupedChoice(groups, normalized);
+      return normalized;
+    });
     const current = choices.find((item) => item.value === transcript.models?.currentModelId);
+    const currentLabel =
+      current?.name ??
+      cleanModelName(transcript.models.currentModelId, transcript.models.currentModelId).name;
     return {
       source: "models",
       currentValue: transcript.models.currentModelId,
-      currentLabel: current?.name ?? transcript.models.currentModelId,
+      currentLabel,
       choices,
+      groups: [...groups.values()],
     };
   }
   return undefined;
+}
+
+/** Stack provider groups across sources without tabs or duplicate provider+model rows. */
+export function mergeModelGroups(
+  ...groupLists: (readonly ModelGroup[] | undefined)[]
+): ModelGroup[] {
+  const merged = new Map<string, ModelGroup>();
+  const seenNames = new Set<string>();
+  for (const list of groupLists) {
+    if (!list) continue;
+    for (const group of list) {
+      let target = merged.get(group.key);
+      if (!target) {
+        target = { key: group.key, label: group.label, options: [] };
+        merged.set(group.key, target);
+      }
+      for (const opt of group.options) {
+        const dedupeKey = `${group.key}::${opt.name.trim().toLowerCase()}`;
+        if (seenNames.has(dedupeKey)) continue;
+        seenNames.add(dedupeKey);
+        target.options.push(opt);
+      }
+    }
+  }
+  return [...merged.values()].filter((group) => group.options.length > 0);
+}
+
+const zhThinkingLabels: Record<string, string> = {
+  off: "关闭",
+  none: "关闭",
+  disabled: "关闭",
+  false: "关",
+  on: "开启",
+  enabled: "开启",
+  true: "开",
+  default: "默认",
+  provider_default: "默认",
+  "provider default": "默认",
+  auto: "自动",
+  minimal: "最低",
+  low: "低",
+  medium: "中",
+  med: "中",
+  standard: "标准",
+  high: "高",
+  xhigh: "超高",
+  "very high": "超高",
+  very_high: "超高",
+  max: "最高",
+  maximum: "最高",
+  ultra: "极高",
+};
+
+const enThinkingLabels: Record<string, string> = {
+  provider_default: "Default",
+  "provider default": "Default",
+  default: "Default",
+  off: "Off",
+  none: "Off",
+  minimal: "Minimal",
+  low: "Low",
+  medium: "Medium",
+  standard: "Standard",
+  high: "High",
+  xhigh: "XHigh",
+  max: "Max",
+  ultra: "Ultra",
+};
+
+/** Format a reasoning effort option label cleanly without bilingual duplication. */
+export function formatThinkingLabel(
+  raw: string | undefined,
+  language: "zh-CN" | "en" = "zh-CN",
+): string {
+  if (!raw) return "";
+  const cleaned = raw
+    .trim()
+    .replace(/^Thinking\s+/i, "")
+    .trim();
+  const key = cleaned.toLowerCase();
+  const map = language === "en" ? enThinkingLabels : zhThinkingLabels;
+  return Object.hasOwn(map, key) ? map[key] : cleaned;
+}
+
+/** Format a token count or context option string as compact K/M notation (e.g. 200K, 1M). */
+export function formatContextTokens(value: number | string | undefined): string {
+  if (value === undefined || value === "") return "";
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    const compact = /^(\d+(?:\.\d+)?)\s*([km])\b/i.exec(trimmed);
+    if (compact) return `${compact[1]}${compact[2].toUpperCase()}`;
+    const numeric = Number(trimmed.replace(/[,_\s]/g, ""));
+    if (!Number.isFinite(numeric) || numeric <= 0) return trimmed;
+    value = numeric;
+  }
+  if (!Number.isFinite(value) || value <= 0) return "";
+  const binary = value % 1024 === 0;
+  const base = binary ? 1024 : 1000;
+  if (value >= base * base) {
+    const m = value / (base * base);
+    return `${Number.isInteger(m) ? m : m.toFixed(1).replace(/\.0$/, "")}M`;
+  }
+  if (value >= base) {
+    const k = value / base;
+    return `${Number.isInteger(k) ? k : Math.round(k)}K`;
+  }
+  return String(value);
+}
+
+/** Infer context window badge from reported usage capacity or explicit model suffix (e.g. -256K). */
+export function inferModelContextTokens(
+  modelName: string | undefined,
+  usageSize: number | undefined,
+): string | undefined {
+  if (usageSize && usageSize > 0) return formatContextTokens(usageSize);
+  if (modelName) {
+    const suffix = /(?:^|[-_\s])(\d+(?:\.\d+)?[km])(?:$|[-_\s])/i.exec(modelName);
+    if (suffix) return suffix[1].toUpperCase();
+  }
+  return undefined;
+}
+
+export function reasoningConfigOption(
+  transcript: Pick<Transcript, "configOptions">,
+): ConfigOption | undefined {
+  return transcript.configOptions.find(isReasoningOption);
+}
+
+export function contextWindowConfigOption(
+  transcript: Pick<Transcript, "configOptions">,
+): ConfigOption | undefined {
+  return transcript.configOptions.find(isContextWindowOption);
 }
 
 export function nonModelConfigOptions(

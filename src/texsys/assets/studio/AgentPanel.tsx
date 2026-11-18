@@ -11,22 +11,30 @@ import { Icon } from "./ui";
 import { NavigatorButton, NavigatorPanel } from "./NavigatorPanel";
 import { NavigatorMenu, type NavigatorMenuItem } from "./NavigatorMenu";
 import { MarkdownPreview } from "./MarkdownPreview";
-import { t, localizeError } from "./i18n";
+import { t, localizeError, useLocale } from "./i18n";
 import {
   applyAgentEvents,
+  cleanModelName,
   configChoices,
+  contextWindowConfigOption,
   diffStats,
   emptyTranscript,
+  formatContextTokens,
+  formatThinkingLabel,
+  inferModelContextTokens,
   lineDiff,
+  mergeModelGroups,
   modelCatalog,
-  nonModelConfigOptions,
   presentTool,
+  reasoningConfigOption,
   sessionLabel,
   type AgentEventBatch,
   type AgentInfo,
   type AgentServiceState,
   type AgentSessionSummary,
   type ConfigOption,
+  type ModelGroup,
+  type NormalizedModelChoice,
   type TerminalRecord,
   type Transcript,
   type TranscriptItem,
@@ -58,10 +66,12 @@ const AGENT_KEY = "texsys.agent.default";
 const CONTEXT_KEY = "texsys.agent.includeActiveFile";
 const VIEW_KEY = "texsys.agent.viewPrefs";
 const MODEL_CACHE_KEY = "texsys.agent.modelLabel";
+const MODEL_GROUPS_CACHE_KEY = "texsys.agent.modelGroups";
 const liveStates = new Set(["starting", "ready", "prompting", "auth_required"]);
 
 type PermissionLevel = "default" | "autoApprove";
-type ActivePopover = "context" | "model" | "options" | "harness" | "permission" | "usage" | null;
+type ActivePopover = "context" | "model" | "harness" | "permission" | "usage" | null;
+type ModelPopoverView = "controls" | "models";
 type SessionFilter = "all" | "active" | "ended";
 
 type ViewPrefs = {
@@ -118,7 +128,20 @@ function readViewPrefs(): ViewPrefs {
 function readModelCache(): Record<string, string> {
   try {
     const raw = readStorage(MODEL_CACHE_KEY);
-    return raw ? (JSON.parse(raw) as Record<string, string>) : {};
+    if (!raw) return {};
+    const parsed = JSON.parse(raw) as Record<string, string>;
+    return Object.fromEntries(
+      Object.entries(parsed).map(([k, v]) => [k, cleanModelName(String(v)).name]),
+    );
+  } catch {
+    return {};
+  }
+}
+
+function readModelGroupsCache(): Record<string, ModelGroup[]> {
+  try {
+    const raw = readStorage(MODEL_GROUPS_CACHE_KEY);
+    return raw ? (JSON.parse(raw) as Record<string, ModelGroup[]>) : {};
   } catch {
     return {};
   }
@@ -151,6 +174,7 @@ function FloatingPopover({
   anchorRef,
   open,
   onClose,
+  onEscape,
   className = "",
   label,
   children,
@@ -158,6 +182,7 @@ function FloatingPopover({
   anchorRef: React.RefObject<HTMLElement | null>;
   open: boolean;
   onClose: () => void;
+  onEscape?: () => boolean;
   className?: string;
   label: string;
   children: ReactNode;
@@ -172,15 +197,22 @@ function FloatingPopover({
       const rect = anchor.getBoundingClientRect();
       const edge = 8;
       const gap = 6;
+      pop.style.maxHeight = "";
+      const spaceAbove = rect.top - gap - edge;
+      const spaceBelow = window.innerHeight - rect.bottom - gap - edge;
+      const measured = pop.getBoundingClientRect();
+      if (measured.width === 0 && measured.height === 0) return;
+      const preferAbove = spaceAbove >= Math.min(measured.height, 180) || spaceAbove >= spaceBelow;
+      const maxAvail = Math.max(150, preferAbove ? spaceAbove : spaceBelow);
+      if (measured.height > maxAvail) {
+        pop.style.maxHeight = `${Math.min(340, maxAvail)}px`;
+      }
       const { width, height } = pop.getBoundingClientRect();
-      if (width === 0 && height === 0) return;
       const maxX = Math.max(edge, window.innerWidth - width - edge);
       const x = Math.max(edge, Math.min(rect.left, maxX));
-      const above = rect.top - gap - height;
-      const y =
-        above >= edge
-          ? above
-          : Math.min(rect.bottom + gap, Math.max(edge, window.innerHeight - height - edge));
+      const y = preferAbove
+        ? Math.max(edge, rect.top - gap - height)
+        : Math.min(rect.bottom + gap, Math.max(edge, window.innerHeight - height - edge));
       pop.style.left = `${x}px`;
       pop.style.top = `${y}px`;
     };
@@ -199,7 +231,9 @@ function FloatingPopover({
     };
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
+        event.preventDefault();
         event.stopPropagation();
+        if (onEscape?.()) return;
         onClose();
         anchorRef.current?.focus();
       }
@@ -210,12 +244,196 @@ function FloatingPopover({
       document.removeEventListener("pointerdown", onPointerDown, true);
       document.removeEventListener("keydown", onKeyDown, true);
     };
-  }, [open, onClose, anchorRef]);
+  }, [open, onClose, onEscape, anchorRef]);
 
   if (!open) return null;
   return (
-    <div ref={ref} role="dialog" aria-label={label} className={`agent-popover ${className}`.trim()}>
+    <div
+      ref={ref}
+      role="dialog"
+      aria-label={label}
+      translate="no"
+      className={`agent-popover notranslate ${className}`.trim()}
+    >
       {children}
+    </div>
+  );
+}
+
+type SliderChoice = {
+  value: string;
+  label: string;
+  description?: string;
+};
+
+/** ChatGPT / Codex style discrete pill-track slider with drag preview and snap-on-release. */
+function DiscretePillSlider({
+  label,
+  choices,
+  currentValue,
+  fallbackLabel,
+  disabled = false,
+  onCommit,
+}: {
+  label: string;
+  choices: SliderChoice[];
+  currentValue?: string;
+  fallbackLabel: string;
+  disabled?: boolean;
+  onCommit: (value: string) => void;
+}) {
+  const sliderRef = useRef<HTMLDivElement>(null);
+  const committedIndex = useMemo(() => {
+    if (choices.length === 0) return 0;
+    const found = choices.findIndex((item) => item.value === currentValue);
+    return found >= 0 ? found : 0;
+  }, [choices, currentValue]);
+
+  const [drag, setDrag] = useState<{
+    pointerId: number;
+    fraction: number;
+    index: number;
+  } | null>(null);
+  const dragRef = useRef<{
+    pointerId: number;
+    fraction: number;
+    index: number;
+  } | null>(null);
+
+  const available = !disabled && choices.length >= 2;
+  const maxIndex = Math.max(0, choices.length - 1);
+  const activeIndex = drag ? drag.index : committedIndex;
+  const fraction = !available
+    ? choices.length === 1
+      ? 1
+      : 0
+    : drag
+      ? drag.fraction
+      : maxIndex > 0
+        ? committedIndex / maxIndex
+        : 0;
+  const displayValue = choices[activeIndex]?.label ?? fallbackLabel;
+
+  const computePoint = (clientX: number) => {
+    const el = sliderRef.current;
+    const rect = el?.getBoundingClientRect();
+    const width = rect && rect.width > 24 ? rect.width : 200;
+    const left = rect ? rect.left : 0;
+    const nextFraction = Math.max(0, Math.min(1, (clientX - left - 12) / Math.max(1, width - 24)));
+    const nextIndex = Math.round(nextFraction * maxIndex);
+    return { fraction: nextFraction, index: nextIndex };
+  };
+
+  const cancelDrag = useCallback((pointerId?: number) => {
+    const el = sliderRef.current;
+    if (pointerId !== undefined && el?.hasPointerCapture?.(pointerId)) {
+      el.releasePointerCapture(pointerId);
+    }
+    dragRef.current = null;
+    setDrag(null);
+  }, []);
+
+  useEffect(() => {
+    if (!drag) return;
+    const onEscapeCapture = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        event.stopPropagation();
+        cancelDrag(drag.pointerId);
+      }
+    };
+    document.addEventListener("keydown", onEscapeCapture, true);
+    return () => document.removeEventListener("keydown", onEscapeCapture, true);
+  }, [drag, cancelDrag]);
+
+  return (
+    <div className={`agent-slider-group${available ? "" : " is-unavailable"}`}>
+      <div className="agent-slider-head">
+        <span className="agent-slider-label">{label}</span>
+        <span className="agent-slider-value">{displayValue}</span>
+      </div>
+      <div
+        ref={sliderRef}
+        role="slider"
+        tabIndex={available ? 0 : -1}
+        className={`agent-slider-control${available ? "" : " is-unavailable"}${
+          drag ? " is-dragging" : ""
+        }`}
+        aria-label={label}
+        aria-orientation="horizontal"
+        aria-disabled={!available}
+        aria-valuemin={0}
+        aria-valuemax={maxIndex}
+        aria-valuenow={activeIndex}
+        aria-valuetext={displayValue}
+        style={{ "--slider-fraction": String(fraction) } as React.CSSProperties}
+        onPointerDown={(event) => {
+          if (!available || !event.isPrimary || event.button !== 0) return;
+          event.preventDefault();
+          sliderRef.current?.focus({ preventScroll: true });
+          sliderRef.current?.setPointerCapture?.(event.pointerId);
+          const next = { pointerId: event.pointerId, ...computePoint(event.clientX) };
+          dragRef.current = next;
+          setDrag(next);
+        }}
+        onPointerMove={(event) => {
+          if (!dragRef.current || dragRef.current.pointerId !== event.pointerId) return;
+          const next = { pointerId: event.pointerId, ...computePoint(event.clientX) };
+          dragRef.current = next;
+          setDrag(next);
+        }}
+        onPointerUp={(event) => {
+          if (!dragRef.current || dragRef.current.pointerId !== event.pointerId) return;
+          const pt = computePoint(event.clientX);
+          cancelDrag(event.pointerId);
+          if (pt.index !== committedIndex && choices[pt.index]) {
+            onCommit(choices[pt.index].value);
+          }
+        }}
+        onPointerCancel={(event) => {
+          if (dragRef.current && dragRef.current.pointerId === event.pointerId) {
+            cancelDrag(event.pointerId);
+          }
+        }}
+        onLostPointerCapture={(event) => {
+          if (dragRef.current && dragRef.current.pointerId === event.pointerId) {
+            dragRef.current = null;
+            setDrag(null);
+          }
+        }}
+        onKeyDown={(event) => {
+          if (!available) return;
+          const stepMap: Record<string, number> = {
+            ArrowRight: activeIndex + 1,
+            ArrowUp: activeIndex + 1,
+            ArrowLeft: activeIndex - 1,
+            ArrowDown: activeIndex - 1,
+            Home: 0,
+            End: maxIndex,
+          };
+          const target = stepMap[event.key];
+          if (target === undefined) return;
+          event.preventDefault();
+          event.stopPropagation();
+          if (dragRef.current) cancelDrag(dragRef.current.pointerId);
+          const clamped = Math.max(0, Math.min(maxIndex, target));
+          if (clamped !== committedIndex && choices[clamped]) {
+            onCommit(choices[clamped].value);
+          }
+        }}
+      >
+        <div className="agent-slider-track" aria-hidden="true">
+          <span className="agent-slider-fill" />
+        </div>
+        {choices.length > 1 && (
+          <div className="agent-slider-stops" aria-hidden="true">
+            {choices.map((choice) => (
+              <i key={choice.value} />
+            ))}
+          </div>
+        )}
+        <span className="agent-slider-thumb" aria-hidden="true" />
+      </div>
     </div>
   );
 }
@@ -933,6 +1151,7 @@ export function useAgentPanel({
   prompting: boolean;
   onHeaderContextMenu: (event: React.MouseEvent<HTMLElement>) => void;
 } {
+  const locale = useLocale();
   const mac = /Mac|iPhone|iPad/.test(globalThis.navigator?.platform ?? "");
   const sessionKey = `${SESSION_KEY}.${workspace}`;
   const [service, setService] = useState<AgentServiceState>();
@@ -962,9 +1181,11 @@ export function useAgentPanel({
   const [showSetup, setShowSetup] = useState(false);
   const [showDebugLog, setShowDebugLog] = useState(false);
   const [activePopover, setActivePopover] = useState<ActivePopover>(null);
-  const [modelSearchOpen, setModelSearchOpen] = useState(false);
+  const [modelPopoverView, setModelPopoverView] = useState<ModelPopoverView>("controls");
   const [modelFilter, setModelFilter] = useState("");
   const [modelCache, setModelCache] = useState<Record<string, string>>(readModelCache);
+  const [modelGroupsCache, setModelGroupsCache] =
+    useState<Record<string, ModelGroup[]>>(readModelGroupsCache);
   const [atBottom, setAtBottom] = useState(true);
   const [headerContextPoint, setHeaderContextPoint] = useState<{ x: number; y: number }>();
 
@@ -973,10 +1194,11 @@ export function useAgentPanel({
   const input = useRef<HTMLTextAreaElement>(null);
   const contextBtnRef = useRef<HTMLButtonElement>(null);
   const modelBtnRef = useRef<HTMLButtonElement>(null);
-  const optionsBtnRef = useRef<HTMLButtonElement>(null);
+  const modelListRef = useRef<HTMLDivElement>(null);
   const harnessBtnRef = useRef<HTMLButtonElement>(null);
   const permissionBtnRef = useRef<HTMLButtonElement>(null);
   const usageBtnRef = useRef<HTMLButtonElement>(null);
+  const pendingModelChoiceRef = useRef<{ agentId: string; value: string }>();
   const autoApprovedKeys = useRef(new Set<string>());
   const root = service?.root ?? "";
 
@@ -1077,11 +1299,15 @@ export function useAgentPanel({
     };
   }, [sessionId, root, loadService, setSessionId]);
 
-  // Cache latest model name per harness so the split model chip shows it immediately.
-  const models = useMemo(() => modelCatalog(transcript), [transcript]);
-  const nonModelOptions = useMemo(() => nonModelConfigOptions(transcript), [transcript]);
+  // Cache latest clean model name and provider groups per harness.
   const activeAgentId = summary?.agent ?? agent?.id;
   const activeAgentName = summary?.agent_name ?? agent?.name ?? t("未配置");
+  const models = useMemo(
+    () => modelCatalog(transcript, activeAgentName, activeAgentId),
+    [transcript, activeAgentName, activeAgentId],
+  );
+  const reasoningOption = useMemo(() => reasoningConfigOption(transcript), [transcript]);
+  const contextOption = useMemo(() => contextWindowConfigOption(transcript), [transcript]);
 
   useEffect(() => {
     if (!activeAgentId || !models?.currentLabel) return;
@@ -1092,6 +1318,18 @@ export function useAgentPanel({
       return next;
     });
   }, [activeAgentId, models?.currentLabel]);
+
+  useEffect(() => {
+    if (!activeAgentId || !models?.groups.length) return;
+    setModelGroupsCache((prev) => {
+      const serializedPrev = JSON.stringify(prev[activeAgentId]);
+      const serializedNext = JSON.stringify(models.groups);
+      if (serializedPrev === serializedNext) return prev;
+      const next = { ...prev, [activeAgentId]: models.groups };
+      writeStorage(MODEL_GROUPS_CACHE_KEY, JSON.stringify(next));
+      return next;
+    });
+  }, [activeAgentId, models?.groups]);
 
   // Ask the workbench to re-read files and Git after the agent touched the project.
   const announced = useRef(0);
@@ -1294,25 +1532,23 @@ export function useAgentPanel({
     }
   }, [sessionId, agent?.available, pending, startSession]);
 
-  const toggleModelPopover = useCallback(() => {
-    setActivePopover((current) => {
-      const next = current === "model" ? null : "model";
-      if (next === "model") {
-        setModelFilter("");
-        setModelSearchOpen(false);
-        ensureSessionForConfig();
-      }
-      return next;
-    });
-  }, [ensureSessionForConfig]);
+  const openModelPopover = useCallback(
+    (initialView: ModelPopoverView = "controls") => {
+      setModelFilter("");
+      setModelPopoverView(initialView);
+      ensureSessionForConfig();
+      setActivePopover("model");
+    },
+    [ensureSessionForConfig],
+  );
 
-  const toggleOptionsPopover = useCallback(() => {
-    setActivePopover((current) => {
-      const next = current === "options" ? null : "options";
-      if (next === "options") ensureSessionForConfig();
-      return next;
-    });
-  }, [ensureSessionForConfig]);
+  const toggleModelPopover = useCallback(() => {
+    if (activePopover === "model") {
+      setActivePopover(null);
+      return;
+    }
+    openModelPopover("controls");
+  }, [activePopover, openModelPopover]);
 
   const commands = transcript.commands;
   const slash = draft.startsWith("/") && !draft.includes(" ") && !draft.includes("\n");
@@ -1322,7 +1558,16 @@ export function useAgentPanel({
         .slice(0, 8)
     : [];
 
-  const sessions = service?.sessions ?? [];
+  const hasConversation = Boolean(
+    sessionId && (summary?.title || pending || transcript.items.length > 0),
+  );
+  const sessions = useMemo(
+    () =>
+      (service?.sessions ?? []).filter(
+        (item) => Boolean(item.title) || item.id !== sessionId || hasConversation,
+      ),
+    [service?.sessions, sessionId, hasConversation],
+  );
   const filteredSessions = useMemo(() => {
     const q = sessionQuery.trim().toLowerCase();
     return sessions.filter((item) => {
@@ -1361,7 +1606,7 @@ export function useAgentPanel({
     !showDebugLog &&
     !maximized;
 
-  // Overflow "..." menu items (matching VS Code ViewTitle menu in Image 5).
+  // Overflow "..." menu items (matching VS Code ViewTitle menu).
   const moreItems: NavigatorMenuItem[] = [
     {
       label: t("新建会话"),
@@ -1470,7 +1715,7 @@ export function useAgentPanel({
           title={`${t("新建会话")} (${mac ? "⌘N" : "Ctrl+N"})`}
           onClick={() => newSession()}
         >
-          <Icon name="plus" size={15} />
+          <Icon name="plus" size={16} />
         </button>
         <NavigatorMenu
           label={t("新建会话选项")}
@@ -1483,16 +1728,6 @@ export function useAgentPanel({
           onOpen={() => void loadService()}
         />
       </div>
-      <NavigatorButton
-        label={t("切换会话列表")}
-        icon="sessions-pane"
-        aria-pressed={sessionsExpanded}
-        onClick={() => {
-          if (!viewPrefs.showSessionBar) updateViewPrefs({ showSessionBar: true });
-          setSessionsExpanded((value) => !value);
-          void loadService();
-        }}
-      />
       <NavigatorMenu
         label={t("更多智能体操作")}
         title={t("更多操作…")}
@@ -1500,15 +1735,22 @@ export function useAgentPanel({
         placement="end"
         direction="down"
       />
-      {(onToggleMaximize || onClose) && <span className="agent-header-sep" aria-hidden="true" />}
       {onToggleMaximize && (
         <NavigatorButton
+          className="agent-window-action-start"
           label={t(maximized ? "还原面板大小" : "最大化面板大小")}
           icon={maximized ? "panel-restore" : "panel-maximize"}
           onClick={onToggleMaximize}
         />
       )}
-      {onClose && <NavigatorButton label={t("关闭智能体面板")} icon="close" onClick={onClose} />}
+      {onClose && (
+        <NavigatorButton
+          className={onToggleMaximize ? "" : "agent-window-action-start"}
+          label={t("关闭智能体面板")}
+          icon="close"
+          onClick={onClose}
+        />
+      )}
     </>
   );
 
@@ -1518,13 +1760,49 @@ export function useAgentPanel({
   const usage = transcript.usage && transcript.usage.size > 0 ? transcript.usage : undefined;
   const currentModelLabel =
     models?.currentLabel ?? (activeAgentId ? modelCache[activeAgentId] : undefined);
-  const configSummary = nonModelOptions
-    .map((option) => {
-      const current = configChoices(option).find((c) => c.value === option.currentValue);
-      return current?.name ?? option.currentValue;
-    })
-    .filter(Boolean)
-    .join(" · ");
+
+  const reasoningChoices = useMemo(
+    () =>
+      reasoningOption
+        ? configChoices(reasoningOption).map((choice) => ({
+            value: choice.value,
+            label: formatThinkingLabel(choice.name || choice.value, locale),
+            description: choice.description,
+          }))
+        : [],
+    [reasoningOption, locale],
+  );
+
+  const contextChoices = useMemo(
+    () =>
+      contextOption
+        ? configChoices(contextOption).map((choice) => ({
+            value: choice.value,
+            label: formatContextTokens(choice.name || choice.value) || choice.name || choice.value,
+            description: choice.description,
+          }))
+        : [],
+    [contextOption],
+  );
+
+  const currentEffortLabel = useMemo(() => {
+    if (!reasoningOption) return "";
+    const active = reasoningChoices.find((c) => c.value === reasoningOption.currentValue);
+    return active?.label ?? formatThinkingLabel(reasoningOption.currentValue, locale);
+  }, [reasoningOption, reasoningChoices, locale]);
+
+  const inferredContextLabel = useMemo(
+    () => inferModelContextTokens(currentModelLabel, usage?.size),
+    [currentModelLabel, usage?.size],
+  );
+
+  const currentContextLabel = useMemo(() => {
+    if (contextOption) {
+      const active = contextChoices.find((c) => c.value === contextOption.currentValue);
+      return active?.label ?? formatContextTokens(contextOption.currentValue);
+    }
+    return inferredContextLabel ?? "";
+  }, [contextOption, contextChoices, inferredContextLabel]);
 
   const currentModeName = transcript.modes?.availableModes.find(
     (mode) => mode.id === transcript.modes?.currentModeId,
@@ -1537,43 +1815,90 @@ export function useAgentPanel({
         : t("默认权限");
 
   const showSessionsList =
-    sessionsExpanded || (!sessionId && sessions.length > 0 && viewPrefs.showSessionBar);
+    sessionsExpanded || (!hasConversation && sessions.length > 0 && viewPrefs.showSessionBar);
   const hasStackTop = Boolean(transcript.changed.length > 0 && sessionId);
 
-  const selectModel = (value: string) => {
-    if (!sessionId || !models) return;
-    if (models.source === "config" && models.configId) {
+  const selectModel = useCallback(
+    (value: string) => {
+      if (!sessionId || !models) return;
+      if (models.source === "config" && models.configId) {
+        void call("/api/agent/config", {
+          session: sessionId,
+          config: models.configId,
+          value,
+        });
+      } else {
+        void call("/api/agent/model", { session: sessionId, model: value });
+      }
+      setActivePopover(null);
+    },
+    [sessionId, models, call],
+  );
+
+  // Apply cross-harness model selection once the target harness finishes connecting.
+  useEffect(() => {
+    const queued = pendingModelChoiceRef.current;
+    if (!queued || !sessionId || !models || activeAgentId !== queued.agentId || state !== "ready")
+      return;
+    pendingModelChoiceRef.current = undefined;
+    selectModel(queued.value);
+  }, [sessionId, models, activeAgentId, state, selectModel]);
+
+  const selectModelChoice = useCallback(
+    (choice: NormalizedModelChoice) => {
+      if (choice.agentId && choice.agentId !== activeAgentId) {
+        pendingModelChoiceRef.current = { agentId: choice.agentId, value: choice.value };
+        setActivePopover(null);
+        writeStorage(AGENT_KEY, choice.agentId);
+        setSelectedAgent(choice.agentId);
+        setSessionId(undefined);
+        setSummary(undefined);
+        setTranscript(emptyTranscript());
+        void startSession(choice.agentId).catch((cause) => {
+          pendingModelChoiceRef.current = undefined;
+          setError(String(cause instanceof Error ? cause.message : cause));
+        });
+        return;
+      }
+      selectModel(choice.value);
+    },
+    [activeAgentId, selectModel, setSessionId, startSession],
+  );
+
+  const selectConfigOption = useCallback(
+    (option: ConfigOption, value: string) => {
+      if (!sessionId) return;
       void call("/api/agent/config", {
         session: sessionId,
-        config: models.configId,
+        config: option.id,
         value,
       });
-    } else {
-      void call("/api/agent/model", { session: sessionId, model: value });
-    }
-    setActivePopover(null);
-  };
+    },
+    [sessionId, call],
+  );
 
-  const selectConfigOption = (option: ConfigOption, value: string) => {
-    if (!sessionId) return;
-    void call("/api/agent/config", {
-      session: sessionId,
-      config: option.id,
-      value,
-    });
-  };
+  const stackedModelGroups = useMemo(() => {
+    const currentGroups =
+      models?.groups ?? (activeAgentId ? modelGroupsCache[activeAgentId] : undefined);
+    const otherGroups = agents
+      .filter((item) => item.available && item.id !== activeAgentId)
+      .map((item) => modelGroupsCache[item.id]);
+    return mergeModelGroups(currentGroups, ...otherGroups);
+  }, [models?.groups, activeAgentId, modelGroupsCache, agents]);
 
-  const filteredModels = useMemo(() => {
-    const list = models?.choices ?? [];
+  const filteredModelGroups = useMemo(() => {
     const q = modelFilter.trim().toLowerCase();
-    if (!q) return list;
-    return list.filter(
-      (choice) =>
-        choice.name.toLowerCase().includes(q) ||
-        choice.value.toLowerCase().includes(q) ||
-        (choice.description ?? "").toLowerCase().includes(q),
-    );
-  }, [models, modelFilter]);
+    if (!q) return stackedModelGroups;
+    return stackedModelGroups
+      .map((group) => {
+        if (group.label.toLowerCase().includes(q)) return group;
+        return {
+          ...group,
+          options: group.options.filter((choice) => choice.name.toLowerCase().includes(q)),
+        };
+      })
+      .filter((group) => group.options.length > 0);
+  }, [stackedModelGroups, modelFilter]);
 
   const filteredProjectFiles = useMemo(() => {
     const q = contextFilter.trim().toLowerCase();
@@ -1595,6 +1920,15 @@ export function useAgentPanel({
           event.preventDefault();
           newSession();
         }
+        if (
+          (event.metaKey || event.ctrlKey) &&
+          event.shiftKey &&
+          event.key.toLowerCase() === "m" &&
+          canType
+        ) {
+          event.preventDefault();
+          openModelPopover("models");
+        }
       }}
     >
       {headerContextPoint && (
@@ -1607,8 +1941,8 @@ export function useAgentPanel({
       )}
 
       {viewPrefs.showSessionBar && (
-        <div className="agent-sessions-shell">
-          {sessionId && !sessionsExpanded ? (
+        <div className="agent-sessions-shell" translate="no">
+          {hasConversation && !sessionsExpanded ? (
             <div className="agent-title-control">
               <button
                 type="button"
@@ -1616,19 +1950,23 @@ export function useAgentPanel({
                 title={t("返回新建会话")}
                 onClick={() => newSession()}
               >
-                <Icon name="back" size={13} />
+                <Icon name="back" size={16} />
                 <span className="agent-title-harness">{activeAgentName}</span>
-                <span className="agent-title-sep" aria-hidden="true">
-                  ·
-                </span>
-                <span className="agent-title-label">
-                  {summary ? sessionLabel(summary) : activeAgentName}
-                </span>
+                {summary?.title && summary.title !== activeAgentName && (
+                  <>
+                    <span className="agent-title-sep" aria-hidden="true">
+                      ·
+                    </span>
+                    <span className="agent-title-label">{summary.title}</span>
+                  </>
+                )}
               </button>
               <div className="agent-subbar-actions">
-                <span className={`agent-state-pill is-${state ?? "starting"}`}>
-                  {t(stateLabels[state ?? "starting"] ?? state ?? "")}
-                </span>
+                {state && ["auth_required", "error", "exited"].includes(state) && (
+                  <span className={`agent-state-pill is-${state}`}>
+                    {t(stateLabels[state] ?? state)}
+                  </span>
+                )}
                 <button
                   type="button"
                   className="agent-icon-btn"
@@ -1639,7 +1977,7 @@ export function useAgentPanel({
                     void loadService();
                   }}
                 >
-                  <Icon name="sessions-pane" size={14} />
+                  <Icon name="sessions-pane" size={16} />
                 </button>
               </div>
             </div>
@@ -1664,7 +2002,7 @@ export function useAgentPanel({
                   title={t("刷新会话")}
                   onClick={() => void loadService()}
                 >
-                  <Icon name="refresh" size={14} />
+                  <Icon name="refresh" size={16} />
                 </button>
                 <button
                   type="button"
@@ -1677,7 +2015,7 @@ export function useAgentPanel({
                     if (!sessionsExpanded) setSessionsExpanded(true);
                   }}
                 >
-                  <Icon name="search" size={14} />
+                  <Icon name="search" size={16} />
                 </button>
                 <NavigatorMenu
                   label={t("筛选会话")}
@@ -1686,7 +2024,7 @@ export function useAgentPanel({
                   placement="end"
                   direction="down"
                   triggerClassName={`agent-filter-btn${sessionFilter !== "all" ? " is-active" : ""}`}
-                  triggerIcon={<Icon name="filter" size={14} />}
+                  triggerIcon={<Icon name="filter" size={16} />}
                 />
                 <button
                   type="button"
@@ -1696,7 +2034,7 @@ export function useAgentPanel({
                   aria-pressed={showSessionsList}
                   onClick={() => setSessionsExpanded((value) => !value)}
                 >
-                  <Icon name="sessions-pane" size={14} />
+                  <Icon name="sessions-pane" size={16} />
                 </button>
               </div>
             </div>
@@ -1796,7 +2134,7 @@ export function useAgentPanel({
             setAtBottom(nearBottom);
           }}
         >
-          {!sessionId ? (
+          {!hasConversation ? (
             <AgentWelcome
               workspace={workspace}
               service={service}
@@ -1817,10 +2155,11 @@ export function useAgentPanel({
                 prompting={Boolean(prompting || pending)}
                 openFile={openFile}
                 respond={(key, option) =>
+                  sessionId &&
                   void call("/api/agent/permission", { session: sessionId, key, option })
                 }
                 authenticate={(method) =>
-                  void call("/api/agent/authenticate", { session: sessionId, method })
+                  sessionId && void call("/api/agent/authenticate", { session: sessionId, method })
                 }
                 authMethods={summary?.auth_methods ?? []}
               />
@@ -1839,7 +2178,7 @@ export function useAgentPanel({
           )}
         </div>
 
-        {!atBottom && sessionId && (
+        {!atBottom && hasConversation && (
           <button
             type="button"
             className="agent-scroll-bottom"
@@ -1922,7 +2261,7 @@ export function useAgentPanel({
 
         <div
           className={`agent-composer${hasStackTop ? " has-stack-top" : ""}${
-            prompting || state === "starting" ? " is-working" : ""
+            prompting || (state === "starting" && hasConversation) ? " is-working" : ""
           }`}
         >
           <span className="agent-working-border" aria-hidden="true" />
@@ -2024,7 +2363,7 @@ export function useAgentPanel({
             }}
           />
 
-          <div className="agent-composer-bar">
+          <div className="agent-composer-bar" translate="no">
             <div className="agent-input-toolbar">
               <button
                 ref={contextBtnRef}
@@ -2044,43 +2383,37 @@ export function useAgentPanel({
                 ref={modelBtnRef}
                 type="button"
                 disabled={!canType}
-                className={`agent-toolbar-chip agent-model-trigger${
-                  currentModelLabel ? "" : " is-icon-only"
-                }${activePopover === "model" ? " is-active" : ""}`}
+                className={`agent-model-trigger notranslate${
+                  activePopover === "model" ? " is-active" : ""
+                }`}
                 aria-label={t("选择模型")}
+                aria-haspopup="dialog"
                 aria-expanded={activePopover === "model"}
                 title={
                   currentModelLabel
-                    ? `${t("选择模型")}: ${currentModelLabel}${
-                        configSummary ? ` · ${configSummary}` : ""
-                      }`
+                    ? [
+                        `${t("选择模型")}: ${currentModelLabel}`,
+                        currentEffortLabel,
+                        currentContextLabel,
+                      ]
+                        .filter(Boolean)
+                        .join(" · ")
                     : t("选择模型")
                 }
                 onClick={toggleModelPopover}
               >
-                <Icon name="sparkles" size={13} />
-                {currentModelLabel && <span className="agent-model-name">{currentModelLabel}</span>}
-                {currentModelLabel && configSummary && (
-                  <span className="agent-model-summary">
-                    {" · "}
-                    {configSummary}
+                <span className="agent-model-name">{currentModelLabel || t("选择模型")}</span>
+                {currentEffortLabel && (
+                  <span className="agent-model-meta">{currentEffortLabel}</span>
+                )}
+                {currentContextLabel && (
+                  <span className="agent-model-meta">
+                    {currentEffortLabel ? `· ${currentContextLabel}` : currentContextLabel}
                   </span>
                 )}
-              </button>
-
-              <button
-                ref={optionsBtnRef}
-                type="button"
-                disabled={!canType}
-                className={`agent-toolbar-chip is-icon-only${
-                  activePopover === "options" ? " is-active" : ""
-                }`}
-                aria-label={t("配置选项与命令")}
-                aria-expanded={activePopover === "options"}
-                title={configSummary ? `${t("推理与配置")}: ${configSummary}` : t("配置选项与命令")}
-                onClick={toggleOptionsPopover}
-              >
-                <Icon name="sliders" size={14} />
+                <span className="agent-model-chevron" aria-hidden="true">
+                  <Icon name="chevron-down" size={12} />
+                </span>
               </button>
             </div>
 
@@ -2122,11 +2455,13 @@ export function useAgentPanel({
           </div>
         </div>
 
-        <div className="agent-secondary-toolbar">
+        <div className="agent-secondary-toolbar" translate="no">
           <button
             ref={harnessBtnRef}
             type="button"
-            className={`agent-secondary-chip${activePopover === "harness" ? " is-active" : ""}`}
+            className={`agent-secondary-chip notranslate${
+              activePopover === "harness" ? " is-active" : ""
+            }`}
             aria-label={t("选择智能体")}
             aria-expanded={activePopover === "harness"}
             title={`${t("选择智能体运行环境")}: ${activeAgentName}`}
@@ -2135,14 +2470,14 @@ export function useAgentPanel({
               setActivePopover((current) => (current === "harness" ? null : "harness"));
             }}
           >
-            <Icon name="monitor" size={13} />
+            <Icon name="monitor" size={14} />
             <span className="agent-chip-text">{activeAgentName}</span>
           </button>
 
           <button
             ref={permissionBtnRef}
             type="button"
-            className={`agent-secondary-chip${
+            className={`agent-secondary-chip notranslate${
               permissionLevel === "autoApprove" ? " is-warning" : ""
             }${activePopover === "permission" ? " is-active" : ""}`}
             aria-label={t("权限与模式")}
@@ -2152,7 +2487,7 @@ export function useAgentPanel({
               setActivePopover((current) => (current === "permission" ? null : "permission"))
             }
           >
-            <Icon name={permissionLevel === "autoApprove" ? "warning" : "shield"} size={13} />
+            <Icon name={permissionLevel === "autoApprove" ? "warning" : "shield"} size={14} />
             <span className="agent-chip-text">{permissionLabel}</span>
           </button>
         </div>
@@ -2247,214 +2582,146 @@ export function useAgentPanel({
           )}
         </FloatingPopover>
 
-        {/* Tabbed Model Picker Popover (benchmarking VS Code TabbedModelPicker / Image 3) */}
+        {/* ChatGPT-Style Model Controls (Two Sliders) & Stacked Provider Model Picker */}
         <FloatingPopover
           anchorRef={modelBtnRef}
           open={activePopover === "model"}
           onClose={() => setActivePopover(null)}
+          onEscape={() => {
+            if (modelPopoverView === "models") {
+              setModelPopoverView("controls");
+              return true;
+            }
+            return false;
+          }}
           label={t("选择模型")}
-          className="agent-popover-model"
+          className={`agent-popover-model is-${modelPopoverView}`}
         >
-          <div className="agent-model-tabs">
-            <span className="agent-model-tab-icon" aria-hidden="true">
-              <Icon name="bot" size={14} />
-            </span>
-            <span className="agent-model-tab is-active">
-              <Icon name="sparkles" size={12} />
-              <span>{activeAgentName}</span>
-            </span>
-            <button
-              type="button"
-              className="agent-icon-btn"
-              aria-label={t("智能体配置…")}
-              title={t("智能体配置…")}
-              onClick={() => {
-                setActivePopover(null);
-                setShowSetup(true);
-                if (sessionId) setSessionId(undefined);
-              }}
-            >
-              <Icon name="plus" size={13} />
-            </button>
-            <span className="agent-spacer" />
-            <button
-              type="button"
-              className={`agent-icon-btn${modelSearchOpen ? " is-active" : ""}`}
-              aria-label={t("筛选模型…")}
-              aria-pressed={modelSearchOpen}
-              title={t("筛选模型…")}
-              onClick={() => setModelSearchOpen((value) => !value)}
-            >
-              <Icon name="search" size={13} />
-            </button>
-          </div>
+          {modelPopoverView === "controls" ? (
+            <div className="agent-model-controls">
+              <div className="agent-model-controls-head">
+                <button
+                  type="button"
+                  className="agent-model-switch-btn"
+                  aria-label={t("选择模型")}
+                  onClick={() => {
+                    setModelFilter("");
+                    setModelPopoverView("models");
+                  }}
+                >
+                  <span className="agent-model-switch-name">
+                    {currentModelLabel ||
+                      (state === "starting" && !models ? t("正在读取模型…") : t("选择模型"))}
+                  </span>
+                  <Icon name="chevron-right" size={13} />
+                </button>
+              </div>
 
-          {(modelSearchOpen || (models?.choices.length ?? 0) > 6) && (
-            <div className="agent-popover-search">
-              <Icon name="search" size={13} />
-              <input
-                type="search"
-                autoFocus={modelSearchOpen}
-                value={modelFilter}
-                placeholder={t("筛选模型…")}
-                aria-label={t("筛选模型…")}
-                onChange={(event) => setModelFilter(event.target.value)}
+              <DiscretePillSlider
+                label={t("推理强度")}
+                choices={reasoningChoices}
+                currentValue={reasoningOption?.currentValue}
+                fallbackLabel={state === "starting" && !models ? `${t("读取中")}…` : t("默认")}
+                disabled={prompting || reasoningChoices.length < 2}
+                onCommit={(val) => reasoningOption && selectConfigOption(reasoningOption, val)}
+              />
+
+              <DiscretePillSlider
+                label={t("上下文窗口")}
+                choices={contextChoices}
+                currentValue={contextOption?.currentValue}
+                fallbackLabel={
+                  currentContextLabel ||
+                  (state === "starting" && !models ? `${t("读取中")}…` : t("默认"))
+                }
+                disabled={prompting || contextChoices.length < 2}
+                onCommit={(val) => contextOption && selectConfigOption(contextOption, val)}
               />
             </div>
-          )}
-
-          <div className="agent-popover-list" role="listbox" aria-label={t("选择模型")}>
-            {state === "starting" && !models ? (
-              <div className="agent-popover-loading">
-                <span className="agent-spinner" aria-hidden="true" />
-                <span>{t("正在连接 {name} 获取模型与配置…", { name: activeAgentName })}</span>
+          ) : (
+            <div
+              className="agent-model-catalog-view"
+              onKeyDown={(event) => {
+                if (event.key !== "ArrowDown" && event.key !== "ArrowUp") return;
+                const options = [
+                  ...(modelListRef.current?.querySelectorAll<HTMLButtonElement>(
+                    "[role='option']:not(:disabled)",
+                  ) ?? []),
+                ];
+                if (options.length === 0) return;
+                event.preventDefault();
+                const currentIdx = options.indexOf(document.activeElement as HTMLButtonElement);
+                const nextIdx =
+                  currentIdx < 0
+                    ? event.key === "ArrowDown"
+                      ? 0
+                      : options.length - 1
+                    : (currentIdx + (event.key === "ArrowDown" ? 1 : options.length - 1)) %
+                      options.length;
+                options[nextIdx]?.focus({ preventScroll: false });
+              }}
+            >
+              <div className="agent-model-search">
+                <input
+                  type="search"
+                  autoFocus
+                  value={modelFilter}
+                  placeholder={t("搜索模型…")}
+                  aria-label={t("搜索模型…")}
+                  onChange={(event) => setModelFilter(event.target.value)}
+                />
               </div>
-            ) : !models ? (
-              <p className="agent-popover-hint">
-                {t("由 {name} 管理默认模型", { name: activeAgentName })}
-              </p>
-            ) : filteredModels.length === 0 ? (
-              <p className="agent-popover-hint">{t("没有匹配的模型")}</p>
-            ) : (
-              filteredModels.map((choice) => {
-                const checked = choice.value === models.currentValue;
-                return (
-                  <button
-                    key={choice.value}
-                    type="button"
-                    role="option"
-                    aria-selected={checked}
-                    disabled={prompting}
-                    className={`agent-popover-row${checked ? " is-checked" : ""}`}
-                    title={choice.description ?? choice.value}
-                    onClick={() => selectModel(choice.value)}
-                  >
-                    <span className="agent-popover-check">
-                      {checked && <Icon name="tick" size={14} />}
-                    </span>
-                    <span className="agent-popover-main">{choice.name}</span>
-                    <span className="agent-popover-sub">
-                      {" · "}
-                      {activeAgentName}
-                    </span>
-                  </button>
-                );
-              })
-            )}
-          </div>
 
-          {nonModelOptions.length > 0 && (
-            <div className="agent-model-config-footer">
-              {nonModelOptions.map((option) => {
-                const choices = configChoices(option);
-                return (
-                  <div key={option.id} className="agent-config-group">
-                    <span className="agent-config-label">{option.name}</span>
-                    <div className="agent-config-pills">
-                      {choices.map((choice) => {
-                        const active = choice.value === option.currentValue;
+              <div
+                ref={modelListRef}
+                className="agent-model-list"
+                role="listbox"
+                aria-label={t("选择模型")}
+              >
+                {state === "starting" && stackedModelGroups.length === 0 ? (
+                  <div className="agent-popover-loading">
+                    <span className="agent-spinner" aria-hidden="true" />
+                    <span>{t("正在读取模型…")}</span>
+                  </div>
+                ) : stackedModelGroups.length === 0 ? (
+                  <p className="agent-popover-hint">{t("没有匹配的模型")}</p>
+                ) : filteredModelGroups.length === 0 ? (
+                  <p className="agent-popover-hint">{t("没有匹配的模型")}</p>
+                ) : (
+                  filteredModelGroups.map((group) => (
+                    <div
+                      key={group.key}
+                      className="agent-model-group"
+                      role="group"
+                      aria-label={group.label}
+                    >
+                      <div className="agent-model-group-heading">{group.label}</div>
+                      {group.options.map((choice) => {
+                        const checked =
+                          choice.value === models?.currentValue &&
+                          (!choice.agentId || choice.agentId === activeAgentId);
                         return (
                           <button
-                            key={choice.value}
+                            key={`${choice.agentId ?? ""}:${choice.value}`}
                             type="button"
+                            role="option"
+                            aria-selected={checked}
                             disabled={prompting}
-                            className={`agent-config-pill${active ? " is-active" : ""}`}
-                            title={choice.description}
-                            onClick={() => selectConfigOption(option, choice.value)}
+                            className={`agent-model-option${checked ? " is-checked" : ""}`}
+                            title={choice.name}
+                            onClick={() => selectModelChoice(choice)}
                           >
-                            {choice.name}
+                            <span className="agent-model-option-name">{choice.name}</span>
+                            <span className="agent-model-option-check" aria-hidden="true">
+                              {checked && <Icon name="tick" size={14} />}
+                            </span>
                           </button>
                         );
                       })}
                     </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </FloatingPopover>
-
-        {/* Sliders Options & Slash Commands Popover */}
-        <FloatingPopover
-          anchorRef={optionsBtnRef}
-          open={activePopover === "options"}
-          onClose={() => setActivePopover(null)}
-          label={t("配置选项与命令")}
-          className="agent-popover-options"
-        >
-          {state === "starting" && nonModelOptions.length === 0 && commands.length === 0 ? (
-            <div className="agent-popover-loading">
-              <span className="agent-spinner" aria-hidden="true" />
-              <span>{t("正在连接 {name} 获取模型与配置…", { name: activeAgentName })}</span>
-            </div>
-          ) : (
-            <div className="agent-popover-list">
-              {workspace === "project" && (
-                <button
-                  type="button"
-                  className="agent-popover-row"
-                  onClick={() => {
-                    writeStorage(CONTEXT_KEY, String(!includeActive));
-                    setIncludeActive(!includeActive);
-                  }}
-                >
-                  <span className="agent-popover-check">
-                    {includeActive && <Icon name="tick" size={14} />}
-                  </span>
-                  <span className="agent-popover-main">{t("自动附带当前活动文件")}</span>
-                </button>
-              )}
-              {nonModelOptions.map((option) => (
-                <div key={option.id} className="agent-options-section">
-                  <div className="agent-popover-heading">{option.name}</div>
-                  {configChoices(option).map((choice) => {
-                    const checked = choice.value === option.currentValue;
-                    return (
-                      <button
-                        key={choice.value}
-                        type="button"
-                        disabled={prompting}
-                        className={`agent-popover-row${checked ? " is-checked" : ""}`}
-                        onClick={() => {
-                          selectConfigOption(option, choice.value);
-                          setActivePopover(null);
-                        }}
-                      >
-                        <span className="agent-popover-check">
-                          {checked && <Icon name="tick" size={14} />}
-                        </span>
-                        <span className="agent-popover-main">{choice.name}</span>
-                        {choice.description && (
-                          <span className="agent-popover-sub">{choice.description}</span>
-                        )}
-                      </button>
-                    );
-                  })}
-                </div>
-              ))}
-              {commands.length > 0 && (
-                <div className="agent-options-section">
-                  <div className="agent-popover-heading">{t("可用斜杠命令")}</div>
-                  {commands.map((cmd) => (
-                    <button
-                      key={cmd.name}
-                      type="button"
-                      className="agent-popover-row"
-                      onClick={() => {
-                        setDraft(`/${cmd.name} `);
-                        setActivePopover(null);
-                        requestAnimationFrame(() => input.current?.focus());
-                      }}
-                    >
-                      <code>/{cmd.name}</code>
-                      <span className="agent-popover-sub">{cmd.description}</span>
-                    </button>
-                  ))}
-                </div>
-              )}
-              {workspace !== "project" && nonModelOptions.length === 0 && commands.length === 0 && (
-                <p className="agent-popover-hint">{t("当前智能体未声明额外配置项或斜杠命令")}</p>
-              )}
+                  ))
+                )}
+              </div>
             </div>
           )}
         </FloatingPopover>
@@ -2656,7 +2923,7 @@ export function AgentPanel(props: AgentPanelProps) {
     <NavigatorPanel
       title={t("智能体")}
       actions={controller.actions}
-      headingProps={{ onContextMenu: controller.onHeaderContextMenu }}
+      headingProps={{ onContextMenu: controller.onHeaderContextMenu, translate: "no" }}
       className="agent-navigator-panel"
     >
       {controller.body}

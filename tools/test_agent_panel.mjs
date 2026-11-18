@@ -23,14 +23,22 @@ function load(source) {
 
 const {
   applyAgentEvents,
+  cleanModelName,
+  cleanProviderName,
   configChoices,
+  contextWindowConfigOption,
   diffStats,
   emptyTranscript,
+  formatContextTokens,
+  formatThinkingLabel,
+  inferModelContextTokens,
   lineDiff,
+  mergeModelGroups,
   modelCatalog,
   nonModelConfigOptions,
   presentTool,
   projectPath,
+  reasoningConfigOption,
 } = load("src/texsys/assets/studio/agent-model.ts");
 
 const root = "/workspace/project";
@@ -360,4 +368,154 @@ test("modelCatalog normalizes both ACP configOptions and ACP models", () => {
   assert.equal(modelCatalog(fromModels)?.source, "models");
   assert.equal(modelCatalog(fromModels)?.currentLabel, "Claude Opus");
   assert.ok(fromModels.debugLog.length >= 2);
+});
+
+test("modelCatalog preserves stacked Provider groups, strips verbose harness suffixes, and formats slider labels", () => {
+  assert.equal(cleanProviderName("DeepSeek Harness"), "DeepSeek");
+  assert.equal(cleanProviderName("Antigravity (ACP)"), "Antigravity");
+  assert.deepEqual(cleanModelName("deepseek-v4-flash · DeepSeek Harness"), {
+    name: "deepseek-v4-flash",
+    inferredProvider: "DeepSeek",
+  });
+  assert.deepEqual(
+    cleanModelName(
+      "claude-opus-5-5-medium · Antigravity (ACP)",
+      '["anthropic","claude-opus-5-5-medium"]',
+    ),
+    {
+      name: "claude-opus-5-5-medium",
+      inferredProvider: "anthropic",
+    },
+  );
+  assert.deepEqual(cleanModelName("omlx/qwen3.8-27b-huihui"), {
+    name: "qwen3.8-27b-huihui",
+    inferredProvider: "omlx",
+  });
+
+  const groupedTranscript = applyAgentEvents(
+    emptyTranscript(),
+    [
+      {
+        seq: 1,
+        type: "configured",
+        configOptions: [
+          {
+            id: "model",
+            name: "Model",
+            category: "model",
+            type: "select",
+            currentValue: '["deepseek","DeepSeek-V4.1-Flash"]',
+            options: [
+              {
+                group: "deepseek",
+                name: "DeepSeek Harness",
+                options: [
+                  {
+                    value: '["deepseek","DeepSeek-V4.1-Flash"]',
+                    name: "DeepSeek-V4.1-Flash · DeepSeek Harness",
+                  },
+                  {
+                    value: '["deepseek","DeepSeek-V4-Pro"]',
+                    name: "DeepSeek-V4-Pro · DeepSeek Harness",
+                  },
+                ],
+              },
+              {
+                group: "kimi-coding",
+                name: "kimi-coding",
+                options: [
+                  { value: '["kimi-coding","Kimi K3"]', name: "Kimi K3" },
+                  { value: '["kimi-coding","Kimi K3-256K"]', name: "Kimi K3-256K" },
+                ],
+              },
+            ],
+          },
+          {
+            id: "reasoning_effort",
+            name: "Reasoning effort",
+            category: "thought_level",
+            type: "select",
+            currentValue: "high",
+            options: [
+              { value: "off", name: "Off" },
+              { value: "low", name: "Low" },
+              { value: "high", name: "High" },
+              { value: "max", name: "Max" },
+            ],
+          },
+          {
+            id: "context_window",
+            name: "Context window",
+            category: "context_window",
+            type: "select",
+            currentValue: "200000",
+            options: [
+              { value: "64000", name: "64K" },
+              { value: "200000", name: "200K" },
+              { value: "1000000", name: "1M" },
+            ],
+          },
+        ],
+      },
+    ],
+    root,
+  );
+
+  const catalog = modelCatalog(groupedTranscript, "DeepSeek Harness", "deepseek-harness");
+  assert.equal(catalog?.currentLabel, "DeepSeek-V4.1-Flash");
+  assert.deepEqual(
+    catalog?.groups.map((group) => [group.label, group.options.map((opt) => opt.name)]),
+    [
+      ["DeepSeek", ["DeepSeek-V4.1-Flash", "DeepSeek-V4-Pro"]],
+      ["kimi-coding", ["Kimi K3", "Kimi K3-256K"]],
+    ],
+  );
+  assert.equal(reasoningConfigOption(groupedTranscript)?.id, "reasoning_effort");
+  assert.equal(contextWindowConfigOption(groupedTranscript)?.id, "context_window");
+
+  const stacked = mergeModelGroups(catalog?.groups, [
+    {
+      key: "deepseek",
+      label: "DeepSeek",
+      options: [
+        {
+          value: "dup",
+          name: "DeepSeek-V4-Pro",
+          group: "DeepSeek",
+          groupKey: "deepseek",
+          agentId: "other",
+        },
+      ],
+    },
+    {
+      key: "omlx",
+      label: "omlx",
+      options: [
+        {
+          value: "qwen",
+          name: "qwen3.8-27b-huihui",
+          group: "omlx",
+          groupKey: "omlx",
+          agentId: "other",
+        },
+      ],
+    },
+  ]);
+  assert.deepEqual(
+    stacked.map((group) => [group.label, group.options.map((opt) => opt.name)]),
+    [
+      ["DeepSeek", ["DeepSeek-V4.1-Flash", "DeepSeek-V4-Pro"]],
+      ["kimi-coding", ["Kimi K3", "Kimi K3-256K"]],
+      ["omlx", ["qwen3.8-27b-huihui"]],
+    ],
+  );
+
+  assert.equal(formatThinkingLabel("High", "zh-CN"), "高");
+  assert.equal(formatThinkingLabel("Off", "zh-CN"), "关闭");
+  assert.equal(formatThinkingLabel("high", "en"), "High");
+  assert.equal(formatContextTokens(200000), "200K");
+  assert.equal(formatContextTokens(262144), "256K");
+  assert.equal(formatContextTokens(1000000), "1M");
+  assert.equal(inferModelContextTokens("Kimi K3-256K", undefined), "256K");
+  assert.equal(inferModelContextTokens("deepseek-v4-flash", 1000000), "1M");
 });

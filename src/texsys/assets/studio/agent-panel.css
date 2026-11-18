@@ -2,43 +2,72 @@
 
 .agent-navigator-panel > .navigator-heading {
   height: var(--editor-tab-height);
-  padding: 0 8px 0 10px;
+  padding: 0 8px;
   background: var(--ui-workspace-chrome);
   border-bottom: 1px solid var(--ui-chrome-divider);
   user-select: none;
 }
 
 .agent-navigator-panel > .navigator-heading > strong {
+  display: inline-flex;
+  align-items: center;
   flex: 0 1 auto;
   min-inline-size: 0;
   margin-right: auto;
   height: 24px;
-  padding: 2px 8px;
+  padding: 0 8px;
   border-radius: 4px;
   background: var(--ui-canvas);
   color: var(--ui-text);
   font-size: 12px;
   font-weight: 500;
-  line-height: 20px;
+  line-height: 24px;
+  letter-spacing: 0;
   box-shadow: 0 1px 2px rgba(24, 59, 66, 0.08);
+}
+
+.agent-navigator-panel > .navigator-heading > .navigator-toolbar {
+  gap: 4px;
+}
+
+.agent-navigator-panel > .navigator-heading .navigator-button {
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border-radius: 4px;
+  color: var(--ui-icon-muted);
+}
+
+.agent-navigator-panel > .navigator-heading .navigator-button:hover:not(:disabled),
+.agent-navigator-panel > .navigator-heading .navigator-button[aria-expanded="true"] {
+  background: var(--ui-control-hover);
+  color: var(--ui-text);
 }
 
 .agent-busy-dot {
   flex: none;
   width: 6px;
   height: 6px;
-  margin-right: 4px;
+  margin-right: 2px;
   border-radius: 50%;
   background: var(--accent);
   animation: agent-pulse 1.2s ease-in-out infinite;
 }
 
-.agent-header-sep {
-  flex: none;
+/* Zero-layout-width divider centered in the 4px toolbar gap so Row 1 and Row 2 columns align */
+.navigator-button.agent-window-action-start {
+  position: relative;
+}
+
+.navigator-button.agent-window-action-start::before {
+  content: "";
+  position: absolute;
+  left: -2.5px;
+  top: 5px;
+  bottom: 5px;
   width: 1px;
-  height: 14px;
-  margin: 0 3px;
   background: var(--ui-chrome-divider);
+  pointer-events: none;
 }
 
 /* Split "+ v" button in ViewPane header */
@@ -54,16 +83,16 @@
   background: var(--ui-control-hover);
 }
 
-.navigator-button.agent-split-main {
-  width: 22px;
+.agent-navigator-panel > .navigator-heading .navigator-button.agent-split-main {
+  width: 24px;
   height: 24px;
   padding: 0;
   border-radius: 4px 0 0 4px;
 }
 
-.navigator-button.agent-split-chevron {
+.agent-navigator-panel > .navigator-heading .navigator-button.agent-split-chevron {
   position: relative;
-  width: 16px;
+  width: 14px;
   height: 24px;
   padding: 0;
   border-radius: 0 4px 4px 0;
@@ -88,7 +117,7 @@
 
 /* Main ViewPane container */
 .agent-panel {
-  --chat-input-control-height: 22px;
+  --chat-input-control-height: 24px;
   --chat-input-radius: 10px;
   display: flex;
   flex-direction: column;
@@ -102,7 +131,7 @@
     sans-serif;
 }
 
-/* Sessions control & Session title bar */
+/* Sessions control & Session title bar — identical scale and column grid with ViewPane header */
 .agent-sessions-shell {
   flex: none;
   display: flex;
@@ -117,8 +146,8 @@
   align-items: center;
   justify-content: space-between;
   gap: 6px;
-  height: 28px;
-  padding: 0 6px 0 10px;
+  height: var(--editor-tab-height);
+  padding: 0 8px;
   min-width: 0;
 }
 
@@ -127,12 +156,14 @@
   align-items: center;
   gap: 6px;
   min-width: 0;
-  padding: 2px 4px;
+  height: 24px;
+  padding: 0 8px;
   border-radius: 4px;
-  color: var(--ui-text-muted);
-  font-size: 11.5px;
+  color: var(--ui-text);
+  font-size: 12px;
   font-weight: 500;
-  letter-spacing: 0.02em;
+  line-height: 24px;
+  letter-spacing: 0;
 }
 
 .agent-subbar-title:hover {
@@ -158,13 +189,17 @@
 .agent-title-back {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
+  gap: 6px;
   flex: 1 1 auto;
   min-width: 0;
-  height: 22px;
-  padding: 0 5px;
+  height: 24px;
+  padding: 0 8px;
   border-radius: 4px;
-  font-size: 11.5px;
+  color: var(--ui-text);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 24px;
+  letter-spacing: 0;
   text-align: left;
 }
 
@@ -174,7 +209,7 @@
 
 .agent-title-harness {
   flex: none;
-  color: var(--ui-text-muted);
+  color: var(--ui-text);
   white-space: nowrap;
 }
 
@@ -187,8 +222,8 @@
   flex: 1 1 auto;
   min-width: 0;
   overflow: hidden;
-  color: var(--ui-text);
-  font-weight: 500;
+  color: var(--ui-text-muted);
+  font-weight: 400;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -197,7 +232,7 @@
   display: flex;
   flex: none;
   align-items: center;
-  gap: 2px;
+  gap: 4px;
 }
 
 .agent-icon-btn,
@@ -206,8 +241,8 @@
   flex: none;
   align-items: center;
   justify-content: center;
-  width: 22px;
-  height: 22px;
+  width: 24px;
+  height: 24px;
   padding: 0;
   border-radius: 4px;
   color: var(--ui-icon-muted);
@@ -1515,7 +1550,7 @@ code.agent-tool-detail {
   white-space: nowrap;
 }
 
-/* Primary 22px Toolbar inside Composer (matching VS Code .chat-input-toolbars) */
+/* Primary 24px Toolbar inside Composer — identical scale & column grid with Secondary Toolbar */
 .agent-composer-bar {
   display: flex;
   align-items: center;
@@ -1529,7 +1564,7 @@ code.agent-tool-detail {
   display: flex;
   flex: 1 1 0;
   align-items: center;
-  gap: 2px;
+  gap: 4px;
   min-width: 0;
   overflow: hidden;
 }
@@ -1549,12 +1584,14 @@ code.agent-tool-detail {
 .agent-toolbar-chip {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: 5px;
   height: var(--chat-input-control-height);
   padding: 0 6px;
-  border-radius: 4px;
+  border-radius: 5px;
   color: var(--ui-icon-muted);
-  font-size: 11.5px;
+  font-size: 12px;
+  font-weight: 400;
+  line-height: var(--chat-input-control-height);
   white-space: nowrap;
 }
 
@@ -1571,10 +1608,34 @@ code.agent-tool-detail {
   color: var(--ui-text);
 }
 
+/* ChatGPT-style clean inline model trigger (model name + reasoning effort + context window + v) */
 .agent-model-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
   flex: 0 1 auto;
-  min-width: var(--chat-input-control-height);
+  min-width: 0;
+  height: var(--chat-input-control-height);
+  padding: 0 6px;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--ui-text);
+  font-size: 12px;
+  font-weight: 400;
+  line-height: var(--chat-input-control-height);
+  cursor: pointer;
   overflow: hidden;
+}
+
+.agent-model-trigger:hover:not(:disabled),
+.agent-model-trigger.is-active:not(:disabled) {
+  background: var(--ui-control-hover);
+}
+
+.agent-model-trigger:disabled {
+  opacity: 0.55;
+  cursor: default;
 }
 
 .agent-model-name {
@@ -1582,17 +1643,23 @@ code.agent-tool-detail {
   min-width: 0;
   overflow: hidden;
   color: var(--ui-text);
+  font-weight: 400;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.agent-model-summary {
-  flex: 0 1 auto;
-  min-width: 0;
-  overflow: hidden;
+.agent-model-meta {
+  flex: none;
   color: var(--ui-text-muted);
-  text-overflow: ellipsis;
+  font-weight: 400;
   white-space: nowrap;
+}
+
+.agent-model-chevron {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  color: var(--ui-icon-muted);
 }
 
 /* Circular Context Usage Ring (matching VS Code chatContextUsageWidget.css) */
@@ -1648,7 +1715,7 @@ code.agent-tool-detail {
   stroke: #b3261e;
 }
 
-/* Circular 22x22 Submit / Stop Button (matching VS Code .chat-submit-button) */
+/* Circular 24x24 Submit / Stop Button */
 .agent-send {
   display: inline-grid;
   flex: none;
@@ -1686,13 +1753,13 @@ code.agent-tool-detail {
   background: #28343a;
 }
 
-/* Secondary Toolbar Below Composer (Harness + Permissions, matching Images 2, 3, 4) */
+/* Secondary Toolbar Below Composer — identical 14px icons, 12px text, and 22px left icon column */
 .agent-secondary-toolbar {
   display: flex;
   align-items: center;
   gap: 4px;
-  min-height: 28px;
-  padding: 3px 12px 7px;
+  min-height: 32px;
+  padding: 4px 11px 8px 17px;
   min-width: 0;
 }
 
@@ -1703,10 +1770,12 @@ code.agent-tool-detail {
   flex: 0 1 auto;
   min-width: 0;
   height: var(--chat-input-control-height);
-  padding: 0 6px;
-  border-radius: 4px;
+  padding: 0 5px;
+  border-radius: 5px;
   color: var(--ui-text-muted);
-  font-size: 11.5px;
+  font-size: 12px;
+  font-weight: 400;
+  line-height: var(--chat-input-control-height);
   white-space: nowrap;
 }
 
@@ -1770,7 +1839,7 @@ code.agent-tool-detail {
   white-space: nowrap;
 }
 
-/* Floating Popovers (Model Picker, Harness Picker, Permission Picker, Context Picker) */
+/* Floating Popovers (Model Controls, Stacked Provider Catalog, Harness, Permission, Context) */
 .agent-popover {
   position: fixed;
   z-index: 1200;
@@ -1779,15 +1848,21 @@ code.agent-tool-detail {
   min-width: 210px;
   max-width: min(320px, calc(100vw - 16px));
   border: 1px solid var(--ui-border);
-  border-radius: 8px;
+  border-radius: 10px;
   background: var(--ui-canvas);
   color: var(--ui-text);
   box-shadow: 0 8px 24px rgba(24, 48, 60, 0.16);
   overflow: hidden;
 }
 
-.agent-popover-model {
-  width: min(312px, calc(100vw - 16px));
+.agent-popover-model.is-controls {
+  width: min(260px, calc(100vw - 16px));
+  border-radius: 12px;
+}
+
+.agent-popover-model.is-models {
+  width: min(276px, calc(100vw - 16px));
+  border-radius: 12px;
 }
 
 .agent-popover-context {
@@ -1802,45 +1877,284 @@ code.agent-tool-detail {
   min-width: 224px;
 }
 
-.agent-popover-options {
-  width: min(268px, calc(100vw - 16px));
+/* Level 1: Model Switcher + Two Discrete Pill-Track Sliders (Reasoning Effort & Context Window) */
+.agent-model-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 8px 12px 12px;
 }
 
-/* Tabbed Model Picker Header (matching Image 3) */
-.agent-model-tabs {
+.agent-model-controls-head {
   display: flex;
   align-items: center;
-  gap: 4px;
-  padding: 5px 6px;
+  margin: 0 -4px;
+  padding-bottom: 6px;
   border-bottom: 1px solid var(--ui-context-divider);
-  background: var(--ui-context-chrome);
 }
 
-.agent-model-tab-icon {
-  display: inline-flex;
+.agent-model-switch-btn {
+  display: flex;
   align-items: center;
-  justify-content: center;
-  width: 22px;
-  height: 22px;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  min-height: 28px;
+  padding: 4px 6px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--ui-text);
+  font-size: 12.5px;
+  font-weight: 500;
+  text-align: left;
+  cursor: pointer;
+}
+
+.agent-model-switch-btn:hover {
+  background: var(--ui-control-hover);
+}
+
+.agent-model-switch-name {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.agent-model-switch-btn > svg {
+  flex: none;
   color: var(--ui-icon-muted);
 }
 
-.agent-model-tab {
-  display: inline-flex;
+.agent-slider-group {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.agent-slider-head {
+  display: flex;
   align-items: center;
-  gap: 4px;
-  height: 22px;
-  padding: 0 8px;
-  border-radius: 4px;
-  font-size: 11.5px;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 12px;
+  line-height: 1.3;
+}
+
+.agent-slider-label {
+  color: var(--ui-text-muted);
+  font-weight: 400;
+}
+
+.agent-slider-value {
+  color: var(--accent);
   font-weight: 500;
 }
 
-.agent-model-tab.is-active {
+.agent-slider-group.is-unavailable .agent-slider-value {
+  color: var(--ui-text-muted);
+  font-weight: 400;
+}
+
+.agent-slider-control {
+  position: relative;
+  height: 26px;
+  border-radius: 999px;
+  touch-action: none;
+  user-select: none;
+  cursor: pointer;
+  outline: none;
+}
+
+.agent-slider-control:focus-visible {
+  box-shadow: 0 0 0 2px rgba(8, 127, 114, 0.25);
+}
+
+.agent-slider-control.is-unavailable {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.agent-slider-track {
+  position: absolute;
+  inset: 2px 0;
+  height: 22px;
+  border-radius: 999px;
+  background: var(--ui-workspace-chrome);
+  box-shadow: inset 0 0 0 1px var(--ui-border);
+  overflow: hidden;
+}
+
+.agent-slider-fill {
+  display: block;
+  height: 100%;
+  width: calc(22px + (100% - 24px) * var(--slider-fraction, 0));
+  border-radius: 999px;
+  background: var(--accent);
+  transition: width 120ms ease;
+}
+
+.agent-slider-control.is-dragging .agent-slider-fill {
+  transition: none;
+}
+
+.agent-slider-control.is-unavailable .agent-slider-fill {
+  background: var(--ui-chrome-divider);
+}
+
+.agent-slider-stops {
+  position: absolute;
+  inset: 0 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  pointer-events: none;
+}
+
+.agent-slider-stops > i {
+  display: block;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.72);
+  box-shadow: 0 0 0 0.5px rgba(24, 48, 60, 0.22);
+}
+
+.agent-slider-thumb {
+  position: absolute;
+  top: 50%;
+  left: calc(12px + (100% - 24px) * var(--slider-fraction, 0));
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: #fff;
+  border: 1.5px solid var(--accent);
+  box-shadow: 0 1px 4px rgba(24, 48, 60, 0.2);
+  transform: translate(-50%, -50%);
+  transition:
+    left 120ms ease,
+    transform 100ms ease;
+  pointer-events: none;
+}
+
+.agent-slider-control.is-dragging .agent-slider-thumb {
+  transition: none;
+  transform: translate(-50%, -50%) scale(1.04);
+}
+
+.agent-slider-control.is-unavailable .agent-slider-thumb {
+  border-color: var(--ui-border);
+  box-shadow: 0 1px 2px rgba(24, 48, 60, 0.1);
+}
+
+/* Level 2: Top Search Input + Stacked Provider Groups + Clean Model Rows */
+.agent-model-catalog-view {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  max-height: inherit;
+}
+
+.agent-model-search {
+  display: flex;
+  align-items: center;
+  flex: none;
+  height: 36px;
+  padding: 0 14px;
+  border-bottom: 1px solid var(--ui-context-divider);
+}
+
+.agent-model-search > input {
+  width: 100%;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  outline: none;
+  background: transparent;
+  color: var(--ui-text);
+  font-size: 12.5px;
+  font-weight: 400;
+}
+
+.agent-model-search > input::placeholder {
+  color: var(--ui-text-muted);
+}
+
+.agent-model-list {
+  display: flex;
+  flex-direction: column;
+  max-height: 280px;
+  overflow-y: auto;
+  padding: 6px;
+  scrollbar-width: thin;
+}
+
+.agent-model-group {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.agent-model-group + .agent-model-group {
+  margin-top: 8px;
+}
+
+.agent-model-group-heading {
+  padding: 4px 8px 3px;
+  color: var(--ui-text-muted);
+  font-size: 11.5px;
+  font-weight: 400;
+  line-height: 1.3;
+  user-select: none;
+}
+
+.agent-model-option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  min-height: 28px;
+  padding: 4px 8px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--ui-text);
+  font-size: 12.5px;
+  font-weight: 400;
+  text-align: left;
+  cursor: pointer;
+}
+
+.agent-model-option:hover:not(:disabled),
+.agent-model-option:focus-visible {
   background: var(--ui-control-hover);
+  outline: none;
+}
+
+.agent-model-option.is-checked {
+  font-weight: 500;
+}
+
+.agent-model-option-name {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.agent-model-option-check {
+  display: inline-flex;
+  flex: 0 0 16px;
+  align-items: center;
+  justify-content: center;
   color: var(--ui-text);
 }
 
+/* Shared Popover Search / List (Context, Harness, Permission) */
 .agent-popover-search {
   display: flex;
   align-items: center;
@@ -1967,56 +2281,6 @@ code.agent-tool-detail {
   padding: 6px 8px;
   color: var(--ui-text-muted);
   font-size: 11.5px;
-}
-
-.agent-model-config-footer {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  padding: 6px 8px;
-  border-top: 1px solid var(--ui-context-divider);
-  background: var(--ui-context-chrome);
-}
-
-.agent-config-group {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-}
-
-.agent-config-label {
-  flex: none;
-  color: var(--ui-text-muted);
-  font-size: 11.5px;
-}
-
-.agent-config-pills {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 3px;
-}
-
-.agent-config-pill {
-  height: 20px;
-  padding: 0 7px;
-  border: 1px solid var(--ui-border);
-  border-radius: 4px;
-  background: var(--ui-canvas);
-  color: var(--ui-text-muted);
-  font-size: 11px;
-}
-
-.agent-config-pill:hover:not(:disabled) {
-  border-color: #b7c6cd;
-  color: var(--ui-text);
-}
-
-.agent-config-pill.is-active {
-  border-color: var(--accent);
-  background: var(--accent-soft);
-  color: var(--ui-proof);
-  font-weight: 500;
 }
 
 /* Two-line Permission Picker Rows (matching VS Code PermissionPickerActionItem) */
